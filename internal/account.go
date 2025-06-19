@@ -1,10 +1,11 @@
-package internal 
+package internal
 
 import (
-	"github.com/google/uuid"
-	"time"
-	"fmt"
 	"errors"
+	"fmt"
+	"time"
+
+	"github.com/google/uuid"
 )
 
 type Account struct {
@@ -13,13 +14,13 @@ type Account struct {
 }
 
 type Transaction struct {
-	ID		string
+	ID        string
 	AccountID string
 	Amount    int
 	CreatedAt time.Time
 }
 
-func New() *Account {
+func NewAccount() *Account {
 	return &Account{
 		ID:      uuid.New().String(),
 		Balance: 0,
@@ -29,7 +30,7 @@ func New() *Account {
 // Deposit adds funds to the account and returns a transaction record.
 // The amount is expected to be in dollars, and it will be converted to cents for precision.
 // It returns an error if the deposit amount is negative.
-func (a *Account) Deposit(amount float64)  (*Transaction, error) {
+func (a *Account) Deposit(amount float64) (*Transaction, error) {
 	fmt.Println("Balance before deposit:", a.Balance)
 	// Check if the amount is positive before proceeding with the deposit
 	if amount < 0 {
@@ -49,11 +50,10 @@ func (a *Account) Deposit(amount float64)  (*Transaction, error) {
 	return &transaction, nil
 }
 
-
 // Withdraw removes funds from the account and returns a transaction record.
 // The amount is expected to be in dollars, and it will be converted to cents for precision.
 // It returns an error if the withdrawal amount is negative or if there are insufficient funds.
-func (a* Account) Withdraw(amount float64) (*Transaction, error) {
+func (a *Account) Withdraw(amount float64) (*Transaction, error) {
 	fmt.Println("Balance before withdrawal:", a.Balance)
 	// Check if the amount is positive before proceeding with the withdrawal
 	if amount < 0 {
@@ -75,7 +75,6 @@ func (a* Account) Withdraw(amount float64) (*Transaction, error) {
 	fmt.Println("Balance after withdrawal:", a.Balance)
 	return &transaction, nil
 }
-
 
 // GetBalance returns the current balance of the account in dollars.
 // It converts the balance from cents to dollars for display purposes.
