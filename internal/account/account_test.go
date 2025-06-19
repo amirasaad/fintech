@@ -1,8 +1,9 @@
-package internal
+package account_test
 
 import (
 	"testing"
 
+	"github.com/amirasaad/fintech/internal/account"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -10,14 +11,14 @@ func TestNewAccount(t *testing.T) {
 	assert := assert.New(t)
 
 	// Open account should return an account ID
-	account := NewAccount()
+	account := account.New()
 	assert.NotEmpty(account.ID, "Account ID should not be empty")
 }
 
 func TestDeposit(t *testing.T) {
 	assert := assert.New(t)
 
-	account := NewAccount()
+	account := account.New()
 	// Simulate a deposit
 	depositTransaction, err := account.Deposit(100.0)
 	assert.NoError(err, "Deposit should not return an error")
@@ -30,7 +31,7 @@ func TestDeposit(t *testing.T) {
 func TestDepositNegativeAmount(t *testing.T) {
 	assert := assert.New(t)
 
-	account := NewAccount()
+	account := account.New()
 	// Attempt to deposit a negative amount
 	_, err := account.Deposit(-50.0)
 	assert.Error(err, "Deposit with negative amount should return an error")
@@ -41,7 +42,7 @@ func TestDepositNegativeAmount(t *testing.T) {
 func TestDepositZeroAmount(t *testing.T) {
 	assert := assert.New(t)
 
-	account := NewAccount()
+	account := account.New()
 	// Attempt to deposit zero amount
 	_, err := account.Deposit(0.0)
 	assert.NoError(err, "Deposit with zero amount should not return an error")
@@ -51,7 +52,7 @@ func TestDepositZeroAmount(t *testing.T) {
 func TestDepositMultipleTimes(t *testing.T) {
 	assert := assert.New(t)
 
-	account := NewAccount()
+	account := account.New()
 	// Deposit multiple times
 	_, err1 := account.Deposit(50.0)
 	assert.NoError(err1, "First deposit should not return an error")
@@ -65,7 +66,7 @@ func TestDepositMultipleTimes(t *testing.T) {
 func TestDepositWithPrecision(t *testing.T) {
 	assert := assert.New(t)
 
-	account := NewAccount()
+	account := account.New()
 	// Deposit with precision
 	_, err := account.Deposit(99.99)
 	assert.NoError(err, "Deposit with precision should not return an error")
@@ -76,7 +77,7 @@ func TestDepositWithPrecision(t *testing.T) {
 func TestDepositWithLargeAmount(t *testing.T) {
 	assert := assert.New(t)
 
-	account := NewAccount()
+	account := account.New()
 	// Deposit a large amount
 	_, err := account.Deposit(1000000.0) // 1 million dollars
 	assert.NoError(err, "Deposit with large amount should not return an error")
@@ -87,7 +88,7 @@ func TestDepositWithLargeAmount(t *testing.T) {
 func TestWithdraw(t *testing.T) {
 	assert := assert.New(t)
 
-	account := NewAccount()
+	account := account.New()
 	// Deposit some funds first
 	_, err := account.Deposit(200.0) // 200 dollars
 	assert.NoError(err, "Initial deposit should not return an error")
@@ -103,7 +104,7 @@ func TestWithdraw(t *testing.T) {
 func TestWithdrawInsufficientFunds(t *testing.T) {
 	assert := assert.New(t)
 
-	account := NewAccount()
+	account := account.New()
 	// Attempt to withdraw more than the balance
 	_, err := account.Withdraw(100.0) // 100 dollars
 	assert.Error(err, "Withdrawal with insufficient funds should return an error")
@@ -114,7 +115,7 @@ func TestWithdrawInsufficientFunds(t *testing.T) {
 func TestWithdrawNegativeAmount(t *testing.T) {
 	assert := assert.New(t)
 
-	account := NewAccount()
+	account := account.New()
 	// Attempt to withdraw a negative amount
 	_, err := account.Withdraw(-50.0)
 	assert.Error(err, "Withdrawal with negative amount should return an error")
@@ -125,7 +126,7 @@ func TestWithdrawNegativeAmount(t *testing.T) {
 func TestWithdrawZeroAmount(t *testing.T) {
 	assert := assert.New(t)
 
-	account := NewAccount()
+	account := account.New()
 	// Attempt to withdraw zero amount
 	_, err := account.Withdraw(0.0)
 	assert.NoError(err, "Withdrawal with zero amount should not return an error")
@@ -135,7 +136,7 @@ func TestWithdrawZeroAmount(t *testing.T) {
 func TestGetBalance(t *testing.T) {
 	assert := assert.New(t)
 
-	account := NewAccount()
+	account := account.New()
 	// Deposit some funds
 	_, err := account.Deposit(300.0) // 300 dollars
 	assert.NoError(err, "Initial deposit should not return an error")

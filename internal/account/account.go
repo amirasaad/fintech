@@ -1,4 +1,4 @@
-package internal
+package account
 
 import (
 	"errors"
@@ -22,7 +22,7 @@ type Transaction struct {
 	Created   time.Time
 }
 
-func NewAccount() *Account {
+func New() *Account {
 	return &Account{
 		ID:      uuid.New().String(),
 		Created: time.Now(),
