@@ -11,18 +11,22 @@ import (
 type Account struct {
 	ID      string
 	Balance int
+	Created time.Time
+	Updated time.Time
 }
 
 type Transaction struct {
 	ID        string
 	AccountID string
 	Amount    int
-	CreatedAt time.Time
+	Created   time.Time
 }
 
 func NewAccount() *Account {
 	return &Account{
 		ID:      uuid.New().String(),
+		Created: time.Now(),
+		Updated: time.Now(),
 		Balance: 0,
 	}
 }
@@ -42,10 +46,11 @@ func (a *Account) Deposit(amount float64) (*Transaction, error) {
 		ID:        uuid.New().String(),
 		AccountID: a.ID,
 		Amount:    parsedAmount,
-		CreatedAt: time.Now(),
+		Created:   time.Now(),
 	}
 	fmt.Println("Transaction created:", transaction)
 	a.Balance += parsedAmount
+	a.Updated = time.Now()
 	fmt.Println("Balance after deposit:", a.Balance)
 	return &transaction, nil
 }
@@ -68,10 +73,11 @@ func (a *Account) Withdraw(amount float64) (*Transaction, error) {
 		ID:        uuid.New().String(),
 		AccountID: a.ID,
 		Amount:    -parsedAmount,
-		CreatedAt: time.Now(),
+		Created:   time.Now(),
 	}
 	fmt.Println("Transaction created:", transaction)
 	a.Balance -= parsedAmount
+	a.Updated = time.Now()
 	fmt.Println("Balance after withdrawal:", a.Balance)
 	return &transaction, nil
 }
