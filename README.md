@@ -13,5 +13,5 @@ transactions. The system supports operations such as:
 run command:
 
 ```shell
-go run server.go
+go run web/main.go
 ```
