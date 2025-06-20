@@ -1,4 +1,4 @@
-package account
+package domain
 
 import (
 	"errors"
@@ -22,7 +22,7 @@ type Transaction struct {
 	Created   time.Time
 }
 
-func New() *Account {
+func NewAccount() *Account {
 	return &Account{
 		ID:      uuid.New(),
 		Created: time.Now(),
@@ -31,7 +31,7 @@ func New() *Account {
 	}
 }
 
-func NewFromData(id uuid.UUID, balance int64, created, updated time.Time) *Account {
+func NewAccountFromData(id uuid.UUID, balance int64, created, updated time.Time) *Account {
 	return &Account{
 		ID:      id,
 		Balance: balance,

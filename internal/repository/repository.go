@@ -1,23 +1,23 @@
 package repository
 
 import (
-	"github.com/amirasaad/fintech/internal/account"
+	"github.com/amirasaad/fintech/internal/domain"
 	"github.com/amirasaad/fintech/internal/model"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
 type AccountRepository interface {
-	Get(id uuid.UUID) (*account.Account, error)
-	Create(account *account.Account) error
-	Update(account *account.Account) error
+	Get(id uuid.UUID) (*domain.Account, error)
+	Create(account *domain.Account) error
+	Update(account *domain.Account) error
 	Delete(id uuid.UUID) error
 }
 
 type TransactionRepository interface {
-	Create(transaction *account.Transaction) error
-	Get(id uuid.UUID) (*account.Transaction, error)
-	List(accountID uuid.UUID) ([]*account.Transaction, error)
+	Create(transaction *domain.Transaction) error
+	Get(id uuid.UUID) (*domain.Transaction, error)
+	List(accountID uuid.UUID) ([]*domain.Transaction, error)
 }
 
 type accountRepository struct {
@@ -28,16 +28,16 @@ func NewAccountRepository(db *gorm.DB) AccountRepository {
 	return &accountRepository{db: db}
 }
 
-func (r *accountRepository) Get(id uuid.UUID) (*account.Account, error) {
+func (r *accountRepository) Get(id uuid.UUID) (*domain.Account, error) {
 	var a model.Account
 	result := r.db.First(&a, id)
 	if result.Error != nil {
 		return nil, result.Error
 	}
-	return account.NewFromData(a.ID, a.Balance, a.Created, a.Updated), nil
+	return domain.NewAccountFromData(a.ID, a.Balance, a.Created, a.Updated), nil
 }
 
-func (r *accountRepository) Create(a *account.Account) error {
+func (r *accountRepository) Create(a *domain.Account) error {
 	result := r.db.Create(a)
 	if result.Error != nil {
 		return result.Error
@@ -45,7 +45,7 @@ func (r *accountRepository) Create(a *account.Account) error {
 	return nil
 }
 
-func (r *accountRepository) Update(a *account.Account) error {
+func (r *accountRepository) Update(a *domain.Account) error {
 	dbModel := model.Account{
 		ID:      a.ID,
 		Balance: a.Balance,
@@ -73,7 +73,7 @@ func NewTransactionRepository(db *gorm.DB) TransactionRepository {
 	return &transactionRepository{db: db}
 }
 
-func (r *transactionRepository) Create(transaction *account.Transaction) error {
+func (r *transactionRepository) Create(transaction *domain.Transaction) error {
 
 	result := r.db.Create(transaction)
 	if result.Error != nil {
@@ -82,24 +82,24 @@ func (r *transactionRepository) Create(transaction *account.Transaction) error {
 	return nil
 }
 
-func (r *transactionRepository) Get(id uuid.UUID) (*account.Transaction, error) {
+func (r *transactionRepository) Get(id uuid.UUID) (*domain.Transaction, error) {
 	var t model.Transaction
 	result := r.db.First(&t, id)
 	if result.Error != nil {
 		return nil, result.Error
 	}
-	return account.NewTransactionFromData(t.ID, t.AccountID, t.Amount, t.Created), nil
+	return domain.NewTransactionFromData(t.ID, t.AccountID, t.Amount, t.Created), nil
 }
 
-func (r *transactionRepository) List(accountID uuid.UUID) ([]*account.Transaction, error) {
+func (r *transactionRepository) List(accountID uuid.UUID) ([]*domain.Transaction, error) {
 	var dbTransactions []*model.Transaction
 	result := r.db.Where("account_id = ?", accountID).Find(&dbTransactions)
 	if result.Error != nil {
 		return nil, result.Error
 	}
-	tx := make([]*account.Transaction, 0, len(dbTransactions))
+	tx := make([]*domain.Transaction, 0, len(dbTransactions))
 	for _, t := range dbTransactions {
-		tx = append(tx, account.NewTransactionFromData(t.ID, t.AccountID, t.Amount, t.Created))
+		tx = append(tx, domain.NewTransactionFromData(t.ID, t.AccountID, t.Amount, t.Created))
 	}
 	return tx, nil
 }

@@ -3,7 +3,7 @@
 Fintech app manages accounts and financial
 transactions. The system supports operations such as:
 
-● Opening an accounts
+● Opening an account
 ● Depositing funds
 ● Withdrawing funds
 ● Checking the balance
@@ -14,4 +14,51 @@ run command:
 
 ```shell
 go run cmd/server.go 
+```
+
+Or using docker
+
+```shell
+docker build -t fintech .
+docker run -p 3000:3000 fintech
+```
+
+## Endpoints
+
+### Create Account
+
+POST /account
+
+### Deposit to account
+
+POST /account/{accountID}/deposit
+
+### Withdraw from account
+
+POST /account/{accountID}/withdraw
+
+### List Transactions
+
+GET /account/{accountID}/transactions
+
+### Get Account Balance
+
+GET /account/{accountID}/balance
+
+see examples at [requests.http](./docs/requests.http) file for more details.
+
+## Infrastructure & Design
+
+The app follows domain driven design all business logic can be found at [domain](./internal/domain) package.
+The app uses SQLite as the database for simplicity.
+It uses [GORM](https://gorm.io/index.html) as the ORM for the database.
+It uses [goFiber](https://gofiber.io/) as the web framework.
+It follows conventional commit message format.
+
+## Testing
+
+To run test suit run the following command
+
+```shell
+go test ./...
 ```

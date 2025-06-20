@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"github.com/amirasaad/fintech/internal/account"
+	"github.com/amirasaad/fintech/internal/domain"
 	"github.com/amirasaad/fintech/internal/repository"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/log"
@@ -10,7 +10,7 @@ import (
 
 func AccountRoutes(app *fiber.App, accountRepo repository.AccountRepository, transactionRepo repository.TransactionRepository) {
 	app.Post("/account", func(c *fiber.Ctx) error {
-		a := account.New()
+		a := domain.NewAccount()
 		err := accountRepo.Create(a)
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
