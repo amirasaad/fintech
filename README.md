@@ -3,10 +3,10 @@
 Fintech app manages accounts and financial
 transactions. The system supports operations such as:
 
-● Opening an account
-● Depositing funds
-● Withdrawing funds
-● Checking the balance
+- Opening an account
+- Depositing funds
+- Withdrawing funds
+- Checking the balance
 
 ## Getting started
 
@@ -62,3 +62,8 @@ To run test suit run the following command
 ```shell
 go test ./...
 ```
+
+## Todos
+
+- [ ] User Authentication.
+- [ ] Safe thread handling to avoid transactions to execute simultaneously.
