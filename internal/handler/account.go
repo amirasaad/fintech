@@ -66,6 +66,7 @@ func AccountRoutes(app *fiber.App, accountRepo repository.AccountRepository, tra
 
 		return c.JSON(transaction)
 	})
+
 	app.Post("/account/:id/withdraw", func(c *fiber.Ctx) error {
 		type WithdrawRequest struct {
 			Amount float64 `json:"amount"`
@@ -114,5 +115,21 @@ func AccountRoutes(app *fiber.App, accountRepo repository.AccountRepository, tra
 		}
 
 		return c.JSON(transaction)
+	})
+
+	app.Get("/account/:id/transactions", func(c *fiber.Ctx) error {
+		id, err := uuid.Parse(c.Params("id"))
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": err.Error(),
+			})
+		}
+		tx, err := transactionRepo.List(id)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": err.Error(),
+			})
+		}
+		return c.JSON(tx)
 	})
 }

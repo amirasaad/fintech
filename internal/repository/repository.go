@@ -93,7 +93,7 @@ func (r *transactionRepository) Get(id uuid.UUID) (*account.Transaction, error) 
 
 func (r *transactionRepository) List(accountID uuid.UUID) ([]*account.Transaction, error) {
 	var dbTransactions []*model.Transaction
-	result := r.db.Where("account_id = ?", accountID).Find(&dbTransactions).Take(100)
+	result := r.db.Where("account_id = ?", accountID).Find(&dbTransactions)
 	if result.Error != nil {
 		return nil, result.Error
 	}

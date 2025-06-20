@@ -64,6 +64,7 @@ func (a *Account) Deposit(amount float64) (*Transaction, error) {
 		ID:        uuid.New(),
 		AccountID: a.ID,
 		Amount:    parsedAmount,
+		Created:   time.Now().UTC(),
 	}
 	fmt.Println("Transaction created:", transaction)
 	a.Balance += parsedAmount
@@ -89,6 +90,7 @@ func (a *Account) Withdraw(amount float64) (*Transaction, error) {
 		ID:        uuid.New(),
 		AccountID: a.ID,
 		Amount:    -parsedAmount,
+		Created:   time.Now().UTC(),
 	}
 	fmt.Println("Transaction created:", transaction)
 	a.Balance -= parsedAmount
