@@ -1,0 +1,32 @@
+@host = http://localhost:3000
+### Create Account
+# @name account 
+POST {{host}}/account
+Content-Type: application/json
+
+{
+   
+}
+
+### Deposit to account
+POST {{host}}/account/{{account.response.body.$.ID}}/deposit HTTP/1.1
+Content-Type: application/json
+
+{
+    "amount": 100
+}
+
+### Withdraw from account
+POST {{host}}/account/{{account.response.body.$.ID}}/withdraw HTTP/1.1
+Content-Type: application/json
+
+{
+    "amount": 100
+}
+
+### List Transactions
+GET {{host}}/account/{{account.response.body.$.ID}}/transactions HTTP/1.1
+
+
+### Get Account Balance
+GET {{host}}/account/{{account.response.body.$.ID}}/balance
