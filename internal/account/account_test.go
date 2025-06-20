@@ -24,7 +24,7 @@ func TestDeposit(t *testing.T) {
 	assert.NoError(err, "Deposit should not return an error")
 	assert.NotNil(depositTransaction, "Deposit transaction should not be nil")
 	assert.Equal(depositTransaction.AccountID, account.ID, "Deposit transaction should reference the correct account ID")
-	assert.Equal(depositTransaction.Amount/100, 100, "Deposit amount should match the expected value")
+	assert.Equal(depositTransaction.Amount/100, int64(100), "Deposit amount should match the expected value")
 	assert.Equal(account.GetBalance(), 100.0, "Account balance should be updated correctly after deposit")
 }
 
@@ -97,7 +97,7 @@ func TestWithdraw(t *testing.T) {
 	withdrawalAmount := 100.0 // 100 dollars
 	transaction, err := account.Withdraw(withdrawalAmount)
 	assert.NoError(err, "Withdrawal should not return an error")
-	assert.Equal(transaction.Amount/100, -int(withdrawalAmount), "Withdrawal transaction amount should match expected")
+	assert.Equal(transaction.Amount/100, -int64(withdrawalAmount), "Withdrawal transaction amount should match expected")
 	assert.Equal(account.GetBalance(), 100.0, "Account balance should be updated correctly after withdrawal")
 }
 

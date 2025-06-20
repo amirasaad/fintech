@@ -9,25 +9,32 @@ import (
 )
 
 type Account struct {
-	ID      string
-	Balance int
+	ID      uuid.UUID
+	Balance int64
 	Created time.Time
 	Updated time.Time
 }
 
 type Transaction struct {
-	ID        string
-	AccountID string
-	Amount    int
+	ID        uuid.UUID
+	AccountID uuid.UUID
+	Amount    int64
 	Created   time.Time
 }
 
 func New() *Account {
 	return &Account{
-		ID:      uuid.New().String(),
+		ID:      uuid.New(),
 		Created: time.Now(),
 		Updated: time.Now(),
 		Balance: 0,
+	}
+}
+
+func NewFromData(id uuid.UUID, balance int64) *Account {
+	return &Account{
+		ID:      id,
+		Balance: balance,
 	}
 }
 
@@ -40,17 +47,15 @@ func (a *Account) Deposit(amount float64) (*Transaction, error) {
 	if amount < 0 {
 		return nil, errors.New("Deposit amount must be positive")
 	}
-	parsedAmount := int(amount * 100) // Convert to cents for precision
+	parsedAmount := int64(amount * 100) // Convert to cents for precision
 	fmt.Println("Depositing amount:", amount)
 	transaction := Transaction{
-		ID:        uuid.New().String(),
+		ID:        uuid.New(),
 		AccountID: a.ID,
 		Amount:    parsedAmount,
-		Created:   time.Now(),
 	}
 	fmt.Println("Transaction created:", transaction)
 	a.Balance += parsedAmount
-	a.Updated = time.Now()
 	fmt.Println("Balance after deposit:", a.Balance)
 	return &transaction, nil
 }
@@ -64,20 +69,18 @@ func (a *Account) Withdraw(amount float64) (*Transaction, error) {
 	if amount < 0 {
 		return nil, errors.New("Withdrawal amount must be positive")
 	}
-	parsedAmount := int(amount * 100) // Convert to cents for precision
+	parsedAmount := int64(amount * 100) // Convert to cents for precision
 	if parsedAmount > a.Balance {
 		return nil, errors.New("Insufficient funds for withdrawal")
 	}
 	fmt.Println("Withdrawing amount:", amount)
 	transaction := Transaction{
-		ID:        uuid.New().String(),
+		ID:        uuid.New(),
 		AccountID: a.ID,
 		Amount:    -parsedAmount,
-		Created:   time.Now(),
 	}
 	fmt.Println("Transaction created:", transaction)
 	a.Balance -= parsedAmount
-	a.Updated = time.Now()
 	fmt.Println("Balance after withdrawal:", a.Balance)
 	return &transaction, nil
 }
