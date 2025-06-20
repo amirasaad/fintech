@@ -31,10 +31,21 @@ func New() *Account {
 	}
 }
 
-func NewFromData(id uuid.UUID, balance int64) *Account {
+func NewFromData(id uuid.UUID, balance int64, created, updated time.Time) *Account {
 	return &Account{
 		ID:      id,
 		Balance: balance,
+		Created: created,
+		Updated: updated,
+	}
+}
+
+func NewTransactionFromData(id, accountID uuid.UUID, amount int64, created time.Time) *Transaction {
+	return &Transaction{
+		ID:        id,
+		AccountID: accountID,
+		Amount:    amount,
+		Created:   created,
 	}
 }
 

@@ -1,6 +1,7 @@
 package database
 
 import (
+	"github.com/amirasaad/fintech/internal/model"
 	"gorm.io/driver/sqlite" // Sqlite driver based on CGO
 	"gorm.io/gorm"
 )
@@ -12,6 +13,6 @@ func Connect() {
 	if err != nil {
 		panic("could not connect to the database")
 	}
-	connection.AutoMigrate()
+	connection.AutoMigrate(&model.Account{}, &model.Transaction{})
 	DB = connection
 }
