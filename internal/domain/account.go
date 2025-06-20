@@ -3,6 +3,7 @@ package domain
 import (
 	"errors"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/google/uuid"
@@ -57,6 +58,10 @@ func (a *Account) Deposit(amount float64) (*Transaction, error) {
 	// Check if the amount is positive before proceeding with the deposit
 	if amount < 0 {
 		return nil, errors.New("Deposit amount must be positive")
+	}
+	// Check if the amount is within the maximum safe integer value
+	if amount > math.MaxInt64/100 {
+		return nil, errors.New("Deposit amount exceeds maximum safe integer value")
 	}
 	parsedAmount := int64(amount * 100) // Convert to cents for precision
 	fmt.Println("Depositing amount:", amount)

@@ -63,6 +63,14 @@ func TestDepositMultipleTimes(t *testing.T) {
 	assert.Equal(account.GetBalance(), expectedBalance, "Account balance should be updated correctly after multiple deposits")
 }
 
+func TestDepositOverflow(t *testing.T) {
+	assert := assert.New(t)
+
+	a := domain.NewAccount()
+	_, err := a.Deposit(1000000000000000000000000000000000000000)
+	assert.Error(err, "Deposit amount exceeds maximum safe integer value")
+
+}
 func TestDepositWithPrecision(t *testing.T) {
 	assert := assert.New(t)
 
