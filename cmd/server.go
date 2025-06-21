@@ -20,5 +20,8 @@ func main() {
 
 	handler.AccountRoutes(app, accountRepo, transactionRepo)
 
-	app.Listen(":3000")
+	err := app.Listen(":3000")
+	if err != nil {
+		panic("App is not starting..")	
+	}
 }
