@@ -19,8 +19,7 @@ go run cmd/server.go
 Or using docker
 
 ```shell
-docker build -t fintech .
-docker run -p 3000:3000 fintech
+docker compose up -d
 ```
 
 ## Endpoints

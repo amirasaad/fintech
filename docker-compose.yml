@@ -24,3 +24,8 @@ services:
       timeout: 30s
       retries: 5
       start_period: 30s
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+
+volumes:
+  pg_data: {}
