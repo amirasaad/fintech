@@ -46,6 +46,8 @@ GET /account/{accountID}/balance
 
 see examples at [requests.http](./docs/requests.http) file for more details.
 
+Full spec is available at [openapi.yaml](./docs/openapi.yaml) file.
+
 ## Infrastructure & Design
 
 The app follows domain driven design all business logic can be found at [domain](./internal/domain) package.
