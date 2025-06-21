@@ -1,0 +1,223 @@
+openapi: 3.1.1
+info:
+  title: Fintech
+  version: 1.0.0
+  description: Fintech API
+paths:
+  /account:
+    post:
+      summary: Create a new account
+      responses:
+        200:
+          description: Account created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Account"
+        500:
+          description: Internal server error
+          schema:
+            $ref: "#/components/schemas/Error"
+
+  /account/{id}/deposit:
+    post:
+      summary: Deposit money to an account
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+            description: Account ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                amount:
+                  type: float
+                  description: Amount to deposit
+            examples:
+              valid:
+                summary: valid deposit request
+                value: { "amount": 100.0 }
+              invalid:
+                summary: invalid deposit request
+                value: { "amount": -100.0 }
+      responses:
+        200:
+          description: Money deposited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
+        400:
+          description: Invalid request
+          schema:
+            $ref: "#/components/schemas/Error"
+        404:
+          description: Account not found
+          schema:
+            $ref: "#/components/schemas/Error"
+        500:
+          description: Internal server error
+          schema:
+            $ref: "#/components/schemas/Error"
+
+    /account/{id}/withdraw:
+      post:
+        summary: Withdraw money from an account
+        parameters:
+          - in: path
+            name: id
+            required: true
+            schema:
+              type: string
+              format: uuid
+              description: Account ID
+        requestBody:
+          required: true
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DepositRequest"
+              examples:
+                valid:
+                  summary: valid deposit request
+                  value: { "amount": 100.0 }
+                invalid:
+                  summary: invalid deposit request
+                  value: { "amount": -100.0 }
+        responses:
+          200:
+            description: Money withdrawn
+            content:
+              application/json:
+                schema:
+                  $ref: "#/components/schemas/Transaction"
+          400:
+            description: Invalid request
+            schema:
+              $ref: "#/components/schemas/Error"
+          404:
+            description: Account not found
+            schema:
+              $ref: "#/components/schemas/Error"
+          500:
+            description: Internal server error
+            schema:
+              $ref: "#/components/schemas/Error"
+
+  /account/{id}/balance:
+    get:
+      summary: Get account balance
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+            description: Account ID
+      responses:
+        200:
+          description: Account balance
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WithdrawRequest"
+            examples:
+              schema:
+        404:
+          description: Account not found
+          schema:
+            $ref: "#/components/schemas/Error"
+        500:
+          description: Internal server error
+          schema:
+            $ref: "#/components/schemas/Error"
+
+  /account/{id}/transactions:
+    get:
+      summary: Get account transactions
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+            description: Account ID
+      responses:
+        200:
+          description: Account transactions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Transaction"
+        404:
+          description: Account not found
+          schema:
+            $ref: "#/components/schemas/Error"
+        500:
+          description: Internal server error
+          schema:
+            $ref: "#/components/schemas/Error"
+
+components:
+  schemas:
+    Account:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Account ID
+        balance:
+          type: integer
+          description: Account balance
+        created:
+          type: string
+          format: date-time
+          description: Account creation date
+        updated:
+          type: string
+          format: date-time
+          description: Account update date
+    DepositRequest:
+      type: object
+      properties:
+        amount:
+          type: float
+          description: Amount to deposit
+    WithdrawRequest:
+      type: object
+      properties:
+        amount:
+          type: float
+          description: Amount to withdraw
+    Transaction:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Transaction ID
+        amount:
+          type: float
+          description: Transaction amount
+        created:
+          type: string
+          format: date-time
+          description: Transaction creation date
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
