@@ -39,7 +39,7 @@ func TestDepositNegativeAmount(t *testing.T) {
 	// Attempt to deposit a negative amount
 	_, err := account.Deposit(-50.0)
 	require.Error(err, "deposit amount must be positive")
-	assert.InEpsilon(0.0, account.GetBalance(), 0.01, "Account balance should remain unchanged after failed deposit")
+	assert.InDelta(0.0, account.GetBalance(), 0.01, "Account balance should remain unchanged after failed deposit")
 }
 
 func TestDepositZeroAmount(t *testing.T) {
