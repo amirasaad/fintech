@@ -1,26 +1,25 @@
 package infra
 
 import (
+	"errors"
 	"os"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
-var DB *gorm.DB
-
-func Connect() {
+func NewDBConnection() (*gorm.DB, error) {
 	databaseUrl := os.Getenv("DATABASE_URL")
 	if databaseUrl == "" {
-		databaseUrl = "/app/test.db" // Default path for Docker container
+		return nil, errors.New("DATABASE_URL is not set")
 	}
-	connection, err := gorm.Open(postgres.Open(databaseUrl), &gorm.Config{})
+	connection, err := gorm.Open(postgres.Open(databaseUrl), &gorm.Config{SkipDefaultTransaction: true})
 	if err != nil {
-		panic("could not connect to the database")
+		return nil, err
 	}
 	err = connection.AutoMigrate(&Account{}, &Transaction{})
 	if err != nil {
-		panic("could not migrate the database")
+		return nil, err
 	}
-	DB = connection
+	return connection, nil
 }

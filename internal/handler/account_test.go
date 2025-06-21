@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/amirasaad/fintech/internal/domain"
+	"github.com/amirasaad/fintech/internal/repository"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/mock"
 
@@ -51,11 +52,34 @@ func (m *TransactionMockRepo) List(accountID uuid.UUID) ([]*domain.Transaction, 
 	args := m.Called(accountID)
 	return args.Get(0).([]*domain.Transaction), args.Error(1)
 }
+
+type MockUoW struct {
+	Account         *AccountMockRepo
+	TransactionRepo *TransactionMockRepo
+}
+
+func (m *MockUoW) Begin() error {
+	return nil
+}
+func (m *MockUoW) Commit() error {
+	return nil
+}
+func (m *MockUoW) Rollback() error {
+	return nil
+}
+func (m *MockUoW) AccountRepository() repository.AccountRepository {
+	return m.Account
+}
+func (m *MockUoW) TransactionRepository() repository.TransactionRepository {
+	return m.TransactionRepo
+}
+
 func TestAccountRoutes(t *testing.T) {
 	app := fiber.New()
 	accountRepo := &AccountMockRepo{}
 	transactionRepo := &TransactionMockRepo{}
-	AccountRoutes(app, accountRepo, transactionRepo)
+	mockUow := &MockUoW{Account: accountRepo, TransactionRepo: transactionRepo}
+	AccountRoutes(app, func() (repository.UnitOfWork, error) { return mockUow, nil })
 
 	accountRepo.On("Create", mock.Anything).Return(nil)
 	// Test the route
@@ -98,7 +122,8 @@ func TestAccountRoutesFailureAccountNotFound(t *testing.T) {
 	app := fiber.New()
 	accountRepo := &AccountMockRepo{}
 	transactionRepo := &TransactionMockRepo{}
-	AccountRoutes(app, accountRepo, transactionRepo)
+	mockUow := &MockUoW{Account: accountRepo, TransactionRepo: transactionRepo}
+	AccountRoutes(app, func() (repository.UnitOfWork, error) { return mockUow, nil })
 
 	accountRepo.On("Get", mock.Anything).Return(&domain.Account{}, errors.New("account not found"))
 
@@ -117,7 +142,8 @@ func TestAccountRoutesFailureTransaction(t *testing.T) {
 	app := fiber.New()
 	accountRepo := &AccountMockRepo{}
 	transactionRepo := &TransactionMockRepo{}
-	AccountRoutes(app, accountRepo, transactionRepo)
+	mockUow := &MockUoW{Account: accountRepo, TransactionRepo: transactionRepo}
+	AccountRoutes(app, func() (repository.UnitOfWork, error) { return mockUow, nil })
 
 	accountRepo.On("Get", mock.Anything).Return(&domain.Account{Balance: 100.0}, nil)
 
