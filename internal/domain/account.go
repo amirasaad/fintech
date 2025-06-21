@@ -95,11 +95,11 @@ func (a *Account) Withdraw(amount float64) (*Transaction, error) {
 	defer a.mu.Unlock()
 	// Check if the amount is positive before proceeding with the withdrawal
 	if amount < 0 {
-		return nil, errors.New("Withdrawal amount must be positive")
+		return nil, errors.New("withdrawal amount must be positive")
 	}
 	parsedAmount := int64(amount * 100) // Convert to cents for precision
 	if parsedAmount > a.Balance {
-		return nil, errors.New("Insufficient funds for withdrawal")
+		return nil, errors.New("insufficient funds for withdrawal")
 	}
 	fmt.Println("Withdrawing amount:", parsedAmount)
 	a.Balance -= parsedAmount
