@@ -31,13 +31,13 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.21.x"
+          go-version: "1.22.x"
       - name: Install dependencies
         run: go mod download
       - name: Build
         run: go build -v ./...
       - name: Test with Go
-        run: go test ./.. -json > TestResults.json
+        run: go test $(go list ./...) -json > TestResults.json
       - name: Upload Go test results
         uses: actions/upload-artifact@v4
         with:
