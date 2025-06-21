@@ -2,6 +2,7 @@ package handler
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"net/http/httptest"
 	"testing"
@@ -90,5 +91,25 @@ func TestAccountRoutes(t *testing.T) {
 	}
 	if resp.StatusCode != fiber.StatusOK {
 		t.Errorf("Expected status %d, got %d", fiber.StatusOK, resp.StatusCode)
+	}
+}
+
+func TestAccountRoutesFailure(t *testing.T) {
+	app := fiber.New()
+	accountRepo := &AccountMockRepo{}
+	transactionRepo := &TransactionMockRepo{}
+	AccountRoutes(app, accountRepo, transactionRepo)
+
+	accountRepo.On("Get", mock.Anything).Return(&domain.Account{}, errors.New("account not found"))
+
+	// Test the route
+	req := httptest.NewRequest("POST", fmt.Sprintf("/account/%s/deposit", uuid.New()), bytes.NewBuffer([]byte(`{"amount": 100.0}`)))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.StatusCode != fiber.StatusNotFound {
+		t.Errorf("Expected status %d, got %d", fiber.StatusBadRequest, resp.StatusCode)
 	}
 }
