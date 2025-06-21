@@ -69,4 +69,4 @@ go test ./...
 - [ ] User Authentication.
 - [x] Safe thread handling to avoid transactions to execute simultaneously.
 - [ ] Impalement unit of work to handle transactions. This will ensure consist data when failure occurs.
-- [ ] Add more tests.
+- [x] Add more tests.

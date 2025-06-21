@@ -94,7 +94,7 @@ func TestAccountRoutes(t *testing.T) {
 	}
 }
 
-func TestAccountRoutesFailure(t *testing.T) {
+func TestAccountRoutesFailureAccountNotFound(t *testing.T) {
 	app := fiber.New()
 	accountRepo := &AccountMockRepo{}
 	transactionRepo := &TransactionMockRepo{}
@@ -110,6 +110,47 @@ func TestAccountRoutesFailure(t *testing.T) {
 		t.Fatal(err)
 	}
 	if resp.StatusCode != fiber.StatusNotFound {
+		t.Errorf("Expected status %d, got %d", fiber.StatusNotFound, resp.StatusCode)
+	}
+}
+func TestAccountRoutesFailureTransaction(t *testing.T) {
+	app := fiber.New()
+	accountRepo := &AccountMockRepo{}
+	transactionRepo := &TransactionMockRepo{}
+	AccountRoutes(app, accountRepo, transactionRepo)
+
+	accountRepo.On("Get", mock.Anything).Return(&domain.Account{Balance: 100.0}, nil)
+
+	// test deposit negative amount
+	req := httptest.NewRequest("POST", fmt.Sprintf("/account/%s/deposit", uuid.New()), bytes.NewBuffer([]byte(`{"amount": -100.0}`)))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.StatusCode != fiber.StatusBadRequest {
+		t.Errorf("Expected status %d, got %d", fiber.StatusBadRequest, resp.StatusCode)
+	}
+
+	// test withdraw negative amount
+	req = httptest.NewRequest("POST", fmt.Sprintf("/account/%s/withdraw", uuid.New()), bytes.NewBuffer([]byte(`{"amount": -100.0}`)))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err = app.Test(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.StatusCode != fiber.StatusBadRequest {
+		t.Errorf("Expected status %d, got %d", fiber.StatusBadRequest, resp.StatusCode)
+	}
+
+	// test withdraw amount greater than balance
+	req = httptest.NewRequest("POST", fmt.Sprintf("/account/%s/withdraw", uuid.New()), bytes.NewBuffer([]byte(`{"amount": 1000.0}`)))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err = app.Test(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.StatusCode != fiber.StatusBadRequest {
 		t.Errorf("Expected status %d, got %d", fiber.StatusBadRequest, resp.StatusCode)
 	}
 }

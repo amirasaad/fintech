@@ -53,6 +53,11 @@ func AccountRoutes(app *fiber.App, accountRepo repository.AccountRepository, tra
 		}
 		log.Infof("Depositing amount %f", request.Amount)
 		tx, err := a.Deposit(request.Amount)
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": err.Error(),
+			})
+		}
 		log.Infof("Depositing transaction amount %+v", tx)
 		err = accountRepo.Update(a)
 		if err != nil {
@@ -104,7 +109,7 @@ func AccountRoutes(app *fiber.App, accountRepo repository.AccountRepository, tra
 		tx, err := a.Withdraw(request.Amount)
 		if err != nil {
 			log.Errorf("Failed to process withdrawal for account %s, amount %f: %v", id, request.Amount, err)
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error": err.Error(),
 			})
 		}
