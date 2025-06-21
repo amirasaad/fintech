@@ -4,15 +4,17 @@ import (
 	"errors"
 	"fmt"
 	"time"
+	"sync"
 
 	"github.com/google/uuid"
 )
 
-type Account struct {
+type Account struct{
 	ID      uuid.UUID
 	Balance int64
 	Created time.Time
 	Updated time.Time
+	mu      sync.Mutex
 }
 
 type Transaction struct {
@@ -28,6 +30,7 @@ func NewAccount() *Account {
 		Created: time.Now(),
 		Updated: time.Now(),
 		Balance: 0,
+		mu:      sync.Mutex{},
 	}
 }
 
@@ -37,6 +40,7 @@ func NewAccountFromData(id uuid.UUID, balance int64, created, updated time.Time)
 		Balance: balance,
 		Created: created,
 		Updated: updated,
+		mu:      sync.Mutex{},
 	}
 }
 
@@ -54,6 +58,8 @@ func NewTransactionFromData(id, accountID uuid.UUID, amount int64, created time.
 // It returns an error if the deposit amount is negative.
 func (a *Account) Deposit(amount float64) (*Transaction, error) {
 	fmt.Println("Balance before deposit:", a.Balance)
+	a.mu.Lock()
+	defer a.mu.Unlock()
 	// Check if the amount is positive before proceeding with the deposit
 	if amount < 0 {
 		return nil, errors.New("Deposit amount must be positive")
@@ -81,6 +87,8 @@ func (a *Account) Deposit(amount float64) (*Transaction, error) {
 // It returns an error if the withdrawal amount is negative or if there are insufficient funds.
 func (a *Account) Withdraw(amount float64) (*Transaction, error) {
 	fmt.Println("Balance before withdrawal:", a.Balance)
+	a.mu.Lock()
+	defer a.mu.Unlock()
 	// Check if the amount is positive before proceeding with the withdrawal
 	if amount < 0 {
 		return nil, errors.New("Withdrawal amount must be positive")

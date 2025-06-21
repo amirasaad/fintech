@@ -1,6 +1,7 @@
 package domain_test
 
 import (
+	"sync"
 	"testing"
 
 	"github.com/amirasaad/fintech/internal/domain"
@@ -152,4 +153,40 @@ func TestGetBalance(t *testing.T) {
 	// Check balance
 	balance := account.GetBalance()
 	assert.Equal(balance, 300.0, "Account balance should match the expected value after deposit")
+}
+
+
+func TestSimultaneous(t *testing.T) {
+	assert := assert.New(t)
+
+	account := domain.NewAccount()
+	initialBalance := 1000.0
+	_, err := account.Deposit(initialBalance)
+	assert.NoError(err, "Initial deposit should not return an error")
+
+	numOperations := 1000
+	depositAmount := 10.0
+	withdrawAmount := 5.0
+
+	var wg sync.WaitGroup
+	wg.Add(numOperations * 2)
+
+	for range numOperations {
+		go func() {
+			defer wg.Done()
+			_, err := account.Deposit(depositAmount)
+			assert.NoError(err, "Deposit operation should not return an error")
+		}()
+
+		go func() {
+			defer wg.Done()
+			_, err := account.Withdraw(withdrawAmount)
+			assert.NoError(err, "Withdrawal operation should not return an error")
+		}()
+	}
+
+	wg.Wait()
+
+	expectedBalance := initialBalance + (float64(numOperations) * depositAmount) - (float64(numOperations) * withdrawAmount)
+	assert.Equal(expectedBalance, account.GetBalance(), "Final balance should be correct after concurrent operations")
 }
