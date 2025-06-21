@@ -3,13 +3,13 @@ package domain
 import (
 	"errors"
 	"fmt"
-	"time"
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
 )
 
-type Account struct{
+type Account struct {
 	ID      uuid.UUID
 	Balance int64
 	Created time.Time
@@ -62,12 +62,12 @@ func (a *Account) Deposit(amount float64) (*Transaction, error) {
 	defer a.mu.Unlock()
 	// Check if the amount is positive before proceeding with the deposit
 	if amount < 0 {
-		return nil, errors.New("Deposit amount must be positive")
+		return nil, errors.New("deposit amount must be positive")
 	}
 
 	parsedAmount := int64(amount * 100) // Convert to cents for precision
 	if parsedAmount+a.Balance < 0 {
-		return nil, errors.New("Deposit amount exceeds maximum safe integer value")
+		return nil, errors.New("deposit amount exceeds maximum safe integer value")
 	}
 	fmt.Println("Depositing amount:", amount)
 	transaction := Transaction{

@@ -1,4 +1,4 @@
-package model
+package infra
 
 import (
 	"time"

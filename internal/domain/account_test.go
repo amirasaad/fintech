@@ -25,7 +25,7 @@ func TestDeposit(t *testing.T) {
 	assert.NoError(err, "Deposit should not return an error")
 	assert.NotNil(depositTransaction, "Deposit transaction should not be nil")
 	assert.Equal(depositTransaction.AccountID, account.ID, "Deposit transaction should reference the correct account ID")
-	assert.Equal(depositTransaction.Amount/100, int64(100), "Deposit amount should match the expected value")
+	assert.Equal(int64(100), depositTransaction.Amount/100, "Deposit amount should match the expected value")
 	assert.Equal(account.GetBalance(), 100.0, "Account balance should be updated correctly after deposit")
 }
 
@@ -35,9 +35,9 @@ func TestDepositNegativeAmount(t *testing.T) {
 	account := domain.NewAccount()
 	// Attempt to deposit a negative amount
 	_, err := account.Deposit(-50.0)
-	assert.Error(err, "Deposit with negative amount should return an error")
-	assert.Equal(err.Error(), "Deposit amount must be positive", "Error message should match expected")
-	assert.Equal(account.GetBalance(), 0.0, "Account balance should remain unchanged after failed deposit")
+	assert.Error(err, "deposit with negative amount should return an error")
+	assert.Equal("deposit amount must be positive", err.Error(), "Error message should match expected")
+	assert.Equal(0.0, account.GetBalance(), "Account balance should remain unchanged after failed deposit")
 }
 
 func TestDepositZeroAmount(t *testing.T) {
@@ -47,7 +47,7 @@ func TestDepositZeroAmount(t *testing.T) {
 	// Attempt to deposit zero amount
 	_, err := account.Deposit(0.0)
 	assert.NoError(err, "Deposit with zero amount should not return an error")
-	assert.Equal(account.GetBalance(), 0.0, "Account balance should remain unchanged after zero deposit")
+	assert.Equal(0.0, account.GetBalance(), "Account balance should remain unchanged after zero deposit")
 }
 
 func TestDepositMultipleTimes(t *testing.T) {
@@ -61,7 +61,7 @@ func TestDepositMultipleTimes(t *testing.T) {
 	assert.NoError(err2, "Second deposit should not return an error")
 
 	expectedBalance := 200.0 // 50 + 150 in cents
-	assert.Equal(account.GetBalance(), expectedBalance, "Account balance should be updated correctly after multiple deposits")
+	assert.Equal(expectedBalance, account.GetBalance(), "Account balance should be updated correctly after multiple deposits")
 }
 
 func TestDepositOverflow(t *testing.T) {
@@ -80,7 +80,7 @@ func TestDepositWithPrecision(t *testing.T) {
 	_, err := account.Deposit(99.99)
 	assert.NoError(err, "Deposit with precision should not return an error")
 	expectedBalance := 99.99
-	assert.Equal(account.GetBalance(), expectedBalance, "Account balance should be updated correctly after deposit with precision")
+	assert.Equal(expectedBalance, account.GetBalance(), "Account balance should be updated correctly after deposit with precision")
 }
 
 func TestDepositWithLargeAmount(t *testing.T) {
@@ -91,7 +91,7 @@ func TestDepositWithLargeAmount(t *testing.T) {
 	_, err := account.Deposit(1000000.0) // 1 million dollars
 	assert.NoError(err, "Deposit with large amount should not return an error")
 	expectedBalance := 1000000.0 // 1 million in cents
-	assert.Equal(account.GetBalance(), expectedBalance, "Account balance should be updated correctly after large deposit")
+	assert.Equal(expectedBalance, account.GetBalance(), "Account balance should be updated correctly after large deposit")
 }
 
 func TestWithdraw(t *testing.T) {
@@ -107,7 +107,7 @@ func TestWithdraw(t *testing.T) {
 	transaction, err := account.Withdraw(withdrawalAmount)
 	assert.NoError(err, "Withdrawal should not return an error")
 	assert.Equal(transaction.Amount/100, -int64(withdrawalAmount), "Withdrawal transaction amount should match expected")
-	assert.Equal(account.GetBalance(), 100.0, "Account balance should be updated correctly after withdrawal")
+	assert.Equal(100.0, account.GetBalance(), "Account balance should be updated correctly after withdrawal")
 }
 
 func TestWithdrawInsufficientFunds(t *testing.T) {
@@ -118,7 +118,7 @@ func TestWithdrawInsufficientFunds(t *testing.T) {
 	_, err := account.Withdraw(100.0) // 100 dollars
 	assert.Error(err, "Withdrawal with insufficient funds should return an error")
 	assert.Equal(err.Error(), "Insufficient funds for withdrawal", "Error message should match expected")
-	assert.Equal(account.GetBalance(), 0.0, "Account balance should remain unchanged after failed withdrawal")
+	assert.Equal(0.0, account.GetBalance(), "Account balance should remain unchanged after failed withdrawal")
 }
 
 func TestWithdrawNegativeAmount(t *testing.T) {
@@ -129,7 +129,7 @@ func TestWithdrawNegativeAmount(t *testing.T) {
 	_, err := account.Withdraw(-50.0)
 	assert.Error(err, "Withdrawal with negative amount should return an error")
 	assert.Equal(err.Error(), "Withdrawal amount must be positive", "Error message should match expected")
-	assert.Equal(account.GetBalance(), 0.0, "Account balance should remain unchanged after failed withdrawal")
+	assert.Equal(0.0, account.GetBalance(), "Account balance should remain unchanged after failed withdrawal")
 }
 
 func TestWithdrawZeroAmount(t *testing.T) {
@@ -139,7 +139,7 @@ func TestWithdrawZeroAmount(t *testing.T) {
 	// Attempt to withdraw zero amount
 	_, err := account.Withdraw(0.0)
 	assert.NoError(err, "Withdrawal with zero amount should not return an error")
-	assert.Equal(account.GetBalance(), 0.0, "Account balance should remain unchanged after zero withdrawal")
+	assert.Equal(0.0, account.GetBalance(), "Account balance should remain unchanged after zero withdrawal")
 }
 
 func TestGetBalance(t *testing.T) {
@@ -152,11 +152,11 @@ func TestGetBalance(t *testing.T) {
 
 	// Check balance
 	balance := account.GetBalance()
-	assert.Equal(balance, 300.0, "Account balance should match the expected value after deposit")
+	assert.Equal(300.0, balance, "Account balance should match the expected value after deposit")
 }
 
-
 func TestSimultaneous(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 
 	account := domain.NewAccount()

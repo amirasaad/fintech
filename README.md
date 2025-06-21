@@ -50,7 +50,7 @@ see examples at [requests.http](./docs/requests.http) file for more details.
 ## Infrastructure & Design
 
 The app follows domain driven design all business logic can be found at [domain](./internal/domain) package.
-The app uses SQLite as the database for simplicity.
+The app uses PostgreSQL 12 as the database.
 It uses [GORM](https://gorm.io/index.html) as the ORM for the database.
 It uses [goFiber](https://gofiber.io/) as the web framework.
 It follows conventional commit message format.
