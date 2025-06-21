@@ -49,22 +49,22 @@ func AccountRoutes(app *fiber.App, accountRepo repository.AccountRepository, tra
 			})
 		}
 		log.Infof("Depositing amount %f", request.Amount)
-		transaction, err := a.Deposit(request.Amount)
-		log.Infof("Depositing transaction amount %+v", transaction)
+		tx, err := a.Deposit(request.Amount)
+		log.Infof("Depositing transaction amount %+v", tx)
 		err = accountRepo.Update(a)
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"error": err.Error(),
 			})
 		}
-		err = transactionRepo.Create(transaction)
+		err = transactionRepo.Create(tx)
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"error": err.Error(),
 			})
 		}
 
-		return c.JSON(transaction)
+		return c.JSON(tx)
 	})
 
 	app.Post("/account/:id/withdraw", func(c *fiber.Ctx) error {
@@ -93,14 +93,14 @@ func AccountRoutes(app *fiber.App, accountRepo repository.AccountRepository, tra
 			})
 		}
 
-		transaction, err := a.Withdraw(request.Amount)
+		tx, err := a.Withdraw(request.Amount)
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"error": err.Error(),
 			})
 		}
 
-		err = transactionRepo.Create(transaction)
+		err = transactionRepo.Create(tx)
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"error": err.Error(),
@@ -114,7 +114,7 @@ func AccountRoutes(app *fiber.App, accountRepo repository.AccountRepository, tra
 			})
 		}
 
-		return c.JSON(transaction)
+		return c.JSON(tx)
 	})
 
 	app.Get("/account/:id/transactions", func(c *fiber.Ctx) error {
