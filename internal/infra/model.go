@@ -21,5 +21,6 @@ type Transaction struct {
 	ID        uuid.UUID `gorm:"primaryKey"`
 	AccountID uuid.UUID `json:"account_id"`
 	Amount    int64
+	Balance   int64
 	Created   time.Time `gorm:"autoCreateTime"`
 }

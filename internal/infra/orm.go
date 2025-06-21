@@ -75,7 +75,7 @@ func (r *transactionRepository) Get(id uuid.UUID) (*domain.Transaction, error) {
 	if result.Error != nil {
 		return nil, result.Error
 	}
-	return domain.NewTransactionFromData(t.ID, t.AccountID, t.Amount, t.Created), nil
+	return domain.NewTransactionFromData(t.ID, t.AccountID, t.Amount, t.Balance, t.Created), nil
 }
 
 func (r *transactionRepository) List(accountID uuid.UUID) ([]*domain.Transaction, error) {
@@ -86,7 +86,7 @@ func (r *transactionRepository) List(accountID uuid.UUID) ([]*domain.Transaction
 	}
 	tx := make([]*domain.Transaction, 0, len(dbTransactions))
 	for _, t := range dbTransactions {
-		tx = append(tx, domain.NewTransactionFromData(t.ID, t.AccountID, t.Amount, t.Created))
+		tx = append(tx, domain.NewTransactionFromData(t.ID, t.AccountID, t.Amount, t.Balance, t.Created))
 	}
 	return tx, nil
 }

@@ -21,6 +21,7 @@ type Transaction struct {
 	ID        uuid.UUID
 	AccountID uuid.UUID
 	Amount    int64
+	Balance   int64 // Account balance snapshot
 	Created   time.Time
 }
 
@@ -44,11 +45,12 @@ func NewAccountFromData(id uuid.UUID, balance int64, created, updated time.Time)
 	}
 }
 
-func NewTransactionFromData(id, accountID uuid.UUID, amount int64, created time.Time) *Transaction {
+func NewTransactionFromData(id, accountID uuid.UUID, amount, balance int64, created time.Time) *Transaction {
 	return &Transaction{
 		ID:        id,
 		AccountID: accountID,
 		Amount:    amount,
+		Balance:   balance,
 		Created:   created,
 	}
 }
@@ -69,16 +71,18 @@ func (a *Account) Deposit(amount float64) (*Transaction, error) {
 	if parsedAmount+a.Balance < 0 {
 		return nil, errors.New("deposit amount exceeds maximum safe integer value")
 	}
-	fmt.Println("Depositing amount:", amount)
+	fmt.Println("Depositing amount:", parsedAmount)
+	a.Balance += parsedAmount
+	fmt.Println("Balance after deposit:", a.Balance)
 	transaction := Transaction{
 		ID:        uuid.New(),
 		AccountID: a.ID,
 		Amount:    parsedAmount,
+		Balance:   a.Balance,
 		Created:   time.Now().UTC(),
 	}
 	fmt.Println("Transaction created:", transaction)
-	a.Balance += parsedAmount
-	fmt.Println("Balance after deposit:", a.Balance)
+
 	return &transaction, nil
 }
 
@@ -97,16 +101,18 @@ func (a *Account) Withdraw(amount float64) (*Transaction, error) {
 	if parsedAmount > a.Balance {
 		return nil, errors.New("Insufficient funds for withdrawal")
 	}
-	fmt.Println("Withdrawing amount:", amount)
+	fmt.Println("Withdrawing amount:", parsedAmount)
+	a.Balance -= parsedAmount
+	fmt.Println("Balance after withdrawal:", a.Balance)
 	transaction := Transaction{
 		ID:        uuid.New(),
 		AccountID: a.ID,
 		Amount:    -parsedAmount,
+		Balance:   a.Balance,
 		Created:   time.Now().UTC(),
 	}
 	fmt.Println("Transaction created:", transaction)
-	a.Balance -= parsedAmount
-	fmt.Println("Balance after withdrawal:", a.Balance)
+
 	return &transaction, nil
 }
 
