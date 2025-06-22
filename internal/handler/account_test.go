@@ -2,14 +2,18 @@ package handler
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http/httptest"
+	"sync"
 	"testing"
 
 	"github.com/amirasaad/fintech/internal/domain"
 	"github.com/amirasaad/fintech/internal/repository"
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
 	"github.com/gofiber/fiber/v2"
@@ -88,6 +92,7 @@ func TestAccountRoutes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode != fiber.StatusOK {
 		t.Errorf("Expected status %d, got %d", fiber.StatusOK, resp.StatusCode)
 	}
@@ -102,6 +107,7 @@ func TestAccountRoutes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode != fiber.StatusOK {
 		t.Errorf("Expected status %d, got %d", fiber.StatusOK, resp.StatusCode)
 	}
@@ -113,6 +119,7 @@ func TestAccountRoutes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode != fiber.StatusOK {
 		t.Errorf("Expected status %d, got %d", fiber.StatusOK, resp.StatusCode)
 	}
@@ -134,6 +141,7 @@ func TestAccountRoutesFailureAccountNotFound(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode != fiber.StatusNotFound {
 		t.Errorf("Expected status %d, got %d", fiber.StatusNotFound, resp.StatusCode)
 	}
@@ -154,6 +162,7 @@ func TestAccountRoutesFailureTransaction(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode != fiber.StatusBadRequest {
 		t.Errorf("Expected status %d, got %d", fiber.StatusBadRequest, resp.StatusCode)
 	}
@@ -165,6 +174,7 @@ func TestAccountRoutesFailureTransaction(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode != fiber.StatusBadRequest {
 		t.Errorf("Expected status %d, got %d", fiber.StatusBadRequest, resp.StatusCode)
 	}
@@ -179,4 +189,74 @@ func TestAccountRoutesFailureTransaction(t *testing.T) {
 	if resp.StatusCode != fiber.StatusBadRequest {
 		t.Errorf("Expected status %d, got %d", fiber.StatusBadRequest, resp.StatusCode)
 	}
+}
+
+func TestSimultaneousRequests(t *testing.T) {
+	assert := assert.New(t)
+	app := fiber.New()
+	accountRepo := &AccountMockRepo{}
+	transactionRepo := &TransactionMockRepo{}
+	mockUow := &MockUoW{Account: accountRepo, TransactionRepo: transactionRepo}
+	AccountRoutes(app, func() (repository.UnitOfWork, error) { return mockUow, nil })
+	acc := domain.NewAccount()
+	accountRepo.On("Get", mock.Anything).Return(acc, nil)
+	transactionRepo.On("Create", mock.Anything).Return(nil)
+	accountRepo.On("Update", mock.Anything).Return(nil)
+
+	numOperations := 1000
+	depositAmount := 10.0
+	withdrawAmount := 5.0
+
+	var wg sync.WaitGroup
+	wg.Add(numOperations * 2)
+
+	for range numOperations {
+		go func() {
+			defer wg.Done()
+			depositBody := bytes.NewBuffer(fmt.Appendf(nil, `{"amount": %f}`, depositAmount))
+			req := httptest.NewRequest("POST", fmt.Sprintf("/account/%s/deposit", uuid.New()), depositBody)
+			req.Header.Set("Content-Type", "application/json")
+			resp, err := app.Test(req)
+			if err != nil {
+				t.Errorf("Expected status %d, got %d", fiber.StatusOK, resp.StatusCode)
+			}
+			defer resp.Body.Close()
+		}()
+		go func() {
+			defer wg.Done()
+			withdrawBody := bytes.NewBuffer(fmt.Appendf(nil, `{"amount": %f}`, withdrawAmount))
+			req := httptest.NewRequest("POST", fmt.Sprintf("/account/%s/withdraw", uuid.New()), withdrawBody)
+			req.Header.Set("Content-Type", "application/json")
+			resp, err := app.Test(req)
+			if err != nil {
+				t.Errorf("Expected status %d, got %d", fiber.StatusOK, resp.StatusCode)
+			}
+			defer resp.Body.Close()
+		}()
+	}
+	wg.Wait()
+
+	// Check final balance
+	// The expected balance is (numOperations * depositAmount) - (numOperations * withdrawAmount)
+	req := httptest.NewRequest("GET", fmt.Sprintf("/account/%s/balance", acc.ID), nil)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != fiber.StatusOK {
+		t.Errorf("Expected status %d, got %d", fiber.StatusOK, resp.StatusCode)
+	}
+	var balanceResponse struct {
+		Balance float64 `json:"balance"`
+	}
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("Failed to read response body: %v", err)
+	}
+	if err := json.Unmarshal(bodyBytes, &balanceResponse); err != nil {
+		t.Fatalf("Failed to unmarshal response: %v", err)
+	}
+	expectedBalance := (float64(numOperations) * depositAmount) - (float64(numOperations) * withdrawAmount)
+	assert.InDelta(expectedBalance, balanceResponse.Balance, 0.01)
 }
