@@ -15,6 +15,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -58,7 +59,7 @@ func (m *TransactionMockRepo) List(accountID uuid.UUID) ([]*domain.Transaction, 
 }
 
 type MockUoW struct {
-	Account         *AccountMockRepo
+	AccountRepo     *AccountMockRepo
 	TransactionRepo *TransactionMockRepo
 }
 
@@ -72,7 +73,7 @@ func (m *MockUoW) Rollback() error {
 	return nil
 }
 func (m *MockUoW) AccountRepository() repository.AccountRepository {
-	return m.Account
+	return m.AccountRepo
 }
 func (m *MockUoW) TransactionRepository() repository.TransactionRepository {
 	return m.TransactionRepo
@@ -82,7 +83,7 @@ func TestAccountRoutes(t *testing.T) {
 	app := fiber.New()
 	accountRepo := &AccountMockRepo{}
 	transactionRepo := &TransactionMockRepo{}
-	mockUow := &MockUoW{Account: accountRepo, TransactionRepo: transactionRepo}
+	mockUow := &MockUoW{AccountRepo: accountRepo, TransactionRepo: transactionRepo}
 	AccountRoutes(app, func() (repository.UnitOfWork, error) { return mockUow, nil })
 
 	accountRepo.On("Create", mock.Anything).Return(nil)
@@ -129,7 +130,7 @@ func TestAccountRoutesFailureAccountNotFound(t *testing.T) {
 	app := fiber.New()
 	accountRepo := &AccountMockRepo{}
 	transactionRepo := &TransactionMockRepo{}
-	mockUow := &MockUoW{Account: accountRepo, TransactionRepo: transactionRepo}
+	mockUow := &MockUoW{AccountRepo: accountRepo, TransactionRepo: transactionRepo}
 	AccountRoutes(app, func() (repository.UnitOfWork, error) { return mockUow, nil })
 
 	accountRepo.On("Get", mock.Anything).Return(&domain.Account{}, errors.New("account not found"))
@@ -150,7 +151,7 @@ func TestAccountRoutesFailureTransaction(t *testing.T) {
 	app := fiber.New()
 	accountRepo := &AccountMockRepo{}
 	transactionRepo := &TransactionMockRepo{}
-	mockUow := &MockUoW{Account: accountRepo, TransactionRepo: transactionRepo}
+	mockUow := &MockUoW{AccountRepo: accountRepo, TransactionRepo: transactionRepo}
 	AccountRoutes(app, func() (repository.UnitOfWork, error) { return mockUow, nil })
 
 	accountRepo.On("Get", mock.Anything).Return(&domain.Account{Balance: 100.0}, nil)
@@ -186,6 +187,7 @@ func TestAccountRoutesFailureTransaction(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode != fiber.StatusBadRequest {
 		t.Errorf("Expected status %d, got %d", fiber.StatusBadRequest, resp.StatusCode)
 	}
@@ -193,15 +195,21 @@ func TestAccountRoutesFailureTransaction(t *testing.T) {
 
 func TestSimultaneousRequests(t *testing.T) {
 	assert := assert.New(t)
+	require := require.New(t)
 	app := fiber.New()
 	accountRepo := &AccountMockRepo{}
 	transactionRepo := &TransactionMockRepo{}
-	mockUow := &MockUoW{Account: accountRepo, TransactionRepo: transactionRepo}
+	mockUow := &MockUoW{AccountRepo: accountRepo, TransactionRepo: transactionRepo}
 	AccountRoutes(app, func() (repository.UnitOfWork, error) { return mockUow, nil })
+	initialBalance := 1000.0
 	acc := domain.NewAccount()
+	_, err := acc.Deposit(initialBalance)
+	require.NoError(err, "Initial deposit should not return an error")
+
+	// Remove testify's On/Return for Get/Update, use only our mutex-protected methods
 	accountRepo.On("Get", mock.Anything).Return(acc, nil)
-	transactionRepo.On("Create", mock.Anything).Return(nil)
 	accountRepo.On("Update", mock.Anything).Return(nil)
+	transactionRepo.On("Create", mock.Anything).Return(nil)
 
 	numOperations := 1000
 	depositAmount := 10.0
@@ -218,9 +226,13 @@ func TestSimultaneousRequests(t *testing.T) {
 			req.Header.Set("Content-Type", "application/json")
 			resp, err := app.Test(req)
 			if err != nil {
-				t.Errorf("Expected status %d, got %d", fiber.StatusOK, resp.StatusCode)
+				t.Errorf("Deposit request failed: %v", err)
+				return
 			}
 			defer resp.Body.Close()
+			if resp.StatusCode != fiber.StatusOK {
+				t.Errorf("Expected status %d, got %d", fiber.StatusOK, resp.StatusCode)
+			}
 		}()
 		go func() {
 			defer wg.Done()
@@ -229,9 +241,13 @@ func TestSimultaneousRequests(t *testing.T) {
 			req.Header.Set("Content-Type", "application/json")
 			resp, err := app.Test(req)
 			if err != nil {
-				t.Errorf("Expected status %d, got %d", fiber.StatusOK, resp.StatusCode)
+				t.Errorf("Withdraw request failed: %v", err)
+				return
 			}
 			defer resp.Body.Close()
+			if resp.StatusCode != fiber.StatusOK {
+				t.Errorf("Expected status %d, got %d", fiber.StatusOK, resp.StatusCode)
+			}
 		}()
 	}
 	wg.Wait()
@@ -257,6 +273,6 @@ func TestSimultaneousRequests(t *testing.T) {
 	if err := json.Unmarshal(bodyBytes, &balanceResponse); err != nil {
 		t.Fatalf("Failed to unmarshal response: %v", err)
 	}
-	expectedBalance := (float64(numOperations) * depositAmount) - (float64(numOperations) * withdrawAmount)
+	expectedBalance := float64(initialBalance) + (float64(numOperations) * depositAmount) - (float64(numOperations) * withdrawAmount)
 	assert.InDelta(expectedBalance, balanceResponse.Balance, 0.01)
 }

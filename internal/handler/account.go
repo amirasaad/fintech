@@ -43,7 +43,9 @@ func AccountRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, err
 		}
 		err = uow.Begin()
 		if err != nil {
-			return err
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": err.Error(),
+			})
 		}
 		type DepositRequest struct {
 			Amount float64 `json:"amount" xml:"amount" form:"amount"`
@@ -119,7 +121,9 @@ func AccountRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, err
 		}
 		err = uow.Begin()
 		if err != nil {
-			return err
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": err.Error(),
+			})
 		}
 		accountRepo := uow.AccountRepository()
 		transactionRepo := uow.TransactionRepository()
