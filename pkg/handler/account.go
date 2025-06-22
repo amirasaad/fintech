@@ -62,10 +62,7 @@ func AccountRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, err
 		a, err := uow.AccountRepository().Get(id)
 		log.Infof("Fetced Account %+v, err %s", a, err)
 		if err != nil {
-			err = uow.Rollback()
-			if err != nil {
-				return err
-			}
+			_ = uow.Rollback()
 			log.Errorf("Failed to fetch account for id %s", id)
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 				"error": "Account not found",
