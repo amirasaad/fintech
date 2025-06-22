@@ -6,6 +6,8 @@ import (
 	"sync"
 	"time"
 
+	"log/slog"
+
 	"github.com/google/uuid"
 )
 
@@ -59,7 +61,7 @@ func NewTransactionFromData(id, accountID uuid.UUID, amount, balance int64, crea
 // The amount is expected to be in dollars, and it will be converted to cents for precision.
 // It returns an error if the deposit amount is negative.
 func (a *Account) Deposit(amount float64) (*Transaction, error) {
-	fmt.Println("Balance before deposit:", a.Balance)
+	slog.Info("Balance before deposit", slog.Int64("balance", a.Balance))
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	// Check if the amount is positive before proceeding with the deposit
@@ -71,9 +73,9 @@ func (a *Account) Deposit(amount float64) (*Transaction, error) {
 	if parsedAmount+a.Balance < 0 {
 		return nil, errors.New("deposit amount exceeds maximum safe integer value")
 	}
-	fmt.Println("Depositing amount:", parsedAmount)
+	slog.Info("Depositing amount", slog.Int64("amount", parsedAmount))
 	a.Balance += parsedAmount
-	fmt.Println("Balance after deposit:", a.Balance)
+	slog.Info("Balance after deposit", slog.Int64("balance", a.Balance))
 	transaction := Transaction{
 		ID:        uuid.New(),
 		AccountID: a.ID,
@@ -81,7 +83,7 @@ func (a *Account) Deposit(amount float64) (*Transaction, error) {
 		Balance:   a.Balance,
 		Created:   time.Now().UTC(),
 	}
-	fmt.Println("Transaction created:", transaction)
+	slog.Info("Transaction created", slog.Any("transaction", transaction))
 
 	return &transaction, nil
 }
@@ -90,7 +92,7 @@ func (a *Account) Deposit(amount float64) (*Transaction, error) {
 // The amount is expected to be in dollars, and it will be converted to cents for precision.
 // It returns an error if the withdrawal amount is negative or if there are insufficient funds.
 func (a *Account) Withdraw(amount float64) (*Transaction, error) {
-	fmt.Println("Balance before withdrawal:", a.Balance)
+	slog.Info("Balance before withdrawal", slog.Int64("balance", a.Balance))
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	// Check if the amount is positive before proceeding with the withdrawal
@@ -101,9 +103,9 @@ func (a *Account) Withdraw(amount float64) (*Transaction, error) {
 	if parsedAmount > a.Balance {
 		return nil, errors.New("insufficient funds for withdrawal")
 	}
-	fmt.Println("Withdrawing amount:", parsedAmount)
+	slog.Info("Withdrawing amount", slog.Int64("amount", parsedAmount))
 	a.Balance -= parsedAmount
-	fmt.Println("Balance after withdrawal:", a.Balance)
+	slog.Info("Balance after withdrawal", slog.Int64("balance", a.Balance))
 	transaction := Transaction{
 		ID:        uuid.New(),
 		AccountID: a.ID,
@@ -119,6 +121,6 @@ func (a *Account) Withdraw(amount float64) (*Transaction, error) {
 // GetBalance returns the current balance of the account in dollars.
 // It converts the balance from cents to dollars for display purposes.
 func (a *Account) GetBalance() float64 {
-	fmt.Println("Getting balance:", a.Balance)
+	slog.Info("Getting balance", slog.Int64("balance", a.Balance))
 	return float64(a.Balance) / 100 // Convert cents back to dollars
 }
