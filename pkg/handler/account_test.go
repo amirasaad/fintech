@@ -10,8 +10,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/amirasaad/fintech/internal/domain"
-	"github.com/amirasaad/fintech/internal/repository"
+	"github.com/amirasaad/fintech/pkg/domain"
+	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"

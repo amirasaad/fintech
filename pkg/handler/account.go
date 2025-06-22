@@ -1,8 +1,8 @@
 package handler
 
 import (
-	"github.com/amirasaad/fintech/internal/domain"
-	"github.com/amirasaad/fintech/internal/repository"
+	"github.com/amirasaad/fintech/pkg/domain"
+	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/log"
 	"github.com/google/uuid"

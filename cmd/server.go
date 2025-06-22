@@ -1,9 +1,9 @@
 package main
 
 import (
-	"github.com/amirasaad/fintech/internal/handler"
 	"github.com/amirasaad/fintech/internal/infra"
-	"github.com/amirasaad/fintech/internal/repository"
+	"github.com/amirasaad/fintech/pkg/handler"
+	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/gofiber/fiber/v2"
 )
 

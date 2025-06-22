@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"github.com/amirasaad/fintech/internal/domain"
+	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/google/uuid"
 )
 

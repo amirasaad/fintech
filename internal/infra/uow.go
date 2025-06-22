@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/amirasaad/fintech/internal/repository"
+	"github.com/amirasaad/fintech/pkg/repository"
 	"gorm.io/gorm"
 )
 

@@ -1,8 +1,8 @@
 package infra
 
 import (
-	"github.com/amirasaad/fintech/internal/domain"
-	"github.com/amirasaad/fintech/internal/repository"
+	"github.com/amirasaad/fintech/pkg/domain"
+	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -16,7 +16,7 @@ func NewAccountRepository(db *gorm.DB) repository.AccountRepository {
 }
 
 func (r *accountRepository) Get(id uuid.UUID) (*domain.Account, error) {
-	var a Account
+	var a domain.Account
 	result := r.db.First(&a, id)
 	if result.Error != nil {
 		return nil, result.Error
@@ -33,7 +33,7 @@ func (r *accountRepository) Create(a *domain.Account) error {
 }
 
 func (r *accountRepository) Update(a *domain.Account) error {
-	dbModel := Account{
+	dbModel := domain.Account{
 		ID:      a.ID,
 		Balance: a.Balance,
 	}

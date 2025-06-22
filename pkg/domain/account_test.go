@@ -4,7 +4,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/amirasaad/fintech/internal/domain"
+	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
