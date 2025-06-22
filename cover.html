@@ -65,7 +65,7 @@
 				
 				<option value="file4">github.com/amirasaad/fintech/pkg/domain/account.go (93.9%)</option>
 				
-				<option value="file5">github.com/amirasaad/fintech/pkg/handler/account.go (73.2%)</option>
+				<option value="file5">github.com/amirasaad/fintech/pkg/handler/account.go (76.8%)</option>
 				
 				</select>
 			</div>
@@ -472,7 +472,7 @@ func AccountRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, err
 
                 a := domain.NewAccount()
                 err = uow.AccountRepository().Create(a)
-                if err != nil </span><span class="cov0" title="0">{
+                if err != nil </span><span class="cov8" title="1">{
                         _ = uow.Rollback()
                         log.Errorf("Failed to create account: %v", err)
                         return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -546,7 +546,7 @@ func AccountRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, err
                         })
                 }</span>
                 <span class="cov8" title="1">err = uow.TransactionRepository().Create(tx)
-                if err != nil </span><span class="cov0" title="0">{
+                if err != nil </span><span class="cov8" title="1">{
                         _ = uow.Rollback()
                         return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
                                 "error": err.Error(),

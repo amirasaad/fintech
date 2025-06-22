@@ -1,10 +1,4 @@
 mode: set
-github.com/amirasaad/fintech/cmd/server.go:10.13,13.54 2 0
-github.com/amirasaad/fintech/cmd/server.go:13.54,15.3 1 0
-github.com/amirasaad/fintech/cmd/server.go:17.2,17.40 1 0
-github.com/amirasaad/fintech/cmd/server.go:17.40,19.3 1 0
-github.com/amirasaad/fintech/cmd/server.go:21.2,24.16 3 0
-github.com/amirasaad/fintech/cmd/server.go:24.16,25.33 1 0
 github.com/amirasaad/fintech/internal/infra/database.go:11.42,13.23 2 0
 github.com/amirasaad/fintech/internal/infra/database.go:13.23,15.3 1 0
 github.com/amirasaad/fintech/internal/infra/database.go:16.2,17.16 2 0
@@ -65,6 +59,12 @@ github.com/amirasaad/fintech/internal/infra/uow.go:84.2,84.40 1 0
 github.com/amirasaad/fintech/internal/infra/uow.go:86.72,87.16 1 0
 github.com/amirasaad/fintech/internal/infra/uow.go:87.16,90.3 2 0
 github.com/amirasaad/fintech/internal/infra/uow.go:91.2,91.44 1 0
+github.com/amirasaad/fintech/cmd/server.go:10.13,13.54 2 0
+github.com/amirasaad/fintech/cmd/server.go:13.54,15.3 1 0
+github.com/amirasaad/fintech/cmd/server.go:17.2,17.40 1 0
+github.com/amirasaad/fintech/cmd/server.go:17.40,19.3 1 0
+github.com/amirasaad/fintech/cmd/server.go:21.2,24.16 3 0
+github.com/amirasaad/fintech/cmd/server.go:24.16,25.33 1 0
 github.com/amirasaad/fintech/pkg/domain/account.go:28.28,36.2 1 1
 github.com/amirasaad/fintech/pkg/domain/account.go:38.91,46.2 1 0
 github.com/amirasaad/fintech/pkg/domain/account.go:48.109,56.2 1 0
@@ -83,7 +83,7 @@ github.com/amirasaad/fintech/pkg/handler/account.go:11.86,12.48 1 1
 github.com/amirasaad/fintech/pkg/handler/account.go:12.48,15.17 3 1
 github.com/amirasaad/fintech/pkg/handler/account.go:15.17,19.4 1 1
 github.com/amirasaad/fintech/pkg/handler/account.go:20.3,24.17 4 1
-github.com/amirasaad/fintech/pkg/handler/account.go:24.17,30.4 3 0
+github.com/amirasaad/fintech/pkg/handler/account.go:24.17,30.4 3 1
 github.com/amirasaad/fintech/pkg/handler/account.go:31.3,33.17 3 1
 github.com/amirasaad/fintech/pkg/handler/account.go:33.17,35.4 1 0
 github.com/amirasaad/fintech/pkg/handler/account.go:36.3,36.19 1 1
@@ -103,7 +103,7 @@ github.com/amirasaad/fintech/pkg/handler/account.go:83.17,88.4 2 1
 github.com/amirasaad/fintech/pkg/handler/account.go:89.3,91.17 3 1
 github.com/amirasaad/fintech/pkg/handler/account.go:91.17,96.4 2 0
 github.com/amirasaad/fintech/pkg/handler/account.go:97.3,98.17 2 1
-github.com/amirasaad/fintech/pkg/handler/account.go:98.17,103.4 2 0
+github.com/amirasaad/fintech/pkg/handler/account.go:98.17,103.4 2 1
 github.com/amirasaad/fintech/pkg/handler/account.go:104.3,106.17 3 1
 github.com/amirasaad/fintech/pkg/handler/account.go:106.17,108.4 1 0
 github.com/amirasaad/fintech/pkg/handler/account.go:109.3,109.20 1 1
