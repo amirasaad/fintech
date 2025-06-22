@@ -36,6 +36,11 @@ func (u *UoW) Begin() error {
 	}
 	slog.Info("Starting new transaction")
 	tx := u.session.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
 	if tx.Error != nil {
 		slog.Error("Failed to start transaction", slog.Any("error", tx.Error))
 		return tx.Error
