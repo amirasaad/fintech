@@ -50,7 +50,7 @@ Full spec is available at [openapi.yaml](./docs/openapi.yaml) file.
 
 ## Infrastructure & Design
 
-The app follows domain driven design all business logic can be found at [domain](./internal/domain) package.
+The app follows domain driven design all business logic can be found at [domain](./pkg/domain) package.
 The app uses PostgreSQL 12 as the database.
 It uses [GORM](https://gorm.io/index.html) as the ORM for the database.
 It uses [goFiber](https://gofiber.io/) as the web framework.
