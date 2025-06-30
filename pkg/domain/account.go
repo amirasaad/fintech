@@ -11,6 +11,13 @@ import (
 	"github.com/google/uuid"
 )
 
+var (
+	ErrDepositAmountExceedsMaxSafeInt  = errors.New("deposit amount exceeds maximum safe integer value")
+	ErrTransactionAmountMustBePositive = errors.New("transaction amount must be positive")
+	ErrWithdrawalAmountMustBePositive  = errors.New("withdrawal amount must be positive")
+	ErrInsufficientFunds               = errors.New("insufficient funds for withdrawal")
+)
+
 type Account struct {
 	ID      uuid.UUID
 	Balance int64
@@ -65,13 +72,13 @@ func (a *Account) Deposit(amount float64) (*Transaction, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	// Check if the amount is positive before proceeding with the deposit
-	if amount < 0 {
-		return nil, errors.New("deposit amount must be positive")
+	if amount <= 0 {
+		return nil, ErrTransactionAmountMustBePositive
 	}
 
 	parsedAmount := int64(amount * 100) // Convert to cents for precision
 	if parsedAmount+a.Balance < 0 {
-		return nil, errors.New("deposit amount exceeds maximum safe integer value")
+		return nil, ErrDepositAmountExceedsMaxSafeInt
 	}
 	slog.Info("Depositing amount", slog.Int64("amount", parsedAmount))
 	a.Balance += parsedAmount
@@ -96,12 +103,12 @@ func (a *Account) Withdraw(amount float64) (*Transaction, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	// Check if the amount is positive before proceeding with the withdrawal
-	if amount < 0 {
-		return nil, errors.New("withdrawal amount must be positive")
+	if amount <= 0 {
+		return nil, ErrWithdrawalAmountMustBePositive
 	}
 	parsedAmount := int64(amount * 100) // Convert to cents for precision
 	if parsedAmount > a.Balance {
-		return nil, errors.New("insufficient funds for withdrawal")
+		return nil, ErrInsufficientFunds
 	}
 	slog.Info("Withdrawing amount", slog.Int64("amount", parsedAmount))
 	a.Balance -= parsedAmount

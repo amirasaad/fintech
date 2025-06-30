@@ -49,7 +49,7 @@ func TestDepositZeroAmount(t *testing.T) {
 	account := domain.NewAccount()
 	// Attempt to deposit zero amount
 	_, err := account.Deposit(0.0)
-	require.NoError(err, "Deposit with zero amount should not return an error")
+	require.Error(err, "Deposit with zero amount should return an error")
 	assert.InDelta(0.0, account.GetBalance(), 0.01, "Account balance should remain unchanged after zero deposit")
 }
 
@@ -148,7 +148,7 @@ func TestWithdrawZeroAmount(t *testing.T) {
 	account := domain.NewAccount()
 	// Attempt to withdraw zero amount
 	_, err := account.Withdraw(0.0)
-	require.NoError(err, "Withdrawal with zero amount should not return an error")
+	require.Error(err, "Withdrawal with zero amount should return an error")
 	assert.InDelta(0.0, account.GetBalance(), 0.01, "Account balance should remain unchanged after zero withdrawal")
 }
 

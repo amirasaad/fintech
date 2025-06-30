@@ -170,7 +170,7 @@ func TestAccountRoutesFailureTransaction(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer resp.Body.Close() //nolint:errcheck
-	if resp.StatusCode != fiber.StatusInternalServerError {
+	if resp.StatusCode != fiber.StatusBadRequest {
 		t.Errorf("Expected status %d, got %d", fiber.StatusBadRequest, resp.StatusCode)
 	}
 
@@ -182,7 +182,7 @@ func TestAccountRoutesFailureTransaction(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer resp.Body.Close() //nolint:errcheck
-	if resp.StatusCode != fiber.StatusInternalServerError {
+	if resp.StatusCode != fiber.StatusBadRequest {
 		t.Errorf("Expected status %d, got %d", fiber.StatusBadRequest, resp.StatusCode)
 	}
 
@@ -194,7 +194,7 @@ func TestAccountRoutesFailureTransaction(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer resp.Body.Close() //nolint:errcheck
-	if resp.StatusCode != fiber.StatusInternalServerError {
+	if resp.StatusCode != fiber.StatusUnprocessableEntity {
 		t.Errorf("Expected status %d, got %d", fiber.StatusBadRequest, resp.StatusCode)
 	}
 }
