@@ -171,7 +171,7 @@ func TestAccountRoutesFailureTransaction(t *testing.T) {
 	}
 	defer resp.Body.Close() //nolint:errcheck
 	if resp.StatusCode != fiber.StatusBadRequest {
-		t.Errorf("Expected status %d, got %d", fiber.StatusBadRequest, resp.StatusCode)
+		t.Errorf("Expected status %d, got %d", fiber.StatusUnprocessableEntity, resp.StatusCode)
 	}
 
 	// test withdraw negative amount
