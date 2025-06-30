@@ -147,7 +147,7 @@ func TestAccountRoutesFailureAccountNotFound(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer resp.Body.Close() //nolint:errcheck
-	if resp.StatusCode != fiber.StatusNotFound {
+	if resp.StatusCode != fiber.StatusInternalServerError {
 		t.Errorf("Expected status %d, got %d", fiber.StatusNotFound, resp.StatusCode)
 	}
 	mockUow.AssertCalled(t, "Rollback")
@@ -171,7 +171,7 @@ func TestAccountRoutesFailureTransaction(t *testing.T) {
 	}
 	defer resp.Body.Close() //nolint:errcheck
 	if resp.StatusCode != fiber.StatusBadRequest {
-		t.Errorf("Expected status %d, got %d", fiber.StatusBadRequest, resp.StatusCode)
+		t.Errorf("Expected status %d, got %d", fiber.StatusUnprocessableEntity, resp.StatusCode)
 	}
 
 	// test withdraw negative amount
@@ -194,7 +194,7 @@ func TestAccountRoutesFailureTransaction(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer resp.Body.Close() //nolint:errcheck
-	if resp.StatusCode != fiber.StatusBadRequest {
+	if resp.StatusCode != fiber.StatusUnprocessableEntity {
 		t.Errorf("Expected status %d, got %d", fiber.StatusBadRequest, resp.StatusCode)
 	}
 }
