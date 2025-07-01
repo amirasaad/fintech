@@ -1,5 +1,7 @@
 # Fintech App
 
+[![build](https://github.com/amirasaad/fintech/actions/workflows/ci.yml/badge.svg)](https://github.com/amirasaad/fintech/actions/workflows/ci.yml)
+
 Fintech app manages accounts and financial
 transactions. The system supports operations such as:
 
