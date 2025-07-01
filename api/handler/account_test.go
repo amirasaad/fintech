@@ -194,9 +194,7 @@ func TestAccountRoutesFailureTransaction(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer resp.Body.Close() //nolint:errcheck
-	if resp.StatusCode != fiber.StatusUnprocessableEntity {
-		t.Errorf("Expected status %d, got %d", fiber.StatusBadRequest, resp.StatusCode)
-	}
+	assert.Equal(t, fiber.StatusUnprocessableEntity, resp.StatusCode, "Expected status %d, got %d", fiber.StatusUnprocessableEntity, resp.StatusCode)
 }
 
 func TestAccountRoutesTransactionList(t *testing.T) {

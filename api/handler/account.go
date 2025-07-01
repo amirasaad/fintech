@@ -1,3 +1,9 @@
+// The `package handler` in this code snippet is defining a Go package that contains HTTP handler
+// functions for handling various account-related operations such as creating an account, depositing
+// funds, withdrawing funds, retrieving transactions, and checking the account balance. These handler
+// functions are responsible for processing incoming HTTP requests, interacting with the `service`
+// layer to perform the necessary business logic, and returning appropriate responses to the client.
+// The handlers are using the Fiber web framework for building the HTTP server and handling routing.
 package handler
 
 import (
@@ -8,6 +14,8 @@ import (
 	"github.com/google/uuid"
 )
 
+// The `AccountRoutes` function defines various HTTP routes for account-related operations using Fiber
+// in Go.
 func AccountRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, error)) {
 	app.Post("/account", func(c *fiber.Ctx) error {
 		log.Infof("Creating new account")
@@ -15,7 +23,7 @@ func AccountRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, err
 		a, err := service.CreateAccount()
 		if err != nil {
 			log.Errorf("Failed to create account: %v", err)
-			status := service.ErrorToStatusCode(err)
+			status := ErrorToStatusCode(err)
 			return c.Status(status).JSON(fiber.Map{
 				"error": err.Error(),
 			})
@@ -48,7 +56,7 @@ func AccountRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, err
 		tx, err := service.Deposit(id, request.Amount)
 		if err != nil {
 			log.Errorf("Failed to deposit: %v", err)
-			status := service.ErrorToStatusCode(err)
+			status := ErrorToStatusCode(err)
 			return c.Status(status).JSON(fiber.Map{
 				"error": err.Error(),
 			})
@@ -79,7 +87,7 @@ func AccountRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, err
 		tx, err := service.Withdraw(id, request.Amount)
 		if err != nil {
 			log.Errorf("Failed to withdraw: %v", err)
-			status := service.ErrorToStatusCode(err)
+			status := ErrorToStatusCode(err)
 			return c.Status(status).JSON(fiber.Map{
 				"error": err.Error(),
 			})
@@ -99,7 +107,7 @@ func AccountRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, err
 		tx, err := service.GetTransactions(id)
 		if err != nil {
 			log.Errorf("Failed to list transactions for account ID %s: %v", id, err)
-			status := service.ErrorToStatusCode(err)
+			status := ErrorToStatusCode(err)
 			return c.Status(status).JSON(fiber.Map{
 				"error": err.Error(),
 			})
@@ -119,7 +127,7 @@ func AccountRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, err
 		balance, err := service.GetBalance(id)
 		if err != nil {
 			log.Errorf("Failed to fetch balance for account ID %s: %v", id, err)
-			status := service.ErrorToStatusCode(err)
+			status := ErrorToStatusCode(err)
 			return c.Status(status).JSON(fiber.Map{
 				"error": err.Error(),
 			})

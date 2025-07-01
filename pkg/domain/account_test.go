@@ -1,6 +1,7 @@
 package domain_test
 
 import (
+	"math"
 	"sync"
 	"testing"
 
@@ -72,10 +73,56 @@ func TestDepositOverflow(t *testing.T) {
 	assert := assert.New(t)
 
 	a := domain.NewAccount()
-	_, err := a.Deposit(1000000000000000000000000000000000000000)
-	assert.Error(err, "Deposit amount exceeds maximum safe integer value")
+	_, err := a.Deposit(math.MaxInt64 / 100)
+	assert.NoError(err, "Deposit amount should not exceed maximum safe integer value")
 
 }
+
+func TestDepositOverflowBoundary(t *testing.T) {
+	assert := assert.New(t)
+	require := require.New(t)
+
+	account := domain.NewAccount()
+	// Deposit up to just below the max safe int
+	_, err := account.Deposit(float64((math.MaxInt64 - 50) / 100))
+	require.NoError(err, "Deposit just below overflow boundary should not return an error")
+
+	// This deposit should cause an overflow
+	_, err = account.Deposit(1.0)
+	require.Error(err, "Deposit that causes overflow should return an error")
+	assert.Equal(domain.ErrDepositAmountExceedsMaxSafeInt, err, "Error should be ErrDepositAmountExceedsMaxSafeInt")
+}
+
+func TestWithdrawOverflow(t *testing.T) {
+	assert := assert.New(t)
+	require := require.New(t)
+
+	account := domain.NewAccount()
+	// Deposit a large amount
+	_, err := account.Deposit(float64((math.MaxInt64 - 100) / 100))
+	require.NoError(err, "Large deposit should not return an error")
+
+	// Withdraw a large amount, should not overflow
+	_, err = account.Withdraw(float64((math.MaxInt64 - 100) / 100))
+	require.NoError(err, "Large withdrawal should not return an error")
+	assert.InDelta(0.0, account.GetBalance(), 0.01, "Balance should be zero after full withdrawal")
+}
+
+func TestWithdrawNegativeOverflow(t *testing.T) {
+	assert := assert.New(t)
+	require := require.New(t)
+
+	account := domain.NewAccount()
+	// Deposit a small amount
+	_, err := account.Deposit(1.0)
+	require.NoError(err, "Deposit should not return an error")
+
+	// Try to withdraw math.MaxInt64 dollars (way more than balance)
+	_, err = account.Withdraw(float64(math.MaxInt64 / 100))
+	require.Error(err, "Withdrawal with overflow should return an error")
+	assert.Equal(domain.ErrInsufficientFunds, err, "Error should be ErrInsufficientFunds")
+}
+
 func TestDepositWithPrecision(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)

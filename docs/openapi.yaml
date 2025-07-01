@@ -128,7 +128,11 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/WithdrawRequest"
+                type: object
+                properties:
+                  balance:
+                    type: float
+                    description: Account balance in dollars
             examples:
               schema:
         404:
@@ -209,8 +213,11 @@ components:
           format: uuid
           description: Transaction ID
         amount:
-          type: float
-          description: Transaction amount
+          type: integer
+          description: Transaction amount in cents
+        balance:
+          type: integer
+          description: Account balance after transaction in cents
         created:
           type: string
           format: date-time
