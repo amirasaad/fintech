@@ -3,6 +3,7 @@ package domain
 import (
 	"errors"
 	"fmt"
+	"math"
 	"sync"
 	"time"
 
@@ -77,7 +78,7 @@ func (a *Account) Deposit(amount float64) (*Transaction, error) {
 	}
 
 	parsedAmount := int64(amount * 100) // Convert to cents for precision
-	if parsedAmount+a.Balance < 0 {
+	if parsedAmount+a.Balance < 0 || amount > math.MaxInt64 {
 		return nil, ErrDepositAmountExceedsMaxSafeInt
 	}
 	slog.Info("Depositing amount", slog.Int64("amount", parsedAmount))
