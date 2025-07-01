@@ -3,7 +3,7 @@
 <html>
 	<head>
 		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-		<title>cmd: Go Coverage Report</title>
+		<title>handler: Go Coverage Report</title>
 		<style>
 			body {
 				background: black;
@@ -55,17 +55,21 @@
 			<div id="nav">
 				<select id="files">
 				
-				<option value="file0">github.com/amirasaad/fintech/cmd/server.go (0.0%)</option>
+				<option value="file0">github.com/amirasaad/fintech/api/handler/account.go (82.9%)</option>
 				
-				<option value="file1">github.com/amirasaad/fintech/internal/infra/database.go (0.0%)</option>
+				<option value="file1">github.com/amirasaad/fintech/api/handler/utils.go (83.3%)</option>
 				
-				<option value="file2">github.com/amirasaad/fintech/internal/infra/orm.go (0.0%)</option>
+				<option value="file2">github.com/amirasaad/fintech/cmd/server.go (0.0%)</option>
 				
-				<option value="file3">github.com/amirasaad/fintech/internal/infra/uow.go (0.0%)</option>
+				<option value="file3">github.com/amirasaad/fintech/internal/infra/database.go (0.0%)</option>
 				
-				<option value="file4">github.com/amirasaad/fintech/pkg/domain/account.go (93.9%)</option>
+				<option value="file4">github.com/amirasaad/fintech/internal/infra/orm.go (0.0%)</option>
 				
-				<option value="file5">github.com/amirasaad/fintech/pkg/handler/account.go (76.8%)</option>
+				<option value="file5">github.com/amirasaad/fintech/internal/infra/uow.go (0.0%)</option>
+				
+				<option value="file6">github.com/amirasaad/fintech/pkg/domain/account.go (90.9%)</option>
+				
+				<option value="file7">github.com/amirasaad/fintech/pkg/service/account.go (0.0%)</option>
 				
 				</select>
 			</div>
@@ -79,11 +83,167 @@
 		</div>
 		<div id="content">
 		
-		<pre class="file" id="file0" style="display: none">package main
+		<pre class="file" id="file0" style="display: none">package handler
 
 import (
+        "github.com/amirasaad/fintech/pkg/repository"
+        "github.com/amirasaad/fintech/pkg/service"
+        "github.com/gofiber/fiber/v2"
+        "github.com/gofiber/fiber/v2/log"
+        "github.com/google/uuid"
+)
+
+func AccountRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, error)) <span class="cov8" title="1">{
+        app.Post("/account", func(c *fiber.Ctx) error </span><span class="cov8" title="1">{
+                log.Infof("Creating new account")
+                service := service.NewAccountService(uowFactory)
+                a, err := service.CreateAccount()
+                if err != nil </span><span class="cov8" title="1">{
+                        log.Errorf("Failed to create account: %v", err)
+                        status := ErrorToStatusCode(err)
+                        return c.Status(status).JSON(fiber.Map{
+                                "error": err.Error(),
+                        })
+                }</span>
+
+                <span class="cov8" title="1">log.Infof("Account created: %+v", a)
+                return c.JSON(a)</span>
+        })
+
+        <span class="cov8" title="1">app.Post("/account/:id/deposit", func(c *fiber.Ctx) error </span><span class="cov8" title="1">{
+                service := service.NewAccountService(uowFactory)
+                id, err := uuid.Parse(c.Params("id"))
+                if err != nil </span><span class="cov0" title="0">{
+                        log.Errorf("Invalid account ID for deposit: %v", err)
+                        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+                                "error": err.Error(),
+                        })
+                }</span>
+                <span class="cov8" title="1">type DepositRequest struct {
+                        Amount float64 `json:"amount" xml:"amount" form:"amount"`
+                }
+                var request DepositRequest
+                err = c.BodyParser(&amp;request)
+                if err != nil </span><span class="cov0" title="0">{
+                        log.Errorf("Failed to parse deposit request: %v", err)
+                        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+                                "error": err.Error(),
+                        })
+                }</span>
+                <span class="cov8" title="1">tx, err := service.Deposit(id, request.Amount)
+                if err != nil </span><span class="cov8" title="1">{
+                        log.Errorf("Failed to deposit: %v", err)
+                        status := ErrorToStatusCode(err)
+                        return c.Status(status).JSON(fiber.Map{
+                                "error": err.Error(),
+                        })
+                }</span>
+                <span class="cov8" title="1">return c.JSON(tx)</span>
+        })
+
+        <span class="cov8" title="1">app.Post("/account/:id/withdraw", func(c *fiber.Ctx) error </span><span class="cov8" title="1">{
+                service := service.NewAccountService(uowFactory)
+                id, err := uuid.Parse(c.Params("id"))
+                if err != nil </span><span class="cov0" title="0">{
+                        log.Errorf("Invalid account ID for withdrawal: %v", err)
+                        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+                                "error": err.Error(),
+                        })
+                }</span>
+                <span class="cov8" title="1">type WithdrawRequest struct {
+                        Amount float64 `json:"amount"`
+                }
+                var request WithdrawRequest
+                err = c.BodyParser(&amp;request)
+                if err != nil </span><span class="cov0" title="0">{
+                        log.Errorf("Failed to parse withdrawal request: %v", err)
+                        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+                                "error": err.Error(),
+                        })
+                }</span>
+                <span class="cov8" title="1">tx, err := service.Withdraw(id, request.Amount)
+                if err != nil </span><span class="cov8" title="1">{
+                        log.Errorf("Failed to withdraw: %v", err)
+                        status := ErrorToStatusCode(err)
+                        return c.Status(status).JSON(fiber.Map{
+                                "error": err.Error(),
+                        })
+                }</span>
+                <span class="cov8" title="1">return c.JSON(tx)</span>
+        })
+
+        <span class="cov8" title="1">app.Get("/account/:id/transactions", func(c *fiber.Ctx) error </span><span class="cov8" title="1">{
+                service := service.NewAccountService(uowFactory)
+                id, err := uuid.Parse(c.Params("id"))
+                if err != nil </span><span class="cov0" title="0">{
+                        log.Errorf("Invalid account ID for transactions: %v", err)
+                        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+                                "error": err.Error(),
+                        })
+                }</span>
+                <span class="cov8" title="1">tx, err := service.GetTransactions(id)
+                if err != nil </span><span class="cov8" title="1">{
+                        log.Errorf("Failed to list transactions for account ID %s: %v", id, err)
+                        status := ErrorToStatusCode(err)
+                        return c.Status(status).JSON(fiber.Map{
+                                "error": err.Error(),
+                        })
+                }</span>
+                <span class="cov8" title="1">return c.JSON(tx)</span>
+        })
+
+        <span class="cov8" title="1">app.Get("/account/:id/balance", func(c *fiber.Ctx) error </span><span class="cov8" title="1">{
+                service := service.NewAccountService(uowFactory)
+                id, err := uuid.Parse(c.Params("id"))
+                if err != nil </span><span class="cov0" title="0">{
+                        log.Errorf("Invalid account ID for balance: %v", err)
+                        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+                                "error": err.Error(),
+                        })
+                }</span>
+                <span class="cov8" title="1">balance, err := service.GetBalance(id)
+                if err != nil </span><span class="cov8" title="1">{
+                        log.Errorf("Failed to fetch balance for account ID %s: %v", id, err)
+                        status := ErrorToStatusCode(err)
+                        return c.Status(status).JSON(fiber.Map{
+                                "error": err.Error(),
+                        })
+                }</span>
+                <span class="cov8" title="1">return c.Status(fiber.StatusOK).JSON(fiber.Map{
+                        "balance": balance,
+                })</span>
+        })
+}
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">package handler
+
+import (
+        "github.com/amirasaad/fintech/pkg/domain"
+        "github.com/gofiber/fiber/v2"
+)
+
+func ErrorToStatusCode(err error) int <span class="cov8" title="1">{
+        switch err </span>{
+        case domain.ErrDepositAmountExceedsMaxSafeInt:<span class="cov0" title="0">
+                return fiber.StatusBadRequest</span>
+        case domain.ErrTransactionAmountMustBePositive:<span class="cov8" title="1">
+                return fiber.StatusBadRequest</span>
+        case domain.ErrWithdrawalAmountMustBePositive:<span class="cov8" title="1">
+                return fiber.StatusBadRequest</span>
+        case domain.ErrInsufficientFunds:<span class="cov8" title="1">
+                return fiber.StatusUnprocessableEntity</span>
+        default:<span class="cov8" title="1">
+                return fiber.StatusInternalServerError</span>
+        }
+}
+</pre>
+		
+		<pre class="file" id="file2" style="display: none">package main
+
+import (
+        "github.com/amirasaad/fintech/api/handler"
         "github.com/amirasaad/fintech/internal/infra"
-        "github.com/amirasaad/fintech/pkg/handler"
         "github.com/amirasaad/fintech/pkg/repository"
         "github.com/gofiber/fiber/v2"
 )
@@ -108,7 +268,7 @@ func main() <span class="cov0" title="0">{
 }
 </pre>
 		
-		<pre class="file" id="file1" style="display: none">package infra
+		<pre class="file" id="file3" style="display: none">package infra
 
 import (
         "errors"
@@ -135,7 +295,7 @@ func NewDBConnection() (*gorm.DB, error) <span class="cov0" title="0">{
 }
 </pre>
 		
-		<pre class="file" id="file2" style="display: none">package infra
+		<pre class="file" id="file4" style="display: none">package infra
 
 import (
         "github.com/amirasaad/fintech/pkg/domain"
@@ -229,7 +389,7 @@ func (r *transactionRepository) List(accountID uuid.UUID) ([]*domain.Transaction
 }
 </pre>
 		
-		<pre class="file" id="file3" style="display: none">package infra
+		<pre class="file" id="file5" style="display: none">package infra
 
 import (
         "fmt"
@@ -267,7 +427,12 @@ func (u *UoW) Begin() error <span class="cov0" title="0">{
         }</span>
         <span class="cov0" title="0">slog.Info("Starting new transaction")
         tx := u.session.Begin()
-        if tx.Error != nil </span><span class="cov0" title="0">{
+        defer func() </span><span class="cov0" title="0">{
+                if r := recover(); r != nil </span><span class="cov0" title="0">{
+                        tx.Rollback()
+                }</span>
+        }()
+        <span class="cov0" title="0">if tx.Error != nil </span><span class="cov0" title="0">{
                 slog.Error("Failed to start transaction", slog.Any("error", tx.Error))
                 return tx.Error
         }</span>
@@ -323,7 +488,7 @@ func (u *UoW) TransactionRepository() repository.TransactionRepository <span cla
 }
 </pre>
 		
-		<pre class="file" id="file4" style="display: none">package domain
+		<pre class="file" id="file6" style="display: none">package domain
 
 import (
         "errors"
@@ -331,7 +496,16 @@ import (
         "sync"
         "time"
 
+        "log/slog"
+
         "github.com/google/uuid"
+)
+
+var (
+        ErrDepositAmountExceedsMaxSafeInt  = errors.New("deposit amount exceeds maximum safe integer value")
+        ErrTransactionAmountMustBePositive = errors.New("transaction amount must be positive")
+        ErrWithdrawalAmountMustBePositive  = errors.New("withdrawal amount must be positive")
+        ErrInsufficientFunds               = errors.New("insufficient funds for withdrawal")
 )
 
 type Account struct {
@@ -384,21 +558,21 @@ func NewTransactionFromData(id, accountID uuid.UUID, amount, balance int64, crea
 // The amount is expected to be in dollars, and it will be converted to cents for precision.
 // It returns an error if the deposit amount is negative.
 func (a *Account) Deposit(amount float64) (*Transaction, error) <span class="cov8" title="1">{
-        fmt.Println("Balance before deposit:", a.Balance)
+        slog.Info("Balance before deposit", slog.Int64("balance", a.Balance))
         a.mu.Lock()
         defer a.mu.Unlock()
         // Check if the amount is positive before proceeding with the deposit
-        if amount &lt; 0 </span><span class="cov8" title="1">{
-                return nil, errors.New("deposit amount must be positive")
+        if amount &lt;= 0 </span><span class="cov8" title="1">{
+                return nil, ErrTransactionAmountMustBePositive
         }</span>
 
         <span class="cov8" title="1">parsedAmount := int64(amount * 100) // Convert to cents for precision
-        if parsedAmount+a.Balance &lt; 0 </span><span class="cov8" title="1">{
-                return nil, errors.New("deposit amount exceeds maximum safe integer value")
+        if parsedAmount+a.Balance &lt; 0 </span><span class="cov0" title="0">{
+                return nil, ErrDepositAmountExceedsMaxSafeInt
         }</span>
-        <span class="cov8" title="1">fmt.Println("Depositing amount:", parsedAmount)
+        <span class="cov8" title="1">slog.Info("Depositing amount", slog.Int64("amount", parsedAmount))
         a.Balance += parsedAmount
-        fmt.Println("Balance after deposit:", a.Balance)
+        slog.Info("Balance after deposit", slog.Int64("balance", a.Balance))
         transaction := Transaction{
                 ID:        uuid.New(),
                 AccountID: a.ID,
@@ -406,7 +580,7 @@ func (a *Account) Deposit(amount float64) (*Transaction, error) <span class="cov
                 Balance:   a.Balance,
                 Created:   time.Now().UTC(),
         }
-        fmt.Println("Transaction created:", transaction)
+        slog.Info("Transaction created", slog.Any("transaction", transaction))
 
         return &amp;transaction, nil</span>
 }
@@ -415,20 +589,20 @@ func (a *Account) Deposit(amount float64) (*Transaction, error) <span class="cov
 // The amount is expected to be in dollars, and it will be converted to cents for precision.
 // It returns an error if the withdrawal amount is negative or if there are insufficient funds.
 func (a *Account) Withdraw(amount float64) (*Transaction, error) <span class="cov8" title="1">{
-        fmt.Println("Balance before withdrawal:", a.Balance)
+        slog.Info("Balance before withdrawal", slog.Int64("balance", a.Balance))
         a.mu.Lock()
         defer a.mu.Unlock()
         // Check if the amount is positive before proceeding with the withdrawal
-        if amount &lt; 0 </span><span class="cov8" title="1">{
-                return nil, errors.New("withdrawal amount must be positive")
+        if amount &lt;= 0 </span><span class="cov8" title="1">{
+                return nil, ErrWithdrawalAmountMustBePositive
         }</span>
         <span class="cov8" title="1">parsedAmount := int64(amount * 100) // Convert to cents for precision
         if parsedAmount &gt; a.Balance </span><span class="cov8" title="1">{
-                return nil, errors.New("insufficient funds for withdrawal")
+                return nil, ErrInsufficientFunds
         }</span>
-        <span class="cov8" title="1">fmt.Println("Withdrawing amount:", parsedAmount)
+        <span class="cov8" title="1">slog.Info("Withdrawing amount", slog.Int64("amount", parsedAmount))
         a.Balance -= parsedAmount
-        fmt.Println("Balance after withdrawal:", a.Balance)
+        slog.Info("Balance after withdrawal", slog.Int64("balance", a.Balance))
         transaction := Transaction{
                 ID:        uuid.New(),
                 AccountID: a.ID,
@@ -444,254 +618,187 @@ func (a *Account) Withdraw(amount float64) (*Transaction, error) <span class="co
 // GetBalance returns the current balance of the account in dollars.
 // It converts the balance from cents to dollars for display purposes.
 func (a *Account) GetBalance() float64 <span class="cov8" title="1">{
-        fmt.Println("Getting balance:", a.Balance)
+        slog.Info("Getting balance", slog.Int64("balance", a.Balance))
         return float64(a.Balance) / 100 // Convert cents back to dollars
 }</span>
 </pre>
 		
-		<pre class="file" id="file5" style="display: none">package handler
+		<pre class="file" id="file7" style="display: none">package service
 
 import (
         "github.com/amirasaad/fintech/pkg/domain"
         "github.com/amirasaad/fintech/pkg/repository"
-        "github.com/gofiber/fiber/v2"
-        "github.com/gofiber/fiber/v2/log"
+        
         "github.com/google/uuid"
 )
 
-func AccountRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, error)) <span class="cov8" title="1">{
-        app.Post("/account", func(c *fiber.Ctx) error </span><span class="cov8" title="1">{
-                log.Infof("Creating new account")
-                uow, err := uowFactory()
-                if err != nil </span><span class="cov8" title="1">{
-                        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-                                "error": err.Error(),
-                        })
-                }</span>
-                <span class="cov8" title="1">_ = uow.Begin()
+type AccountService struct {
+        uowFactory func() (repository.UnitOfWork, error)
+}
+func NewAccountService(uowFactory func() (repository.UnitOfWork, error)) *AccountService <span class="cov0" title="0">{
+        return &amp;AccountService{
+                uowFactory: uowFactory,
+        }
+}</span>
 
-                a := domain.NewAccount()
-                err = uow.AccountRepository().Create(a)
-                if err != nil </span><span class="cov8" title="1">{
-                        _ = uow.Rollback()
-                        log.Errorf("Failed to create account: %v", err)
-                        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-                                "error": err.Error(),
-                        })
-                }</span>
-                <span class="cov8" title="1">log.Infof("Account created: %+v", a)
-                err = uow.Commit()
-                if err != nil </span><span class="cov0" title="0">{
-                        return err
-                }</span>
-                <span class="cov8" title="1">return c.JSON(a)</span>
-        })
+func (s *AccountService) CreateAccount() (*domain.Account, error) <span class="cov0" title="0">{
+        uow, err := s.uowFactory()
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov0" title="0">err = uow.Begin()
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
 
-        <span class="cov8" title="1">app.Post("/account/:id/deposit", func(c *fiber.Ctx) error </span><span class="cov8" title="1">{
-                uow, err := uowFactory()
-                if err != nil </span><span class="cov8" title="1">{
-                        return err
-                }</span>
-                <span class="cov8" title="1">err = uow.Begin()
-                if err != nil </span><span class="cov0" title="0">{
-                        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-                                "error": err.Error(),
-                        })
-                }</span>
-                <span class="cov8" title="1">type DepositRequest struct {
-                        Amount float64 `json:"amount" xml:"amount" form:"amount"`
-                }
-                id, err := uuid.Parse(c.Params("id"))
-                if err != nil </span><span class="cov0" title="0">{
-                        _ = uow.Rollback()
-                        log.Errorf("Invalid account ID for deposit: %v", err)
-                        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-                                "error": err.Error(),
-                        })
-                }</span>
-                <span class="cov8" title="1">log.Infof("Fetching account for id %s", id)
-                a, err := uow.AccountRepository().Get(id)
-                log.Infof("Fetced Account %+v, err %s", a, err)
-                if err != nil </span><span class="cov8" title="1">{
-                        _ = uow.Rollback()
-                        log.Errorf("Failed to fetch account for id %s", id)
-                        return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-                                "error": "Account not found",
-                        })
-                }</span>
-                <span class="cov8" title="1">var request DepositRequest
-                err = c.BodyParser(&amp;request)
-                log.Infof("Account deposit %+v", request)
-                if err != nil </span><span class="cov0" title="0">{
-                        _ = uow.Rollback()
-                        log.Errorf("Failed to parse account deposit %+v with error %s", request, err)
-                        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-                                "error": err.Error(),
-                        })
-                }</span>
-                <span class="cov8" title="1">log.Infof("Depositing amount %f", request.Amount)
-                tx, err := a.Deposit(request.Amount)
-                if err != nil </span><span class="cov8" title="1">{
-                        _ = uow.Rollback()
-                        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-                                "error": err.Error(),
-                        })
-                }</span>
-                <span class="cov8" title="1">log.Infof("Depositing transaction amount %+v", tx)
-                err = uow.AccountRepository().Update(a)
-                if err != nil </span><span class="cov0" title="0">{
-                        _ = uow.Rollback()
-                        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-                                "error": err.Error(),
-                        })
-                }</span>
-                <span class="cov8" title="1">err = uow.TransactionRepository().Create(tx)
-                if err != nil </span><span class="cov8" title="1">{
-                        _ = uow.Rollback()
-                        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-                                "error": err.Error(),
-                        })
-                }</span>
-                <span class="cov8" title="1">log.Infof("Deposit successful for account %s, transaction: %+v", id, tx)
-                err = uow.Commit()
-                if err != nil </span><span class="cov0" title="0">{
-                        return err
-                }</span>
-                <span class="cov8" title="1">return c.JSON(tx)</span>
-        })
+        <span class="cov0" title="0">a := domain.NewAccount()
+        err = uow.AccountRepository().Create(a)
+        if err != nil </span><span class="cov0" title="0">{
+                _ = uow.Rollback()
+                return nil, err
+        }</span>
 
-        <span class="cov8" title="1">app.Post("/account/:id/withdraw", func(c *fiber.Ctx) error </span><span class="cov8" title="1">{
-                uow, err := uowFactory()
-                if err != nil </span><span class="cov8" title="1">{
-                        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-                                "error": err.Error(),
-                        })
-                }</span>
-                <span class="cov8" title="1">err = uow.Begin()
-                if err != nil </span><span class="cov0" title="0">{
-                        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-                                "error": err.Error(),
-                        })
-                }</span>
-                <span class="cov8" title="1">accountRepo := uow.AccountRepository()
-                transactionRepo := uow.TransactionRepository()
-                type WithdrawRequest struct {
-                        Amount float64 `json:"amount"`
-                }
-                var request WithdrawRequest
-                err = c.BodyParser(&amp;request)
-                if err != nil </span><span class="cov0" title="0">{
-                        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-                                "error": err.Error(),
-                        })
-                }</span>
-                <span class="cov8" title="1">log.Infof("Withdraw request: %+v", request)
+        <span class="cov0" title="0">err = uow.Commit()
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov0" title="0">return a, nil</span>
+}
 
-                id, err := uuid.Parse(c.Params("id"))
-                if err != nil </span><span class="cov0" title="0">{
-                        log.Errorf("Invalid account ID for withdrawal: %v", err)
-                        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-                                "error": err.Error(),
-                        })
-                }</span>
+func (s *AccountService) Deposit(accountID uuid.UUID, amount float64) (*domain.Transaction, error) <span class="cov0" title="0">{
+        uow, err := s.uowFactory()
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov0" title="0">err = uow.Begin()
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
 
-                <span class="cov8" title="1">log.Infof("Fetching account for withdrawal for id %s", id)
-                a, err := accountRepo.Get(id)
-                if err != nil </span><span class="cov0" title="0">{
-                        log.Errorf("Failed to fetch account for withdrawal for id %s: %v", id, err)
-                        return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-                                "error": "Account not found",
-                        })
-                }</span>
+        <span class="cov0" title="0">a, err := uow.AccountRepository().Get(accountID)
+        if err != nil </span><span class="cov0" title="0">{
+                _ = uow.Rollback()
+                return nil, err
+        }</span>
 
-                <span class="cov8" title="1">log.Infof("Processing withdrawal for account %s, amount %f", id, request.Amount)
-                tx, err := a.Withdraw(request.Amount)
-                if err != nil </span><span class="cov8" title="1">{
-                        _ = uow.Rollback()
-                        log.Errorf("Failed to process withdrawal for account %s, amount %f: %v", id, request.Amount, err)
-                        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-                                "error": err.Error(),
-                        })
-                }</span>
+        <span class="cov0" title="0">tx, err := a.Deposit(amount)
+        if err != nil </span><span class="cov0" title="0">{
+                _ = uow.Rollback()
+                return nil, err
+        }</span>
 
-                <span class="cov8" title="1">err = transactionRepo.Create(tx)
-                if err != nil </span><span class="cov0" title="0">{
-                        _ = uow.Rollback()
-                        log.Errorf("Failed to create transaction record for withdrawal: %v", err)
-                        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-                                "error": err.Error(),
-                        })
-                }</span>
+        <span class="cov0" title="0">err = uow.AccountRepository().Update(a)
+        if err != nil </span><span class="cov0" title="0">{
+                _ = uow.Rollback()
+                return nil, err
+        }</span>
 
-                <span class="cov8" title="1">err = accountRepo.Update(a)
-                if err != nil </span><span class="cov0" title="0">{
-                        _ = uow.Rollback()
-                        log.Errorf("Failed to update account balance after withdrawal: %v", err)
-                        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-                                "error": err.Error(),
-                        })
-                }</span>
-                <span class="cov8" title="1">log.Infof("Withdrawal successful for account %s, transaction: %+v", id, tx)
-                err = uow.Commit()
-                if err != nil </span><span class="cov0" title="0">{
-                        return err
-                }</span>
-                <span class="cov8" title="1">return c.JSON(tx)</span>
-        })
+        <span class="cov0" title="0">err = uow.TransactionRepository().Create(tx)
+        if err != nil </span><span class="cov0" title="0">{
+                _ = uow.Rollback()
+                return nil, err
+        }</span>
 
-        <span class="cov8" title="1">app.Get("/account/:id/transactions", func(c *fiber.Ctx) error </span><span class="cov8" title="1">{
-                uow, err := uowFactory()
-                if err != nil </span><span class="cov8" title="1">{
-                        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-                                "error": err.Error(),
-                        })
-                }</span>
-                <span class="cov8" title="1">log.Infof("Fetching transactions for account ID: %s", c.Params("id"))
-                id, err := uuid.Parse(c.Params("id"))
-                if err != nil </span><span class="cov0" title="0">{
-                        log.Errorf("Invalid account ID for transactions: %v", err)
-                        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-                                "error": err.Error(),
-                        })
-                }</span>
-                <span class="cov8" title="1">tx, err := uow.TransactionRepository().List(id)
-                if err != nil </span><span class="cov0" title="0">{
-                        log.Errorf("Failed to list transactions for account ID %s: %v", id, err)
-                        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-                                "error": err.Error(),
-                        })
-                }</span>
-                <span class="cov8" title="1">log.Infof("Successfully fetched %d transactions for account ID %s", len(tx), id)
-                return c.JSON(tx)</span>
-        })
+        <span class="cov0" title="0">err = uow.Commit()
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
 
-        <span class="cov8" title="1">app.Get("/account/:id/balance", func(c *fiber.Ctx) error </span><span class="cov8" title="1">{
-                uow, err := uowFactory()
-                if err != nil </span><span class="cov8" title="1">{
-                        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-                                "error": err.Error(),
-                        })
-                }</span>
-                <span class="cov8" title="1">log.Infof("Fetching balance for account ID: %s", c.Params("id"))
-                id, err := uuid.Parse(c.Params("id"))
-                if err != nil </span><span class="cov0" title="0">{
-                        log.Errorf("Invalid account ID for balance: %v", err)
-                        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-                                "error": err.Error(),
-                        })
-                }</span>
-                <span class="cov8" title="1">a, err := uow.AccountRepository().Get(id)
-                if err != nil </span><span class="cov0" title="0">{
-                        log.Errorf("Failed to fetch account for balance for id %s: %v", id, err)
-                        return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-                                "error": "Account not found",
-                        })
-                }</span>
-                <span class="cov8" title="1">log.Infof("Successfully fetched balance for account ID %s: %f", id, a.GetBalance())
-                return c.Status(fiber.StatusOK).JSON(fiber.Map{
-                        "balance": a.GetBalance(),
-                })</span>
-        })
+        <span class="cov0" title="0">return tx, nil</span>
+}
+
+func (s *AccountService) Withdraw(accountID uuid.UUID, amount float64) (*domain.Transaction, error) <span class="cov0" title="0">{
+        uow, err := s.uowFactory()
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov0" title="0">err = uow.Begin()
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+
+        <span class="cov0" title="0">a, err := uow.AccountRepository().Get(accountID)
+        if err != nil </span><span class="cov0" title="0">{
+                _ = uow.Rollback()
+                return nil, err
+        }</span>
+
+        <span class="cov0" title="0">tx, err := a.Withdraw(amount)
+        if err != nil </span><span class="cov0" title="0">{
+                _ = uow.Rollback()
+                return nil, err
+        }</span>
+
+        <span class="cov0" title="0">err = uow.AccountRepository().Update(a)
+        if err != nil </span><span class="cov0" title="0">{
+                _ = uow.Rollback()
+                return nil, err
+        }</span>
+
+        <span class="cov0" title="0">err = uow.TransactionRepository().Create(tx)
+        if err != nil </span><span class="cov0" title="0">{
+                _ = uow.Rollback()
+                return nil, err
+        }</span>
+
+        <span class="cov0" title="0">err = uow.Commit()
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+
+        <span class="cov0" title="0">return tx, nil</span>
+}
+
+func (s *AccountService) GetAccount(accountID uuid.UUID) (*domain.Account, error) <span class="cov0" title="0">{
+        uow, err := s.uowFactory()
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov0" title="0">err = uow.Begin()
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+
+        <span class="cov0" title="0">a, err := uow.AccountRepository().Get(accountID)
+        if err != nil </span><span class="cov0" title="0">{
+                _ = uow.Rollback()
+                return nil, err
+        }</span>
+
+        <span class="cov0" title="0">err = uow.Commit()
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+
+        <span class="cov0" title="0">return a, nil</span>
+}
+
+func (s *AccountService) GetTransactions(accountID uuid.UUID) ([]*domain.Transaction, error) <span class="cov0" title="0">{
+        uow, err := s.uowFactory()
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov0" title="0">txs, err := uow.TransactionRepository().List(accountID)
+        if err != nil </span><span class="cov0" title="0">{
+                _ = uow.Rollback()
+                return nil, err
+        }</span>
+
+        <span class="cov0" title="0">return txs, nil</span>
+}
+
+func (s *AccountService) GetBalance(accountID uuid.UUID) (float64, error) <span class="cov0" title="0">{
+        uow, err := s.uowFactory()
+        if err != nil </span><span class="cov0" title="0">{
+                return 0, err
+        }</span>
+        <span class="cov0" title="0">a, err := uow.AccountRepository().Get(accountID)
+        if err != nil </span><span class="cov0" title="0">{
+                _ = uow.Rollback()
+                return 0, err
+        }</span>
+
+        <span class="cov0" title="0">return float64(a.Balance) / 100, nil</span>
 }
 </pre>
 		
