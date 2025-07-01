@@ -3,29 +3,13 @@ package service
 import (
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/repository"
-	"github.com/gofiber/fiber/v2"
+	
 	"github.com/google/uuid"
 )
 
 type AccountService struct {
 	uowFactory func() (repository.UnitOfWork, error)
 }
-
-func (s *AccountService) ErrorToStatusCode(err error) int {
-	switch err {
-	case domain.ErrDepositAmountExceedsMaxSafeInt:
-		return fiber.StatusBadRequest
-	case domain.ErrTransactionAmountMustBePositive:
-		return fiber.StatusBadRequest
-	case domain.ErrWithdrawalAmountMustBePositive:
-		return fiber.StatusBadRequest
-	case domain.ErrInsufficientFunds:
-		return fiber.StatusUnprocessableEntity
-	default:
-		return fiber.StatusInternalServerError
-	}
-}
-
 func NewAccountService(uowFactory func() (repository.UnitOfWork, error)) *AccountService {
 	return &AccountService{
 		uowFactory: uowFactory,

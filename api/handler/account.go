@@ -15,7 +15,7 @@ func AccountRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, err
 		a, err := service.CreateAccount()
 		if err != nil {
 			log.Errorf("Failed to create account: %v", err)
-			status := service.ErrorToStatusCode(err)
+			status := ErrorToStatusCode(err)
 			return c.Status(status).JSON(fiber.Map{
 				"error": err.Error(),
 			})
@@ -48,7 +48,7 @@ func AccountRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, err
 		tx, err := service.Deposit(id, request.Amount)
 		if err != nil {
 			log.Errorf("Failed to deposit: %v", err)
-			status := service.ErrorToStatusCode(err)
+			status := ErrorToStatusCode(err)
 			return c.Status(status).JSON(fiber.Map{
 				"error": err.Error(),
 			})
@@ -79,7 +79,7 @@ func AccountRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, err
 		tx, err := service.Withdraw(id, request.Amount)
 		if err != nil {
 			log.Errorf("Failed to withdraw: %v", err)
-			status := service.ErrorToStatusCode(err)
+			status := ErrorToStatusCode(err)
 			return c.Status(status).JSON(fiber.Map{
 				"error": err.Error(),
 			})
@@ -99,7 +99,7 @@ func AccountRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, err
 		tx, err := service.GetTransactions(id)
 		if err != nil {
 			log.Errorf("Failed to list transactions for account ID %s: %v", id, err)
-			status := service.ErrorToStatusCode(err)
+			status := ErrorToStatusCode(err)
 			return c.Status(status).JSON(fiber.Map{
 				"error": err.Error(),
 			})
@@ -119,7 +119,7 @@ func AccountRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, err
 		balance, err := service.GetBalance(id)
 		if err != nil {
 			log.Errorf("Failed to fetch balance for account ID %s: %v", id, err)
-			status := service.ErrorToStatusCode(err)
+			status := ErrorToStatusCode(err)
 			return c.Status(status).JSON(fiber.Map{
 				"error": err.Error(),
 			})
