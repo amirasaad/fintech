@@ -2,7 +2,6 @@ package domain
 
 import (
 	"errors"
-	"fmt"
 	"math"
 	"sync"
 	"time"
@@ -78,7 +77,9 @@ func (a *Account) Deposit(amount float64) (*Transaction, error) {
 	}
 
 	parsedAmount := int64(amount * 100) // Convert to cents for precision
-	if parsedAmount+a.Balance < 0 || amount > math.MaxInt64 {
+
+	// Check for overflow after conversion as well
+	if a.Balance > math.MaxInt64-parsedAmount {
 		return nil, ErrDepositAmountExceedsMaxSafeInt
 	}
 	slog.Info("Depositing amount", slog.Int64("amount", parsedAmount))
@@ -121,7 +122,7 @@ func (a *Account) Withdraw(amount float64) (*Transaction, error) {
 		Balance:   a.Balance,
 		Created:   time.Now().UTC(),
 	}
-	fmt.Println("Transaction created:", transaction)
+	slog.Info("Transaction created:", slog.Any("transaction", transaction))
 
 	return &transaction, nil
 }

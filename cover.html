@@ -67,7 +67,7 @@
 				
 				<option value="file5">github.com/amirasaad/fintech/internal/infra/uow.go (0.0%)</option>
 				
-				<option value="file6">github.com/amirasaad/fintech/pkg/domain/account.go (90.9%)</option>
+				<option value="file6">github.com/amirasaad/fintech/pkg/domain/account.go (93.9%)</option>
 				
 				<option value="file7">github.com/amirasaad/fintech/pkg/service/account.go (0.0%)</option>
 				
@@ -83,7 +83,13 @@
 		</div>
 		<div id="content">
 		
-		<pre class="file" id="file0" style="display: none">package handler
+		<pre class="file" id="file0" style="display: none">// The `package handler` in this code snippet is defining a Go package that contains HTTP handler
+// functions for handling various account-related operations such as creating an account, depositing
+// funds, withdrawing funds, retrieving transactions, and checking the account balance. These handler
+// functions are responsible for processing incoming HTTP requests, interacting with the `service`
+// layer to perform the necessary business logic, and returning appropriate responses to the client.
+// The handlers are using the Fiber web framework for building the HTTP server and handling routing.
+package handler
 
 import (
         "github.com/amirasaad/fintech/pkg/repository"
@@ -93,6 +99,8 @@ import (
         "github.com/google/uuid"
 )
 
+// The `AccountRoutes` function defines various HTTP routes for account-related operations using Fiber
+// in Go.
 func AccountRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, error)) <span class="cov8" title="1">{
         app.Post("/account", func(c *fiber.Ctx) error </span><span class="cov8" title="1">{
                 log.Infof("Creating new account")
@@ -216,13 +224,20 @@ func AccountRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, err
 }
 </pre>
 		
-		<pre class="file" id="file1" style="display: none">package handler
+		<pre class="file" id="file1" style="display: none">// The `package handler` is defining a Go package that likely contains functions and methods related to
+// handling HTTP requests and responses in a web application. The code snippet provided includes a
+// function `ErrorToStatusCode` that takes an error as input and returns an HTTP status code based on
+// the type of error. This function is used to map domain-specific errors to appropriate HTTP status
+// codes for handling errors in the web application.
+package handler
 
 import (
         "github.com/amirasaad/fintech/pkg/domain"
         "github.com/gofiber/fiber/v2"
 )
 
+// The function `ErrorToStatusCode` maps specific domain errors to corresponding HTTP status codes in a
+// Go application.
 func ErrorToStatusCode(err error) int <span class="cov8" title="1">{
         switch err </span>{
         case domain.ErrDepositAmountExceedsMaxSafeInt:<span class="cov0" title="0">
@@ -492,7 +507,7 @@ func (u *UoW) TransactionRepository() repository.TransactionRepository <span cla
 
 import (
         "errors"
-        "fmt"
+        "math"
         "sync"
         "time"
 
@@ -567,7 +582,9 @@ func (a *Account) Deposit(amount float64) (*Transaction, error) <span class="cov
         }</span>
 
         <span class="cov8" title="1">parsedAmount := int64(amount * 100) // Convert to cents for precision
-        if parsedAmount+a.Balance &lt; 0 </span><span class="cov0" title="0">{
+
+        // Check for overflow after conversion as well
+        if a.Balance &gt; math.MaxInt64-parsedAmount </span><span class="cov8" title="1">{
                 return nil, ErrDepositAmountExceedsMaxSafeInt
         }</span>
         <span class="cov8" title="1">slog.Info("Depositing amount", slog.Int64("amount", parsedAmount))
@@ -610,7 +627,7 @@ func (a *Account) Withdraw(amount float64) (*Transaction, error) <span class="co
                 Balance:   a.Balance,
                 Created:   time.Now().UTC(),
         }
-        fmt.Println("Transaction created:", transaction)
+        slog.Info("Transaction created:", slog.Any("transaction", transaction))
 
         return &amp;transaction, nil</span>
 }
