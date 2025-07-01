@@ -1,3 +1,9 @@
+// The `package handler` in this code snippet is defining a Go package that contains HTTP handler
+// functions for handling various account-related operations such as creating an account, depositing
+// funds, withdrawing funds, retrieving transactions, and checking the account balance. These handler
+// functions are responsible for processing incoming HTTP requests, interacting with the `service`
+// layer to perform the necessary business logic, and returning appropriate responses to the client.
+// The handlers are using the Fiber web framework for building the HTTP server and handling routing.
 package handler
 
 import (
@@ -8,6 +14,8 @@ import (
 	"github.com/google/uuid"
 )
 
+// The `AccountRoutes` function defines various HTTP routes for account-related operations using Fiber
+// in Go.
 func AccountRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, error)) {
 	app.Post("/account", func(c *fiber.Ctx) error {
 		log.Infof("Creating new account")
