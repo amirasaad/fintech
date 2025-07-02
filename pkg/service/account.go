@@ -26,7 +26,7 @@ func NewAccountService(uowFactory func() (repository.UnitOfWork, error)) *Accoun
 
 // CreateAccount creates a new account and persists it using the repository.
 // Returns the created account or an error if the operation fails.
-func (s *AccountService) CreateAccount() (*domain.Account, error) {
+func (s *AccountService) CreateAccount(userID uuid.UUID) (*domain.Account, error) {
 	uow, err := s.uowFactory()
 	if err != nil {
 		return nil, err
@@ -36,7 +36,7 @@ func (s *AccountService) CreateAccount() (*domain.Account, error) {
 		return nil, err
 	}
 
-	a := domain.NewAccount()
+	a := domain.NewAccount(userID)
 	err = uow.AccountRepository().Create(a)
 	if err != nil {
 		_ = uow.Rollback()

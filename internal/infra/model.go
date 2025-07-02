@@ -21,6 +21,7 @@ type User struct {
 type Account struct {
 	gorm.Model
 	ID           uuid.UUID `gorm:"primaryKey"`
+	UserID       uuid.UUID 
 	Balance      int64
 	Updated      time.Time `gorm:"autoUpdateTime"`
 	Created      time.Time `gorm:"autoCreateTime"`

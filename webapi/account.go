@@ -12,6 +12,7 @@ import (
 	"github.com/amirasaad/fintech/pkg/service"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/log"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 )
 
@@ -28,8 +29,26 @@ func AccountRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, err
 func CreateAccount(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		log.Infof("Creating new account")
+		tokenVal := c.Locals("user")
+		log.Infof("Token value: %v type %T", tokenVal, tokenVal)
+		if tokenVal == nil {
+			log.Error("Missing or invalid token")
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "missing or invalid token"})
+		}
+		token, ok := tokenVal.(*jwt.Token)
+		log.Infof("Token type: %T", token)
+		if !ok {
+			log.Errorf("Invalid token type %s", ok)
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid token type"})
+		}
+		claims := token.Claims.(jwt.MapClaims)
+		userID, err := uuid.Parse(claims["user_id"].(string))
+		if err != nil {
+			log.Errorf("Failed to parse user ID from token: %v", err)
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid user ID"})
+		}
 		service := service.NewAccountService(uowFactory)
-		a, err := service.CreateAccount()
+		a, err := service.CreateAccount(userID)
 		if err != nil {
 			log.Errorf("Failed to create account: %v", err)
 			status := ErrorToStatusCode(err)

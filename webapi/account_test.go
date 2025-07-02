@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/amirasaad/fintech/middleware"
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/google/uuid"
@@ -145,6 +146,7 @@ func setupCommonMocks(userRepo *UserMockRepo, mockUow *MockUoW) {
 func setupTestApp(t *testing.T) (*fiber.App, *UserMockRepo, *AccountMockRepo, *TransactionMockRepo, *MockUoW) {
 	t.Helper()
 	app := fiber.New()
+	app.Use(middleware.Protected())
 	accountRepo := &AccountMockRepo{}
 	transactionRepo := &TransactionMockRepo{}
 	userRepo := &UserMockRepo{}
@@ -172,7 +174,7 @@ func TestAccountRoutes(t *testing.T) {
 	defer resp.Body.Close() //nolint:errcheck
 	assert.Equal(fiber.StatusOK, resp.StatusCode)
 
-	accountRepo.On("Get", mock.Anything).Return(domain.NewAccount(), nil)
+	accountRepo.On("Get", mock.Anything).Return(domain.NewAccount(uuid.New()), nil)
 	transactionRepo.On("Create", mock.Anything).Return(nil)
 	accountRepo.On("Update", mock.Anything).Return(nil)
 	depositBody := bytes.NewBuffer([]byte(`{"amount": 100.0}`))
@@ -444,7 +446,7 @@ func TestSimultaneousRequests(t *testing.T) {
 	mockUow.On("Begin").Return(nil)
 	mockUow.On("Commit").Return(nil)
 	initialBalance := 1000.0
-	acc := domain.NewAccount()
+	acc := domain.NewAccount(uuid.New())
 	_, err := acc.Deposit(initialBalance)
 	require.NoError(err, "Initial deposit should not return an error")
 
@@ -541,12 +543,12 @@ func getTestToken(t *testing.T, app *fiber.App, userRepo *UserMockRepo, mockUow 
 	defer resp.Body.Close()
 
 	var result struct {
-		Data string `json:"data"`
+		Token string `json:"token"`
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		t.Fatal(err)
 	}
-	token := result.Data
+	token := result.Token
 	return token
 }

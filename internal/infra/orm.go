@@ -21,7 +21,7 @@ func (r *accountRepository) Get(id uuid.UUID) (*domain.Account, error) {
 	if result.Error != nil {
 		return nil, result.Error
 	}
-	return domain.NewAccountFromData(a.ID, a.Balance, a.Created, a.Updated), nil
+	return domain.NewAccountFromData(a.ID, uuid.New(), a.Balance, a.Created, a.Updated), nil
 }
 
 func (r *accountRepository) Create(a *domain.Account) error {

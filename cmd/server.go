@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/amirasaad/fintech/internal/infra"
+	"github.com/amirasaad/fintech/middleware"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/amirasaad/fintech/webapi"
 	"github.com/gofiber/fiber/v2"
@@ -23,6 +24,9 @@ func main() {
 	webapi.AuthRoutes(app, func() (repository.UnitOfWork, error) {
 		return infra.NewGormUoW()
 	})
+
+	// JWT Middleware
+	app.Use(middleware.Protected())
 
 	err := app.Listen(":3000")
 	if err != nil {

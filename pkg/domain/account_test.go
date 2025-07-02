@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/amirasaad/fintech/pkg/domain"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -14,7 +15,7 @@ func TestNewAccount(t *testing.T) {
 	assert := assert.New(t)
 
 	// Open account should return an account ID
-	account := domain.NewAccount()
+	account := domain.NewAccount(uuid.New())
 	assert.NotEmpty(account.ID, "Account ID should not be empty")
 }
 
@@ -22,7 +23,7 @@ func TestDeposit(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
-	account := domain.NewAccount()
+	account := domain.NewAccount(uuid.New())
 	// Simulate a deposit
 	depositTransaction, err := account.Deposit(100.0)
 	require.NoError(err, "Deposit should not return an error")
@@ -36,7 +37,7 @@ func TestDepositNegativeAmount(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
-	account := domain.NewAccount()
+	account := domain.NewAccount(uuid.New())
 	// Attempt to deposit a negative amount
 	_, err := account.Deposit(-50.0)
 	require.Error(err, "deposit amount must be positive")
@@ -47,7 +48,7 @@ func TestDepositZeroAmount(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
-	account := domain.NewAccount()
+	account := domain.NewAccount(uuid.New())
 	// Attempt to deposit zero amount
 	_, err := account.Deposit(0.0)
 	require.Error(err, "Deposit with zero amount should return an error")
@@ -58,7 +59,7 @@ func TestDepositMultipleTimes(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
-	account := domain.NewAccount()
+	account := domain.NewAccount(uuid.New())
 	// Deposit multiple times
 	_, err1 := account.Deposit(50.0)
 	require.NoError(err1, "First deposit should not return an error")
@@ -72,7 +73,7 @@ func TestDepositMultipleTimes(t *testing.T) {
 func TestDepositOverflow(t *testing.T) {
 	assert := assert.New(t)
 
-	a := domain.NewAccount()
+	a := domain.NewAccount(uuid.New())
 	_, err := a.Deposit(math.MaxInt64 / 100)
 	assert.NoError(err, "Deposit amount should not exceed maximum safe integer value")
 
@@ -82,7 +83,7 @@ func TestDepositOverflowBoundary(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
-	account := domain.NewAccount()
+	account := domain.NewAccount(uuid.New())
 	// Deposit up to just below the max safe int
 	_, err := account.Deposit(float64((math.MaxInt64 - 50) / 100))
 	require.NoError(err, "Deposit just below overflow boundary should not return an error")
@@ -97,7 +98,7 @@ func TestWithdrawOverflow(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
-	account := domain.NewAccount()
+	account := domain.NewAccount(uuid.New())
 	// Deposit a large amount
 	_, err := account.Deposit(float64((math.MaxInt64 - 100) / 100))
 	require.NoError(err, "Large deposit should not return an error")
@@ -112,7 +113,7 @@ func TestWithdrawNegativeOverflow(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
-	account := domain.NewAccount()
+	account := domain.NewAccount(uuid.New())
 	// Deposit a small amount
 	_, err := account.Deposit(1.0)
 	require.NoError(err, "Deposit should not return an error")
@@ -127,7 +128,7 @@ func TestDepositWithPrecision(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
-	account := domain.NewAccount()
+	account := domain.NewAccount(uuid.New())
 	// Deposit with precision
 	_, err := account.Deposit(99.99)
 	require.NoError(err, "Deposit with precision should not return an error")
@@ -139,7 +140,7 @@ func TestDepositWithLargeAmount(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
-	account := domain.NewAccount()
+	account := domain.NewAccount(uuid.New())
 	// Deposit a large amount
 	_, err := account.Deposit(1000000.0) // 1 million dollars
 	require.NoError(err, "Deposit with large amount should not return an error")
@@ -151,7 +152,7 @@ func TestWithdraw(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
-	account := domain.NewAccount()
+	account := domain.NewAccount(uuid.New())
 	// Deposit some funds first
 	_, err := account.Deposit(200.0) // 200 dollars
 	require.NoError(err, "Initial deposit should not return an error")
@@ -168,7 +169,7 @@ func TestWithdrawInsufficientFunds(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
-	account := domain.NewAccount()
+	account := domain.NewAccount(uuid.New())
 	// Attempt to withdraw more than the balance
 	_, err := account.Withdraw(100.0) // 100 dollars
 	require.Error(err, "Withdrawal with insufficient funds should return an error")
@@ -180,7 +181,7 @@ func TestWithdrawNegativeAmount(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
-	account := domain.NewAccount()
+	account := domain.NewAccount(uuid.New())
 	// Attempt to withdraw a negative amount
 	_, err := account.Withdraw(-50.0)
 	require.Error(err, "Withdrawal with negative amount should return an error")
@@ -192,7 +193,7 @@ func TestWithdrawZeroAmount(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
-	account := domain.NewAccount()
+	account := domain.NewAccount(uuid.New())
 	// Attempt to withdraw zero amount
 	_, err := account.Withdraw(0.0)
 	require.Error(err, "Withdrawal with zero amount should return an error")
@@ -203,7 +204,7 @@ func TestGetBalance(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
-	account := domain.NewAccount()
+	account := domain.NewAccount(uuid.New())
 	// Deposit some funds
 	_, err := account.Deposit(300.0) // 300 dollars
 	require.NoError(err, "Initial deposit should not return an error")
@@ -218,7 +219,7 @@ func TestSimultaneous(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
-	account := domain.NewAccount()
+	account := domain.NewAccount(uuid.New())
 	initialBalance := 1000.0
 	_, err := account.Deposit(initialBalance)
 	require.NoError(err, "Initial deposit should not return an error")

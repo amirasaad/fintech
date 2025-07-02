@@ -21,6 +21,7 @@ var (
 
 type Account struct {
 	ID      uuid.UUID
+	UserID  uuid.UUID
 	Balance int64
 	Created time.Time
 	Updated time.Time
@@ -35,9 +36,10 @@ type Transaction struct {
 	Created   time.Time
 }
 
-func NewAccount() *Account {
+func NewAccount(userID uuid.UUID) *Account {
 	return &Account{
 		ID:      uuid.New(),
+		UserID:  userID,
 		Created: time.Now(),
 		Updated: time.Now(),
 		Balance: 0,
@@ -45,9 +47,10 @@ func NewAccount() *Account {
 	}
 }
 
-func NewAccountFromData(id uuid.UUID, balance int64, created, updated time.Time) *Account {
+func NewAccountFromData(id, userID uuid.UUID, balance int64, created, updated time.Time) *Account {
 	return &Account{
 		ID:      id,
+		UserID:  userID,
 		Balance: balance,
 		Created: created,
 		Updated: updated,

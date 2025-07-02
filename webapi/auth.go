@@ -100,6 +100,6 @@ func Login(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
 			return c.SendStatus(fiber.StatusInternalServerError)
 		}
 
-		return c.JSON(fiber.Map{"status": "success", "message": "Success login", "data": t})
+		return c.JSON(fiber.Map{"status": "success", "message": "Success login", "token": t})
 	}
 }
