@@ -8,6 +8,8 @@ import (
 // ErrorToStatusCode maps domain errors to appropriate HTTP status codes.
 func ErrorToStatusCode(err error) int {
 	switch err {
+	case domain.ErrAccountNotFound:
+		return fiber.StatusNotFound
 	case domain.ErrDepositAmountExceedsMaxSafeInt:
 		return fiber.StatusBadRequest
 	case domain.ErrTransactionAmountMustBePositive:

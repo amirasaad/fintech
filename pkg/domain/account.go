@@ -16,6 +16,7 @@ var (
 	ErrTransactionAmountMustBePositive = errors.New("transaction amount must be positive")
 	ErrWithdrawalAmountMustBePositive  = errors.New("withdrawal amount must be positive")
 	ErrInsufficientFunds               = errors.New("insufficient funds for withdrawal")
+	ErrAccountNotFound                 = errors.New("Account not found")
 )
 
 type Account struct {

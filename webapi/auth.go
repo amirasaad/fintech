@@ -1,7 +1,6 @@
 package webapi
 
 import (
-	"log"
 	"net/mail"
 	"time"
 
@@ -20,7 +19,7 @@ func AuthRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, error)
 // CheckPasswordHash compare password with hash
 func CheckPasswordHash(password, hash string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
-	log.Println(hash, "haaaash")
+
 	return err == nil
 }
 
@@ -91,6 +90,7 @@ func Login(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
 
 		claims := token.Claims.(jwt.MapClaims)
 		claims["username"] = ud.Username
+		claims["email"] = ud.Email
 		claims["user_id"] = ud.ID
 		claims["exp"] = time.Now().Add(time.Hour * 72).Unix()
 

@@ -4,6 +4,8 @@
 package service
 
 import (
+	"log/slog"
+
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/repository"
 
@@ -58,13 +60,14 @@ func (s *AccountService) Deposit(accountID uuid.UUID, amount float64) (*domain.T
 	}
 	err = uow.Begin()
 	if err != nil {
+		slog.Error("Failed to begin transaction", slog.Any("error", err))
 		return nil, err
 	}
 
 	a, err := uow.AccountRepository().Get(accountID)
 	if err != nil {
 		_ = uow.Rollback()
-		return nil, err
+		return nil, domain.ErrAccountNotFound
 	}
 
 	tx, err := a.Deposit(amount)
@@ -109,7 +112,7 @@ func (s *AccountService) Withdraw(accountID uuid.UUID, amount float64) (*domain.
 	a, err := uow.AccountRepository().Get(accountID)
 	if err != nil {
 		_ = uow.Rollback()
-		return nil, err
+		return nil, domain.ErrAccountNotFound
 	}
 
 	tx, err := a.Withdraw(amount)
@@ -149,7 +152,7 @@ func (s *AccountService) GetAccount(accountID uuid.UUID) (*domain.Account, error
 	a, err := uow.AccountRepository().Get(accountID)
 	if err != nil {
 		_ = uow.Rollback()
-		return nil, err
+		return nil, domain.ErrAccountNotFound
 	}
 	return a, nil
 }
@@ -178,7 +181,7 @@ func (s *AccountService) GetBalance(accountID uuid.UUID) (float64, error) {
 	}
 	a, err := uow.AccountRepository().Get(accountID)
 	if err != nil {
-		return 0, err
+		return 0, domain.ErrAccountNotFound
 	}
 
 	return a.GetBalance(), nil
