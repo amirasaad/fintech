@@ -17,7 +17,7 @@ func NewDBConnection() (*gorm.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = connection.AutoMigrate(&Account{}, &Transaction{})
+	err = connection.AutoMigrate(&Account{}, &Transaction{}, &User{})
 	if err != nil {
 		return nil, err
 	}

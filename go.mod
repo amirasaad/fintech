@@ -5,6 +5,7 @@ go 1.24.4
 require (
 	github.com/go-openapi/errors v0.22.1
 	github.com/go-playground/validator v9.31.0+incompatible
+	github.com/gofiber/contrib/jwt v1.1.2
 	github.com/gofiber/fiber/v2 v2.52.8
 	github.com/golang-jwt/jwt/v4 v4.5.2
 	github.com/golang-jwt/jwt/v5 v5.2.2
@@ -15,6 +16,7 @@ require (
 )
 
 require (
+	github.com/MicahParks/keyfunc/v2 v2.1.0 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect

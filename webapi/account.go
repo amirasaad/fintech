@@ -7,6 +7,7 @@
 package webapi
 
 import (
+	"github.com/amirasaad/fintech/middleware"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/amirasaad/fintech/pkg/service"
 	"github.com/gofiber/fiber/v2"
@@ -15,11 +16,11 @@ import (
 )
 
 func AccountRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, error)) {
-	app.Post("/account", CreateAccount(uowFactory))
-	app.Post("/account/:id/deposit", Deposit(uowFactory))
-	app.Post("/account/:id/withdraw", Withdraw(uowFactory))
-	app.Get("/account/:id/balance", GetBalance(uowFactory))
-	app.Get("/account/:id/transactions", GetTransactions(uowFactory))
+	app.Post("/account", middleware.Protected(), CreateAccount(uowFactory))
+	app.Post("/account/:id/deposit", middleware.Protected(), Deposit(uowFactory))
+	app.Post("/account/:id/withdraw", middleware.Protected(), Withdraw(uowFactory))
+	app.Get("/account/:id/balance", middleware.Protected(), GetBalance(uowFactory))
+	app.Get("/account/:id/transactions", middleware.Protected(), GetTransactions(uowFactory))
 }
 
 // The `AccountRoutes` function defines various HTTP routes for account-related operations using Fiber

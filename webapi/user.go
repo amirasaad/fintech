@@ -1,6 +1,7 @@
 package webapi
 
 import (
+	"github.com/amirasaad/fintech/middleware"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/amirasaad/fintech/pkg/service"
 	"github.com/go-playground/validator"
@@ -17,10 +18,10 @@ func validToken(t *jwt.Token, id uuid.UUID) bool {
 	return uid == id
 }
 func UserRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, error)) {
-	app.Get("/user/:id", GetUser(uowFactory))
+	app.Get("/user/:id", middleware.Protected(), GetUser(uowFactory))
 	app.Post("/user", CreateUser(uowFactory))
-	app.Put("/user/:id", UpdateUser(uowFactory))
-	app.Delete("/user/:id", DeleteUser(uowFactory))
+	app.Put("/user/:id", middleware.Protected(), UpdateUser(uowFactory))
+	app.Delete("/user/:id", middleware.Protected(), DeleteUser(uowFactory))
 }
 
 // GetUser get a user

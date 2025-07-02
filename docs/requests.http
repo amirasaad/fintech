@@ -1,8 +1,29 @@
 @host = http://localhost:3000
+### Create User
+POST {{host}}/user HTTP/1.1
+Content-Type: application/json
+
+{
+    "email": "test@example.mail",
+    "username": "test",
+    "password": "R4g&BejL5P3j"
+}
+
+### Login
+# @name login
+POST {{host}}/login HTTP/1.1
+Content-Type: application/json
+
+{
+    "identity": "test",
+    "password": "R4g&BejL5P3j"
+}
+
 ### Create Account
 # @name account 
 POST {{host}}/account
 Content-Type: application/json
+Authorization: Bearer {{login.response.body.$.data}}
 
 {
    
@@ -11,6 +32,8 @@ Content-Type: application/json
 ### Deposit to account
 POST {{host}}/account/{{account.response.body.$.ID}}/deposit HTTP/1.1
 Content-Type: application/json
+Authorization: Bearer {{login.response.body.$.data}}
+
 
 {
     "amount": 100
@@ -19,6 +42,8 @@ Content-Type: application/json
 ### Withdraw from account
 POST {{host}}/account/{{account.response.body.$.ID}}/withdraw HTTP/1.1
 Content-Type: application/json
+Authorization: Bearer {{login.response.body.$.data}}
+
 
 {
     "amount": 100
@@ -26,7 +51,9 @@ Content-Type: application/json
 
 ### List Transactions
 GET {{host}}/account/{{account.response.body.$.ID}}/transactions HTTP/1.1
+Authorization: Bearer {{login.response.body.$.data}}
 
 
 ### Get Account Balance
 GET {{host}}/account/{{account.response.body.$.ID}}/balance
+Authorization: Bearer {{login.response.body.$.data}}
