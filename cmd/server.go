@@ -17,6 +17,12 @@ func main() {
 	webapi.AccountRoutes(app, func() (repository.UnitOfWork, error) {
 		return infra.NewGormUoW()
 	})
+	webapi.UserRoutes(app, func() (repository.UnitOfWork, error) {
+		return infra.NewGormUoW()
+	})
+	webapi.AuthRoutes(app, func() (repository.UnitOfWork, error) {
+		return infra.NewGormUoW()
+	})
 
 	err := app.Listen(":3000")
 	if err != nil {

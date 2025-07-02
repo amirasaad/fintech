@@ -95,3 +95,11 @@ func (u *UoW) TransactionRepository() repository.TransactionRepository {
 	}
 	return NewTransactionRepository(u.session)
 }
+
+func (u *UoW) UserRepository() repository.UserRepository {
+	if !u.started {
+		db, _ := NewDBConnection()
+		return NewUserRepository(db)
+	}
+	return NewUserRepository(u.session)
+}

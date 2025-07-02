@@ -90,3 +90,75 @@ func (r *transactionRepository) List(accountID uuid.UUID) ([]*domain.Transaction
 	}
 	return tx, nil
 }
+
+type userRepository struct {
+	db *gorm.DB
+}
+
+// Valid implements repository.UserRepository.
+func (u *userRepository) Valid(id uuid.UUID, password string) bool {
+	var user domain.User
+	result := u.db.Where("id = ? AND password = ?", id, password).First(&user)
+	return result.Error == nil
+}
+
+// Create implements repository.UserRepository.
+func (u *userRepository) Create(user *domain.User) error {
+	result := u.db.Create(user)
+	if result.Error != nil {
+		return result.Error
+	}
+	return nil
+}
+
+// Delete implements repository.UserRepository.
+func (u *userRepository) Delete(id uuid.UUID) error {
+	result := u.db.Delete(&domain.User{}, id)
+	if result.Error != nil {
+		return result.Error
+	}
+	return nil
+}
+
+// Get implements repository.UserRepository.
+func (u *userRepository) Get(id uuid.UUID) (*domain.User, error) {
+	var user domain.User
+	result := u.db.First(&user, id)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return &user, nil
+}
+
+// GetByEmail implements repository.UserRepository.
+func (u *userRepository) GetByEmail(email string) (*domain.User, error) {
+	var user domain.User
+	result := u.db.Where("email = ?", email).First(&user)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return &user, nil
+}
+
+// GetByUsername implements repository.UserRepository.
+func (u *userRepository) GetByUsername(username string) (*domain.User, error) {
+	var user domain.User
+	result := u.db.Where("username = ?", username).First(&user)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return &user, nil
+}
+
+// Update implements repository.UserRepository.
+func (u *userRepository) Update(user *domain.User) error {
+	result := u.db.Save(user)
+	if result.Error != nil {
+		return result.Error
+	}
+	return nil
+}
+
+func NewUserRepository(db *gorm.DB) repository.UserRepository {
+	return &userRepository{db: db}
+}

@@ -44,6 +44,45 @@ type transactionRepo struct {
 	transactions map[uuid.UUID]*domain.Transaction
 }
 
+type userRepo struct {
+	users map[uuid.UUID]*domain.User
+}
+
+// Valid implements repository.UserRepository.
+func (u *userRepo) Valid(id uuid.UUID, password string) bool {
+	panic("unimplemented")
+}
+
+// Create implements repository.UserRepository.
+func (u *userRepo) Create(user *domain.User) error {
+	panic("unimplemented")
+}
+
+// Delete implements repository.UserRepository.
+func (u *userRepo) Delete(id uuid.UUID) error {
+	panic("unimplemented")
+}
+
+// Get implements repository.UserRepository.
+func (u *userRepo) Get(id uuid.UUID) (*domain.User, error) {
+	panic("unimplemented")
+}
+
+// GetByEmail implements repository.UserRepository.
+func (u *userRepo) GetByEmail(email string) (*domain.User, error) {
+	panic("unimplemented")
+}
+
+// GetByUsername implements repository.UserRepository.
+func (u *userRepo) GetByUsername(username string) (*domain.User, error) {
+	panic("unimplemented")
+}
+
+// Update implements repository.UserRepository.
+func (u *userRepo) Update(user *domain.User) error {
+	panic("unimplemented")
+}
+
 // Create implements repository.TransactionRepository.
 func (t *transactionRepo) Create(transaction *domain.Transaction) error {
 	t.transactions[transaction.ID] = transaction
@@ -103,11 +142,6 @@ func (a *accountRepo) Update(account *domain.Account) error {
 type memoryUoW struct {
 }
 
-// AccountRepository implements repository.UnitOfWork.
-func (m *memoryUoW) AccountRepository() repository.AccountRepository {
-	return &accountRepo{}
-}
-
 // Begin implements repository.UnitOfWork.
 func (m *memoryUoW) Begin() error {
 	return nil
@@ -123,9 +157,25 @@ func (m *memoryUoW) Rollback() error {
 	return nil
 }
 
+// UserRepository implements repository.UnitOfWork.
+func (m *memoryUoW) UserRepository() repository.UserRepository {
+	return &userRepo{
+		users: make(map[uuid.UUID]*domain.User),
+	}
+}
+
+// AccountRepository implements repository.UnitOfWork.
+func (m *memoryUoW) AccountRepository() repository.AccountRepository {
+	return &accountRepo{
+		accounts: make(map[uuid.UUID]*domain.Account),
+	}
+}
+
 // TransactionRepository implements repository.UnitOfWork.
 func (m *memoryUoW) TransactionRepository() repository.TransactionRepository {
-	return &transactionRepo{}
+	return &transactionRepo{
+		transactions: make(map[uuid.UUID]*domain.Transaction),
+	}
 }
 
 // NewMemoryUoW creates a new in-memory unit of work for testing purposes.
