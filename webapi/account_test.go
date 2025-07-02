@@ -59,6 +59,60 @@ func (m *TransactionMockRepo) List(accountID uuid.UUID) ([]*domain.Transaction, 
 	return args.Get(0).([]*domain.Transaction), args.Error(1)
 }
 
+type UserMockRepo struct {
+	mock.Mock
+}
+
+// Valid implements repository.UserRepository.
+func (u *UserMockRepo) Valid(id uuid.UUID, password string) bool {
+	args := u.Called(id, password)
+	if args.Get(0) == nil {
+		return false
+	}
+	return args.Bool(0)
+}
+
+// Create implements repository.UserRepository.
+func (u *UserMockRepo) Create(user *domain.User) error {
+	args := u.Called(user)
+	return args.Error(0)
+}
+
+// Delete implements repository.UserRepository.
+func (u *UserMockRepo) Delete(id uuid.UUID) error {
+	args := u.Called(id)
+	return args.Error(0)
+}
+
+// Get implements repository.UserRepository.
+func (u *UserMockRepo) Get(id uuid.UUID) (*domain.User, error) {
+	args := u.Called(id)
+	return args.Get(0).(*domain.User), args.Error(1)
+}
+
+// GetByEmail implements repository.UserRepository.
+func (u *UserMockRepo) GetByEmail(email string) (*domain.User, error) {
+	args := u.Called(email)
+	return args.Get(0).(*domain.User), args.Error(1)
+}
+
+// GetByUsername implements repository.UserRepository.
+func (u *UserMockRepo) GetByUsername(username string) (*domain.User, error) {
+	args := u.Called(username)
+	return args.Get(0).(*domain.User), args.Error(1)
+}
+
+// Update implements repository.UserRepository.
+func (u *UserMockRepo) Update(user *domain.User) error {
+	args := u.Called(user)
+	return args.Error(0)
+}
+
+// UserRepository implements repository.UnitOfWork.
+func (m *MockUoW) UserRepository() repository.UserRepository {
+	return &UserMockRepo{}
+}
+
 type MockUoW struct {
 	mock.Mock
 	AccountRepo     *AccountMockRepo

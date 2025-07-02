@@ -14,10 +14,18 @@ import (
 	"github.com/google/uuid"
 )
 
+func AccountRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, error)) {
+	app.Post("/account", CreateAccount(uowFactory))
+	app.Post("/account/:id/deposit", Deposit(uowFactory))
+	app.Post("/account/:id/withdraw", Withdraw(uowFactory))
+	app.Get("/account/:id/balance", GetBalance(uowFactory))
+	app.Get("/account/:id/transactions", GetTransactions(uowFactory))
+}
+
 // The `AccountRoutes` function defines various HTTP routes for account-related operations using Fiber
 // in Go.
-func AccountRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, error)) {
-	app.Post("/account", func(c *fiber.Ctx) error {
+func CreateAccount(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
+	return func(c *fiber.Ctx) error {
 		log.Infof("Creating new account")
 		service := service.NewAccountService(uowFactory)
 		a, err := service.CreateAccount()
@@ -31,9 +39,10 @@ func AccountRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, err
 
 		log.Infof("Account created: %+v", a)
 		return c.JSON(a)
-	})
-
-	app.Post("/account/:id/deposit", func(c *fiber.Ctx) error {
+	}
+}
+func Deposit(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
+	return func(c *fiber.Ctx) error {
 		service := service.NewAccountService(uowFactory)
 		id, err := uuid.Parse(c.Params("id"))
 		if err != nil {
@@ -62,9 +71,11 @@ func AccountRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, err
 			})
 		}
 		return c.JSON(tx)
-	})
+	}
+}
 
-	app.Post("/account/:id/withdraw", func(c *fiber.Ctx) error {
+func Withdraw(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
+	return func(c *fiber.Ctx) error {
 		service := service.NewAccountService(uowFactory)
 		id, err := uuid.Parse(c.Params("id"))
 		if err != nil {
@@ -93,9 +104,10 @@ func AccountRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, err
 			})
 		}
 		return c.JSON(tx)
-	})
-
-	app.Get("/account/:id/transactions", func(c *fiber.Ctx) error {
+	}
+}
+func GetTransactions(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
+	return func(c *fiber.Ctx) error {
 		service := service.NewAccountService(uowFactory)
 		id, err := uuid.Parse(c.Params("id"))
 		if err != nil {
@@ -113,9 +125,10 @@ func AccountRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, err
 			})
 		}
 		return c.JSON(tx)
-	})
-
-	app.Get("/account/:id/balance", func(c *fiber.Ctx) error {
+	}
+}
+func GetBalance(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
+	return func(c *fiber.Ctx) error {
 		service := service.NewAccountService(uowFactory)
 		id, err := uuid.Parse(c.Params("id"))
 		if err != nil {
@@ -135,5 +148,5 @@ func AccountRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, err
 		return c.Status(fiber.StatusOK).JSON(fiber.Map{
 			"balance": balance,
 		})
-	})
+	}
 }
