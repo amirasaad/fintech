@@ -12,7 +12,6 @@ import (
 	"github.com/amirasaad/fintech/pkg/service"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/log"
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 )
 
@@ -29,20 +28,7 @@ func AccountRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, err
 func CreateAccount(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		log.Infof("Creating new account")
-		tokenVal := c.Locals("user")
-		log.Infof("Token value: %v type %T", tokenVal, tokenVal)
-		if tokenVal == nil {
-			log.Error("Missing or invalid token")
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "missing or invalid token"})
-		}
-		token, ok := tokenVal.(*jwt.Token)
-		log.Infof("Token type: %T", token)
-		if !ok {
-			log.Errorf("Invalid token type %s", ok)
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid token type"})
-		}
-		claims := token.Claims.(jwt.MapClaims)
-		userID, err := uuid.Parse(claims["user_id"].(string))
+		userID, err := GetCurrentUserId(c)
 		if err != nil {
 			log.Errorf("Failed to parse user ID from token: %v", err)
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid user ID"})
@@ -82,6 +68,20 @@ func Deposit(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
 				"error": err.Error(),
 			})
 		}
+		account, err := service.GetAccount(id)
+		if err != nil {
+			return c.SendStatus(fiber.StatusNotFound)
+		}
+		ok, err := CheckUserAccountOwnership(c, account)
+		if err != nil {
+			log.Errorf("Error checking account ownership: %v", err)
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": err.Error(),
+			})
+		}
+		if !ok {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "user ID does not match account ID"})
+		}
 		tx, err := service.Deposit(id, request.Amount)
 		if err != nil {
 			log.Errorf("Failed to deposit: %v", err)
@@ -115,6 +115,20 @@ func Withdraw(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
 				"error": err.Error(),
 			})
 		}
+		account, err := service.GetAccount(id)
+		if err != nil {
+			return c.SendStatus(fiber.StatusNotFound)
+		}
+		ok, err := CheckUserAccountOwnership(c, account)
+		if err != nil {
+			log.Errorf("Error checking account ownership: %v", err)
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": err.Error(),
+			})
+		}
+		if !ok {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "user ID does not match account ID"})
+		}
 		tx, err := service.Withdraw(id, request.Amount)
 		if err != nil {
 			log.Errorf("Failed to withdraw: %v", err)
@@ -126,6 +140,7 @@ func Withdraw(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
 		return c.JSON(tx)
 	}
 }
+
 func GetTransactions(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		service := service.NewAccountService(uowFactory)
@@ -135,6 +150,20 @@ func GetTransactions(uowFactory func() (repository.UnitOfWork, error)) fiber.Han
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error": err.Error(),
 			})
+		}
+		account, err := service.GetAccount(id)
+		if err != nil {
+			return c.SendStatus(fiber.StatusNotFound)
+		}
+		ok, err := CheckUserAccountOwnership(c, account)
+		if err != nil {
+			log.Errorf("Error checking account ownership: %v", err)
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": err.Error(),
+			})
+		}
+		if !ok {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "user ID does not match account ID"})
 		}
 		tx, err := service.GetTransactions(id)
 		if err != nil {
@@ -147,6 +176,7 @@ func GetTransactions(uowFactory func() (repository.UnitOfWork, error)) fiber.Han
 		return c.JSON(tx)
 	}
 }
+
 func GetBalance(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		service := service.NewAccountService(uowFactory)
@@ -156,6 +186,20 @@ func GetBalance(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler 
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error": err.Error(),
 			})
+		}
+		account, err := service.GetAccount(id)
+		if err != nil {
+			return c.SendStatus(fiber.StatusNotFound)
+		}
+		ok, err := CheckUserAccountOwnership(c, account)
+		if err != nil {
+			log.Errorf("Error checking account ownership: %v", err)
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": err.Error(),
+			})
+		}
+		if !ok {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "user ID does not match account ID"})
 		}
 		balance, err := service.GetBalance(id)
 		if err != nil {
