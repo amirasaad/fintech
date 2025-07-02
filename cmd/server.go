@@ -1,24 +1,22 @@
 package main
 
 import (
-	"github.com/amirasaad/fintech/api/handler"
 	"github.com/amirasaad/fintech/internal/infra"
 	"github.com/amirasaad/fintech/pkg/repository"
+	"github.com/amirasaad/fintech/webapi"
 	"github.com/gofiber/fiber/v2"
 )
 
 func main() {
 	app := fiber.New()
 
-	uowFactory := func() (repository.UnitOfWork, error) {
-		return infra.NewGormUoW()
-	}
-
 	app.Get("/", func(c *fiber.Ctx) error {
 		return c.SendString("App is working! 🚀")
 	})
 
-	handler.AccountRoutes(app, uowFactory)
+	webapi.AccountRoutes(app, func() (repository.UnitOfWork, error) {
+		return infra.NewGormUoW()
+	})
 
 	err := app.Listen(":3000")
 	if err != nil {

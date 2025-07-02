@@ -4,7 +4,7 @@
 // functions are responsible for processing incoming HTTP requests, interacting with the `service`
 // layer to perform the necessary business logic, and returning appropriate responses to the client.
 // The handlers are using the Fiber web framework for building the HTTP server and handling routing.
-package handler
+package webapi
 
 import (
 	"github.com/amirasaad/fintech/pkg/repository"
