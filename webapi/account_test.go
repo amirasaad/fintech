@@ -138,7 +138,7 @@ func (m *MockUoW) TransactionRepository() repository.TransactionRepository {
 
 func setupCommonMocks(userRepo *UserMockRepo, mockUow *MockUoW) {
 	userRepo.On("GetByUsername", mock.Anything).Return(domain.NewUser("testuser", "testuser@example.com", "password123"))
-	userRepo.On("GetByEmail", mock.Anything).Return(domain.NewUser("testuser", "testuser@example.com", "password123"))
+	// userRepo.On("GetByEmail", mock.Anything).Return(domain.NewUser("testuser", "testuser@example.com", "password123"))
 	mockUow.On("Rollback").Return(nil)
 }
 
@@ -155,24 +155,22 @@ func setupTestApp(t *testing.T) (*fiber.App, *UserMockRepo, *AccountMockRepo, *T
 	return app, userRepo, accountRepo, transactionRepo, mockUow
 }
 func TestAccountRoutes(t *testing.T) {
-
+	assert := assert.New(t)
+	require := require.New(t)
 	app, userRepo, accountRepo, transactionRepo, mockUow := setupTestApp(t)
 	accountRepo.On("Create", mock.Anything).Return(nil)
 
 	mockUow.On("Begin").Return(nil)
 	mockUow.On("Commit").Return(nil)
+	mockUow.On("Rollback").Return(nil)
 	// Test the route
 	req := httptest.NewRequest("POST", "/account", nil)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+getTestToken(t, app, userRepo, mockUow))
 	resp, err := app.Test(req)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(err)
 	defer resp.Body.Close() //nolint:errcheck
-	if resp.StatusCode != fiber.StatusOK {
-		t.Errorf("Expected status %d, got %d", fiber.StatusOK, resp.StatusCode)
-	}
+	assert.Equal(fiber.StatusOK, resp.StatusCode)
 
 	accountRepo.On("Get", mock.Anything).Return(domain.NewAccount(), nil)
 	transactionRepo.On("Create", mock.Anything).Return(nil)
@@ -182,33 +180,32 @@ func TestAccountRoutes(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+getTestToken(t, app, userRepo, mockUow))
 	resp, err = app.Test(req)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(err)
 	defer resp.Body.Close() //nolint:errcheck
-	if resp.StatusCode != fiber.StatusOK {
-		t.Errorf("Expected status %d, got %d", fiber.StatusOK, resp.StatusCode)
-	}
+	assert.Equal(fiber.StatusOK, resp.StatusCode)
 
 	withdrawBody := bytes.NewBuffer([]byte(`{"amount": 100.0}`))
 	req = httptest.NewRequest("POST", fmt.Sprintf("/account/%s/withdraw", uuid.New()), withdrawBody)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+getTestToken(t, app, userRepo, mockUow))
 	resp, err = app.Test(req)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(err)
 	defer resp.Body.Close() //nolint:errcheck
-	if resp.StatusCode != fiber.StatusOK {
-		t.Errorf("Expected status %d, got %d", fiber.StatusOK, resp.StatusCode)
-	}
+	assert.Equal(fiber.StatusOK, resp.StatusCode)
+
+	mockUow.AssertExpectations(t)
+	userRepo.AssertExpectations(t)
+	accountRepo.AssertExpectations(t)
+	transactionRepo.AssertExpectations(t)
+
 }
 
 func TestAccountRoutesFailureAccountNotFound(t *testing.T) {
 	assert := assert.New(t)
-	app, userRepo, accountRepo, _, mockUow := setupTestApp(t)
+	app, userRepo, accountRepo, transactionRepo, mockUow := setupTestApp(t)
 	mockUow.On("Begin").Return(nil)
-	mockUow.On("Commit").Return(nil)
+	mockUow.On("Rollback").Return(nil)
+	// mockUow.On("Commit").Return(nil)
 	accountRepo.On("Get", mock.Anything).Return(&domain.Account{}, errors.New("account not found"))
 
 	// Test the route
@@ -222,12 +219,18 @@ func TestAccountRoutesFailureAccountNotFound(t *testing.T) {
 	defer resp.Body.Close() //nolint:errcheck
 
 	assert.Equal(fiber.StatusNotFound, resp.StatusCode)
-	mockUow.AssertCalled(t, "Rollback")
+	// mockUow.AssertCalled(t, "Rollback")
+	mockUow.AssertExpectations(t)
+	userRepo.AssertExpectations(t)
+	accountRepo.AssertExpectations(t)
+	transactionRepo.AssertExpectations(t)
 }
 func TestAccountRoutesFailureTransaction(t *testing.T) {
-	app, userRepo, accountRepo, _, mockUow := setupTestApp(t)
+	assert := assert.New(t)
+	require := require.New(t)
+	app, userRepo, accountRepo, transactionRepo, mockUow := setupTestApp(t)
 	mockUow.On("Begin").Return(nil)
-	mockUow.On("Commit").Return(nil)
+	mockUow.On("Rollback").Return(nil)
 	accountRepo.On("Get", mock.Anything).Return(&domain.Account{Balance: 100.0}, nil)
 
 	// test deposit negative amount
@@ -235,46 +238,37 @@ func TestAccountRoutesFailureTransaction(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+getTestToken(t, app, userRepo, mockUow))
 	resp, err := app.Test(req)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(err)
 	defer resp.Body.Close() //nolint:errcheck
-	if resp.StatusCode != fiber.StatusBadRequest {
-		t.Errorf("Expected status %d, got %d", fiber.StatusUnprocessableEntity, resp.StatusCode)
-	}
+	assert.Equal(fiber.StatusBadRequest, resp.StatusCode)
 
 	// test withdraw negative amount
 	req = httptest.NewRequest("POST", fmt.Sprintf("/account/%s/withdraw", uuid.New()), bytes.NewBuffer([]byte(`{"amount": -100.0}`)))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+getTestToken(t, app, userRepo, mockUow))
 	resp, err = app.Test(req)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(err)
 	defer resp.Body.Close() //nolint:errcheck
-	if resp.StatusCode != fiber.StatusBadRequest {
-		t.Errorf("Expected status %d, got %d", fiber.StatusBadRequest, resp.StatusCode)
-	}
+	assert.Equal(fiber.StatusBadRequest, resp.StatusCode)
 
 	// test withdraw amount greater than balance
 	req = httptest.NewRequest("POST", fmt.Sprintf("/account/%s/withdraw", uuid.New()), bytes.NewBuffer([]byte(`{"amount": 1000.0}`)))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+getTestToken(t, app, userRepo, mockUow))
 	resp, err = app.Test(req)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(err)
 	defer resp.Body.Close() //nolint:errcheck
-	assert.Equal(t, fiber.StatusUnprocessableEntity, resp.StatusCode, "Expected status %d, got %d", fiber.StatusUnprocessableEntity, resp.StatusCode)
+	assert.Equal(fiber.StatusUnprocessableEntity, resp.StatusCode, "Expected status %d, got %d", fiber.StatusUnprocessableEntity, resp.StatusCode)
+	mockUow.AssertExpectations(t)
+	userRepo.AssertExpectations(t)
+	accountRepo.AssertExpectations(t)
+	transactionRepo.AssertExpectations(t)
 }
 
 func TestAccountRoutesTransactionList(t *testing.T) {
 	assert := assert.New(t)
 	app, userRepo, accountRepo, transactionRepo, mockUow := setupTestApp(t)
-	mockUow.On("Begin").Return(nil)
-	mockUow.On("Commit").Return(nil)
 	accountID := uuid.New()
-	accountRepo.On("Get", accountID).Return(&domain.Account{ID: accountID}, nil)
 	created1, _ := time.Parse(time.RFC3339, "2023-10-01T00:00:00Z")
 	created2, _ := time.Parse(time.RFC3339, "2023-10-02T00:00:00Z")
 	transactionRepo.On("List", accountID).Return([]*domain.Transaction{
@@ -302,16 +296,19 @@ func TestAccountRoutesTransactionList(t *testing.T) {
 		t.Fatalf("Failed to unmarshal response: %v", err)
 	}
 	assert.Equal(2, len(transactions), "Expected 2 transactions")
+	mockUow.AssertExpectations(t)
+	userRepo.AssertExpectations(t)
+	accountRepo.AssertExpectations(t)
+	transactionRepo.AssertExpectations(t)
 }
 
 func TestAccountRoutesBalance(t *testing.T) {
 	assert := assert.New(t)
-	app, userRepo, accountRepo, _, mockUow := setupTestApp(t)
+	app, userRepo, accountRepo, transactionRepo, mockUow := setupTestApp(t)
 
 	accountID := uuid.New()
 	account := &domain.Account{ID: accountID, Balance: 100.0}
 	accountRepo.On("Get", accountID).Return(account, nil)
-
 	req := httptest.NewRequest("GET", fmt.Sprintf("/account/%s/balance", accountID), nil)
 	req.Header.Set("Authorization", "Bearer "+getTestToken(t, app, userRepo, mockUow))
 	resp, err := app.Test(req)
@@ -332,10 +329,15 @@ func TestAccountRoutesBalance(t *testing.T) {
 		t.Fatalf("Failed to unmarshal response: %v", err)
 	}
 	assert.Equal(float64(account.Balance/100.0), balanceResponse.Balance, "Expected balance to match")
+	mockUow.AssertExpectations(t)
+	userRepo.AssertExpectations(t)
+	accountRepo.AssertExpectations(t)
+	transactionRepo.AssertExpectations(t)
+
 }
 
 func TestAccountRoutesUoWError(t *testing.T) {
-	app, userRepo, _, _, mockUow := setupTestApp(t)
+	app, userRepo, accountRepo, transactionRepo, mockUow := setupTestApp(t)
 	mockUow.On("Begin").Return(errors.New("failed to begin transaction"))
 	// Test the route
 	req := httptest.NewRequest("POST", "/account", nil)
@@ -348,10 +350,14 @@ func TestAccountRoutesUoWError(t *testing.T) {
 	if resp.StatusCode != fiber.StatusInternalServerError {
 		t.Errorf("Expected status %d, got %d", fiber.StatusInternalServerError, resp.StatusCode)
 	}
+	mockUow.AssertExpectations(t)
+	userRepo.AssertExpectations(t)
+	accountRepo.AssertExpectations(t)
+	transactionRepo.AssertExpectations(t)
 }
 func TestGetBalanceAccountNotFound(t *testing.T) {
 	assert := assert.New(t)
-	app, userRepo, accountRepo, _, mockUow := setupTestApp(t)
+	app, userRepo, accountRepo, transactionRepo, mockUow := setupTestApp(t)
 	accountRepo.On("Get", mock.Anything).Return(&domain.Account{}, domain.ErrAccountNotFound)
 	// Test the route
 	req := httptest.NewRequest("POST", "/account", nil)
@@ -364,6 +370,10 @@ func TestGetBalanceAccountNotFound(t *testing.T) {
 	}
 	defer resp.Body.Close() //nolint:errcheck
 	assert.Equal(fiber.StatusNotFound, resp.StatusCode)
+	mockUow.AssertExpectations(t)
+	userRepo.AssertExpectations(t)
+	accountRepo.AssertExpectations(t)
+	transactionRepo.AssertExpectations(t)
 }
 func TestGetTransactions(t *testing.T) {
 	assert := assert.New(t)
@@ -380,11 +390,9 @@ func TestGetTransactions(t *testing.T) {
 }
 
 func TestAccountRoutesRollbackWhenCreateFails(t *testing.T) {
-	app, userRepo, accountRepo, _, mockUow := setupTestApp(t)
+	app, userRepo, accountRepo, transactionRepo, mockUow := setupTestApp(t)
 	mockUow.On("Begin").Return(nil)
-	mockUow.On("Commit").Return(nil)
 	accountRepo.On("Create", mock.Anything).Return(errors.New("failed to create account"))
-	mockUow.On("Rollback").Return(nil)
 	// Test the route
 	req := httptest.NewRequest("POST", "/account", nil)
 	req.Header.Set("Authorization", "Bearer "+getTestToken(t, app, userRepo, mockUow))
@@ -394,13 +402,15 @@ func TestAccountRoutesRollbackWhenCreateFails(t *testing.T) {
 	}
 	defer resp.Body.Close() //nolint:errcheck
 
-	mockUow.AssertCalled(t, "Rollback")
+	mockUow.AssertExpectations(t)
+	userRepo.AssertExpectations(t)
+	accountRepo.AssertExpectations(t)
+	transactionRepo.AssertExpectations(t)
 }
 
 func TestAccountRoutesRollbackWhenDepositFails(t *testing.T) {
 	app, userRepo, accountRepo, transactionRepo, mockUow := setupTestApp(t)
 	mockUow.On("Begin").Return(nil)
-	mockUow.On("Commit").Return(nil)
 	accountID := uuid.New()
 	accountRepo.On("Get", accountID).Return(&domain.Account{ID: accountID}, nil)
 	transactionRepo.On("Create", mock.Anything).Return(errors.New("failed to create transaction"))
@@ -420,6 +430,11 @@ func TestAccountRoutesRollbackWhenDepositFails(t *testing.T) {
 	if resp.StatusCode != fiber.StatusInternalServerError {
 		t.Errorf("Expected status %d, got %d", fiber.StatusInternalServerError, resp.StatusCode)
 	}
+	mockUow.AssertExpectations(t)
+	userRepo.AssertExpectations(t)
+	accountRepo.AssertExpectations(t)
+	transactionRepo.AssertExpectations(t)
+
 }
 
 func TestSimultaneousRequests(t *testing.T) {
@@ -506,6 +521,10 @@ func TestSimultaneousRequests(t *testing.T) {
 	}
 	expectedBalance := float64(initialBalance) + (float64(numOperations) * depositAmount) - (float64(numOperations) * withdrawAmount)
 	assert.InDelta(expectedBalance, balanceResponse.Balance, 0.01)
+	mockUow.AssertExpectations(t)
+	userRepo.AssertExpectations(t)
+	accountRepo.AssertExpectations(t)
+	transactionRepo.AssertExpectations(t)
 }
 
 func getTestToken(t *testing.T, app *fiber.App, userRepo *UserMockRepo, mockUow *MockUoW) string {

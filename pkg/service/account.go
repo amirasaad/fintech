@@ -66,7 +66,6 @@ func (s *AccountService) Deposit(accountID uuid.UUID, amount float64) (*domain.T
 
 	a, err := uow.AccountRepository().Get(accountID)
 	if err != nil {
-		_ = uow.Rollback()
 		return nil, domain.ErrAccountNotFound
 	}
 
@@ -151,7 +150,6 @@ func (s *AccountService) GetAccount(accountID uuid.UUID) (*domain.Account, error
 	}
 	a, err := uow.AccountRepository().Get(accountID)
 	if err != nil {
-		_ = uow.Rollback()
 		return nil, domain.ErrAccountNotFound
 	}
 	return a, nil
@@ -181,7 +179,7 @@ func (s *AccountService) GetBalance(accountID uuid.UUID) (float64, error) {
 	}
 	a, err := uow.AccountRepository().Get(accountID)
 	if err != nil {
-		return 0, domain.ErrAccountNotFound
+		return 0, err
 	}
 
 	return a.GetBalance(), nil
