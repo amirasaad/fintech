@@ -142,7 +142,7 @@ func setupCommonMocks(userRepo *UserMockRepo, mockUow *MockUoW, testUser *domain
 	mockUow.On("Rollback").Return(nil)
 }
 
-func setupTestApp(t *testing.T) (*fiber.App, *UserMockRepo, *AccountMockRepo, *TransactionMockRepo, *MockUoW) {
+func setupTestApp(t *testing.T) (*fiber.App, *UserMockRepo, *AccountMockRepo, *TransactionMockRepo, *MockUoW, *domain.User) {
 	t.Helper()
 	app := fiber.New()
 	// app.Use(middleware.Protected())
@@ -153,13 +153,15 @@ func setupTestApp(t *testing.T) (*fiber.App, *UserMockRepo, *AccountMockRepo, *T
 	AuthRoutes(app, func() (repository.UnitOfWork, error) { return mockUow, nil })
 	UserRoutes(app, func() (repository.UnitOfWork, error) { return mockUow, nil })
 	AccountRoutes(app, func() (repository.UnitOfWork, error) { return mockUow, nil })
-	return app, userRepo, accountRepo, transactionRepo, mockUow
+	testUser, _ := domain.NewUser("testuser", "testuser@example.com", "password123")
+
+	return app, userRepo, accountRepo, transactionRepo, mockUow, testUser
 }
 func TestAccountRoutes(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
-	testUser, _ := domain.NewUser("test", "test@examole.com", "password123")
-	app, userRepo, accountRepo, transactionRepo, mockUow := setupTestApp(t)
+
+	app, userRepo, accountRepo, transactionRepo, mockUow, testUser := setupTestApp(t)
 	accountRepo.On("Create", mock.Anything).Return(nil)
 
 	mockUow.On("Begin").Return(nil)
@@ -204,8 +206,7 @@ func TestAccountRoutes(t *testing.T) {
 
 func TestAccountRoutesFailureAccountNotFound(t *testing.T) {
 	assert := assert.New(t)
-	testUser, _ := domain.NewUser("test", "test@examole.com", "password123")
-	app, userRepo, accountRepo, transactionRepo, mockUow := setupTestApp(t)
+	app, userRepo, accountRepo, transactionRepo, mockUow, testUser := setupTestApp(t)
 	accountRepo.On("Get", mock.Anything).Return(&domain.Account{}, domain.ErrAccountNotFound)
 
 	// Test the route
@@ -228,8 +229,7 @@ func TestAccountRoutesFailureAccountNotFound(t *testing.T) {
 func TestAccountRoutesFailureTransaction(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
-	testUser, _ := domain.NewUser("test", "test@examole.com", "password123")
-	app, userRepo, accountRepo, transactionRepo, mockUow := setupTestApp(t)
+	app, userRepo, accountRepo, transactionRepo, mockUow, testUser := setupTestApp(t)
 	mockUow.On("Begin").Return(nil)
 	mockUow.On("Rollback").Return(nil)
 	accountRepo.On("Get", mock.Anything).Return(&domain.Account{Balance: 100.0, UserID: testUser.ID}, nil)
@@ -268,8 +268,7 @@ func TestAccountRoutesFailureTransaction(t *testing.T) {
 
 func TestAccountRoutesTransactionList(t *testing.T) {
 	assert := assert.New(t)
-	app, userRepo, accountRepo, transactionRepo, mockUow := setupTestApp(t)
-	testUser, _ := domain.NewUser("test", "test@examole.com", "password123")
+	app, userRepo, accountRepo, transactionRepo, mockUow, testUser := setupTestApp(t)
 	account := domain.NewAccount(testUser.ID)
 	created1, _ := time.Parse(time.RFC3339, "2023-10-01T00:00:00Z")
 	created2, _ := time.Parse(time.RFC3339, "2023-10-02T00:00:00Z")
@@ -307,8 +306,7 @@ func TestAccountRoutesTransactionList(t *testing.T) {
 
 func TestAccountRoutesBalance(t *testing.T) {
 	assert := assert.New(t)
-	app, userRepo, accountRepo, transactionRepo, mockUow := setupTestApp(t)
-	testUser, _ := domain.NewUser("test", "test@examole.com", "password123")
+	app, userRepo, accountRepo, transactionRepo, mockUow, testUser := setupTestApp(t)
 
 	accountID := uuid.New()
 	account := &domain.Account{ID: accountID, UserID: testUser.ID, Balance: 100.0}
@@ -341,8 +339,7 @@ func TestAccountRoutesBalance(t *testing.T) {
 }
 
 func TestAccountRoutesUoWError(t *testing.T) {
-	app, userRepo, accountRepo, transactionRepo, mockUow := setupTestApp(t)
-	testUser, _ := domain.NewUser("test", "test@examole.com", "password123")
+	app, userRepo, accountRepo, transactionRepo, mockUow, testUser := setupTestApp(t)
 	mockUow.On("Begin").Return(errors.New("failed to begin transaction"))
 	// Test the route
 	req := httptest.NewRequest("POST", "/account", nil)
@@ -363,8 +360,7 @@ func TestAccountRoutesUoWError(t *testing.T) {
 func TestGetBalanceAccountNotFound(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
-	testUser, _ := domain.NewUser("test", "test@examole.com", "password123")
-	app, userRepo, accountRepo, transactionRepo, mockUow := setupTestApp(t)
+	app, userRepo, accountRepo, transactionRepo, mockUow, testUser := setupTestApp(t)
 	accountRepo.On("Get", mock.Anything).Return(&domain.Account{}, domain.ErrAccountNotFound)
 	// Test the route
 	req := httptest.NewRequest("GET", fmt.Sprintf("/account/%s/balance", uuid.New()), nil)
@@ -381,8 +377,7 @@ func TestGetBalanceAccountNotFound(t *testing.T) {
 func TestGetTransactions(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
-	testUser, _ := domain.NewUser("test", "test@examole.com", "password123")
-	app, userRepo, accountRepo, transactionRepo, mockUow := setupTestApp(t)
+	app, userRepo, accountRepo, transactionRepo, mockUow, testUser := setupTestApp(t)
 	accountRepo.On("Get", mock.Anything).Return(domain.NewAccount(testUser.ID), nil)
 	transactionRepo.On("List", mock.Anything).Return([]*domain.Transaction{}, nil)
 	req := httptest.NewRequest("GET", fmt.Sprintf("/account/%s/transactions", uuid.New()), nil)
@@ -395,8 +390,7 @@ func TestGetTransactions(t *testing.T) {
 }
 
 func TestAccountRoutesRollbackWhenCreateFails(t *testing.T) {
-	app, userRepo, accountRepo, transactionRepo, mockUow := setupTestApp(t)
-	testUser, _ := domain.NewUser("test", "test@examole.com", "password123")
+	app, userRepo, accountRepo, transactionRepo, mockUow, testUser := setupTestApp(t)
 	mockUow.On("Begin").Return(nil)
 	accountRepo.On("Create", mock.Anything).Return(errors.New("failed to create account"))
 	// Test the route
@@ -415,9 +409,8 @@ func TestAccountRoutesRollbackWhenCreateFails(t *testing.T) {
 }
 
 func TestAccountRoutesRollbackWhenDepositFails(t *testing.T) {
-	app, userRepo, accountRepo, transactionRepo, mockUow := setupTestApp(t)
+	app, userRepo, accountRepo, transactionRepo, mockUow, testUser := setupTestApp(t)
 	mockUow.On("Begin").Return(nil)
-	testUser, _ := domain.NewUser("test", "test@examole.com", "password123")
 	account := domain.NewAccount(testUser.ID)
 	accountRepo.On("Get", account.ID).Return(account, nil)
 	transactionRepo.On("Create", mock.Anything).Return(errors.New("failed to create transaction"))
@@ -447,8 +440,7 @@ func TestAccountRoutesRollbackWhenDepositFails(t *testing.T) {
 func TestSimultaneousRequests(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
-	testUser, _ := domain.NewUser("test", "test@examole.com", "password123")
-	app, userRepo, accountRepo, transactionRepo, mockUow := setupTestApp(t)
+	app, userRepo, accountRepo, transactionRepo, mockUow, testUser := setupTestApp(t)
 	mockUow.On("Begin").Return(nil)
 	mockUow.On("Commit").Return(nil)
 	initialBalance := 1000.0

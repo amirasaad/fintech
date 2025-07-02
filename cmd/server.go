@@ -1,8 +1,9 @@
 package main
 
 import (
+	"log"
+
 	"github.com/amirasaad/fintech/internal/infra"
-	"github.com/amirasaad/fintech/middleware"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/amirasaad/fintech/webapi"
 	"github.com/gofiber/fiber/v2"
@@ -26,10 +27,7 @@ func main() {
 	})
 
 	// JWT Middleware
-	app.Use(middleware.Protected())
+	// app.Use(middleware.Protected())
 
-	err := app.Listen(":3000")
-	if err != nil {
-		panic("App is not starting..")
-	}
+	log.Fatal(app.Listen(":3000"))
 }

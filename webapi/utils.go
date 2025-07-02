@@ -28,7 +28,6 @@ func ErrorToStatusCode(err error) int {
 
 func GetCurrentUserId(c *fiber.Ctx) (uuid.UUID, error) {
 	tokenVal := c.Locals("user")
-	log.Infof("Token value: %v type %T", tokenVal, tokenVal)
 	if tokenVal == nil {
 		log.Error("Missing or invalid token")
 		return uuid.Nil, c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "missing or invalid token"})
@@ -45,6 +44,7 @@ func GetCurrentUserId(c *fiber.Ctx) (uuid.UUID, error) {
 		log.Errorf("Failed to parse user ID from token: %v", err)
 		return uuid.Nil, c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid user ID"})
 	}
+
 	return userID, nil
 }
 
@@ -53,6 +53,7 @@ func CheckUserAccountOwnership(c *fiber.Ctx, account *domain.Account) (bool, err
 	if err != nil {
 		return false, err
 	}
+
 	if userID != account.UserID {
 		log.Errorf("User ID from token does not match account ID")
 		return false, c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "user ID does not match account ID"})
