@@ -68,7 +68,7 @@ go test ./...
 
 ## Todos
 
-- [ ] User Authentication.
+- [x] User Authentication.
 - [x] Safe thread handling to avoid transactions to execute simultaneously.
 - [x] Impalement unit of work to handle transactions. This will ensure consist data when failure occurs.
 - [x] Add more tests.
