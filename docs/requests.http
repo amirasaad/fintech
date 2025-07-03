@@ -23,16 +23,17 @@ Content-Type: application/json
 # @name account 
 POST {{host}}/account
 Content-Type: application/json
-Authorization: Bearer {{login.response.body.$.token}}
+Authorization: Bearer {{login.response.body.$.data.$.token}}
 
 {
-   
+    "currency": "USD"
 }
 
 ### Deposit to account
-POST {{host}}/account/{{account.response.body.$.ID}}/deposit HTTP/1.1
+# @name deposit
+POST {{host}}/account/{{account.response.body.$.data.$.ID}}/deposit HTTP/1.1
 Content-Type: application/json
-Authorization: Bearer {{login.response.body.$.token}}
+Authorization: Bearer {{login.response.body.$.data.$.token}}
 
 
 {
@@ -40,9 +41,10 @@ Authorization: Bearer {{login.response.body.$.token}}
 }
 
 ### Withdraw from account
-POST {{host}}/account/{{account.response.body.$.ID}}/withdraw HTTP/1.1
+# @name withdraw
+POST {{host}}/account/{{account.response.body.$.data.$.ID}}/withdraw HTTP/1.1
 Content-Type: application/json
-Authorization: Bearer {{login.response.body.$.token}}
+Authorization: Bearer {{login.response.body.$.data.$.token}}
 
 
 {
@@ -50,10 +52,12 @@ Authorization: Bearer {{login.response.body.$.token}}
 }
 
 ### List Transactions
-GET {{host}}/account/{{account.response.body.$.ID}}/transactions HTTP/1.1
-Authorization: Bearer {{login.response.body.$.token}}
+# @name transactions
+GET {{host}}/account/{{account.response.body.$.data.$.ID}}/transactions HTTP/1.1
+Authorization: Bearer {{login.response.body.$.data.$.token}}
 
 
 ### Get Account Balance
-GET {{host}}/account/{{account.response.body.$.ID}}/balance
-Authorization: Bearer {{login.response.body.$.token}}
+# @name balance
+GET {{host}}/account/{{account.response.body.$.data.$.ID}}/balance  
+Authorization: Bearer {{login.response.body.$.data.$.token}}

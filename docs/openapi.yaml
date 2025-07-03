@@ -38,9 +38,9 @@ paths:
           application/json:
             schema:
               type:
-                  type: number
-                  format: float
-                  description: Amount to deposit
+                type: number
+                format: float
+                description: Amount to deposit
             examples:
               valid:
                 summary: valid deposit request
@@ -56,7 +56,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/Transaction"
         400:
-
           description: Not found
           content:
             application/json:
@@ -107,7 +106,7 @@ paths:
             content:
               application/json:
                 schema:
-                  $ref: "#/components/schemas/Transaction"
+                  $ref: "#/components/schemas/Response"
           400:
             description: Invalid request
             schema:
@@ -231,17 +230,38 @@ components:
           type: string
           format: date-time
           description: Transaction creation date
+    Response:
+      type: object
+      properties:
+        status:
+          type: int
+          description: HTTP status code
+        message:
+          type: string
+          description: Human-readable explanation
+        data:
+          type: object
+          description: Response data
+
     Error:
       type: object
       properties:
         type:
           type: string
-        errors:
-          type: object
-          description: Error message
+          description: A URI reference that identifies the problem type
+        title:
+          type: string
+          description: short, human-readable summary
+        status:
+          type: int
+          description: HTTP status code
         detail:
           type: string
+          description: Human-readable explanation
         instance:
           type: string
-          description: instance errors are related to
-
+          description: URI reference that identifies the specific occurrence
+        errors:
+          required: false
+          type: object
+          description: additional error details

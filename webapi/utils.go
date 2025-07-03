@@ -9,6 +9,13 @@ import (
 	"github.com/google/uuid"
 )
 
+// Response defines the standard API response structure for success cases.
+type Response struct {
+	Status  int `json:"status"`         // HTTP status code
+	Message string `json:"message"`        // Human-readable explanation
+	Data    any    `json:"data,omitempty"` // Response data
+}
+
 // ProblemDetails follows RFC 9457 Problem Details for HTTP APIs.
 type ProblemDetails struct {
 	Type     string `json:"type,omitempty"`     // A URI reference that identifies the problem type
@@ -34,6 +41,7 @@ func ErrorResponseJSON(c *fiber.Ctx, status int, title string, detail any) error
 		}
 	}
 	pd.Instance = c.OriginalURL()
+	c.Set(fiber.HeaderContentType, "application/problem+json")
 	return c.Status(status).JSON(pd)
 }
 

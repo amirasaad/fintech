@@ -84,6 +84,6 @@ func Login(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
 			return ErrorResponseJSON(c, fiber.StatusInternalServerError, "Failed to sign token", err.Error())
 		}
 
-		return c.JSON(fiber.Map{"status": "success", "message": "Success login", "token": t})
+		return c.JSON(Response{Status: fiber.StatusOK, Message: "Success login", Data: fiber.Map{"token": t}})
 	}
 }

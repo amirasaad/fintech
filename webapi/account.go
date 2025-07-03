@@ -60,7 +60,7 @@ func CreateAccount(uowFactory func() (repository.UnitOfWork, error)) fiber.Handl
 		}
 
 		log.Infof("Account created: %+v", a)
-		return c.JSON(a)
+		return c.Status(fiber.StatusCreated).JSON(Response{Status: fiber.StatusCreated, Message: "Account created", Data: a})
 	}
 }
 
@@ -103,7 +103,7 @@ func Deposit(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
 			status := ErrorToStatusCode(err)
 			return ErrorResponseJSON(c, status, "Failed to deposit", err.Error())
 		}
-		return c.JSON(tx)
+		return c.JSON(Response{Status: fiber.StatusOK, Message: "Deposit successful", Data: tx})
 	}
 }
 
@@ -154,7 +154,7 @@ func Withdraw(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
 			status := ErrorToStatusCode(err)
 			return ErrorResponseJSON(c, status, "Failed to withdraw", err.Error())
 		}
-		return c.JSON(tx)
+		return c.JSON(Response{Status: fiber.StatusOK, Message: "Withdrawal successful", Data: tx})
 	}
 }
 
@@ -196,7 +196,7 @@ func GetTransactions(uowFactory func() (repository.UnitOfWork, error)) fiber.Han
 			status := ErrorToStatusCode(err)
 			return ErrorResponseJSON(c, status, "Failed to list transactions", err.Error())
 		}
-		return c.JSON(tx)
+		return c.JSON(Response{Status: fiber.StatusOK, Message: "Transactions fetched", Data: tx})
 	}
 }
 
@@ -221,8 +221,6 @@ func GetBalance(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler 
 			status := ErrorToStatusCode(err)
 			return ErrorResponseJSON(c, status, "Failed to fetch balance", err.Error())
 		}
-		return c.Status(fiber.StatusOK).JSON(fiber.Map{
-			"balance": balance,
-		})
+		return c.Status(fiber.StatusOK).JSON(Response{Status: fiber.StatusOK, Message: "Balance fetched", Data: fiber.Map{"balance": balance}})
 	}
 }

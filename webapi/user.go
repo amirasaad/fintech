@@ -23,22 +23,20 @@ func GetUser(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
 		id, err := uuid.Parse(c.Params("id"))
 		if err != nil {
 			log.Errorf("Invalid account ID for deposit: %v", err)
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": err.Error(),
-			})
+			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid user ID", err.Error())
 		}
 
 		uow, err := uowFactory()
 		if err != nil {
-			return c.Status(500).JSON(fiber.Map{"status": "error", "message": "Failed to create unit of work", "data": nil})
+			return ErrorResponseJSON(c, fiber.StatusInternalServerError, "Failed to create unit of work", err.Error())
 		}
 
 		user, err := uow.UserRepository().Get(id)
 		if err != nil {
-			return c.Status(404).JSON(fiber.Map{"status": "error", "message": "No user found with ID", "data": nil})
+			return ErrorResponseJSON(c, fiber.StatusNotFound, "No user found with ID", nil)
 		}
 
-		return c.JSON(fiber.Map{"status": "success", "message": "User found", "data": user})
+		return c.JSON(Response{Status: fiber.StatusCreated, Message: "User found", Data: user})
 	}
 }
 
@@ -67,7 +65,7 @@ func CreateUser(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler 
 		if err != nil {
 			return ErrorResponseJSON(c, fiber.StatusInternalServerError, "Couldn't create user", err.Error())
 		}
-		return c.JSON(fiber.Map{"status": "success", "message": "Created user", "data": user})
+		return c.Status(fiber.StatusCreated).JSON(Response{Status: fiber.StatusCreated, Message: "Created user", Data: user})
 	}
 }
 
@@ -79,14 +77,12 @@ func UpdateUser(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler 
 		}
 		var uui UpdateUserInput
 		if err := c.BodyParser(&uui); err != nil {
-			return c.Status(500).JSON(fiber.Map{"status": "error", "message": "Review your input", "errors": err.Error()})
+			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Review your input", err.Error())
 		}
 		id, err := uuid.Parse(c.Params("id"))
 		if err != nil {
 			log.Errorf("Invalid account ID for deposit: %v", err)
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": err.Error(),
-			})
+			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid user ID", err.Error())
 		}
 		userID, err := GetCurrentUserId(c)
 		if err != nil {
@@ -106,7 +102,7 @@ func UpdateUser(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler 
 		if err != nil {
 			return ErrorResponseJSON(c, fiber.StatusInternalServerError, "Failed to update user", err.Error())
 		}
-		return c.JSON(fiber.Map{"status": "success", "message": "User updated successfully", "data": user})
+		return c.JSON(Response{Status: fiber.StatusOK, Message: "User updated successfully", Data: user})
 	}
 }
 
@@ -118,12 +114,12 @@ func DeleteUser(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler 
 		}
 		var pi PasswordInput
 		if err := c.BodyParser(&pi); err != nil {
-			return c.Status(500).JSON(fiber.Map{"status": "error", "message": "Review your input", "errors": err.Error()})
+			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Review your input", err.Error())
 		}
 		id, err := uuid.Parse(c.Params("id"))
 		if err != nil {
 			log.Errorf("Invalid account ID for deposit: %v", err)
-			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid account ID", err.Error())
+			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid user ID", err.Error())
 		}
 		userID, err := GetCurrentUserId(c)
 		if err != nil {
@@ -135,13 +131,13 @@ func DeleteUser(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler 
 		}
 		service := service.NewUserService(uowFactory)
 		if !service.ValidUser(id, pi.Password) {
-			return ErrorResponseJSON(c, fiber.StatusInternalServerError, "Not valid user", nil)
+			return ErrorResponseJSON(c, fiber.StatusUnauthorized, "Not valid user", nil)
 		}
 
 		err = service.DeleteUser(id, pi.Password)
 		if err != nil {
 			return ErrorResponseJSON(c, fiber.StatusInternalServerError, "Failed to delete user", err.Error())
 		}
-		return c.JSON(fiber.Map{"status": "success", "message": "User successfully deleted", "data": nil})
+		return c.Status(fiber.StatusNoContent).JSON(Response{Status: fiber.StatusNoContent, Message: "User successfully deleted", Data: nil})
 	}
 }
