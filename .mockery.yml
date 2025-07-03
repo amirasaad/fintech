@@ -1,0 +1,13 @@
+template: testify
+packages:
+    github.com/amirasaad/fintech/pkg/repository:
+        config:
+            dir: "test"
+            filename: "mocks.go"
+            pkgname: "test"
+            structname: "Mock{{.InterfaceName}}"
+        interfaces:
+          TransactionRepository:
+          AccountRepository:
+          UserRepository:
+          UnitOfWork:

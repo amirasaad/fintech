@@ -67,7 +67,7 @@ func TestValidEmail(t *testing.T) {
 }
 
 func TestLogin_Success(t *testing.T) {
-	os.Setenv("JWT_SECRET_KEY", "testsecret")
+	os.Setenv("JWT_SECRET_KEY", "testsecret") // nolint: errcheck
 	hash, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
 	user := &domain.User{ID: uuid.New(), Username: "user", Email: "user@example.com", Password: string(hash)}
 	repo := &mockUserRepo{userByEmail: user}
@@ -132,7 +132,7 @@ func TestLogin_JWTSignError(t *testing.T) {
 	repo := &mockUserRepo{userByEmail: user}
 	uow := &mockUOW{repo: repo}
 	s := NewAuthService(func() (repository.UnitOfWork, error) { return uow, nil })
-	os.Setenv("JWT_SECRET_KEY", "") // Invalid secret
+	os.Setenv("JWT_SECRET_KEY", "") // nolint: errcheck
 	gotUser, token, err := s.Login("user@example.com", "password")
 	if err == nil || gotUser != nil || token != "" {
 		t.Errorf("expected JWT sign error, got err=%v user=%v token=%v", err, gotUser, token)

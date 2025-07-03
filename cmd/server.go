@@ -1,33 +1,20 @@
 package main
 
 import (
-	"github.com/amirasaad/fintech/webapi/infra"
 	"log"
 
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/amirasaad/fintech/webapi"
-	"github.com/gofiber/fiber/v2"
+	"github.com/amirasaad/fintech/webapi/infra"
 )
 
 func main() {
-	app := fiber.New()
+	db, err := infra.NewDBConnection()
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Fatal(webapi.NewApp(func() (repository.UnitOfWork, error) {
+		return infra.NewGormUoW(db)
+	}).Listen(":3000"))
 
-	app.Get("/", func(c *fiber.Ctx) error {
-		return c.SendString("App is working! 🚀")
-	})
-
-	webapi.AccountRoutes(app, func() (repository.UnitOfWork, error) {
-		return infra.NewGormUoW()
-	})
-	webapi.UserRoutes(app, func() (repository.UnitOfWork, error) {
-		return infra.NewGormUoW()
-	})
-	webapi.AuthRoutes(app, func() (repository.UnitOfWork, error) {
-		return infra.NewGormUoW()
-	})
-
-	// JWT Middleware
-	// app.Use(middleware.Protected())
-
-	log.Fatal(app.Listen(":3000"))
 }

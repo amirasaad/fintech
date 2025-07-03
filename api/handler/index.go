@@ -1,15 +1,13 @@
 package handler
 
 import (
-	"github.com/amirasaad/fintech/webapi/infra"
 	"net/http"
 
-	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/amirasaad/fintech/webapi"
-	"github.com/gofiber/fiber/v2"
+	"github.com/amirasaad/fintech/webapi/infra"
+
+	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/gofiber/fiber/v2/middleware/adaptor"
-	"github.com/gofiber/fiber/v2/middleware/limiter"
-	"github.com/gofiber/fiber/v2/middleware/recover"
 )
 
 // Handler is the main entry point of the application. Think of it like the main() method
@@ -22,28 +20,12 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 
 // building the fiber application
 func handler() http.HandlerFunc {
-	app := fiber.New()
-
-	app.Use(limiter.New())
-	app.Use(recover.New())
-
-	app.Get("/", func(ctx *fiber.Ctx) error {
-		return ctx.JSON(fiber.Map{
-			"uri":  ctx.Request().URI().String(),
-			"path": ctx.Path(),
-		})
-	})
-
-	webapi.AuthRoutes(app, func() (repository.UnitOfWork, error) {
-		return infra.NewGormUoW()
-	})
-
-	webapi.UserRoutes(app, func() (repository.UnitOfWork, error) {
-		return infra.NewGormUoW()
-	})
-
-	webapi.AccountRoutes(app, func() (repository.UnitOfWork, error) {
-		return infra.NewGormUoW()
+	db, err := infra.NewDBConnection()
+	if err != nil {
+		panic(err)
+	}
+	app := webapi.NewApp(func() (repository.UnitOfWork, error) {
+		return infra.NewGormUoW(db)
 	})
 
 	return adaptor.FiberApp(app)

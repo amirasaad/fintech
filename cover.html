@@ -55,7 +55,7 @@
 			<div id="nav">
 				<select id="files">
 				
-				<option value="file0">github.com/amirasaad/fintech/api/handler/index.go (0.0%)</option>
+				<option value="file0">github.com/amirasaad/fintech/api/handler/index.go (40.0%)</option>
 				
 				<option value="file1">github.com/amirasaad/fintech/cmd/server.go (0.0%)</option>
 				
@@ -63,7 +63,7 @@
 				
 				<option value="file3">github.com/amirasaad/fintech/pkg/domain/user.go (0.0%)</option>
 				
-				<option value="file4">github.com/amirasaad/fintech/pkg/middleware/auth.go (0.0%)</option>
+				<option value="file4">github.com/amirasaad/fintech/pkg/middleware/auth.go (25.0%)</option>
 				
 				<option value="file5">github.com/amirasaad/fintech/pkg/service/account.go (71.6%)</option>
 				
@@ -73,17 +73,21 @@
 				
 				<option value="file8">github.com/amirasaad/fintech/webapi/account.go (70.0%)</option>
 				
-				<option value="file9">github.com/amirasaad/fintech/webapi/auth.go (76.9%)</option>
+				<option value="file9">github.com/amirasaad/fintech/webapi/app.go (61.5%)</option>
 				
-				<option value="file10">github.com/amirasaad/fintech/webapi/infra/database.go (0.0%)</option>
+				<option value="file10">github.com/amirasaad/fintech/webapi/auth.go (76.9%)</option>
 				
-				<option value="file11">github.com/amirasaad/fintech/webapi/infra/repository.go (0.0%)</option>
+				<option value="file11">github.com/amirasaad/fintech/webapi/infra/database.go (0.0%)</option>
 				
-				<option value="file12">github.com/amirasaad/fintech/webapi/infra/uow.go (0.0%)</option>
+				<option value="file12">github.com/amirasaad/fintech/webapi/infra/repository.go (0.0%)</option>
 				
-				<option value="file13">github.com/amirasaad/fintech/webapi/user.go (10.8%)</option>
+				<option value="file13">github.com/amirasaad/fintech/webapi/infra/uow.go (0.0%)</option>
 				
-				<option value="file14">github.com/amirasaad/fintech/webapi/utils.go (65.8%)</option>
+				<option value="file14">github.com/amirasaad/fintech/webapi/testutils.go (100.0%)</option>
+				
+				<option value="file15">github.com/amirasaad/fintech/webapi/user.go (10.8%)</option>
+				
+				<option value="file16">github.com/amirasaad/fintech/webapi/utils.go (63.2%)</option>
 				
 				</select>
 			</div>
@@ -100,15 +104,13 @@
 		<pre class="file" id="file0" style="display: none">package handler
 
 import (
-        "github.com/amirasaad/fintech/webapi/infra"
         "net/http"
 
-        "github.com/amirasaad/fintech/pkg/repository"
         "github.com/amirasaad/fintech/webapi"
-        "github.com/gofiber/fiber/v2"
+        "github.com/amirasaad/fintech/webapi/infra"
+
+        "github.com/amirasaad/fintech/pkg/repository"
         "github.com/gofiber/fiber/v2/middleware/adaptor"
-        "github.com/gofiber/fiber/v2/middleware/limiter"
-        "github.com/gofiber/fiber/v2/middleware/recover"
 )
 
 // Handler is the main entry point of the application. Think of it like the main() method
@@ -120,76 +122,30 @@ func Handler(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0
 }</span>
 
 // building the fiber application
-func handler() http.HandlerFunc <span class="cov0" title="0">{
-        app := fiber.New()
-
-        app.Use(limiter.New())
-        app.Use(recover.New())
-
-        app.Get("/", func(ctx *fiber.Ctx) error </span><span class="cov0" title="0">{
-                return ctx.JSON(fiber.Map{
-                        "uri":  ctx.Request().URI().String(),
-                        "path": ctx.Path(),
-                })
-        }</span>)
-
-        <span class="cov0" title="0">webapi.AuthRoutes(app, func() (repository.UnitOfWork, error) </span><span class="cov0" title="0">{
+func handler() http.HandlerFunc <span class="cov8" title="1">{
+        app := webapi.NewApp(func() (repository.UnitOfWork, error) </span><span class="cov0" title="0">{
                 return infra.NewGormUoW()
         }</span>)
 
-        <span class="cov0" title="0">webapi.UserRoutes(app, func() (repository.UnitOfWork, error) </span><span class="cov0" title="0">{
-                return infra.NewGormUoW()
-        }</span>)
-
-        <span class="cov0" title="0">webapi.AccountRoutes(app, func() (repository.UnitOfWork, error) </span><span class="cov0" title="0">{
-                return infra.NewGormUoW()
-        }</span>)
-
-        <span class="cov0" title="0">return adaptor.FiberApp(app)</span>
+        <span class="cov8" title="1">return adaptor.FiberApp(app)</span>
 }
 </pre>
 		
 		<pre class="file" id="file1" style="display: none">package main
 
 import (
-        "github.com/amirasaad/fintech/webapi/infra"
         "log"
 
         "github.com/amirasaad/fintech/pkg/repository"
         "github.com/amirasaad/fintech/webapi"
-        "github.com/gofiber/fiber/v2"
+        "github.com/amirasaad/fintech/webapi/infra"
 )
 
 func main() <span class="cov0" title="0">{
-        app := fiber.New(fiber.Config{
-                ErrorHandler: func(c *fiber.Ctx, err error) error </span><span class="cov0" title="0">{
-                        // Default to 500 if status code cannot be determined
-                        status := fiber.StatusInternalServerError
-                        if e, ok := err.(*fiber.Error); ok </span><span class="cov0" title="0">{
-                                status = e.Code
-                        }</span>
-                        <span class="cov0" title="0">return webapi.ErrorResponseJSON(c, status, "Internal Server Error", err.Error())</span>
-                },
-        })
-
-        <span class="cov0" title="0">app.Get("/", func(c *fiber.Ctx) error </span><span class="cov0" title="0">{
-                return c.SendString("App is working! 🚀")
-        }</span>)
-
-        <span class="cov0" title="0">webapi.AccountRoutes(app, func() (repository.UnitOfWork, error) </span><span class="cov0" title="0">{
+        log.Fatal(webapi.NewApp(func() (repository.UnitOfWork, error) </span><span class="cov0" title="0">{
                 return infra.NewGormUoW()
-        }</span>)
-        <span class="cov0" title="0">webapi.UserRoutes(app, func() (repository.UnitOfWork, error) </span><span class="cov0" title="0">{
-                return infra.NewGormUoW()
-        }</span>)
-        <span class="cov0" title="0">webapi.AuthRoutes(app, func() (repository.UnitOfWork, error) </span><span class="cov0" title="0">{
-                return infra.NewGormUoW()
-        }</span>)
+        }</span>).Listen(":3000"))
 
-        // JWT Middleware
-        // app.Use(middleware.Protected())
-
-        <span class="cov0" title="0">log.Fatal(app.Listen(":3000"))</span>
 }
 </pre>
 		
@@ -407,7 +363,7 @@ import (
 )
 
 // Protected protect routes
-func Protected() fiber.Handler <span class="cov0" title="0">{
+func Protected() fiber.Handler <span class="cov8" title="1">{
         return jwtware.New(jwtware.Config{
                 SigningKey:   jwtware.SigningKey{Key: []byte(os.Getenv("JWT_SECRET_KEY"))},
                 ErrorHandler: jwtError,
@@ -1065,6 +1021,42 @@ func GetBalance(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler 
 
 import (
         "github.com/amirasaad/fintech/pkg/repository"
+        "github.com/gofiber/fiber/v2"
+        "github.com/gofiber/fiber/v2/middleware/limiter"
+        "github.com/gofiber/fiber/v2/middleware/recover"
+)
+
+func NewApp(uowFactory func() (repository.UnitOfWork, error)) *fiber.App <span class="cov8" title="1">{
+        app := fiber.New(fiber.Config{
+                ErrorHandler: func(c *fiber.Ctx, err error) error </span><span class="cov0" title="0">{
+                        // Default to 500 if status code cannot be determined
+                        status := fiber.StatusInternalServerError
+                        if e, ok := err.(*fiber.Error); ok </span><span class="cov0" title="0">{
+                                status = e.Code
+                        }</span>
+                        <span class="cov0" title="0">return ErrorResponseJSON(c, status, "Internal Server Error", err.Error())</span>
+                },
+        })
+
+        <span class="cov8" title="1">app.Use(limiter.New())
+        app.Use(recover.New())
+
+        app.Get("/", func(c *fiber.Ctx) error </span><span class="cov0" title="0">{
+                return c.SendString("App is working! 🚀")
+        }</span>)
+
+        <span class="cov8" title="1">AccountRoutes(app, uowFactory)
+        UserRoutes(app, uowFactory)
+        AuthRoutes(app, uowFactory)
+
+        return app</span>
+}
+</pre>
+		
+		<pre class="file" id="file10" style="display: none">package webapi
+
+import (
+        "github.com/amirasaad/fintech/pkg/repository"
         "github.com/amirasaad/fintech/pkg/service"
         "github.com/gofiber/fiber/v2"
 )
@@ -1099,7 +1091,7 @@ func Login(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler <span
 }
 </pre>
 		
-		<pre class="file" id="file10" style="display: none">package infra
+		<pre class="file" id="file11" style="display: none">package infra
 
 import (
         "errors"
@@ -1126,7 +1118,7 @@ func NewDBConnection() (*gorm.DB, error) <span class="cov0" title="0">{
 }
 </pre>
 		
-		<pre class="file" id="file11" style="display: none">package infra
+		<pre class="file" id="file12" style="display: none">package infra
 
 import (
         "github.com/amirasaad/fintech/pkg/domain"
@@ -1293,7 +1285,7 @@ func NewUserRepository(db *gorm.DB) repository.UserRepository <span class="cov0"
 }</span>
 </pre>
 		
-		<pre class="file" id="file12" style="display: none">package infra
+		<pre class="file" id="file13" style="display: none">package infra
 
 import (
         "fmt"
@@ -1400,7 +1392,43 @@ func (u *UoW) UserRepository() repository.UserRepository <span class="cov0" titl
 }
 </pre>
 		
-		<pre class="file" id="file13" style="display: none">package webapi
+		<pre class="file" id="file14" style="display: none">package webapi
+
+import (
+        "testing"
+
+        "github.com/amirasaad/fintech/pkg/domain"
+        "github.com/amirasaad/fintech/pkg/repository"
+        "github.com/amirasaad/fintech/test"
+        "github.com/gofiber/fiber/v2"
+)
+
+func SetupCommonMocks(userRepo *test.MockUserRepository, mockUow *test.MockUnitOfWork, testUser *domain.User) {<span class="cov0" title="0">
+        // placeholder for common mocks
+}</span>
+
+func SetupTestApp(t *testing.T) (app *fiber.App, userRepo *test.MockUserRepository, accountRepo *test.MockAccountRepository, transactionRepo *test.MockTransactionRepository, mockUow *test.MockUnitOfWork, testUser *domain.User) <span class="cov8" title="1">{
+        t.Helper()
+        t.Setenv("JWT_SECRET_KEY", "secret")
+
+        userRepo = test.NewMockUserRepository(t)
+        accountRepo = test.NewMockAccountRepository(t)
+        transactionRepo = test.NewMockTransactionRepository(t)
+
+        mockUow = test.NewMockUnitOfWork(t)
+
+        app = NewApp(func() (repository.UnitOfWork, error) </span><span class="cov8" title="1">{ return mockUow, nil }</span>)
+        <span class="cov8" title="1">testUser, _ = domain.NewUser("testuser", "testuser@example.com", "password123")
+
+        defer mockUow.AssertExpectations(t)
+        defer userRepo.AssertExpectations(t)
+        defer accountRepo.AssertExpectations(t)
+        defer transactionRepo.AssertExpectations(t)
+        return</span>
+}
+</pre>
+		
+		<pre class="file" id="file15" style="display: none">package webapi
 
 import (
         "github.com/amirasaad/fintech/pkg/middleware"
@@ -1539,7 +1567,7 @@ func DeleteUser(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler 
 }
 </pre>
 		
-		<pre class="file" id="file14" style="display: none">package webapi
+		<pre class="file" id="file16" style="display: none">package webapi
 
 import (
         "github.com/amirasaad/fintech/pkg/domain"
@@ -1598,7 +1626,7 @@ func ErrorToStatusCode(err error) int <span class="cov8" title="1">{
                 return fiber.StatusBadRequest</span>
         case domain.ErrWithdrawalAmountMustBePositive:<span class="cov8" title="1">
                 return fiber.StatusBadRequest</span>
-        case domain.ErrInsufficientFunds:<span class="cov8" title="1">
+        case domain.ErrInsufficientFunds:<span class="cov0" title="0">
                 return fiber.StatusUnprocessableEntity</span>
         case domain.ErrUserUnauthorized:<span class="cov0" title="0">
                 return fiber.StatusUnauthorized</span>

@@ -13,14 +13,10 @@ type UoW struct {
 	started bool
 }
 
-func NewGormUoW() (*UoW, error) {
+func NewGormUoW(dbConn *gorm.DB) (*UoW, error) {
 
-	db, err := NewDBConnection()
-	if err != nil {
-		return nil, err
-	}
 	return &UoW{
-		session: db,
+		session: dbConn,
 		started: false,
 	}, nil
 }
