@@ -285,3 +285,30 @@ func TestSimultaneous(t *testing.T) {
 	require.NoError(err, "GetBalance for same user should not return an error")
 	assert.InDelta(expectedBalance, balance, 0.01, "Final balance should be correct after concurrent operations")
 }
+
+func TestAccount_DepositUnauthorized(t *testing.T) {
+	assert := assert.New(t)
+	userID := uuid.New()
+	account := domain.NewAccount(userID)
+	_, err := account.Deposit(uuid.New(), 1000)
+	assert.Error(err, "Deposit with different user id should return error")
+	assert.ErrorIs(err, domain.ErrUserUnauthorized)
+}
+
+func TestAccount_WithdrawUnauthorized(t *testing.T) {
+	assert := assert.New(t)
+	userID := uuid.New()
+	account := domain.NewAccount(userID)
+	_, err := account.Withdraw(uuid.New(), 1000)
+	assert.Error(err, "Deposit with different user id should return error")
+	assert.ErrorIs(err, domain.ErrUserUnauthorized)
+}
+
+func TestAccount_GetBalanceUnauthorized(t *testing.T) {
+	assert := assert.New(t)
+	userID := uuid.New()
+	account := domain.NewAccount(userID)
+	_, err := account.GetBalance(uuid.New())
+	assert.Error(err, "Deposit with different user id should return error")
+	assert.ErrorIs(err, domain.ErrUserUnauthorized)
+}

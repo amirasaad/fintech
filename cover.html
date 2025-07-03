@@ -3,7 +3,7 @@
 <html>
 	<head>
 		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-		<title>handler: Go Coverage Report</title>
+		<title>cmd: Go Coverage Report</title>
 		<style>
 			body {
 				background: black;
@@ -55,39 +55,37 @@
 			<div id="nav">
 				<select id="files">
 				
-				<option value="file0">github.com/amirasaad/fintech/api/handler/index.go (40.0%)</option>
+				<option value="file0">github.com/amirasaad/fintech/cmd/server.go (0.0%)</option>
 				
-				<option value="file1">github.com/amirasaad/fintech/cmd/server.go (0.0%)</option>
+				<option value="file1">github.com/amirasaad/fintech/pkg/domain/account.go (94.9%)</option>
 				
-				<option value="file2">github.com/amirasaad/fintech/pkg/domain/account.go (87.2%)</option>
+				<option value="file2">github.com/amirasaad/fintech/pkg/domain/user.go (0.0%)</option>
 				
-				<option value="file3">github.com/amirasaad/fintech/pkg/domain/user.go (0.0%)</option>
+				<option value="file3">github.com/amirasaad/fintech/pkg/middleware/auth.go (75.0%)</option>
 				
-				<option value="file4">github.com/amirasaad/fintech/pkg/middleware/auth.go (25.0%)</option>
+				<option value="file4">github.com/amirasaad/fintech/pkg/service/account.go (71.6%)</option>
 				
-				<option value="file5">github.com/amirasaad/fintech/pkg/service/account.go (71.6%)</option>
+				<option value="file5">github.com/amirasaad/fintech/pkg/service/auth.go (93.9%)</option>
 				
-				<option value="file6">github.com/amirasaad/fintech/pkg/service/auth.go (93.9%)</option>
+				<option value="file6">github.com/amirasaad/fintech/pkg/service/user.go (77.0%)</option>
 				
-				<option value="file7">github.com/amirasaad/fintech/pkg/service/user.go (77.0%)</option>
+				<option value="file7">github.com/amirasaad/fintech/webapi/account.go (70.0%)</option>
 				
-				<option value="file8">github.com/amirasaad/fintech/webapi/account.go (70.0%)</option>
+				<option value="file8">github.com/amirasaad/fintech/webapi/app.go (61.5%)</option>
 				
-				<option value="file9">github.com/amirasaad/fintech/webapi/app.go (61.5%)</option>
+				<option value="file9">github.com/amirasaad/fintech/webapi/auth.go (76.9%)</option>
 				
-				<option value="file10">github.com/amirasaad/fintech/webapi/auth.go (76.9%)</option>
+				<option value="file10">github.com/amirasaad/fintech/webapi/infra/database.go (30.0%)</option>
 				
-				<option value="file11">github.com/amirasaad/fintech/webapi/infra/database.go (0.0%)</option>
+				<option value="file11">github.com/amirasaad/fintech/webapi/infra/repository.go (13.2%)</option>
 				
-				<option value="file12">github.com/amirasaad/fintech/webapi/infra/repository.go (0.0%)</option>
+				<option value="file12">github.com/amirasaad/fintech/webapi/infra/uow.go (13.5%)</option>
 				
-				<option value="file13">github.com/amirasaad/fintech/webapi/infra/uow.go (0.0%)</option>
+				<option value="file13">github.com/amirasaad/fintech/webapi/testutils.go (100.0%)</option>
 				
-				<option value="file14">github.com/amirasaad/fintech/webapi/testutils.go (100.0%)</option>
+				<option value="file14">github.com/amirasaad/fintech/webapi/user.go (10.8%)</option>
 				
-				<option value="file15">github.com/amirasaad/fintech/webapi/user.go (10.8%)</option>
-				
-				<option value="file16">github.com/amirasaad/fintech/webapi/utils.go (63.2%)</option>
+				<option value="file15">github.com/amirasaad/fintech/webapi/utils.go (63.2%)</option>
 				
 				</select>
 			</div>
@@ -101,37 +99,7 @@
 		</div>
 		<div id="content">
 		
-		<pre class="file" id="file0" style="display: none">package handler
-
-import (
-        "net/http"
-
-        "github.com/amirasaad/fintech/webapi"
-        "github.com/amirasaad/fintech/webapi/infra"
-
-        "github.com/amirasaad/fintech/pkg/repository"
-        "github.com/gofiber/fiber/v2/middleware/adaptor"
-)
-
-// Handler is the main entry point of the application. Think of it like the main() method
-func Handler(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
-        // This is needed to set the proper request path in `*fiber.Ctx`
-        r.RequestURI = r.URL.String()
-
-        handler().ServeHTTP(w, r)
-}</span>
-
-// building the fiber application
-func handler() http.HandlerFunc <span class="cov8" title="1">{
-        app := webapi.NewApp(func() (repository.UnitOfWork, error) </span><span class="cov0" title="0">{
-                return infra.NewGormUoW()
-        }</span>)
-
-        <span class="cov8" title="1">return adaptor.FiberApp(app)</span>
-}
-</pre>
-		
-		<pre class="file" id="file1" style="display: none">package main
+		<pre class="file" id="file0" style="display: none">package main
 
 import (
         "log"
@@ -142,14 +110,18 @@ import (
 )
 
 func main() <span class="cov0" title="0">{
-        log.Fatal(webapi.NewApp(func() (repository.UnitOfWork, error) </span><span class="cov0" title="0">{
-                return infra.NewGormUoW()
+        db, err := infra.NewDBConnection()
+        if err != nil </span><span class="cov0" title="0">{
+                log.Fatal(err)
+        }</span>
+        <span class="cov0" title="0">log.Fatal(webapi.NewApp(func() (repository.UnitOfWork, error) </span><span class="cov0" title="0">{
+                return infra.NewGormUoW(db)
         }</span>).Listen(":3000"))
 
 }
 </pre>
 		
-		<pre class="file" id="file2" style="display: none">package domain
+		<pre class="file" id="file1" style="display: none">package domain
 
 import (
         "errors"
@@ -226,7 +198,7 @@ func NewTransactionFromData(id, userID, accountID uuid.UUID, amount, balance int
 // The amount is expected to be in dollars, and it will be converted to cents for precision.
 // It returns an error if the deposit amount is negative.
 func (a *Account) Deposit(userID uuid.UUID, amount float64) (*Transaction, error) <span class="cov8" title="1">{
-        if a.UserID != userID </span><span class="cov0" title="0">{
+        if a.UserID != userID </span><span class="cov8" title="1">{
                 return nil, ErrUserUnauthorized
         }</span>
         <span class="cov8" title="1">slog.Info("Balance before deposit", slog.Int64("balance", a.Balance))
@@ -263,7 +235,7 @@ func (a *Account) Deposit(userID uuid.UUID, amount float64) (*Transaction, error
 // The amount is expected to be in dollars, and it will be converted to cents for precision.
 // It returns an error if the withdrawal amount is negative or if there are insufficient funds.
 func (a *Account) Withdraw(userID uuid.UUID, amount float64) (*Transaction, error) <span class="cov8" title="1">{
-        if a.UserID != userID </span><span class="cov0" title="0">{
+        if a.UserID != userID </span><span class="cov8" title="1">{
                 return nil, ErrUserUnauthorized
         }</span>
         <span class="cov8" title="1">slog.Info("Balance before withdrawal", slog.Int64("balance", a.Balance))
@@ -296,7 +268,7 @@ func (a *Account) Withdraw(userID uuid.UUID, amount float64) (*Transaction, erro
 // GetBalance returns the current balance of the account in dollars.
 // It converts the balance from cents to dollars for display purposes.
 func (a *Account) GetBalance(userID uuid.UUID) (float64, error) <span class="cov8" title="1">{
-        if a.UserID != userID </span><span class="cov0" title="0">{
+        if a.UserID != userID </span><span class="cov8" title="1">{
                 return 0, ErrUserUnauthorized
         }</span>
         <span class="cov8" title="1">slog.Info("Getting balance", slog.Int64("balance", a.Balance))
@@ -304,7 +276,7 @@ func (a *Account) GetBalance(userID uuid.UUID) (float64, error) <span class="cov
 }
 </pre>
 		
-		<pre class="file" id="file3" style="display: none">package domain
+		<pre class="file" id="file2" style="display: none">package domain
 
 import (
         "time"
@@ -353,7 +325,7 @@ func NewUserFromData(id uuid.UUID, username, email, password string, created, up
 }</span>
 </pre>
 		
-		<pre class="file" id="file4" style="display: none">package middleware
+		<pre class="file" id="file3" style="display: none">package middleware
 
 import (
         "os"
@@ -370,17 +342,17 @@ func Protected() fiber.Handler <span class="cov8" title="1">{
         })
 }</span>
 
-func jwtError(c *fiber.Ctx, err error) error <span class="cov0" title="0">{
+func jwtError(c *fiber.Ctx, err error) error <span class="cov8" title="1">{
         if err.Error() == "Missing or malformed JWT" </span><span class="cov0" title="0">{
                 return c.Status(fiber.StatusBadRequest).
                         JSON(fiber.Map{"status": "error", "message": "Missing or malformed JWT", "data": nil})
         }</span>
-        <span class="cov0" title="0">return c.Status(fiber.StatusUnauthorized).
+        <span class="cov8" title="1">return c.Status(fiber.StatusUnauthorized).
                 JSON(fiber.Map{"status": "error", "message": "Invalid or expired JWT", "data": nil})</span>
 }
 </pre>
 		
-		<pre class="file" id="file5" style="display: none">// Package service provides business logic for interacting with domain entities such as accounts and transactions.
+		<pre class="file" id="file4" style="display: none">// Package service provides business logic for interacting with domain entities such as accounts and transactions.
 // It defines the AccountService struct and its methods for creating accounts, depositing and withdrawing funds,
 // retrieving account details, listing transactions, and checking account balances.
 package service
@@ -572,7 +544,7 @@ func (s *AccountService) GetBalance(userID, accountID uuid.UUID) (float64, error
 }
 </pre>
 		
-		<pre class="file" id="file6" style="display: none">package service
+		<pre class="file" id="file5" style="display: none">package service
 
 import (
         "errors"
@@ -644,7 +616,7 @@ func (s *AuthService) Login(identity, password string) (*domain.User, string, er
 }
 </pre>
 		
-		<pre class="file" id="file7" style="display: none">package service
+		<pre class="file" id="file6" style="display: none">package service
 
 import (
         "github.com/amirasaad/fintech/pkg/domain"
@@ -789,7 +761,7 @@ func (s *UserService) ValidUser(id uuid.UUID, password string) bool <span class=
 }
 </pre>
 		
-		<pre class="file" id="file8" style="display: none">// AccountRoutes registers HTTP routes for account-related operations using the Fiber web framework.
+		<pre class="file" id="file7" style="display: none">// AccountRoutes registers HTTP routes for account-related operations using the Fiber web framework.
 // It sets up endpoints for creating accounts, depositing and withdrawing funds, retrieving account balances,
 // and listing account transactions. All routes are protected by authentication middleware and require a valid user context.
 //
@@ -1017,7 +989,7 @@ func GetBalance(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler 
 }
 </pre>
 		
-		<pre class="file" id="file9" style="display: none">package webapi
+		<pre class="file" id="file8" style="display: none">package webapi
 
 import (
         "github.com/amirasaad/fintech/pkg/repository"
@@ -1053,7 +1025,7 @@ func NewApp(uowFactory func() (repository.UnitOfWork, error)) *fiber.App <span c
 }
 </pre>
 		
-		<pre class="file" id="file10" style="display: none">package webapi
+		<pre class="file" id="file9" style="display: none">package webapi
 
 import (
         "github.com/amirasaad/fintech/pkg/repository"
@@ -1091,7 +1063,7 @@ func Login(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler <span
 }
 </pre>
 		
-		<pre class="file" id="file11" style="display: none">package infra
+		<pre class="file" id="file10" style="display: none">package infra
 
 import (
         "errors"
@@ -1101,9 +1073,9 @@ import (
         "gorm.io/gorm"
 )
 
-func NewDBConnection() (*gorm.DB, error) <span class="cov0" title="0">{
+func NewDBConnection() (*gorm.DB, error) <span class="cov8" title="1">{
         databaseUrl := os.Getenv("DATABASE_URL")
-        if databaseUrl == "" </span><span class="cov0" title="0">{
+        if databaseUrl == "" </span><span class="cov8" title="1">{
                 return nil, errors.New("DATABASE_URL is not set")
         }</span>
         <span class="cov0" title="0">connection, err := gorm.Open(postgres.Open(databaseUrl), &amp;gorm.Config{SkipDefaultTransaction: true})
@@ -1118,7 +1090,7 @@ func NewDBConnection() (*gorm.DB, error) <span class="cov0" title="0">{
 }
 </pre>
 		
-		<pre class="file" id="file12" style="display: none">package infra
+		<pre class="file" id="file11" style="display: none">package infra
 
 import (
         "github.com/amirasaad/fintech/pkg/domain"
@@ -1131,22 +1103,22 @@ type accountRepository struct {
         db *gorm.DB
 }
 
-func NewAccountRepository(db *gorm.DB) repository.AccountRepository <span class="cov0" title="0">{
+func NewAccountRepository(db *gorm.DB) repository.AccountRepository <span class="cov8" title="1">{
         return &amp;accountRepository{db: db}
 }</span>
 
-func (r *accountRepository) Get(id uuid.UUID) (*domain.Account, error) <span class="cov0" title="0">{
+func (r *accountRepository) Get(id uuid.UUID) (*domain.Account, error) <span class="cov8" title="1">{
         var a domain.Account
         result := r.db.First(&amp;a, id)
-        if result.Error != nil </span><span class="cov0" title="0">{
+        if result.Error != nil </span><span class="cov8" title="1">{
                 return nil, result.Error
         }</span>
         <span class="cov0" title="0">return domain.NewAccountFromData(a.ID, a.UserID, a.Balance, a.CreatedAt, a.UpdatedAt), nil</span>
 }
 
-func (r *accountRepository) Create(a *domain.Account) error <span class="cov0" title="0">{
+func (r *accountRepository) Create(a *domain.Account) error <span class="cov8" title="1">{
         result := r.db.Create(a)
-        if result.Error != nil </span><span class="cov0" title="0">{
+        if result.Error != nil </span><span class="cov8" title="1">{
                 return result.Error
         }</span>
         <span class="cov0" title="0">return nil</span>
@@ -1177,7 +1149,7 @@ type transactionRepository struct {
         db *gorm.DB
 }
 
-func NewTransactionRepository(db *gorm.DB) repository.TransactionRepository <span class="cov0" title="0">{
+func NewTransactionRepository(db *gorm.DB) repository.TransactionRepository <span class="cov8" title="1">{
         return &amp;transactionRepository{db: db}
 }</span>
 
@@ -1285,7 +1257,7 @@ func NewUserRepository(db *gorm.DB) repository.UserRepository <span class="cov0"
 }</span>
 </pre>
 		
-		<pre class="file" id="file13" style="display: none">package infra
+		<pre class="file" id="file12" style="display: none">package infra
 
 import (
         "fmt"
@@ -1300,17 +1272,13 @@ type UoW struct {
         started bool
 }
 
-func NewGormUoW() (*UoW, error) <span class="cov0" title="0">{
+func NewGormUoW(dbConn *gorm.DB) (*UoW, error) <span class="cov8" title="1">{
 
-        db, err := NewDBConnection()
-        if err != nil </span><span class="cov0" title="0">{
-                return nil, err
-        }</span>
-        <span class="cov0" title="0">return &amp;UoW{
-                session: db,
+        return &amp;UoW{
+                session: dbConn,
                 started: false,
-        }, nil</span>
-}
+        }, nil
+}</span>
 func (u *UoW) Begin() error <span class="cov0" title="0">{
         slog.Info("UoW Begin()")
         if u.session == nil </span><span class="cov0" title="0">{
@@ -1368,15 +1336,15 @@ func (u *UoW) Rollback() error <span class="cov0" title="0">{
         <span class="cov0" title="0">return err</span>
 }
 
-func (u *UoW) AccountRepository() repository.AccountRepository <span class="cov0" title="0">{
-        if !u.started </span><span class="cov0" title="0">{
+func (u *UoW) AccountRepository() repository.AccountRepository <span class="cov8" title="1">{
+        if !u.started </span><span class="cov8" title="1">{
                 db, _ := NewDBConnection()
                 return NewAccountRepository(db)
         }</span>
         <span class="cov0" title="0">return NewAccountRepository(u.session)</span>
 }
-func (u *UoW) TransactionRepository() repository.TransactionRepository <span class="cov0" title="0">{
-        if !u.started </span><span class="cov0" title="0">{
+func (u *UoW) TransactionRepository() repository.TransactionRepository <span class="cov8" title="1">{
+        if !u.started </span><span class="cov8" title="1">{
                 db, _ := NewDBConnection()
                 return NewTransactionRepository(db)
         }</span>
@@ -1392,7 +1360,7 @@ func (u *UoW) UserRepository() repository.UserRepository <span class="cov0" titl
 }
 </pre>
 		
-		<pre class="file" id="file14" style="display: none">package webapi
+		<pre class="file" id="file13" style="display: none">package webapi
 
 import (
         "testing"
@@ -1428,7 +1396,7 @@ func SetupTestApp(t *testing.T) (app *fiber.App, userRepo *test.MockUserReposito
 }
 </pre>
 		
-		<pre class="file" id="file15" style="display: none">package webapi
+		<pre class="file" id="file14" style="display: none">package webapi
 
 import (
         "github.com/amirasaad/fintech/pkg/middleware"
@@ -1567,7 +1535,7 @@ func DeleteUser(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler 
 }
 </pre>
 		
-		<pre class="file" id="file16" style="display: none">package webapi
+		<pre class="file" id="file15" style="display: none">package webapi
 
 import (
         "github.com/amirasaad/fintech/pkg/domain"
