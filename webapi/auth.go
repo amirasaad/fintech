@@ -8,7 +8,6 @@ import (
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -35,15 +34,7 @@ func Login(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
 			Identity string `json:"identity"`
 			Password string `json:"password"`
 		}
-		type UserData struct {
-			ID       uuid.UUID `json:"id"`
-			Username string    `json:"username"`
-			Email    string    `json:"email"`
-			Password string    `json:"password"`
-		}
-
 		input := new(LoginInput)
-		var ud UserData
 
 		if err := c.BodyParser(input); err != nil {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "error", "message": "Error on login request", "errors": err.Error()})
@@ -67,31 +58,24 @@ func Login(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
 
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "error", "message": "Internal Server Error", "data": err})
-		} else if user == nil {
-
+		}
+		if user == nil {
 			// Always perform a hash check, even if the user doesn't exist, to prevent timing attacks
 			CheckPasswordHash(pass, dummyHash)
 
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "error", "message": "Invalid identity or password", "data": err})
-		} else {
-			ud = UserData{
-				ID:       user.ID,
-				Username: user.Username,
-				Email:    user.Email,
-				Password: user.Password,
-			}
 		}
 
-		if !CheckPasswordHash(pass, ud.Password) {
+		if !CheckPasswordHash(pass, user.Password) {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "error", "message": "Invalid identity or password", "data": nil})
 		}
 
 		token := jwt.New(jwt.SigningMethodHS256)
 
 		claims := token.Claims.(jwt.MapClaims)
-		claims["username"] = ud.Username
-		claims["email"] = ud.Email
-		claims["user_id"] = ud.ID
+		claims["username"] = user.Username
+		claims["email"] = user.Email
+		claims["user_id"] = user.ID
 		claims["exp"] = time.Now().Add(time.Hour * 72).Unix()
 
 		t, err := token.SignedString([]byte("SECRET"))

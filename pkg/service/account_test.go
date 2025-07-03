@@ -51,8 +51,8 @@ func (m *MockTransactionRepo) Create(tx *domain.Transaction) error {
 	args := m.Called(tx)
 	return args.Error(0)
 }
-func (m *MockTransactionRepo) List(accountID uuid.UUID) ([]*domain.Transaction, error) {
-	args := m.Called(accountID)
+func (m *MockTransactionRepo) List(userID, accountID uuid.UUID) ([]*domain.Transaction, error) {
+	args := m.Called(userID, accountID)
 	return args.Get(0).([]*domain.Transaction), args.Error(1)
 }
 
@@ -115,17 +115,18 @@ func TestDeposit_Success(t *testing.T) {
 	accountRepo.On("Update", mock.Anything).Return(nil)
 	transactionRepo.On("Create", mock.Anything).Return(nil)
 
-	tx, err := svc.Deposit(account.ID, 100.0)
+	tx, err := svc.Deposit(userID, account.ID, 100.0)
 	assert.NoError(t, err)
 	assert.NotNil(t, tx)
-	assert.InDelta(t, 100.0, account.GetBalance(), 0.01)
+	balance, _ := account.GetBalance(userID)
+	assert.InDelta(t, 100.0, balance, 0.01)
 }
 
 func TestDeposit_AccountNotFound(t *testing.T) {
 	svc, accountRepo, _ := newServiceWithMocks()
 	accountRepo.On("Get", mock.Anything).Return(&domain.Account{}, domain.ErrAccountNotFound)
 
-	tx, err := svc.Deposit(uuid.New(), 100.0)
+	tx, err := svc.Deposit(uuid.New(), uuid.New(), 100.0)
 	assert.Error(t, err)
 	assert.Nil(t, tx)
 	assert.Equal(t, domain.ErrAccountNotFound, err)
@@ -138,7 +139,7 @@ func TestDeposit_NegativeAmount(t *testing.T) {
 	accountRepo.account = account
 	accountRepo.On("Get", account.ID).Return(account, nil)
 
-	tx, err := svc.Deposit(account.ID, -50.0)
+	tx, err := svc.Deposit(userID, account.ID, -50.0)
 	assert.Error(t, err)
 	assert.Nil(t, tx)
 	assert.Equal(t, domain.ErrTransactionAmountMustBePositive, err)
@@ -150,15 +151,16 @@ func TestWithdraw_Success(t *testing.T) {
 	account := domain.NewAccount(userID)
 	accountRepo.account = account
 	// Deposit first
-	account.Deposit(100.0)
+	account.Deposit(userID, 100.0)
 	accountRepo.On("Get", account.ID).Return(account, nil)
 	accountRepo.On("Update", mock.Anything).Return(nil)
 	transactionRepo.On("Create", mock.Anything).Return(nil)
 
-	tx, err := svc.Withdraw(account.ID, 50.0)
+	tx, err := svc.Withdraw(userID, account.ID, 50.0)
 	assert.NoError(t, err)
 	assert.NotNil(t, tx)
-	assert.InDelta(t, 50.0, account.GetBalance(), 0.01)
+	balance, _ := account.GetBalance(userID)
+	assert.InDelta(t, 50.0, balance, 0.01)
 }
 
 func TestWithdraw_InsufficientFunds(t *testing.T) {
@@ -168,7 +170,7 @@ func TestWithdraw_InsufficientFunds(t *testing.T) {
 	accountRepo.account = account
 	accountRepo.On("Get", account.ID).Return(account, nil)
 
-	tx, err := svc.Withdraw(account.ID, 100.0)
+	tx, err := svc.Withdraw(userID, account.ID, 100.0)
 	assert.Error(t, err)
 	assert.Nil(t, tx)
 	assert.Equal(t, domain.ErrInsufficientFunds, err)
@@ -181,7 +183,7 @@ func TestGetAccount_Success(t *testing.T) {
 	accountRepo.account = account
 	accountRepo.On("Get", account.ID).Return(account, nil)
 
-	got, err := svc.GetAccount(account.ID)
+	got, err := svc.GetAccount(userID, account.ID)
 	assert.NoError(t, err)
 	assert.Equal(t, account, got)
 }
@@ -190,7 +192,7 @@ func TestGetAccount_NotFound(t *testing.T) {
 	svc, accountRepo, _ := newServiceWithMocks()
 	accountRepo.On("Get", mock.Anything).Return(&domain.Account{}, domain.ErrAccountNotFound)
 
-	got, err := svc.GetAccount(uuid.New())
+	got, err := svc.GetAccount(uuid.New(), uuid.New())
 	assert.Error(t, err)
 	assert.Nil(t, got)
 	assert.Equal(t, domain.ErrAccountNotFound, err)
@@ -199,12 +201,13 @@ func TestGetAccount_NotFound(t *testing.T) {
 func TestGetTransactions_Success(t *testing.T) {
 	svc, _, transactionRepo := newServiceWithMocks()
 	accountID := uuid.New()
+	userID := uuid.New()
 	txList := []*domain.Transaction{
 		{ID: uuid.New(), AccountID: accountID, Amount: 100, Balance: 100},
 	}
-	transactionRepo.On("List", accountID).Return(txList, nil)
+	transactionRepo.On("List", userID, accountID).Return(txList, nil)
 
-	got, err := svc.GetTransactions(accountID)
+	got, err := svc.GetTransactions(userID, accountID)
 	assert.NoError(t, err)
 	assert.Equal(t, txList, got)
 }
@@ -212,9 +215,10 @@ func TestGetTransactions_Success(t *testing.T) {
 func TestGetTransactions_Error(t *testing.T) {
 	svc, _, transactionRepo := newServiceWithMocks()
 	accountID := uuid.New()
-	transactionRepo.On("List", accountID).Return([]*domain.Transaction{}, errors.New("db error"))
+	userID := uuid.New()
+	transactionRepo.On("List", userID, accountID).Return([]*domain.Transaction{}, errors.New("db error"))
 
-	got, err := svc.GetTransactions(accountID)
+	got, err := svc.GetTransactions(userID, accountID)
 	assert.Error(t, err)
 	assert.Nil(t, got)
 }
@@ -223,11 +227,11 @@ func TestGetBalance_Success(t *testing.T) {
 	svc, accountRepo, _ := newServiceWithMocks()
 	userID := uuid.New()
 	account := domain.NewAccount(userID)
-	account.Deposit(123.45)
+	account.Deposit(userID, 123.45)
 	accountRepo.account = account
 	accountRepo.On("Get", account.ID).Return(account, nil)
 
-	balance, err := svc.GetBalance(account.ID)
+	balance, err := svc.GetBalance(userID, account.ID)
 	assert.NoError(t, err)
 	assert.InDelta(t, 123.45, balance, 0.01)
 }
@@ -236,7 +240,7 @@ func TestGetBalance_NotFound(t *testing.T) {
 	svc, accountRepo, _ := newServiceWithMocks()
 	accountRepo.On("Get", mock.Anything).Return(&domain.Account{}, domain.ErrAccountNotFound)
 
-	balance, err := svc.GetBalance(uuid.New())
+	balance, err := svc.GetBalance(uuid.New(), uuid.New())
 	assert.Error(t, err)
 	assert.Equal(t, 0.0, balance)
 }

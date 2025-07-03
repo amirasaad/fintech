@@ -21,6 +21,8 @@ func ErrorToStatusCode(err error) int {
 		return fiber.StatusBadRequest
 	case domain.ErrInsufficientFunds:
 		return fiber.StatusUnprocessableEntity
+	case domain.ErrUserUnauthorized:
+		return fiber.StatusUnauthorized
 	default:
 		return fiber.StatusInternalServerError
 	}
@@ -46,17 +48,4 @@ func GetCurrentUserId(c *fiber.Ctx) (uuid.UUID, error) {
 	}
 
 	return userID, nil
-}
-
-func CheckUserAccountOwnership(c *fiber.Ctx, account *domain.Account) (bool, error) {
-	userID, err := GetCurrentUserId(c)
-	if err != nil {
-		return false, err
-	}
-
-	if userID != account.UserID {
-		log.Errorf("User ID from token does not match account ID")
-		return false, c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "user ID does not match account ID"})
-	}
-	return true, nil
 }

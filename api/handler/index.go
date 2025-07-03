@@ -99,7 +99,7 @@ func (t *transactionRepo) Get(id uuid.UUID) (*domain.Transaction, error) {
 }
 
 // List implements repository.TransactionRepository.
-func (t *transactionRepo) List(accountID uuid.UUID) ([]*domain.Transaction, error) {
+func (t *transactionRepo) List(userID, accountID uuid.UUID) ([]*domain.Transaction, error) {
 	var transactions []*domain.Transaction
 	for _, tx := range t.transactions {
 		if tx.AccountID == accountID {

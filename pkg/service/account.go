@@ -53,7 +53,7 @@ func (s *AccountService) CreateAccount(userID uuid.UUID) (*domain.Account, error
 
 // Deposit adds funds to the specified account and creates a transaction record.
 // Returns the transaction or an error if the operation fails.
-func (s *AccountService) Deposit(accountID uuid.UUID, amount float64) (*domain.Transaction, error) {
+func (s *AccountService) Deposit(userID, accountID uuid.UUID, amount float64) (*domain.Transaction, error) {
 	uow, err := s.uowFactory()
 	if err != nil {
 		return nil, err
@@ -69,7 +69,7 @@ func (s *AccountService) Deposit(accountID uuid.UUID, amount float64) (*domain.T
 		return nil, domain.ErrAccountNotFound
 	}
 
-	tx, err := a.Deposit(amount)
+	tx, err := a.Deposit(userID, amount)
 	if err != nil {
 		_ = uow.Rollback()
 		return nil, err
@@ -98,7 +98,7 @@ func (s *AccountService) Deposit(accountID uuid.UUID, amount float64) (*domain.T
 
 // Withdraw removes funds from the specified account and creates a transaction record.
 // Returns the transaction or an error if the operation fails.
-func (s *AccountService) Withdraw(accountID uuid.UUID, amount float64) (*domain.Transaction, error) {
+func (s *AccountService) Withdraw(userID, accountID uuid.UUID, amount float64) (*domain.Transaction, error) {
 	uow, err := s.uowFactory()
 	if err != nil {
 		return nil, err
@@ -114,7 +114,7 @@ func (s *AccountService) Withdraw(accountID uuid.UUID, amount float64) (*domain.
 		return nil, domain.ErrAccountNotFound
 	}
 
-	tx, err := a.Withdraw(amount)
+	tx, err := a.Withdraw(userID, amount)
 	if err != nil {
 		_ = uow.Rollback()
 		return nil, err
@@ -143,7 +143,7 @@ func (s *AccountService) Withdraw(accountID uuid.UUID, amount float64) (*domain.
 
 // GetAccount retrieves an account by its ID.
 // Returns the account or an error if not found.
-func (s *AccountService) GetAccount(accountID uuid.UUID) (*domain.Account, error) {
+func (s *AccountService) GetAccount(userID, accountID uuid.UUID) (*domain.Account, error) {
 	uow, err := s.uowFactory()
 	if err != nil {
 		return nil, err
@@ -152,17 +152,20 @@ func (s *AccountService) GetAccount(accountID uuid.UUID) (*domain.Account, error
 	if err != nil {
 		return nil, domain.ErrAccountNotFound
 	}
+	if a.UserID != userID {
+		return nil, domain.ErrUserUnauthorized
+	}
 	return a, nil
 }
 
 // GetTransactions retrieves all transactions for a given account ID.
 // Returns a slice of transactions or an error if the operation fails.
-func (s *AccountService) GetTransactions(accountID uuid.UUID) ([]*domain.Transaction, error) {
+func (s *AccountService) GetTransactions(userID, accountID uuid.UUID) ([]*domain.Transaction, error) {
 	uow, err := s.uowFactory()
 	if err != nil {
 		return nil, err
 	}
-	txs, err := uow.TransactionRepository().List(accountID)
+	txs, err := uow.TransactionRepository().List(userID, accountID)
 	if err != nil {
 		return nil, err
 	}
@@ -172,7 +175,7 @@ func (s *AccountService) GetTransactions(accountID uuid.UUID) ([]*domain.Transac
 
 // GetBalance retrieves the current balance of the specified account.
 // Returns the balance as a float64 or an error if the operation fails.
-func (s *AccountService) GetBalance(accountID uuid.UUID) (float64, error) {
+func (s *AccountService) GetBalance(userID, accountID uuid.UUID) (float64, error) {
 	uow, err := s.uowFactory()
 	if err != nil {
 		return 0, err
@@ -182,5 +185,5 @@ func (s *AccountService) GetBalance(accountID uuid.UUID) (float64, error) {
 		return 0, err
 	}
 
-	return a.GetBalance(), nil
+	return a.GetBalance(userID)
 }

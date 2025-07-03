@@ -15,7 +15,7 @@ type AccountRepository interface {
 type TransactionRepository interface {
 	Create(transaction *domain.Transaction) error
 	Get(id uuid.UUID) (*domain.Transaction, error)
-	List(accountID uuid.UUID) ([]*domain.Transaction, error)
+	List(userID, accountID uuid.UUID) ([]*domain.Transaction, error)
 }
 
 type UserRepository interface {
