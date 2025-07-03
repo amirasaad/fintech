@@ -3,7 +3,6 @@ module github.com/amirasaad/fintech
 go 1.24.4
 
 require (
-	github.com/go-openapi/errors v0.22.1
 	github.com/go-playground/validator v9.31.0+incompatible
 	github.com/gofiber/contrib/jwt v1.1.2
 	github.com/gofiber/fiber/v2 v2.52.8
@@ -22,8 +21,11 @@ require (
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/jackc/pgx/v5 v5.6.0 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
+	github.com/kr/pretty v0.3.1 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
+	github.com/philhofer/fwd v1.1.3-0.20240916144458-20a13a1f6b7c // indirect
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
+	github.com/tinylib/msgp v1.2.5 // indirect
 	golang.org/x/sync v0.11.0 // indirect
 	gopkg.in/go-playground/assert.v1 v1.2.1 // indirect
 )

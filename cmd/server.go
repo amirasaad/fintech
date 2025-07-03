@@ -1,9 +1,9 @@
 package main
 
 import (
+	"github.com/amirasaad/fintech/webapi/infra"
 	"log"
 
-	"github.com/amirasaad/fintech/internal/infra"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/amirasaad/fintech/webapi"
 	"github.com/gofiber/fiber/v2"
