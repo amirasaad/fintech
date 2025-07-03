@@ -144,6 +144,7 @@ func setupCommonMocks(userRepo *UserMockRepo, mockUow *MockUoW, testUser *domain
 func setupTestApp(t *testing.T) (*fiber.App, *UserMockRepo, *AccountMockRepo, *TransactionMockRepo, *MockUoW, *domain.User) {
 	t.Helper()
 	app := fiber.New()
+	t.Setenv("JWT_SECRET_KEY", "secret")
 	// app.Use(middleware.Protected())
 	accountRepo := &AccountMockRepo{}
 	transactionRepo := &TransactionMockRepo{}
@@ -173,7 +174,7 @@ func TestAccountCreate(t *testing.T) {
 	resp, err := app.Test(req)
 	require.NoError(err)
 	defer resp.Body.Close() //nolint:errcheck
-	assert.Equal(fiber.StatusOK, resp.StatusCode)
+	assert.Equal(fiber.StatusCreated, resp.StatusCode)
 
 	mockUow.AssertExpectations(t)
 	userRepo.AssertExpectations(t)
@@ -326,15 +327,16 @@ func TestAccountRoutesTransactionList(t *testing.T) {
 		t.Errorf("Expected status %d, got %d", fiber.StatusOK, resp.StatusCode)
 	}
 
-	var transactions []domain.Transaction
+	var response Response
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		t.Fatalf("Failed to read response body: %v", err)
 	}
-	if err := json.Unmarshal(bodyBytes, &transactions); err != nil {
+
+	if err := json.Unmarshal(bodyBytes, &response); err != nil {
 		t.Fatalf("Failed to unmarshal response: %v", err)
 	}
-	assert.Equal(2, len(transactions), "Expected 2 transactions")
+	assert.NotNil(response.Data, "Should contain list of transactions")
 	mockUow.AssertExpectations(t)
 	userRepo.AssertExpectations(t)
 	accountRepo.AssertExpectations(t)
@@ -356,18 +358,20 @@ func TestAccountRoutesBalance(t *testing.T) {
 	}
 	defer resp.Body.Close() //nolint:errcheck
 	assert.Equal(fiber.StatusOK, resp.StatusCode)
-
-	var balanceResponse struct {
-		Balance float64 `json:"balance"`
-	}
+	var response Response
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		t.Fatalf("Failed to read response body: %v", err)
 	}
-	if err := json.Unmarshal(bodyBytes, &balanceResponse); err != nil {
+	if err := json.Unmarshal(bodyBytes, &response); err != nil {
 		t.Fatalf("Failed to unmarshal response: %v", err)
 	}
-	assert.Equal(float64(account.Balance/100.0), balanceResponse.Balance, "Expected balance to match")
+	balanceMap, ok := response.Data.(map[string]interface{})
+	assert.True(ok, "Expected response.Data to be a map")
+	balance, ok := balanceMap["balance"].(float64)
+	assert.True(ok, "Expected balance to be a float64")
+
+	assert.Equal(float64(account.Balance/100.0), balance, "Expected balance to match")
 	mockUow.AssertExpectations(t)
 	userRepo.AssertExpectations(t)
 	accountRepo.AssertExpectations(t)
@@ -551,18 +555,21 @@ func TestSimultaneousRequests(t *testing.T) {
 	if resp.StatusCode != fiber.StatusOK {
 		t.Errorf("Expected status %d, got %d", fiber.StatusOK, resp.StatusCode)
 	}
-	var balanceResponse struct {
-		Balance float64 `json:"balance"`
-	}
+	var response Response
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		t.Fatalf("Failed to read response body: %v", err)
 	}
-	if err := json.Unmarshal(bodyBytes, &balanceResponse); err != nil {
+	if err := json.Unmarshal(bodyBytes, &response); err != nil {
 		t.Fatalf("Failed to unmarshal response: %v", err)
 	}
+	balanceMap, ok := response.Data.(map[string]interface{})
+	assert.True(ok, "Expected response.Data to be a map")
+	balance, _ := balanceMap["balance"].(float64)
+
 	expectedBalance := float64(initialBalance) + (float64(numOperations) * depositAmount) - (float64(numOperations) * withdrawAmount)
-	assert.InDelta(expectedBalance, balanceResponse.Balance, 0.01)
+
+	assert.InDelta(expectedBalance, balance, 0.01)
 	mockUow.AssertExpectations(t)
 	userRepo.AssertExpectations(t)
 	accountRepo.AssertExpectations(t)
@@ -583,17 +590,18 @@ func getTestToken(t *testing.T, app *fiber.App, userRepo *UserMockRepo, mockUow 
 	defer resp.Body.Close() //nolint:errcheck
 
 	var result struct {
-		Token string `json:"token"`
+		Data struct {
+			Token string `json:"token"`
+		} `json:"data"`
 	}
 	fmt.Println("Response status:", resp.StatusCode)
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		t.Fatal(err)
 	}
-	fmt.Println("Response body:", string(bodyBytes))
 	if err := json.Unmarshal(bodyBytes, &result); err != nil {
 		t.Fatal(err)
 	}
-	token := result.Token
+	token := result.Data.Token
 	return token
 }

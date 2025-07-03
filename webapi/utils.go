@@ -11,7 +11,7 @@ import (
 
 // Response defines the standard API response structure for success cases.
 type Response struct {
-	Status  int `json:"status"`         // HTTP status code
+	Status  int    `json:"status"`         // HTTP status code
 	Message string `json:"message"`        // Human-readable explanation
 	Data    any    `json:"data,omitempty"` // Response data
 }
@@ -42,6 +42,7 @@ func ErrorResponseJSON(c *fiber.Ctx, status int, title string, detail any) error
 	}
 	pd.Instance = c.OriginalURL()
 	c.Set(fiber.HeaderContentType, "application/problem+json")
+
 	return c.Status(status).JSON(pd)
 }
 

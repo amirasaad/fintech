@@ -59,29 +59,31 @@
 				
 				<option value="file1">github.com/amirasaad/fintech/cmd/server.go (0.0%)</option>
 				
-				<option value="file2">github.com/amirasaad/fintech/internal/infra/database.go (0.0%)</option>
+				<option value="file2">github.com/amirasaad/fintech/pkg/domain/account.go (87.2%)</option>
 				
-				<option value="file3">github.com/amirasaad/fintech/internal/infra/orm.go (0.0%)</option>
+				<option value="file3">github.com/amirasaad/fintech/pkg/domain/user.go (0.0%)</option>
 				
-				<option value="file4">github.com/amirasaad/fintech/internal/infra/uow.go (0.0%)</option>
+				<option value="file4">github.com/amirasaad/fintech/pkg/middleware/auth.go (0.0%)</option>
 				
-				<option value="file5">github.com/amirasaad/fintech/middleware/auth.go (0.0%)</option>
+				<option value="file5">github.com/amirasaad/fintech/pkg/service/account.go (71.6%)</option>
 				
-				<option value="file6">github.com/amirasaad/fintech/pkg/domain/account.go (93.9%)</option>
+				<option value="file6">github.com/amirasaad/fintech/pkg/service/auth.go (93.9%)</option>
 				
-				<option value="file7">github.com/amirasaad/fintech/pkg/domain/user.go (0.0%)</option>
+				<option value="file7">github.com/amirasaad/fintech/pkg/service/user.go (77.0%)</option>
 				
-				<option value="file8">github.com/amirasaad/fintech/pkg/service/account.go (71.7%)</option>
+				<option value="file8">github.com/amirasaad/fintech/webapi/account.go (70.0%)</option>
 				
-				<option value="file9">github.com/amirasaad/fintech/pkg/service/user.go (77.0%)</option>
+				<option value="file9">github.com/amirasaad/fintech/webapi/auth.go (76.9%)</option>
 				
-				<option value="file10">github.com/amirasaad/fintech/webapi/account.go (76.7%)</option>
+				<option value="file10">github.com/amirasaad/fintech/webapi/infra/database.go (0.0%)</option>
 				
-				<option value="file11">github.com/amirasaad/fintech/webapi/auth.go (80.5%)</option>
+				<option value="file11">github.com/amirasaad/fintech/webapi/infra/repository.go (0.0%)</option>
 				
-				<option value="file12">github.com/amirasaad/fintech/webapi/user.go (10.8%)</option>
+				<option value="file12">github.com/amirasaad/fintech/webapi/infra/uow.go (0.0%)</option>
 				
-				<option value="file13">github.com/amirasaad/fintech/webapi/utils.go (85.7%)</option>
+				<option value="file13">github.com/amirasaad/fintech/webapi/user.go (10.8%)</option>
+				
+				<option value="file14">github.com/amirasaad/fintech/webapi/utils.go (65.8%)</option>
 				
 				</select>
 			</div>
@@ -98,15 +100,15 @@
 		<pre class="file" id="file0" style="display: none">package handler
 
 import (
+        "github.com/amirasaad/fintech/webapi/infra"
         "net/http"
 
-        "github.com/amirasaad/fintech/pkg/domain"
         "github.com/amirasaad/fintech/pkg/repository"
         "github.com/amirasaad/fintech/webapi"
-        "github.com/go-openapi/errors"
         "github.com/gofiber/fiber/v2"
         "github.com/gofiber/fiber/v2/middleware/adaptor"
-        "github.com/google/uuid"
+        "github.com/gofiber/fiber/v2/middleware/limiter"
+        "github.com/gofiber/fiber/v2/middleware/recover"
 )
 
 // Handler is the main entry point of the application. Think of it like the main() method
@@ -121,6 +123,9 @@ func Handler(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0
 func handler() http.HandlerFunc <span class="cov0" title="0">{
         app := fiber.New()
 
+        app.Use(limiter.New())
+        app.Use(recover.New())
+
         app.Get("/", func(ctx *fiber.Ctx) error </span><span class="cov0" title="0">{
                 return ctx.JSON(fiber.Map{
                         "uri":  ctx.Request().URI().String(),
@@ -128,173 +133,46 @@ func handler() http.HandlerFunc <span class="cov0" title="0">{
                 })
         }</span>)
 
-        <span class="cov0" title="0">webapi.AccountRoutes(app, func() (repository.UnitOfWork, error) </span><span class="cov0" title="0">{
-                return NewMemoryUoW()
+        <span class="cov0" title="0">webapi.AuthRoutes(app, func() (repository.UnitOfWork, error) </span><span class="cov0" title="0">{
+                return infra.NewGormUoW()
         }</span>)
+
+        <span class="cov0" title="0">webapi.UserRoutes(app, func() (repository.UnitOfWork, error) </span><span class="cov0" title="0">{
+                return infra.NewGormUoW()
+        }</span>)
+
+        <span class="cov0" title="0">webapi.AccountRoutes(app, func() (repository.UnitOfWork, error) </span><span class="cov0" title="0">{
+                return infra.NewGormUoW()
+        }</span>)
+
         <span class="cov0" title="0">return adaptor.FiberApp(app)</span>
 }
-
-type accountRepo struct {
-        accounts map[uuid.UUID]*domain.Account
-}
-type transactionRepo struct {
-        transactions map[uuid.UUID]*domain.Transaction
-}
-
-type userRepo struct {
-        users map[uuid.UUID]*domain.User
-}
-
-// Valid implements repository.UserRepository.
-func (u *userRepo) Valid(id uuid.UUID, password string) bool <span class="cov0" title="0">{
-        panic("unimplemented")</span>
-}
-
-// Create implements repository.UserRepository.
-func (u *userRepo) Create(user *domain.User) error <span class="cov0" title="0">{
-        panic("unimplemented")</span>
-}
-
-// Delete implements repository.UserRepository.
-func (u *userRepo) Delete(id uuid.UUID) error <span class="cov0" title="0">{
-        panic("unimplemented")</span>
-}
-
-// Get implements repository.UserRepository.
-func (u *userRepo) Get(id uuid.UUID) (*domain.User, error) <span class="cov0" title="0">{
-        panic("unimplemented")</span>
-}
-
-// GetByEmail implements repository.UserRepository.
-func (u *userRepo) GetByEmail(email string) (*domain.User, error) <span class="cov0" title="0">{
-        panic("unimplemented")</span>
-}
-
-// GetByUsername implements repository.UserRepository.
-func (u *userRepo) GetByUsername(username string) (*domain.User, error) <span class="cov0" title="0">{
-        panic("unimplemented")</span>
-}
-
-// Update implements repository.UserRepository.
-func (u *userRepo) Update(user *domain.User) error <span class="cov0" title="0">{
-        panic("unimplemented")</span>
-}
-
-// Create implements repository.TransactionRepository.
-func (t *transactionRepo) Create(transaction *domain.Transaction) error <span class="cov0" title="0">{
-        t.transactions[transaction.ID] = transaction
-        return nil
-}</span>
-
-// Get implements repository.TransactionRepository.
-func (t *transactionRepo) Get(id uuid.UUID) (*domain.Transaction, error) <span class="cov0" title="0">{
-        transaction, ok := t.transactions[id]
-        if !ok </span><span class="cov0" title="0">{
-                return nil, errors.NotFound("transaction not found")
-        }</span>
-        <span class="cov0" title="0">return transaction, nil</span>
-}
-
-// List implements repository.TransactionRepository.
-func (t *transactionRepo) List(accountID uuid.UUID) ([]*domain.Transaction, error) <span class="cov0" title="0">{
-        var transactions []*domain.Transaction
-        for _, tx := range t.transactions </span><span class="cov0" title="0">{
-                if tx.AccountID == accountID </span><span class="cov0" title="0">{
-                        transactions = append(transactions, tx)
-                }</span>
-        }
-        <span class="cov0" title="0">return transactions, nil</span>
-}
-
-// Create implements repository.AccountRepository.
-func (a *accountRepo) Create(account *domain.Account) error <span class="cov0" title="0">{
-        a.accounts[account.ID] = account
-        return nil
-}</span>
-
-// Delete implements repository.AccountRepository.
-func (a *accountRepo) Delete(id uuid.UUID) error <span class="cov0" title="0">{
-        delete(a.accounts, id)
-        return nil
-}</span>
-
-// Get implements repository.AccountRepository.
-func (a *accountRepo) Get(id uuid.UUID) (*domain.Account, error) <span class="cov0" title="0">{
-        account, ok := a.accounts[id]
-        if !ok </span><span class="cov0" title="0">{
-                return nil, errors.NotFound("account not found")
-        }</span>
-        <span class="cov0" title="0">return account, nil</span>
-}
-
-// Update implements repository.AccountRepository.
-func (a *accountRepo) Update(account *domain.Account) error <span class="cov0" title="0">{
-        if _, ok := a.accounts[account.ID]; !ok </span><span class="cov0" title="0">{
-                return errors.NotFound("account not found")
-        }</span>
-        <span class="cov0" title="0">a.accounts[account.ID] = account
-        return nil</span>
-}
-
-type memoryUoW struct {
-}
-
-// Begin implements repository.UnitOfWork.
-func (m *memoryUoW) Begin() error <span class="cov0" title="0">{
-        return nil
-}</span>
-
-// Commit implements repository.UnitOfWork.
-func (m *memoryUoW) Commit() error <span class="cov0" title="0">{
-        return nil
-}</span>
-
-// Rollback implements repository.UnitOfWork.
-func (m *memoryUoW) Rollback() error <span class="cov0" title="0">{
-        return nil
-}</span>
-
-// UserRepository implements repository.UnitOfWork.
-func (m *memoryUoW) UserRepository() repository.UserRepository <span class="cov0" title="0">{
-        return &amp;userRepo{
-                users: make(map[uuid.UUID]*domain.User),
-        }
-}</span>
-
-// AccountRepository implements repository.UnitOfWork.
-func (m *memoryUoW) AccountRepository() repository.AccountRepository <span class="cov0" title="0">{
-        return &amp;accountRepo{
-                accounts: make(map[uuid.UUID]*domain.Account),
-        }
-}</span>
-
-// TransactionRepository implements repository.UnitOfWork.
-func (m *memoryUoW) TransactionRepository() repository.TransactionRepository <span class="cov0" title="0">{
-        return &amp;transactionRepo{
-                transactions: make(map[uuid.UUID]*domain.Transaction),
-        }
-}</span>
-
-// NewMemoryUoW creates a new in-memory unit of work for testing purposes.
-func NewMemoryUoW() (repository.UnitOfWork, error) <span class="cov0" title="0">{
-        return &amp;memoryUoW{}, nil
-}</span>
 </pre>
 		
 		<pre class="file" id="file1" style="display: none">package main
 
 import (
-        "github.com/amirasaad/fintech/internal/infra"
-        "github.com/amirasaad/fintech/middleware"
+        "github.com/amirasaad/fintech/webapi/infra"
+        "log"
+
         "github.com/amirasaad/fintech/pkg/repository"
         "github.com/amirasaad/fintech/webapi"
         "github.com/gofiber/fiber/v2"
 )
 
 func main() <span class="cov0" title="0">{
-        app := fiber.New()
+        app := fiber.New(fiber.Config{
+                ErrorHandler: func(c *fiber.Ctx, err error) error </span><span class="cov0" title="0">{
+                        // Default to 500 if status code cannot be determined
+                        status := fiber.StatusInternalServerError
+                        if e, ok := err.(*fiber.Error); ok </span><span class="cov0" title="0">{
+                                status = e.Code
+                        }</span>
+                        <span class="cov0" title="0">return webapi.ErrorResponseJSON(c, status, "Internal Server Error", err.Error())</span>
+                },
+        })
 
-        app.Get("/", func(c *fiber.Ctx) error </span><span class="cov0" title="0">{
+        <span class="cov0" title="0">app.Get("/", func(c *fiber.Ctx) error </span><span class="cov0" title="0">{
                 return c.SendString("App is working! 🚀")
         }</span>)
 
@@ -309,341 +187,13 @@ func main() <span class="cov0" title="0">{
         }</span>)
 
         // JWT Middleware
-        <span class="cov0" title="0">app.Use(middleware.Protected())
+        // app.Use(middleware.Protected())
 
-        err := app.Listen(":3000")
-        if err != nil </span><span class="cov0" title="0">{
-                panic("App is not starting..")</span>
-        }
+        <span class="cov0" title="0">log.Fatal(app.Listen(":3000"))</span>
 }
 </pre>
 		
-		<pre class="file" id="file2" style="display: none">package infra
-
-import (
-        "errors"
-        "os"
-
-        "gorm.io/driver/postgres"
-        "gorm.io/gorm"
-)
-
-func NewDBConnection() (*gorm.DB, error) <span class="cov0" title="0">{
-        databaseUrl := os.Getenv("DATABASE_URL")
-        if databaseUrl == "" </span><span class="cov0" title="0">{
-                return nil, errors.New("DATABASE_URL is not set")
-        }</span>
-        <span class="cov0" title="0">connection, err := gorm.Open(postgres.Open(databaseUrl), &amp;gorm.Config{SkipDefaultTransaction: true})
-        if err != nil </span><span class="cov0" title="0">{
-                return nil, err
-        }</span>
-        <span class="cov0" title="0">err = connection.AutoMigrate(&amp;Account{}, &amp;Transaction{}, &amp;User{})
-        if err != nil </span><span class="cov0" title="0">{
-                return nil, err
-        }</span>
-        <span class="cov0" title="0">return connection, nil</span>
-}
-</pre>
-		
-		<pre class="file" id="file3" style="display: none">package infra
-
-import (
-        "github.com/amirasaad/fintech/pkg/domain"
-        "github.com/amirasaad/fintech/pkg/repository"
-        "github.com/google/uuid"
-        "gorm.io/gorm"
-)
-
-type accountRepository struct {
-        db *gorm.DB
-}
-
-func NewAccountRepository(db *gorm.DB) repository.AccountRepository <span class="cov0" title="0">{
-        return &amp;accountRepository{db: db}
-}</span>
-
-func (r *accountRepository) Get(id uuid.UUID) (*domain.Account, error) <span class="cov0" title="0">{
-        var a domain.Account
-        result := r.db.First(&amp;a, id)
-        if result.Error != nil </span><span class="cov0" title="0">{
-                return nil, result.Error
-        }</span>
-        <span class="cov0" title="0">return domain.NewAccountFromData(a.ID, uuid.New(), a.Balance, a.Created, a.Updated), nil</span>
-}
-
-func (r *accountRepository) Create(a *domain.Account) error <span class="cov0" title="0">{
-        result := r.db.Create(a)
-        if result.Error != nil </span><span class="cov0" title="0">{
-                return result.Error
-        }</span>
-        <span class="cov0" title="0">return nil</span>
-}
-
-func (r *accountRepository) Update(a *domain.Account) error <span class="cov0" title="0">{
-        dbModel := domain.Account{
-                ID:      a.ID,
-                Balance: a.Balance,
-        }
-        result := r.db.Save(&amp;dbModel)
-        if result.Error != nil </span><span class="cov0" title="0">{
-                return result.Error
-        }</span>
-        <span class="cov0" title="0">return nil</span>
-}
-
-func (r *accountRepository) Delete(id uuid.UUID) error <span class="cov0" title="0">{
-        result := r.db.Delete(&amp;Account{}, id)
-        if result.Error != nil </span><span class="cov0" title="0">{
-                return result.Error
-        }</span>
-        <span class="cov0" title="0">return nil</span>
-}
-
-type transactionRepository struct {
-        db *gorm.DB
-}
-
-func NewTransactionRepository(db *gorm.DB) repository.TransactionRepository <span class="cov0" title="0">{
-        return &amp;transactionRepository{db: db}
-}</span>
-
-func (r *transactionRepository) Create(transaction *domain.Transaction) error <span class="cov0" title="0">{
-
-        result := r.db.Create(transaction)
-        if result.Error != nil </span><span class="cov0" title="0">{
-                return result.Error
-        }</span>
-        <span class="cov0" title="0">return nil</span>
-}
-
-func (r *transactionRepository) Get(id uuid.UUID) (*domain.Transaction, error) <span class="cov0" title="0">{
-        var t Transaction
-        result := r.db.First(&amp;t, id)
-        if result.Error != nil </span><span class="cov0" title="0">{
-                return nil, result.Error
-        }</span>
-        <span class="cov0" title="0">return domain.NewTransactionFromData(t.ID, t.AccountID, t.Amount, t.Balance, t.Created), nil</span>
-}
-
-func (r *transactionRepository) List(accountID uuid.UUID) ([]*domain.Transaction, error) <span class="cov0" title="0">{
-        var dbTransactions []*Transaction
-        result := r.db.Where("account_id = ?", accountID).Order("created desc").Limit(100).Find(&amp;dbTransactions)
-        if result.Error != nil </span><span class="cov0" title="0">{
-                return nil, result.Error
-        }</span>
-        <span class="cov0" title="0">tx := make([]*domain.Transaction, 0, len(dbTransactions))
-        for _, t := range dbTransactions </span><span class="cov0" title="0">{
-                tx = append(tx, domain.NewTransactionFromData(t.ID, t.AccountID, t.Amount, t.Balance, t.Created))
-        }</span>
-        <span class="cov0" title="0">return tx, nil</span>
-}
-
-type userRepository struct {
-        db *gorm.DB
-}
-
-// Valid implements repository.UserRepository.
-func (u *userRepository) Valid(id uuid.UUID, password string) bool <span class="cov0" title="0">{
-        var user domain.User
-        result := u.db.Where("id = ? AND password = ?", id, password).First(&amp;user)
-        return result.Error == nil
-}</span>
-
-// Create implements repository.UserRepository.
-func (u *userRepository) Create(user *domain.User) error <span class="cov0" title="0">{
-        result := u.db.Create(user)
-        if result.Error != nil </span><span class="cov0" title="0">{
-                return result.Error
-        }</span>
-        <span class="cov0" title="0">return nil</span>
-}
-
-// Delete implements repository.UserRepository.
-func (u *userRepository) Delete(id uuid.UUID) error <span class="cov0" title="0">{
-        result := u.db.Delete(&amp;domain.User{}, id)
-        if result.Error != nil </span><span class="cov0" title="0">{
-                return result.Error
-        }</span>
-        <span class="cov0" title="0">return nil</span>
-}
-
-// Get implements repository.UserRepository.
-func (u *userRepository) Get(id uuid.UUID) (*domain.User, error) <span class="cov0" title="0">{
-        var user domain.User
-        result := u.db.First(&amp;user, id)
-        if result.Error != nil </span><span class="cov0" title="0">{
-                return nil, result.Error
-        }</span>
-        <span class="cov0" title="0">return &amp;user, nil</span>
-}
-
-// GetByEmail implements repository.UserRepository.
-func (u *userRepository) GetByEmail(email string) (*domain.User, error) <span class="cov0" title="0">{
-        var user domain.User
-        result := u.db.Where("email = ?", email).First(&amp;user)
-        if result.Error != nil </span><span class="cov0" title="0">{
-                return nil, result.Error
-        }</span>
-        <span class="cov0" title="0">return &amp;user, nil</span>
-}
-
-// GetByUsername implements repository.UserRepository.
-func (u *userRepository) GetByUsername(username string) (*domain.User, error) <span class="cov0" title="0">{
-        var user domain.User
-        result := u.db.Where("username = ?", username).First(&amp;user)
-        if result.Error != nil </span><span class="cov0" title="0">{
-                return nil, result.Error
-        }</span>
-        <span class="cov0" title="0">return &amp;user, nil</span>
-}
-
-// Update implements repository.UserRepository.
-func (u *userRepository) Update(user *domain.User) error <span class="cov0" title="0">{
-        result := u.db.Save(user)
-        if result.Error != nil </span><span class="cov0" title="0">{
-                return result.Error
-        }</span>
-        <span class="cov0" title="0">return nil</span>
-}
-
-func NewUserRepository(db *gorm.DB) repository.UserRepository <span class="cov0" title="0">{
-        return &amp;userRepository{db: db}
-}</span>
-</pre>
-		
-		<pre class="file" id="file4" style="display: none">package infra
-
-import (
-        "fmt"
-        "log/slog"
-
-        "github.com/amirasaad/fintech/pkg/repository"
-        "gorm.io/gorm"
-)
-
-type UoW struct {
-        session *gorm.DB
-        started bool
-}
-
-func NewGormUoW() (*UoW, error) <span class="cov0" title="0">{
-
-        db, err := NewDBConnection()
-        if err != nil </span><span class="cov0" title="0">{
-                return nil, err
-        }</span>
-        <span class="cov0" title="0">return &amp;UoW{
-                session: db,
-                started: false,
-        }, nil</span>
-}
-func (u *UoW) Begin() error <span class="cov0" title="0">{
-        slog.Info("Starting transaction")
-        if u.session == nil </span><span class="cov0" title="0">{
-                slog.Error("Session is nil, cannot start transaction")
-                return fmt.Errorf("session is nil")
-        }</span>
-        <span class="cov0" title="0">if u.started </span><span class="cov0" title="0">{
-                slog.Info("Transaction already started")
-                return nil // Transaction already started
-        }</span>
-        <span class="cov0" title="0">slog.Info("Starting new transaction")
-        tx := u.session.Begin()
-        defer func() </span><span class="cov0" title="0">{
-                if r := recover(); r != nil </span><span class="cov0" title="0">{
-                        tx.Rollback()
-                }</span>
-        }()
-        <span class="cov0" title="0">if tx.Error != nil </span><span class="cov0" title="0">{
-                slog.Error("Failed to start transaction", slog.Any("error", tx.Error))
-                return tx.Error
-        }</span>
-        <span class="cov0" title="0">slog.Info("Transaction started successfully")
-        u.session = tx
-        u.started = true
-        return nil</span>
-}
-func (u *UoW) Commit() error <span class="cov0" title="0">{
-        slog.Info("Committing transaction")
-        if !u.started </span><span class="cov0" title="0">{
-                slog.Info("Transaction not started, nothing to commit")
-                return nil // No transaction to commit
-        }</span>
-        <span class="cov0" title="0">err := u.session.Commit().Error
-        if err != nil </span><span class="cov0" title="0">{
-                slog.Error("Failed to commit transaction", slog.Any("error", err))
-        }</span> else<span class="cov0" title="0"> {
-                u.started = true
-                slog.Info("Transaction committed successfully")
-        }</span>
-        <span class="cov0" title="0">return err</span>
-}
-func (u *UoW) Rollback() error <span class="cov0" title="0">{
-        slog.Info("Rolling back transaction")
-        if !u.started </span><span class="cov0" title="0">{
-                slog.Info("Transaction not started, nothing to rollback")
-                return nil // No transaction to rollback
-        }</span>
-        <span class="cov0" title="0">err := u.session.Rollback().Error
-        if err != nil </span><span class="cov0" title="0">{
-                slog.Error("Failed to rollback transaction", slog.Any("error", err))
-        }</span> else<span class="cov0" title="0"> {
-                u.started = false
-                slog.Info("Transaction rolled back successfully")
-        }</span>
-        <span class="cov0" title="0">return err</span>
-}
-
-func (u *UoW) AccountRepository() repository.AccountRepository <span class="cov0" title="0">{
-        if !u.started </span><span class="cov0" title="0">{
-                db, _ := NewDBConnection()
-                return NewAccountRepository(db)
-        }</span>
-        <span class="cov0" title="0">return NewAccountRepository(u.session)</span>
-}
-func (u *UoW) TransactionRepository() repository.TransactionRepository <span class="cov0" title="0">{
-        if !u.started </span><span class="cov0" title="0">{
-                db, _ := NewDBConnection()
-                return NewTransactionRepository(db)
-        }</span>
-        <span class="cov0" title="0">return NewTransactionRepository(u.session)</span>
-}
-
-func (u *UoW) UserRepository() repository.UserRepository <span class="cov0" title="0">{
-        if !u.started </span><span class="cov0" title="0">{
-                db, _ := NewDBConnection()
-                return NewUserRepository(db)
-        }</span>
-        <span class="cov0" title="0">return NewUserRepository(u.session)</span>
-}
-</pre>
-		
-		<pre class="file" id="file5" style="display: none">package middleware
-
-import (
-        jwtware "github.com/gofiber/contrib/jwt"
-        "github.com/gofiber/fiber/v2"
-)
-
-// Protected protect routes
-func Protected() fiber.Handler <span class="cov0" title="0">{
-        return jwtware.New(jwtware.Config{
-                SigningKey:   jwtware.SigningKey{Key: []byte("SECRET")},
-                ErrorHandler: jwtError,
-        })
-}</span>
-
-func jwtError(c *fiber.Ctx, err error) error <span class="cov0" title="0">{
-        if err.Error() == "Missing or malformed JWT" </span><span class="cov0" title="0">{
-                return c.Status(fiber.StatusBadRequest).
-                        JSON(fiber.Map{"status": "error", "message": "Missing or malformed JWT", "data": nil})
-        }</span>
-        <span class="cov0" title="0">return c.Status(fiber.StatusUnauthorized).
-                JSON(fiber.Map{"status": "error", "message": "Invalid or expired JWT", "data": nil})</span>
-}
-</pre>
-		
-		<pre class="file" id="file6" style="display: none">package domain
+		<pre class="file" id="file2" style="display: none">package domain
 
 import (
         "errors"
@@ -661,63 +211,69 @@ var (
         ErrTransactionAmountMustBePositive = errors.New("transaction amount must be positive")
         ErrWithdrawalAmountMustBePositive  = errors.New("withdrawal amount must be positive")
         ErrInsufficientFunds               = errors.New("insufficient funds for withdrawal")
-        ErrAccountNotFound                 = errors.New("Account not found")
+        ErrAccountNotFound                 = errors.New("account not found")
+        ErrUserUnauthorized                = errors.New("user unauthorized")
 )
 
 type Account struct {
-        ID      uuid.UUID
-        UserID  uuid.UUID
-        Balance int64
-        Created time.Time
-        Updated time.Time
-        mu      sync.Mutex
+        ID        uuid.UUID
+        UserID    uuid.UUID
+        Balance   int64
+        CreatedAt time.Time
+        UpdatedAt time.Time
+        mu        sync.Mutex
 }
 
 type Transaction struct {
         ID        uuid.UUID
+        UserID    uuid.UUID
         AccountID uuid.UUID
         Amount    int64
         Balance   int64 // Account balance snapshot
-        Created   time.Time
+        CreatedAt time.Time
 }
 
 func NewAccount(userID uuid.UUID) *Account <span class="cov8" title="1">{
         return &amp;Account{
-                ID:      uuid.New(),
-                UserID:  userID,
-                Created: time.Now(),
-                Updated: time.Now(),
-                Balance: 0,
-                mu:      sync.Mutex{},
+                ID:        uuid.New(),
+                UserID:    userID,
+                CreatedAt: time.Now(),
+                UpdatedAt: time.Now(),
+                Balance:   0,
+                mu:        sync.Mutex{},
         }
 }</span>
 
 func NewAccountFromData(id, userID uuid.UUID, balance int64, created, updated time.Time) *Account <span class="cov0" title="0">{
         return &amp;Account{
-                ID:      id,
-                UserID:  userID,
-                Balance: balance,
-                Created: created,
-                Updated: updated,
-                mu:      sync.Mutex{},
+                ID:        id,
+                UserID:    userID,
+                Balance:   balance,
+                CreatedAt: created,
+                UpdatedAt: updated,
+                mu:        sync.Mutex{},
         }
 }</span>
 
-func NewTransactionFromData(id, accountID uuid.UUID, amount, balance int64, created time.Time) *Transaction <span class="cov0" title="0">{
+func NewTransactionFromData(id, userID, accountID uuid.UUID, amount, balance int64, created time.Time) *Transaction <span class="cov0" title="0">{
         return &amp;Transaction{
                 ID:        id,
+                UserID:    userID,
                 AccountID: accountID,
                 Amount:    amount,
                 Balance:   balance,
-                Created:   created,
+                CreatedAt: created,
         }
 }</span>
 
 // Deposit adds funds to the account and returns a transaction record.
 // The amount is expected to be in dollars, and it will be converted to cents for precision.
 // It returns an error if the deposit amount is negative.
-func (a *Account) Deposit(amount float64) (*Transaction, error) <span class="cov8" title="1">{
-        slog.Info("Balance before deposit", slog.Int64("balance", a.Balance))
+func (a *Account) Deposit(userID uuid.UUID, amount float64) (*Transaction, error) <span class="cov8" title="1">{
+        if a.UserID != userID </span><span class="cov0" title="0">{
+                return nil, ErrUserUnauthorized
+        }</span>
+        <span class="cov8" title="1">slog.Info("Balance before deposit", slog.Int64("balance", a.Balance))
         a.mu.Lock()
         defer a.mu.Unlock()
         // Check if the amount is positive before proceeding with the deposit
@@ -736,10 +292,11 @@ func (a *Account) Deposit(amount float64) (*Transaction, error) <span class="cov
         slog.Info("Balance after deposit", slog.Int64("balance", a.Balance))
         transaction := Transaction{
                 ID:        uuid.New(),
+                UserID:    userID,
                 AccountID: a.ID,
                 Amount:    parsedAmount,
                 Balance:   a.Balance,
-                Created:   time.Now().UTC(),
+                CreatedAt: time.Now().UTC(),
         }
         slog.Info("Transaction created", slog.Any("transaction", transaction))
 
@@ -749,8 +306,11 @@ func (a *Account) Deposit(amount float64) (*Transaction, error) <span class="cov
 // Withdraw removes funds from the account and returns a transaction record.
 // The amount is expected to be in dollars, and it will be converted to cents for precision.
 // It returns an error if the withdrawal amount is negative or if there are insufficient funds.
-func (a *Account) Withdraw(amount float64) (*Transaction, error) <span class="cov8" title="1">{
-        slog.Info("Balance before withdrawal", slog.Int64("balance", a.Balance))
+func (a *Account) Withdraw(userID uuid.UUID, amount float64) (*Transaction, error) <span class="cov8" title="1">{
+        if a.UserID != userID </span><span class="cov0" title="0">{
+                return nil, ErrUserUnauthorized
+        }</span>
+        <span class="cov8" title="1">slog.Info("Balance before withdrawal", slog.Int64("balance", a.Balance))
         a.mu.Lock()
         defer a.mu.Unlock()
         // Check if the amount is positive before proceeding with the withdrawal
@@ -766,10 +326,11 @@ func (a *Account) Withdraw(amount float64) (*Transaction, error) <span class="co
         slog.Info("Balance after withdrawal", slog.Int64("balance", a.Balance))
         transaction := Transaction{
                 ID:        uuid.New(),
+                UserID:    userID,
                 AccountID: a.ID,
                 Amount:    -parsedAmount,
                 Balance:   a.Balance,
-                Created:   time.Now().UTC(),
+                CreatedAt: time.Now().UTC(),
         }
         slog.Info("Transaction created:", slog.Any("transaction", transaction))
 
@@ -778,13 +339,16 @@ func (a *Account) Withdraw(amount float64) (*Transaction, error) <span class="co
 
 // GetBalance returns the current balance of the account in dollars.
 // It converts the balance from cents to dollars for display purposes.
-func (a *Account) GetBalance() float64 <span class="cov8" title="1">{
-        slog.Info("Getting balance", slog.Int64("balance", a.Balance))
-        return float64(a.Balance) / 100 // Convert cents back to dollars
-}</span>
+func (a *Account) GetBalance(userID uuid.UUID) (float64, error) <span class="cov8" title="1">{
+        if a.UserID != userID </span><span class="cov0" title="0">{
+                return 0, ErrUserUnauthorized
+        }</span>
+        <span class="cov8" title="1">slog.Info("Getting balance", slog.Int64("balance", a.Balance))
+        return float64(a.Balance) / 100, nil</span> // Convert cents back to dollars
+}
 </pre>
 		
-		<pre class="file" id="file7" style="display: none">package domain
+		<pre class="file" id="file3" style="display: none">package domain
 
 import (
         "time"
@@ -794,12 +358,12 @@ import (
 )
 
 type User struct {
-        ID       uuid.UUID `json:"id"`
-        Username string    `json:"username"`
-        Email    string    `json:"email"`
-        Password string    `json:"password"`
-        Created  time.Time `json:"created"`
-        Updated  time.Time `json:"updated"`
+        ID        uuid.UUID `json:"id"`
+        Username  string    `json:"username"`
+        Email     string    `json:"email"`
+        Password  string    `json:"password"`
+        CreatedAt time.Time `json:"created"`
+        UpdatedAt time.Time `json:"updated"`
 }
 
 func hashPassword(password string) (string, error) <span class="cov0" title="0">{
@@ -812,28 +376,55 @@ func NewUser(username, email, password string) (*User, error) <span class="cov0"
                 return nil, err
         }</span>
         <span class="cov0" title="0">return &amp;User{
-                ID:       uuid.New(),
-                Username: username,
-                Email:    email,
-                Password: hashedPassword,
-                Created:  time.Now().UTC(),
-                Updated:  time.Now().UTC(),
+                ID:        uuid.New(),
+                Username:  username,
+                Email:     email,
+                Password:  hashedPassword,
+                CreatedAt: time.Now().UTC(),
+                UpdatedAt: time.Now().UTC(),
         }, nil</span>
 }
 
 func NewUserFromData(id uuid.UUID, username, email, password string, created, updated time.Time) *User <span class="cov0" title="0">{
         return &amp;User{
-                ID:       id,
-                Username: username,
-                Email:    email,
-                Password: password,
-                Created:  created,
-                Updated:  updated,
+                ID:        id,
+                Username:  username,
+                Email:     email,
+                Password:  password,
+                CreatedAt: created,
+                UpdatedAt: updated,
         }
 }</span>
 </pre>
 		
-		<pre class="file" id="file8" style="display: none">// Package service provides business logic for interacting with domain entities such as accounts and transactions.
+		<pre class="file" id="file4" style="display: none">package middleware
+
+import (
+        "os"
+
+        jwtware "github.com/gofiber/contrib/jwt"
+        "github.com/gofiber/fiber/v2"
+)
+
+// Protected protect routes
+func Protected() fiber.Handler <span class="cov0" title="0">{
+        return jwtware.New(jwtware.Config{
+                SigningKey:   jwtware.SigningKey{Key: []byte(os.Getenv("JWT_SECRET_KEY"))},
+                ErrorHandler: jwtError,
+        })
+}</span>
+
+func jwtError(c *fiber.Ctx, err error) error <span class="cov0" title="0">{
+        if err.Error() == "Missing or malformed JWT" </span><span class="cov0" title="0">{
+                return c.Status(fiber.StatusBadRequest).
+                        JSON(fiber.Map{"status": "error", "message": "Missing or malformed JWT", "data": nil})
+        }</span>
+        <span class="cov0" title="0">return c.Status(fiber.StatusUnauthorized).
+                JSON(fiber.Map{"status": "error", "message": "Invalid or expired JWT", "data": nil})</span>
+}
+</pre>
+		
+		<pre class="file" id="file5" style="display: none">// Package service provides business logic for interacting with domain entities such as accounts and transactions.
 // It defines the AccountService struct and its methods for creating accounts, depositing and withdrawing funds,
 // retrieving account details, listing transactions, and checking account balances.
 package service
@@ -888,7 +479,7 @@ func (s *AccountService) CreateAccount(userID uuid.UUID) (*domain.Account, error
 
 // Deposit adds funds to the specified account and creates a transaction record.
 // Returns the transaction or an error if the operation fails.
-func (s *AccountService) Deposit(accountID uuid.UUID, amount float64) (*domain.Transaction, error) <span class="cov8" title="1">{
+func (s *AccountService) Deposit(userID, accountID uuid.UUID, amount float64) (*domain.Transaction, error) <span class="cov8" title="1">{
         uow, err := s.uowFactory()
         if err != nil </span><span class="cov0" title="0">{
                 return nil, err
@@ -903,8 +494,9 @@ func (s *AccountService) Deposit(accountID uuid.UUID, amount float64) (*domain.T
         if err != nil </span><span class="cov8" title="1">{
                 return nil, domain.ErrAccountNotFound
         }</span>
+        <span class="cov8" title="1">slog.Info("Deposit:", slog.Any("userID", userID), slog.Any("accountID", accountID), slog.Any("account.UserID", a.UserID))
 
-        <span class="cov8" title="1">tx, err := a.Deposit(amount)
+        tx, err := a.Deposit(userID, amount)
         if err != nil </span><span class="cov8" title="1">{
                 _ = uow.Rollback()
                 return nil, err
@@ -933,7 +525,7 @@ func (s *AccountService) Deposit(accountID uuid.UUID, amount float64) (*domain.T
 
 // Withdraw removes funds from the specified account and creates a transaction record.
 // Returns the transaction or an error if the operation fails.
-func (s *AccountService) Withdraw(accountID uuid.UUID, amount float64) (*domain.Transaction, error) <span class="cov8" title="1">{
+func (s *AccountService) Withdraw(userID, accountID uuid.UUID, amount float64) (*domain.Transaction, error) <span class="cov8" title="1">{
         uow, err := s.uowFactory()
         if err != nil </span><span class="cov0" title="0">{
                 return nil, err
@@ -949,7 +541,7 @@ func (s *AccountService) Withdraw(accountID uuid.UUID, amount float64) (*domain.
                 return nil, domain.ErrAccountNotFound
         }</span>
 
-        <span class="cov8" title="1">tx, err := a.Withdraw(amount)
+        <span class="cov8" title="1">tx, err := a.Withdraw(userID, amount)
         if err != nil </span><span class="cov8" title="1">{
                 _ = uow.Rollback()
                 return nil, err
@@ -978,7 +570,7 @@ func (s *AccountService) Withdraw(accountID uuid.UUID, amount float64) (*domain.
 
 // GetAccount retrieves an account by its ID.
 // Returns the account or an error if not found.
-func (s *AccountService) GetAccount(accountID uuid.UUID) (*domain.Account, error) <span class="cov8" title="1">{
+func (s *AccountService) GetAccount(userID, accountID uuid.UUID) (*domain.Account, error) <span class="cov8" title="1">{
         uow, err := s.uowFactory()
         if err != nil </span><span class="cov0" title="0">{
                 return nil, err
@@ -987,17 +579,20 @@ func (s *AccountService) GetAccount(accountID uuid.UUID) (*domain.Account, error
         if err != nil </span><span class="cov8" title="1">{
                 return nil, domain.ErrAccountNotFound
         }</span>
+        <span class="cov8" title="1">if a.UserID != userID </span><span class="cov0" title="0">{
+                return nil, domain.ErrUserUnauthorized
+        }</span>
         <span class="cov8" title="1">return a, nil</span>
 }
 
 // GetTransactions retrieves all transactions for a given account ID.
 // Returns a slice of transactions or an error if the operation fails.
-func (s *AccountService) GetTransactions(accountID uuid.UUID) ([]*domain.Transaction, error) <span class="cov8" title="1">{
+func (s *AccountService) GetTransactions(userID, accountID uuid.UUID) ([]*domain.Transaction, error) <span class="cov8" title="1">{
         uow, err := s.uowFactory()
         if err != nil </span><span class="cov0" title="0">{
                 return nil, err
         }</span>
-        <span class="cov8" title="1">txs, err := uow.TransactionRepository().List(accountID)
+        <span class="cov8" title="1">txs, err := uow.TransactionRepository().List(userID, accountID)
         if err != nil </span><span class="cov8" title="1">{
                 return nil, err
         }</span>
@@ -1007,7 +602,7 @@ func (s *AccountService) GetTransactions(accountID uuid.UUID) ([]*domain.Transac
 
 // GetBalance retrieves the current balance of the specified account.
 // Returns the balance as a float64 or an error if the operation fails.
-func (s *AccountService) GetBalance(accountID uuid.UUID) (float64, error) <span class="cov8" title="1">{
+func (s *AccountService) GetBalance(userID, accountID uuid.UUID) (float64, error) <span class="cov8" title="1">{
         uow, err := s.uowFactory()
         if err != nil </span><span class="cov0" title="0">{
                 return 0, err
@@ -1017,11 +612,83 @@ func (s *AccountService) GetBalance(accountID uuid.UUID) (float64, error) <span 
                 return 0, err
         }</span>
 
-        <span class="cov8" title="1">return a.GetBalance(), nil</span>
+        <span class="cov8" title="1">return a.GetBalance(userID)</span>
 }
 </pre>
 		
-		<pre class="file" id="file9" style="display: none">package service
+		<pre class="file" id="file6" style="display: none">package service
+
+import (
+        "errors"
+        "net/mail"
+        "os"
+        "time"
+
+        "github.com/amirasaad/fintech/pkg/domain"
+        "github.com/amirasaad/fintech/pkg/repository"
+        "github.com/golang-jwt/jwt/v5"
+        "golang.org/x/crypto/bcrypt"
+)
+
+type AuthService struct {
+        uowFactory func() (repository.UnitOfWork, error)
+}
+
+func NewAuthService(uowFactory func() (repository.UnitOfWork, error)) *AuthService <span class="cov8" title="1">{
+        return &amp;AuthService{uowFactory: uowFactory}
+}</span>
+
+func (s *AuthService) CheckPasswordHash(password, hash string) bool <span class="cov8" title="1">{
+        err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+        return err == nil
+}</span>
+
+func (s *AuthService) ValidEmail(email string) bool <span class="cov8" title="1">{
+        _, err := mail.ParseAddress(email)
+        return err == nil
+}</span>
+
+func (s *AuthService) Login(identity, password string) (*domain.User, string, error) <span class="cov8" title="1">{
+        uow, err := s.uowFactory()
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, "", err
+        }</span>
+        <span class="cov8" title="1">var user *domain.User
+        if s.ValidEmail(identity) </span><span class="cov8" title="1">{
+                user, err = uow.UserRepository().GetByEmail(identity)
+        }</span> else<span class="cov0" title="0"> {
+                user, err = uow.UserRepository().GetByUsername(identity)
+        }</span>
+        <span class="cov8" title="1">const dummyHash = "$2a$10$7zFqzDbD3RrlkMTczbXG9OWZ0FLOXjIxXzSZ.QZxkVXjXcx7QZQiC" // Hashed " "
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, "", err
+        }</span>
+        <span class="cov8" title="1">if user == nil </span><span class="cov8" title="1">{
+                s.CheckPasswordHash(password, dummyHash)
+                return nil, "", nil
+        }</span>
+        <span class="cov8" title="1">if !s.CheckPasswordHash(password, user.Password) </span><span class="cov8" title="1">{
+                return nil, "", nil
+        }</span>
+        <span class="cov8" title="1">secret := os.Getenv("JWT_SECRET_KEY")
+        if secret == "" </span><span class="cov8" title="1">{
+                return nil, "", errors.New("JWT secret key is not set")
+        }</span>
+        <span class="cov8" title="1">token := jwt.New(jwt.SigningMethodHS256)
+        claims := token.Claims.(jwt.MapClaims)
+        claims["username"] = user.Username
+        claims["email"] = user.Email
+        claims["user_id"] = user.ID.String()
+        claims["exp"] = time.Now().Add(time.Hour * 72).Unix()
+        tokenString, err := token.SignedString([]byte(secret))
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, "", err
+        }</span>
+        <span class="cov8" title="1">return user, tokenString, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file7" style="display: none">package service
 
 import (
         "github.com/amirasaad/fintech/pkg/domain"
@@ -1166,21 +833,29 @@ func (s *UserService) ValidUser(id uuid.UUID, password string) bool <span class=
 }
 </pre>
 		
-		<pre class="file" id="file10" style="display: none">// The `package handler` in this code snippet is defining a Go package that contains HTTP handler
-// functions for handling various account-related operations such as creating an account, depositing
-// funds, withdrawing funds, retrieving transactions, and checking the account balance. These handler
-// functions are responsible for processing incoming HTTP requests, interacting with the `service`
-// layer to perform the necessary business logic, and returning appropriate responses to the client.
-// The handlers are using the Fiber web framework for building the HTTP server and handling routing.
+		<pre class="file" id="file8" style="display: none">// AccountRoutes registers HTTP routes for account-related operations using the Fiber web framework.
+// It sets up endpoints for creating accounts, depositing and withdrawing funds, retrieving account balances,
+// and listing account transactions. All routes are protected by authentication middleware and require a valid user context.
+//
+// Parameters:
+//   - app: The Fiber application instance to register routes on.
+//   - uowFactory: A factory function that returns a new UnitOfWork for database operations.
+//
+// Routes:
+//   - POST   /account                   : Create a new account for the authenticated user.
+//   - POST   /account/:id/deposit       : Deposit funds into the specified account.
+//   - POST   /account/:id/withdraw      : Withdraw funds from the specified account.
+//   - GET    /account/:id/balance       : Retrieve the balance of the specified account.
+//   - GET    /account/:id/transactions  : List transactions for the specified account.
+
 package webapi
 
 import (
-        "github.com/amirasaad/fintech/middleware"
+        "github.com/amirasaad/fintech/pkg/middleware"
         "github.com/amirasaad/fintech/pkg/repository"
         "github.com/amirasaad/fintech/pkg/service"
         "github.com/gofiber/fiber/v2"
         "github.com/gofiber/fiber/v2/log"
-        "github.com/golang-jwt/jwt/v5"
         "github.com/google/uuid"
 )
 
@@ -1192,52 +867,60 @@ func AccountRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, err
         app.Get("/account/:id/transactions", middleware.Protected(), GetTransactions(uowFactory))
 }</span>
 
-// The `AccountRoutes` function defines various HTTP routes for account-related operations using Fiber
-// in Go.
+// CreateAccount returns a Fiber handler for creating a new account for the current user.
+// It extracts the user ID from the request context, initializes the account service using the provided
+// UnitOfWork factory, and attempts to create a new account. On success, it returns the created account as JSON.
+// On failure, it logs the error and returns an appropriate error response.
+//
+// Parameters:
+//   - uowFactory: A function that returns a new instance of repository.UnitOfWork and an error.
+//
+// Returns:
+//   - fiber.Handler: The HTTP handler function for account creation.
 func CreateAccount(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler <span class="cov8" title="1">{
         return func(c *fiber.Ctx) error </span><span class="cov8" title="1">{
                 log.Infof("Creating new account")
-                tokenVal := c.Locals("user")
-                log.Infof("Token value: %v type %T", tokenVal, tokenVal)
-                if tokenVal == nil </span><span class="cov0" title="0">{
-                        log.Error("Missing or invalid token")
-                        return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "missing or invalid token"})
-                }</span>
-                <span class="cov8" title="1">token, ok := tokenVal.(*jwt.Token)
-                log.Infof("Token type: %T", token)
-                if !ok </span><span class="cov0" title="0">{
-                        log.Errorf("Invalid token type %s", ok)
-                        return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid token type"})
-                }</span>
-                <span class="cov8" title="1">claims := token.Claims.(jwt.MapClaims)
-                userID, err := uuid.Parse(claims["user_id"].(string))
+                userID, err := GetCurrentUserId(c)
                 if err != nil </span><span class="cov0" title="0">{
                         log.Errorf("Failed to parse user ID from token: %v", err)
-                        return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid user ID"})
+                        status := ErrorToStatusCode(err)
+                        return ErrorResponseJSON(c, status, "invalid user ID", err.Error())
                 }</span>
                 <span class="cov8" title="1">service := service.NewAccountService(uowFactory)
                 a, err := service.CreateAccount(userID)
                 if err != nil </span><span class="cov8" title="1">{
                         log.Errorf("Failed to create account: %v", err)
                         status := ErrorToStatusCode(err)
-                        return c.Status(status).JSON(fiber.Map{
-                                "error": err.Error(),
-                        })
+                        return ErrorResponseJSON(c, status, "Failed to create account", err.Error())
                 }</span>
 
                 <span class="cov8" title="1">log.Infof("Account created: %+v", a)
-                return c.JSON(a)</span>
+                return c.Status(fiber.StatusCreated).JSON(Response{Status: fiber.StatusCreated, Message: "Account created", Data: a})</span>
         }
 }
+
+// Deposit returns a Fiber handler for depositing an amount into a user's account.
+// It expects a UnitOfWork factory function as a dependency for transactional operations.
+// The handler parses the current user ID from the request context, validates the account ID from the URL,
+// and parses the deposit amount from the request body. If successful, it performs the deposit operation
+// using the AccountService and returns the transaction as JSON. On error, it logs the issue and returns
+// an appropriate JSON error response.
+//
+//        @param uowFactory A function that returns a new repository.UnitOfWork and error.
+//        @return fiber.Handler A Fiber handler function for processing deposit requests.
 func Deposit(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler <span class="cov8" title="1">{
         return func(c *fiber.Ctx) error </span><span class="cov8" title="1">{
                 service := service.NewAccountService(uowFactory)
-                id, err := uuid.Parse(c.Params("id"))
+                userID, err := GetCurrentUserId(c)
+                if err != nil </span><span class="cov0" title="0">{
+                        log.Errorf("Failed to parse user ID from token: %v", err)
+                        status := ErrorToStatusCode(err)
+                        return ErrorResponseJSON(c, status, "invalid user ID", err.Error())
+                }</span>
+                <span class="cov8" title="1">id, err := uuid.Parse(c.Params("id"))
                 if err != nil </span><span class="cov0" title="0">{
                         log.Errorf("Invalid account ID for deposit: %v", err)
-                        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-                                "error": err.Error(),
-                        })
+                        return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid account ID", err.Error())
                 }</span>
                 <span class="cov8" title="1">type DepositRequest struct {
                         Amount float64 `json:"amount" xml:"amount" form:"amount"`
@@ -1246,31 +929,50 @@ func Deposit(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler <sp
                 err = c.BodyParser(&amp;request)
                 if err != nil </span><span class="cov0" title="0">{
                         log.Errorf("Failed to parse deposit request: %v", err)
-                        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-                                "error": err.Error(),
-                        })
+                        return ErrorResponseJSON(c, fiber.StatusBadRequest, "Failed to parse deposit request", err.Error())
                 }</span>
-                <span class="cov8" title="1">tx, err := service.Deposit(id, request.Amount)
+
+                <span class="cov8" title="1">tx, err := service.Deposit(userID, id, request.Amount)
                 if err != nil </span><span class="cov8" title="1">{
                         log.Errorf("Failed to deposit: %v", err)
                         status := ErrorToStatusCode(err)
-                        return c.Status(status).JSON(fiber.Map{
-                                "error": err.Error(),
-                        })
+                        return ErrorResponseJSON(c, status, "Failed to deposit", err.Error())
                 }</span>
-                <span class="cov8" title="1">return c.JSON(tx)</span>
+                <span class="cov8" title="1">return c.JSON(Response{Status: fiber.StatusOK, Message: "Deposit successful", Data: tx})</span>
         }
 }
 
+// Withdraw returns a Fiber handler for processing account withdrawal requests.
+// It expects a UnitOfWork factory function as a dependency for transactional operations.
+//
+// The handler performs the following steps:
+//  1. Retrieves the current user ID from the request context.
+//  2. Parses the account ID from the route parameters.
+//  3. Parses the withdrawal amount from the request body.
+//  4. Calls the AccountService.Withdraw method to process the withdrawal.
+//  5. Returns the transaction details as a JSON response on success.
+//
+// Error responses are returned in JSON format with appropriate status codes
+// if any step fails (e.g., invalid user ID, invalid account ID, parsing errors, or withdrawal errors).
+//
+// Parameters:
+//   - uowFactory: A function that returns a new UnitOfWork and error.
+//
+// Returns:
+//   - fiber.Handler: The HTTP handler for the withdrawal endpoint.
 func Withdraw(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler <span class="cov8" title="1">{
         return func(c *fiber.Ctx) error </span><span class="cov8" title="1">{
                 service := service.NewAccountService(uowFactory)
-                id, err := uuid.Parse(c.Params("id"))
+                userID, err := GetCurrentUserId(c)
+                if err != nil </span><span class="cov0" title="0">{
+                        log.Errorf("Failed to parse user ID from token: %v", err)
+                        status := ErrorToStatusCode(err)
+                        return ErrorResponseJSON(c, status, "invalid user ID", err.Error())
+                }</span>
+                <span class="cov8" title="1">id, err := uuid.Parse(c.Params("id"))
                 if err != nil </span><span class="cov0" title="0">{
                         log.Errorf("Invalid account ID for withdrawal: %v", err)
-                        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-                                "error": err.Error(),
-                        })
+                        return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid account ID", err.Error())
                 }</span>
                 <span class="cov8" title="1">type WithdrawRequest struct {
                         Amount float64 `json:"amount"`
@@ -1279,95 +981,96 @@ func Withdraw(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler <s
                 err = c.BodyParser(&amp;request)
                 if err != nil </span><span class="cov0" title="0">{
                         log.Errorf("Failed to parse withdrawal request: %v", err)
-                        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-                                "error": err.Error(),
-                        })
+                        return ErrorResponseJSON(c, fiber.StatusBadRequest, "Failed to parse withdrawal request", err.Error())
                 }</span>
-                <span class="cov8" title="1">tx, err := service.Withdraw(id, request.Amount)
+                <span class="cov8" title="1">tx, err := service.Withdraw(userID, id, request.Amount)
                 if err != nil </span><span class="cov8" title="1">{
                         log.Errorf("Failed to withdraw: %v", err)
                         status := ErrorToStatusCode(err)
-                        return c.Status(status).JSON(fiber.Map{
-                                "error": err.Error(),
-                        })
+                        return ErrorResponseJSON(c, status, "Failed to withdraw", err.Error())
                 }</span>
-                <span class="cov8" title="1">return c.JSON(tx)</span>
+                <span class="cov8" title="1">return c.JSON(Response{Status: fiber.StatusOK, Message: "Withdrawal successful", Data: tx})</span>
         }
 }
+
+// GetTransactions returns a Fiber handler that retrieves the list of transactions for a specific account.
+// It expects a UnitOfWork factory function as a dependency for service instantiation.
+// The handler extracts the current user ID from the request context and parses the account ID from the URL parameters.
+// On success, it returns the transactions as a JSON response. On error, it logs the error and returns an appropriate JSON error response.
+//
+// Route parameters:
+//   - id: UUID of the account whose transactions are to be retrieved.
+//
+// Responses:
+//   - 200: JSON array of transactions
+//   - 400: Invalid account ID or user ID
+//   - 401/403: Unauthorized or forbidden
+//   - 500: Internal server error
+//
+// Example usage:
+//
+//        app.Get("/accounts/:id/transactions", GetTransactions(uowFactory))
 func GetTransactions(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler <span class="cov8" title="1">{
         return func(c *fiber.Ctx) error </span><span class="cov8" title="1">{
                 service := service.NewAccountService(uowFactory)
-                id, err := uuid.Parse(c.Params("id"))
+                userID, err := GetCurrentUserId(c)
+                if err != nil </span><span class="cov0" title="0">{
+                        log.Errorf("Failed to parse user ID from token: %v", err)
+                        status := ErrorToStatusCode(err)
+                        return ErrorResponseJSON(c, status, "invalid user ID", err.Error())
+                }</span>
+                <span class="cov8" title="1">id, err := uuid.Parse(c.Params("id"))
                 if err != nil </span><span class="cov0" title="0">{
                         log.Errorf("Invalid account ID for transactions: %v", err)
-                        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-                                "error": err.Error(),
-                        })
+                        return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid account ID", err.Error())
                 }</span>
-                <span class="cov8" title="1">tx, err := service.GetTransactions(id)
+
+                <span class="cov8" title="1">tx, err := service.GetTransactions(userID, id)
                 if err != nil </span><span class="cov0" title="0">{
                         log.Errorf("Failed to list transactions for account ID %s: %v", id, err)
                         status := ErrorToStatusCode(err)
-                        return c.Status(status).JSON(fiber.Map{
-                                "error": err.Error(),
-                        })
+                        return ErrorResponseJSON(c, status, "Failed to list transactions", err.Error())
                 }</span>
-                <span class="cov8" title="1">return c.JSON(tx)</span>
+                <span class="cov8" title="1">return c.JSON(Response{Status: fiber.StatusOK, Message: "Transactions fetched", Data: tx})</span>
         }
 }
+
 func GetBalance(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler <span class="cov8" title="1">{
         return func(c *fiber.Ctx) error </span><span class="cov8" title="1">{
                 service := service.NewAccountService(uowFactory)
-                id, err := uuid.Parse(c.Params("id"))
+                userID, err := GetCurrentUserId(c)
+                if err != nil </span><span class="cov0" title="0">{
+                        log.Errorf("Failed to parse user ID from token: %v", err)
+                        status := ErrorToStatusCode(err)
+                        return ErrorResponseJSON(c, status, "invalid user ID", err.Error())
+                }</span>
+                <span class="cov8" title="1">id, err := uuid.Parse(c.Params("id"))
                 if err != nil </span><span class="cov0" title="0">{
                         log.Errorf("Invalid account ID for balance: %v", err)
-                        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-                                "error": err.Error(),
-                        })
+                        return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid account ID", err.Error())
                 }</span>
-                <span class="cov8" title="1">balance, err := service.GetBalance(id)
+
+                <span class="cov8" title="1">balance, err := service.GetBalance(userID, id)
                 if err != nil </span><span class="cov8" title="1">{
                         log.Errorf("Failed to fetch balance for account ID %s: %v", id, err)
                         status := ErrorToStatusCode(err)
-                        return c.Status(status).JSON(fiber.Map{
-                                "error": err.Error(),
-                        })
+                        return ErrorResponseJSON(c, status, "Failed to fetch balance", err.Error())
                 }</span>
-                <span class="cov8" title="1">return c.Status(fiber.StatusOK).JSON(fiber.Map{
-                        "balance": balance,
-                })</span>
+                <span class="cov8" title="1">return c.Status(fiber.StatusOK).JSON(Response{Status: fiber.StatusOK, Message: "Balance fetched", Data: fiber.Map{"balance": balance}})</span>
         }
 }
 </pre>
 		
-		<pre class="file" id="file11" style="display: none">package webapi
+		<pre class="file" id="file9" style="display: none">package webapi
 
 import (
-        "net/mail"
-        "time"
-
-        "github.com/amirasaad/fintech/pkg/domain"
         "github.com/amirasaad/fintech/pkg/repository"
+        "github.com/amirasaad/fintech/pkg/service"
         "github.com/gofiber/fiber/v2"
-        "github.com/golang-jwt/jwt/v5"
-        "github.com/google/uuid"
-        "golang.org/x/crypto/bcrypt"
 )
 
 func AuthRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, error)) <span class="cov8" title="1">{
         app.Post("/login", Login(uowFactory))
-}</span>
-
-// CheckPasswordHash compare password with hash
-func CheckPasswordHash(password, hash string) bool <span class="cov8" title="1">{
-        err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
-
-        return err == nil
-}</span>
-
-func valid(email string) bool <span class="cov8" title="1">{
-        _, err := mail.ParseAddress(email)
-        return err == nil
 }</span>
 
 // Login get user and password
@@ -1377,95 +1080,338 @@ func Login(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler <span
                         Identity string `json:"identity"`
                         Password string `json:"password"`
                 }
-                type UserData struct {
-                        ID       uuid.UUID `json:"id"`
-                        Username string    `json:"username"`
-                        Email    string    `json:"email"`
-                        Password string    `json:"password"`
-                }
-
                 input := new(LoginInput)
-                var ud UserData
 
                 if err := c.BodyParser(input); err != nil </span><span class="cov0" title="0">{
-                        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "error", "message": "Error on login request", "errors": err.Error()})
+                        return ErrorResponseJSON(c, fiber.StatusBadRequest, "Error on login request", err.Error())
                 }</span>
 
-                <span class="cov8" title="1">identity := input.Identity
-                pass := input.Password
-                uow, err := uowFactory()
+                <span class="cov8" title="1">authService := service.NewAuthService(uowFactory)
+                user, token, err := authService.Login(input.Identity, input.Password)
                 if err != nil </span><span class="cov0" title="0">{
-                        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "        error", "message": "Failed to create unit of work", "data": nil})
+                        return ErrorResponseJSON(c, fiber.StatusInternalServerError, "Internal Server Error", err.Error())
                 }</span>
-                <span class="cov8" title="1">defer uow.Rollback()
-                var user *domain.User
-                if valid(identity) </span><span class="cov0" title="0">{
-                        user, err = uow.UserRepository().GetByEmail(identity)
-                }</span> else<span class="cov8" title="1"> {
-                        user, err = uow.UserRepository().GetByUsername(identity)
+                <span class="cov8" title="1">if user == nil || token == "" </span><span class="cov0" title="0">{
+                        return ErrorResponseJSON(c, fiber.StatusUnauthorized, "Invalid identity or password", nil)
                 }</span>
-
-                <span class="cov8" title="1">const dummyHash = "$2a$10$7zFqzDbD3RrlkMTczbXG9OWZ0FLOXjIxXzSZ.QZxkVXjXcx7QZQiC" // =&gt; Hashed " "
-
-                if err != nil </span><span class="cov0" title="0">{
-                        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "error", "message": "Internal Server Error", "data": err})
-                }</span> else<span class="cov8" title="1"> if user == nil </span><span class="cov0" title="0">{
-
-                        // Always perform a hash check, even if the user doesn't exist, to prevent timing attacks
-                        CheckPasswordHash(pass, dummyHash)
-
-                        return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "error", "message": "Invalid identity or password", "data": err})
-                }</span> else<span class="cov8" title="1"> {
-                        ud = UserData{
-                                ID:       user.ID,
-                                Username: user.Username,
-                                Email:    user.Email,
-                                Password: user.Password,
-                        }
-                }</span>
-
-                <span class="cov8" title="1">if !CheckPasswordHash(pass, ud.Password) </span><span class="cov0" title="0">{
-                        return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "error", "message": "Invalid identity or password", "data": nil})
-                }</span>
-
-                <span class="cov8" title="1">token := jwt.New(jwt.SigningMethodHS256)
-
-                claims := token.Claims.(jwt.MapClaims)
-                claims["username"] = ud.Username
-                claims["email"] = ud.Email
-                claims["user_id"] = ud.ID
-                claims["exp"] = time.Now().Add(time.Hour * 72).Unix()
-
-                t, err := token.SignedString([]byte("SECRET"))
-
-                if err != nil </span><span class="cov0" title="0">{
-                        return c.SendStatus(fiber.StatusInternalServerError)
-                }</span>
-
-                <span class="cov8" title="1">return c.JSON(fiber.Map{"status": "success", "message": "Success login", "token": t})</span>
+                <span class="cov8" title="1">return c.JSON(Response{Status: fiber.StatusOK, Message: "Success login", Data: fiber.Map{"token": token}})</span>
         }
 }
 </pre>
 		
-		<pre class="file" id="file12" style="display: none">package webapi
+		<pre class="file" id="file10" style="display: none">package infra
 
 import (
-        "github.com/amirasaad/fintech/middleware"
+        "errors"
+        "os"
+
+        "gorm.io/driver/postgres"
+        "gorm.io/gorm"
+)
+
+func NewDBConnection() (*gorm.DB, error) <span class="cov0" title="0">{
+        databaseUrl := os.Getenv("DATABASE_URL")
+        if databaseUrl == "" </span><span class="cov0" title="0">{
+                return nil, errors.New("DATABASE_URL is not set")
+        }</span>
+        <span class="cov0" title="0">connection, err := gorm.Open(postgres.Open(databaseUrl), &amp;gorm.Config{SkipDefaultTransaction: true})
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov0" title="0">err = connection.AutoMigrate(&amp;Account{}, &amp;Transaction{}, &amp;User{})
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov0" title="0">return connection, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file11" style="display: none">package infra
+
+import (
+        "github.com/amirasaad/fintech/pkg/domain"
+        "github.com/amirasaad/fintech/pkg/repository"
+        "github.com/google/uuid"
+        "gorm.io/gorm"
+)
+
+type accountRepository struct {
+        db *gorm.DB
+}
+
+func NewAccountRepository(db *gorm.DB) repository.AccountRepository <span class="cov0" title="0">{
+        return &amp;accountRepository{db: db}
+}</span>
+
+func (r *accountRepository) Get(id uuid.UUID) (*domain.Account, error) <span class="cov0" title="0">{
+        var a domain.Account
+        result := r.db.First(&amp;a, id)
+        if result.Error != nil </span><span class="cov0" title="0">{
+                return nil, result.Error
+        }</span>
+        <span class="cov0" title="0">return domain.NewAccountFromData(a.ID, a.UserID, a.Balance, a.CreatedAt, a.UpdatedAt), nil</span>
+}
+
+func (r *accountRepository) Create(a *domain.Account) error <span class="cov0" title="0">{
+        result := r.db.Create(a)
+        if result.Error != nil </span><span class="cov0" title="0">{
+                return result.Error
+        }</span>
+        <span class="cov0" title="0">return nil</span>
+}
+
+func (r *accountRepository) Update(a *domain.Account) error <span class="cov0" title="0">{
+        dbModel := domain.Account{
+                ID:      a.ID,
+                UserID:  a.UserID,
+                Balance: a.Balance,
+        }
+        result := r.db.Save(&amp;dbModel)
+        if result.Error != nil </span><span class="cov0" title="0">{
+                return result.Error
+        }</span>
+        <span class="cov0" title="0">return nil</span>
+}
+
+func (r *accountRepository) Delete(id uuid.UUID) error <span class="cov0" title="0">{
+        result := r.db.Delete(&amp;Account{}, id)
+        if result.Error != nil </span><span class="cov0" title="0">{
+                return result.Error
+        }</span>
+        <span class="cov0" title="0">return nil</span>
+}
+
+type transactionRepository struct {
+        db *gorm.DB
+}
+
+func NewTransactionRepository(db *gorm.DB) repository.TransactionRepository <span class="cov0" title="0">{
+        return &amp;transactionRepository{db: db}
+}</span>
+
+func (r *transactionRepository) Create(transaction *domain.Transaction) error <span class="cov0" title="0">{
+
+        result := r.db.Create(transaction)
+        if result.Error != nil </span><span class="cov0" title="0">{
+                return result.Error
+        }</span>
+        <span class="cov0" title="0">return nil</span>
+}
+
+func (r *transactionRepository) Get(id uuid.UUID) (*domain.Transaction, error) <span class="cov0" title="0">{
+        var t Transaction
+        result := r.db.First(&amp;t, id)
+        if result.Error != nil </span><span class="cov0" title="0">{
+                return nil, result.Error
+        }</span>
+        <span class="cov0" title="0">return domain.NewTransactionFromData(t.ID, t.UserID, t.AccountID, t.Amount, t.Balance, t.CreatedAt), nil</span>
+}
+
+func (r *transactionRepository) List(userID, accountID uuid.UUID) ([]*domain.Transaction, error) <span class="cov0" title="0">{
+        var dbTransactions []*Transaction
+        result := r.db.Where("account_id = ? and user_id = ?", accountID, userID).Order("created_at desc").Limit(100).Find(&amp;dbTransactions)
+        if result.Error != nil </span><span class="cov0" title="0">{
+                return nil, result.Error
+        }</span>
+        <span class="cov0" title="0">tx := make([]*domain.Transaction, 0, len(dbTransactions))
+        for _, t := range dbTransactions </span><span class="cov0" title="0">{
+                tx = append(tx, domain.NewTransactionFromData(t.ID, t.UserID, t.AccountID, t.Amount, t.Balance, t.CreatedAt))
+        }</span>
+        <span class="cov0" title="0">return tx, nil</span>
+}
+
+type userRepository struct {
+        db *gorm.DB
+}
+
+// Valid implements repository.UserRepository.
+func (u *userRepository) Valid(id uuid.UUID, password string) bool <span class="cov0" title="0">{
+        var user domain.User
+        result := u.db.Where("id = ? AND password = ?", id, password).First(&amp;user)
+        return result.Error == nil
+}</span>
+
+// Create implements repository.UserRepository.
+func (u *userRepository) Create(user *domain.User) error <span class="cov0" title="0">{
+        result := u.db.Create(user)
+        if result.Error != nil </span><span class="cov0" title="0">{
+                return result.Error
+        }</span>
+        <span class="cov0" title="0">return nil</span>
+}
+
+// Delete implements repository.UserRepository.
+func (u *userRepository) Delete(id uuid.UUID) error <span class="cov0" title="0">{
+        result := u.db.Delete(&amp;domain.User{}, id)
+        if result.Error != nil </span><span class="cov0" title="0">{
+                return result.Error
+        }</span>
+        <span class="cov0" title="0">return nil</span>
+}
+
+// Get implements repository.UserRepository.
+func (u *userRepository) Get(id uuid.UUID) (*domain.User, error) <span class="cov0" title="0">{
+        var user domain.User
+        result := u.db.First(&amp;user, id)
+        if result.Error != nil </span><span class="cov0" title="0">{
+                return nil, result.Error
+        }</span>
+        <span class="cov0" title="0">return &amp;user, nil</span>
+}
+
+// GetByEmail implements repository.UserRepository.
+func (u *userRepository) GetByEmail(email string) (*domain.User, error) <span class="cov0" title="0">{
+        var user domain.User
+        result := u.db.Where("email = ?", email).First(&amp;user)
+        if result.Error != nil </span><span class="cov0" title="0">{
+                return nil, result.Error
+        }</span>
+        <span class="cov0" title="0">return &amp;user, nil</span>
+}
+
+// GetByUsername implements repository.UserRepository.
+func (u *userRepository) GetByUsername(username string) (*domain.User, error) <span class="cov0" title="0">{
+        var user domain.User
+        result := u.db.Where("username = ?", username).First(&amp;user)
+        if result.Error != nil </span><span class="cov0" title="0">{
+                return nil, result.Error
+        }</span>
+        <span class="cov0" title="0">return &amp;user, nil</span>
+}
+
+// Update implements repository.UserRepository.
+func (u *userRepository) Update(user *domain.User) error <span class="cov0" title="0">{
+        result := u.db.Save(user)
+        if result.Error != nil </span><span class="cov0" title="0">{
+                return result.Error
+        }</span>
+        <span class="cov0" title="0">return nil</span>
+}
+
+func NewUserRepository(db *gorm.DB) repository.UserRepository <span class="cov0" title="0">{
+        return &amp;userRepository{db: db}
+}</span>
+</pre>
+		
+		<pre class="file" id="file12" style="display: none">package infra
+
+import (
+        "fmt"
+        "log/slog"
+
+        "github.com/amirasaad/fintech/pkg/repository"
+        "gorm.io/gorm"
+)
+
+type UoW struct {
+        session *gorm.DB
+        started bool
+}
+
+func NewGormUoW() (*UoW, error) <span class="cov0" title="0">{
+
+        db, err := NewDBConnection()
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov0" title="0">return &amp;UoW{
+                session: db,
+                started: false,
+        }, nil</span>
+}
+func (u *UoW) Begin() error <span class="cov0" title="0">{
+        slog.Info("UoW Begin()")
+        if u.session == nil </span><span class="cov0" title="0">{
+                slog.Error("Session is nil, cannot start transaction")
+                return fmt.Errorf("session is nil")
+        }</span>
+        <span class="cov0" title="0">if u.started </span><span class="cov0" title="0">{
+                slog.Info("Transaction already started")
+                return nil // Transaction already started
+        }</span>
+        <span class="cov0" title="0">slog.Info("Starting new transaction")
+        tx := u.session.Begin()
+        defer func() </span><span class="cov0" title="0">{
+                if r := recover(); r != nil </span><span class="cov0" title="0">{
+                        tx.Rollback()
+                }</span>
+        }()
+        <span class="cov0" title="0">if tx.Error != nil </span><span class="cov0" title="0">{
+                slog.Error("Failed to start transaction", slog.Any("error", tx.Error))
+                return tx.Error
+        }</span>
+        <span class="cov0" title="0">slog.Info("Transaction started successfully")
+        u.session = tx
+        u.started = true
+        return nil</span>
+}
+func (u *UoW) Commit() error <span class="cov0" title="0">{
+        slog.Info("UoW Commit()")
+        if !u.started </span><span class="cov0" title="0">{
+                slog.Info("Transaction not started, nothing to commit")
+                return nil // No transaction to commit
+        }</span>
+        <span class="cov0" title="0">err := u.session.Commit().Error
+        if err != nil </span><span class="cov0" title="0">{
+                slog.Error("Failed to commit transaction", slog.Any("error", err))
+        }</span> else<span class="cov0" title="0"> {
+                u.started = true
+                slog.Info("Transaction committed successfully")
+        }</span>
+        <span class="cov0" title="0">return err</span>
+}
+func (u *UoW) Rollback() error <span class="cov0" title="0">{
+        slog.Info("UoW Rollback()")
+        if !u.started </span><span class="cov0" title="0">{
+                slog.Info("Transaction not started, nothing to rollback")
+                return nil // No transaction to rollback
+        }</span>
+        <span class="cov0" title="0">err := u.session.Rollback().Error
+        if err != nil </span><span class="cov0" title="0">{
+                slog.Error("Failed to rollback transaction", slog.Any("error", err))
+        }</span> else<span class="cov0" title="0"> {
+                u.started = false
+                slog.Info("Transaction rolled back successfully")
+        }</span>
+        <span class="cov0" title="0">return err</span>
+}
+
+func (u *UoW) AccountRepository() repository.AccountRepository <span class="cov0" title="0">{
+        if !u.started </span><span class="cov0" title="0">{
+                db, _ := NewDBConnection()
+                return NewAccountRepository(db)
+        }</span>
+        <span class="cov0" title="0">return NewAccountRepository(u.session)</span>
+}
+func (u *UoW) TransactionRepository() repository.TransactionRepository <span class="cov0" title="0">{
+        if !u.started </span><span class="cov0" title="0">{
+                db, _ := NewDBConnection()
+                return NewTransactionRepository(db)
+        }</span>
+        <span class="cov0" title="0">return NewTransactionRepository(u.session)</span>
+}
+
+func (u *UoW) UserRepository() repository.UserRepository <span class="cov0" title="0">{
+        if !u.started </span><span class="cov0" title="0">{
+                db, _ := NewDBConnection()
+                return NewUserRepository(db)
+        }</span>
+        <span class="cov0" title="0">return NewUserRepository(u.session)</span>
+}
+</pre>
+		
+		<pre class="file" id="file13" style="display: none">package webapi
+
+import (
+        "github.com/amirasaad/fintech/pkg/middleware"
         "github.com/amirasaad/fintech/pkg/repository"
         "github.com/amirasaad/fintech/pkg/service"
         "github.com/go-playground/validator"
         "github.com/gofiber/fiber/v2"
         "github.com/gofiber/fiber/v2/log"
-        "github.com/golang-jwt/jwt/v5"
         "github.com/google/uuid"
 )
 
-func validToken(t *jwt.Token, id uuid.UUID) bool <span class="cov0" title="0">{
-        claims := t.Claims.(jwt.MapClaims)
-        uid := claims["user_id"].(uuid.UUID)
-
-        return uid == id
-}</span>
 func UserRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, error)) <span class="cov8" title="1">{
         app.Get("/user/:id", middleware.Protected(), GetUser(uowFactory))
         app.Post("/user", CreateUser(uowFactory))
@@ -1479,23 +1425,14 @@ func GetUser(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler <sp
                 id, err := uuid.Parse(c.Params("id"))
                 if err != nil </span><span class="cov0" title="0">{
                         log.Errorf("Invalid account ID for deposit: %v", err)
-                        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-                                "error": err.Error(),
-                        })
+                        return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid user ID", err.Error())
                 }</span>
-
-                <span class="cov0" title="0">uow, err := uowFactory()
+                <span class="cov0" title="0">userService := service.NewUserService(uowFactory)
+                user, err := userService.GetUser(id)
                 if err != nil </span><span class="cov0" title="0">{
-                        return c.Status(500).JSON(fiber.Map{"status": "error", "message": "Failed to create unit of work", "data": nil})
+                        return ErrorResponseJSON(c, fiber.StatusNotFound, "No user found with ID", nil)
                 }</span>
-                <span class="cov0" title="0">defer uow.Rollback()
-
-                user, err := uow.UserRepository().Get(id)
-                if err != nil </span><span class="cov0" title="0">{
-                        return c.Status(404).JSON(fiber.Map{"status": "error", "message": "No user found with ID", "data": nil})
-                }</span>
-
-                <span class="cov0" title="0">return c.JSON(fiber.Map{"status": "success", "message": "User found", "data": user})</span>
+                <span class="cov0" title="0">return c.JSON(Response{Status: fiber.StatusCreated, Message: "User found", Data: user})</span>
         }
 }
 
@@ -1510,21 +1447,21 @@ func CreateUser(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler 
 
                 var newUser NewUser
                 if err := c.BodyParser(&amp;newUser); err != nil </span><span class="cov0" title="0">{
-                        return c.Status(500).JSON(fiber.Map{"status": "error", "message": "Review your input", "errors": err.Error()})
+                        return ErrorResponseJSON(c, fiber.StatusBadRequest, "Review your input", err.Error())
                 }</span>
                 <span class="cov0" title="0">validate := validator.New()
                 if err := validate.Struct(newUser); err != nil </span><span class="cov0" title="0">{
-                        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "Invalid request body", "errors": err.Error()})
+                        return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid request body", err.Error())
                 }</span>
                 <span class="cov0" title="0">if len(newUser.Password) &gt; 72 </span><span class="cov0" title="0">{
-                        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "Invalid request body", "errors": "Password too long"})
+                        return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid request body", "Password too long")
                 }</span>
                 <span class="cov0" title="0">service := service.NewUserService(uowFactory)
                 user, err := service.CreateUser(newUser.Username, newUser.Email, newUser.Password)
                 if err != nil </span><span class="cov0" title="0">{
-                        return c.Status(500).JSON(fiber.Map{"status": "error", "message": "Couldn't create user", "errors": err.Error()})
+                        return ErrorResponseJSON(c, fiber.StatusInternalServerError, "Couldn't create user", err.Error())
                 }</span>
-                <span class="cov0" title="0">return c.JSON(fiber.Map{"status": "success", "message": "Created user", "data": user})</span>
+                <span class="cov0" title="0">return c.Status(fiber.StatusCreated).JSON(Response{Status: fiber.StatusCreated, Message: "Created user", Data: user})</span>
         }
 }
 
@@ -1536,32 +1473,32 @@ func UpdateUser(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler 
                 }
                 var uui UpdateUserInput
                 if err := c.BodyParser(&amp;uui); err != nil </span><span class="cov0" title="0">{
-                        return c.Status(500).JSON(fiber.Map{"status": "error", "message": "Review your input", "errors": err.Error()})
+                        return ErrorResponseJSON(c, fiber.StatusBadRequest, "Review your input", err.Error())
                 }</span>
                 <span class="cov0" title="0">id, err := uuid.Parse(c.Params("id"))
                 if err != nil </span><span class="cov0" title="0">{
                         log.Errorf("Invalid account ID for deposit: %v", err)
-                        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-                                "error": err.Error(),
-                        })
+                        return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid user ID", err.Error())
                 }</span>
-                <span class="cov0" title="0">token := c.Locals("user").(*jwt.Token)
-                if !validToken(token, id) </span><span class="cov0" title="0">{
-                        return c.Status(500).JSON(fiber.Map{"status": "error", "message": "Invalid token id", "data": nil})
+                <span class="cov0" title="0">userID, err := GetCurrentUserId(c)
+                if err != nil </span><span class="cov0" title="0">{
+                        log.Errorf("Failed to parse user ID from token: %v", err)
+                        return ErrorResponseJSON(c, fiber.StatusUnauthorized, "invalid user ID", nil)
+                }</span>
+                <span class="cov0" title="0">if id != userID </span><span class="cov0" title="0">{
+                        return ErrorResponseJSON(c, fiber.StatusForbidden, "You are not allowed to update this user", nil)
                 }</span>
 
-                <span class="cov0" title="0">service := service.NewUserService(uowFactory)
-                user, err := service.GetUser(id)
+                <span class="cov0" title="0">userService := service.NewUserService(uowFactory)
+                user, err := userService.GetUser(id)
                 if err != nil </span><span class="cov0" title="0">{
-                        return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-                                "error": err.Error(),
-                        })
+                        return ErrorResponseJSON(c, fiber.StatusNotFound, "User not found", nil)
                 }</span>
-                <span class="cov0" title="0">err = service.UpdateUser(user)
+                <span class="cov0" title="0">err = userService.UpdateUser(user)
                 if err != nil </span><span class="cov0" title="0">{
-                        return c.Status(500).JSON(fiber.Map{"status": "error", "message": "Failed to update user", "data": nil})
+                        return ErrorResponseJSON(c, fiber.StatusInternalServerError, "Failed to update user", err.Error())
                 }</span>
-                <span class="cov0" title="0">return c.JSON(fiber.Map{"status": "success", "message": "User updated successfully", "data": user})</span>
+                <span class="cov0" title="0">return c.JSON(Response{Status: fiber.StatusOK, Message: "User updated successfully", Data: user})</span>
         }
 }
 
@@ -1573,39 +1510,82 @@ func DeleteUser(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler 
                 }
                 var pi PasswordInput
                 if err := c.BodyParser(&amp;pi); err != nil </span><span class="cov0" title="0">{
-                        return c.Status(500).JSON(fiber.Map{"status": "error", "message": "Review your input", "errors": err.Error()})
+                        return ErrorResponseJSON(c, fiber.StatusBadRequest, "Review your input", err.Error())
                 }</span>
                 <span class="cov0" title="0">id, err := uuid.Parse(c.Params("id"))
                 if err != nil </span><span class="cov0" title="0">{
                         log.Errorf("Invalid account ID for deposit: %v", err)
-                        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-                                "error": err.Error(),
-                        })
+                        return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid user ID", err.Error())
                 }</span>
-                <span class="cov0" title="0">token := c.Locals("user").(*jwt.Token)
-                if !validToken(token, id) </span><span class="cov0" title="0">{
-                        return c.Status(500).JSON(fiber.Map{"status": "error", "message": "Invalid token id", "data": nil})
+                <span class="cov0" title="0">userID, err := GetCurrentUserId(c)
+                if err != nil </span><span class="cov0" title="0">{
+                        log.Errorf("Failed to parse user ID from token: %v", err)
+                        return ErrorResponseJSON(c, fiber.StatusUnauthorized, "invalid user ID", nil)
                 }</span>
-                <span class="cov0" title="0">service := service.NewUserService(uowFactory)
-                if !service.ValidUser(id, pi.Password) </span><span class="cov0" title="0">{
-                        return c.Status(500).JSON(fiber.Map{"status": "error", "message": "Not valid user", "data": nil})
+                <span class="cov0" title="0">if id != userID </span><span class="cov0" title="0">{
+                        return ErrorResponseJSON(c, fiber.StatusForbidden, "You are not allowed to update this user", nil)
+                }</span>
+                <span class="cov0" title="0">userService := service.NewUserService(uowFactory)
+                if !userService.ValidUser(id, pi.Password) </span><span class="cov0" title="0">{
+                        return ErrorResponseJSON(c, fiber.StatusUnauthorized, "Not valid user", nil)
                 }</span>
 
-                <span class="cov0" title="0">err = service.DeleteUser(id, pi.Password)
+                <span class="cov0" title="0">err = userService.DeleteUser(id, pi.Password)
                 if err != nil </span><span class="cov0" title="0">{
-                        return c.Status(500).JSON(fiber.Map{"status": "error", "message": "Failed to delete user", "data": nil})
+                        return ErrorResponseJSON(c, fiber.StatusInternalServerError, "Failed to delete user", err.Error())
                 }</span>
-                <span class="cov0" title="0">return c.JSON(fiber.Map{"status": "success", "message": "User successfully deleted", "data": nil})</span>
+                <span class="cov0" title="0">return c.Status(fiber.StatusNoContent).JSON(Response{Status: fiber.StatusNoContent, Message: "User successfully deleted", Data: nil})</span>
         }
 }
 </pre>
 		
-		<pre class="file" id="file13" style="display: none">package webapi
+		<pre class="file" id="file14" style="display: none">package webapi
 
 import (
         "github.com/amirasaad/fintech/pkg/domain"
         "github.com/gofiber/fiber/v2"
+        "github.com/gofiber/fiber/v2/log"
+
+        "github.com/golang-jwt/jwt/v5"
+        "github.com/google/uuid"
 )
+
+// Response defines the standard API response structure for success cases.
+type Response struct {
+        Status  int    `json:"status"`         // HTTP status code
+        Message string `json:"message"`        // Human-readable explanation
+        Data    any    `json:"data,omitempty"` // Response data
+}
+
+// ProblemDetails follows RFC 9457 Problem Details for HTTP APIs.
+type ProblemDetails struct {
+        Type     string `json:"type,omitempty"`     // A URI reference that identifies the problem type
+        Title    string `json:"title"`              // Short, human-readable summary
+        Status   int    `json:"status"`             // HTTP status code
+        Detail   string `json:"detail,omitempty"`   // Human-readable explanation
+        Instance string `json:"instance,omitempty"` // URI reference that identifies the specific occurrence
+        Errors   any    `json:"errors,omitempty"`   // Optional: additional error details
+}
+
+// ErrorResponseJSON returns a response following RFC 9457 Problem Details
+func ErrorResponseJSON(c *fiber.Ctx, status int, title string, detail any) error <span class="cov8" title="1">{
+        pd := ProblemDetails{
+                Type:   "about:blank",
+                Title:  title,
+                Status: status,
+        }
+        if detail != nil </span><span class="cov8" title="1">{
+                if s, ok := detail.(string); ok </span><span class="cov8" title="1">{
+                        pd.Detail = s
+                }</span> else<span class="cov0" title="0"> {
+                        pd.Errors = detail
+                }</span>
+        }
+        <span class="cov8" title="1">pd.Instance = c.OriginalURL()
+        c.Set(fiber.HeaderContentType, "application/problem+json")
+
+        return c.Status(status).JSON(pd)</span>
+}
 
 // ErrorToStatusCode maps domain errors to appropriate HTTP status codes.
 func ErrorToStatusCode(err error) int <span class="cov8" title="1">{
@@ -1620,9 +1600,41 @@ func ErrorToStatusCode(err error) int <span class="cov8" title="1">{
                 return fiber.StatusBadRequest</span>
         case domain.ErrInsufficientFunds:<span class="cov8" title="1">
                 return fiber.StatusUnprocessableEntity</span>
+        case domain.ErrUserUnauthorized:<span class="cov0" title="0">
+                return fiber.StatusUnauthorized</span>
         default:<span class="cov8" title="1">
                 return fiber.StatusInternalServerError</span>
         }
+}
+
+func GetCurrentUserId(c *fiber.Ctx) (uuid.UUID, error) <span class="cov8" title="1">{
+        tokenVal := c.Locals("user")
+        if tokenVal == nil </span><span class="cov0" title="0">{
+                log.Error("Missing or invalid token")
+                return uuid.Nil, domain.ErrUserUnauthorized
+        }</span>
+        <span class="cov8" title="1">token, ok := tokenVal.(*jwt.Token)
+        log.Infof("Token type: %T", token)
+        if !ok </span><span class="cov0" title="0">{
+                log.Errorf("Invalid token type %v", tokenVal)
+                return uuid.Nil, domain.ErrUserUnauthorized
+        }</span>
+        <span class="cov8" title="1">claims, ok := token.Claims.(jwt.MapClaims)
+        if !ok </span><span class="cov0" title="0">{
+                log.Errorf("Invalid claims type %v", token.Claims)
+                return uuid.Nil, domain.ErrUserUnauthorized
+        }</span>
+        <span class="cov8" title="1">userIDRaw, ok := claims["user_id"].(string)
+        if !ok </span><span class="cov0" title="0">{
+                log.Error("user_id not found in claims or not a string")
+                return uuid.Nil, domain.ErrUserUnauthorized
+        }</span>
+        <span class="cov8" title="1">userID, err := uuid.Parse(userIDRaw)
+        if err != nil </span><span class="cov0" title="0">{
+                log.Errorf("Failed to parse user ID from token: %v", err)
+                return uuid.Nil, domain.ErrUserUnauthorized
+        }</span>
+        <span class="cov8" title="1">return userID, nil</span>
 }
 </pre>
 		

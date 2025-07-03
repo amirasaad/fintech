@@ -1,0 +1,6 @@
+test:
+	go test -v ./...
+cov:
+	go test -v -coverprofile cover.out  ./...
+cov_report:
+	go tool cover -html cover.out -o cover.html

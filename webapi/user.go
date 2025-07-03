@@ -25,17 +25,11 @@ func GetUser(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
 			log.Errorf("Invalid account ID for deposit: %v", err)
 			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid user ID", err.Error())
 		}
-
-		uow, err := uowFactory()
-		if err != nil {
-			return ErrorResponseJSON(c, fiber.StatusInternalServerError, "Failed to create unit of work", err.Error())
-		}
-
-		user, err := uow.UserRepository().Get(id)
+		userService := service.NewUserService(uowFactory)
+		user, err := userService.GetUser(id)
 		if err != nil {
 			return ErrorResponseJSON(c, fiber.StatusNotFound, "No user found with ID", nil)
 		}
-
 		return c.JSON(Response{Status: fiber.StatusCreated, Message: "User found", Data: user})
 	}
 }
@@ -93,12 +87,12 @@ func UpdateUser(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler 
 			return ErrorResponseJSON(c, fiber.StatusForbidden, "You are not allowed to update this user", nil)
 		}
 
-		service := service.NewUserService(uowFactory)
-		user, err := service.GetUser(id)
+		userService := service.NewUserService(uowFactory)
+		user, err := userService.GetUser(id)
 		if err != nil {
 			return ErrorResponseJSON(c, fiber.StatusNotFound, "User not found", nil)
 		}
-		err = service.UpdateUser(user)
+		err = userService.UpdateUser(user)
 		if err != nil {
 			return ErrorResponseJSON(c, fiber.StatusInternalServerError, "Failed to update user", err.Error())
 		}
@@ -129,12 +123,12 @@ func DeleteUser(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler 
 		if id != userID {
 			return ErrorResponseJSON(c, fiber.StatusForbidden, "You are not allowed to update this user", nil)
 		}
-		service := service.NewUserService(uowFactory)
-		if !service.ValidUser(id, pi.Password) {
+		userService := service.NewUserService(uowFactory)
+		if !userService.ValidUser(id, pi.Password) {
 			return ErrorResponseJSON(c, fiber.StatusUnauthorized, "Not valid user", nil)
 		}
 
-		err = service.DeleteUser(id, pi.Password)
+		err = userService.DeleteUser(id, pi.Password)
 		if err != nil {
 			return ErrorResponseJSON(c, fiber.StatusInternalServerError, "Failed to delete user", err.Error())
 		}
