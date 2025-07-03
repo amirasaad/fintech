@@ -111,6 +111,7 @@ func TestAccountRoutesFailureAccountNotFound(t *testing.T) {
 	app, userRepo, accountRepo, transactionRepo, mockUow, testUser := SetupTestApp(t)
 	mockUow.EXPECT().AccountRepository().Return(accountRepo)
 	mockUow.On("Begin").Return(nil)
+	mockUow.EXPECT().Rollback().Return(nil).Once()
 	accountRepo.On("Get", mock.Anything).Return(&domain.Account{}, domain.ErrAccountNotFound)
 
 	// Test the route

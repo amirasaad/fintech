@@ -7,43 +7,12 @@ import (
 
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/repository"
+	"github.com/amirasaad/fintech/test"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
 	"golang.org/x/crypto/bcrypt"
 )
-
-type mockUserRepo struct {
-	userByEmail      *domain.User
-	userByUsername   *domain.User
-	getByEmailErr    error
-	getByUsernameErr error
-}
-
-func (m *mockUserRepo) Get(id uuid.UUID) (*domain.User, error) { return nil, nil }
-func (m *mockUserRepo) GetByEmail(email string) (*domain.User, error) {
-	return m.userByEmail, m.getByEmailErr
-}
-func (m *mockUserRepo) GetByUsername(username string) (*domain.User, error) {
-	return m.userByUsername, m.getByUsernameErr
-}
-func (m *mockUserRepo) Valid(id uuid.UUID, password string) bool { return false }
-func (m *mockUserRepo) Create(user *domain.User) error           { return nil }
-func (m *mockUserRepo) Update(user *domain.User) error           { return nil }
-func (m *mockUserRepo) Delete(id uuid.UUID) error                { return nil }
-
-// mockUOW implements repository.UnitOfWork
-// Only UserRepository() is used in AuthService
-
-type mockUOW struct {
-	repo repository.UserRepository
-}
-
-func (m *mockUOW) Begin() error                                            { return nil }
-func (m *mockUOW) Commit() error                                           { return nil }
-func (m *mockUOW) Rollback() error                                         { return nil }
-func (m *mockUOW) AccountRepository() repository.AccountRepository         { return nil }
-func (m *mockUOW) TransactionRepository() repository.TransactionRepository { return nil }
-func (m *mockUOW) UserRepository() repository.UserRepository               { return m.repo }
 
 func TestCheckPasswordHash(t *testing.T) {
 	hash, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
@@ -70,8 +39,10 @@ func TestLogin_Success(t *testing.T) {
 	os.Setenv("JWT_SECRET_KEY", "testsecret") // nolint: errcheck
 	hash, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
 	user := &domain.User{ID: uuid.New(), Username: "user", Email: "user@example.com", Password: string(hash)}
-	repo := &mockUserRepo{userByEmail: user}
-	uow := &mockUOW{repo: repo}
+	repo := test.NewMockUserRepository(t)
+	repo.EXPECT().GetByEmail("user@example.com").Return(user, nil).Once()
+	uow := test.NewMockUnitOfWork(t)
+	uow.EXPECT().UserRepository().Return(repo).Once()
 	s := NewAuthService(func() (repository.UnitOfWork, error) { return uow, nil })
 	gotUser, token, err := s.Login("user@example.com", "password")
 	if err != nil || gotUser == nil || token == "" {
@@ -87,8 +58,11 @@ func TestLogin_Success(t *testing.T) {
 func TestLogin_InvalidPassword(t *testing.T) {
 	hash, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
 	user := &domain.User{ID: uuid.New(), Username: "user", Email: "user@example.com", Password: string(hash)}
-	repo := &mockUserRepo{userByEmail: user}
-	uow := &mockUOW{repo: repo}
+	repo := test.NewMockUserRepository(t)
+	repo.EXPECT().GetByEmail("user@example.com").Return(user, nil).Once()
+	uow := test.NewMockUnitOfWork(t)
+	uow.EXPECT().UserRepository().Return(repo).Once()
+
 	s := NewAuthService(func() (repository.UnitOfWork, error) { return uow, nil })
 	gotUser, token, err := s.Login("user@example.com", "wrong")
 	if err != nil || gotUser != nil || token != "" {
@@ -97,13 +71,18 @@ func TestLogin_InvalidPassword(t *testing.T) {
 }
 
 func TestLogin_UserNotFound(t *testing.T) {
-	repo := &mockUserRepo{userByEmail: nil}
-	uow := &mockUOW{repo: repo}
+	assert := assert.New(t)
+	repo := test.NewMockUserRepository(t)
+
+	repo.EXPECT().GetByEmail("notfound@example.com").Return(&domain.User{}, errors.New("user not found")).Once()
+	uow := test.NewMockUnitOfWork(t)
+	uow.EXPECT().UserRepository().Return(repo).Once()
+
 	s := NewAuthService(func() (repository.UnitOfWork, error) { return uow, nil })
 	gotUser, token, err := s.Login("notfound@example.com", "password")
-	if err != nil || gotUser != nil || token != "" {
-		t.Errorf("expected login fail, got err=%v user=%v token=%v", err, gotUser, token)
-	}
+	assert.Nil(gotUser)
+	assert.Empty(token)
+	assert.Error(err)
 }
 
 func TestLogin_UnitOfWorkError(t *testing.T) {
@@ -116,8 +95,15 @@ func TestLogin_UnitOfWorkError(t *testing.T) {
 
 func TestLogin_RepoError(t *testing.T) {
 	t.Parallel()
-	repo := &mockUserRepo{userByEmail: nil, getByEmailErr: errors.New("fail")}
-	uow := &mockUOW{repo: repo}
+	hash, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
+
+	repo := test.NewMockUserRepository(t)
+	user := &domain.User{ID: uuid.New(), Username: "user", Email: "user@example.com", Password: string(hash)}
+
+	repo.EXPECT().GetByEmail("user@example.com").Return(user, nil).Once()
+	uow := test.NewMockUnitOfWork(t)
+	uow.EXPECT().UserRepository().Return(repo).Once()
+
 	s := NewAuthService(func() (repository.UnitOfWork, error) { return uow, nil })
 	gotUser, token, err := s.Login("user@example.com", "password")
 	if err == nil || gotUser != nil || token != "" {
@@ -129,8 +115,11 @@ func TestLogin_JWTSignError(t *testing.T) {
 	t.Parallel()
 	hash, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
 	user := &domain.User{ID: uuid.New(), Username: "user", Email: "user@example.com", Password: string(hash)}
-	repo := &mockUserRepo{userByEmail: user}
-	uow := &mockUOW{repo: repo}
+	repo := test.NewMockUserRepository(t)
+	repo.EXPECT().GetByEmail("user@example.com").Return(user, nil).Once()
+	uow := test.NewMockUnitOfWork(t)
+	uow.EXPECT().UserRepository().Return(repo).Once()
+
 	s := NewAuthService(func() (repository.UnitOfWork, error) { return uow, nil })
 	os.Setenv("JWT_SECRET_KEY", "") // nolint: errcheck
 	gotUser, token, err := s.Login("user@example.com", "password")

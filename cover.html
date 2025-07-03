@@ -63,9 +63,9 @@
 				
 				<option value="file3">github.com/amirasaad/fintech/pkg/middleware/auth.go (75.0%)</option>
 				
-				<option value="file4">github.com/amirasaad/fintech/pkg/service/account.go (71.6%)</option>
+				<option value="file4">github.com/amirasaad/fintech/pkg/service/account.go (71.9%)</option>
 				
-				<option value="file5">github.com/amirasaad/fintech/pkg/service/auth.go (93.9%)</option>
+				<option value="file5">github.com/amirasaad/fintech/pkg/service/auth.go (87.9%)</option>
 				
 				<option value="file6">github.com/amirasaad/fintech/pkg/service/user.go (77.0%)</option>
 				
@@ -420,6 +420,7 @@ func (s *AccountService) Deposit(userID, accountID uuid.UUID, amount float64) (*
 
         <span class="cov8" title="1">a, err := uow.AccountRepository().Get(accountID)
         if err != nil </span><span class="cov8" title="1">{
+                _ = uow.Rollback()
                 return nil, domain.ErrAccountNotFound
         }</span>
         <span class="cov8" title="1">slog.Info("Deposit:", slog.Any("userID", userID), slog.Any("accountID", accountID), slog.Any("account.UserID", a.UserID))
@@ -591,7 +592,7 @@ func (s *AuthService) Login(identity, password string) (*domain.User, string, er
         if err != nil </span><span class="cov8" title="1">{
                 return nil, "", err
         }</span>
-        <span class="cov8" title="1">if user == nil </span><span class="cov8" title="1">{
+        <span class="cov8" title="1">if user == nil </span><span class="cov0" title="0">{
                 s.CheckPasswordHash(password, dummyHash)
                 return nil, "", nil
         }</span>
