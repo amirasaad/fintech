@@ -7,16 +7,9 @@ import (
 	"github.com/go-playground/validator"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/log"
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 )
 
-func validToken(t *jwt.Token, id uuid.UUID) bool {
-	claims := t.Claims.(jwt.MapClaims)
-	uid := claims["user_id"].(uuid.UUID)
-
-	return uid == id
-}
 func UserRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, error)) {
 	app.Get("/user/:id", middleware.Protected(), GetUser(uowFactory))
 	app.Post("/user", CreateUser(uowFactory))
@@ -61,19 +54,19 @@ func CreateUser(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler 
 
 		var newUser NewUser
 		if err := c.BodyParser(&newUser); err != nil {
-			return c.Status(500).JSON(fiber.Map{"status": "error", "message": "Review your input", "errors": err.Error()})
+			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Review your input", err.Error())
 		}
 		validate := validator.New()
 		if err := validate.Struct(newUser); err != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "Invalid request body", "errors": err.Error()})
+			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid request body", err.Error())
 		}
 		if len(newUser.Password) > 72 {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "Invalid request body", "errors": "Password too long"})
+			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid request body", "Password too long")
 		}
 		service := service.NewUserService(uowFactory)
 		user, err := service.CreateUser(newUser.Username, newUser.Email, newUser.Password)
 		if err != nil {
-			return c.Status(500).JSON(fiber.Map{"status": "error", "message": "Couldn't create user", "errors": err.Error()})
+			return ErrorResponseJSON(c, fiber.StatusInternalServerError, "Couldn't create user", err.Error())
 		}
 		return c.JSON(fiber.Map{"status": "success", "message": "Created user", "data": user})
 	}
@@ -96,21 +89,23 @@ func UpdateUser(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler 
 				"error": err.Error(),
 			})
 		}
-		token := c.Locals("user").(*jwt.Token)
-		if !validToken(token, id) {
-			return c.Status(500).JSON(fiber.Map{"status": "error", "message": "Invalid token id", "data": nil})
+		userID, err := GetCurrentUserId(c)
+		if err != nil {
+			log.Errorf("Failed to parse user ID from token: %v", err)
+			return ErrorResponseJSON(c, fiber.StatusUnauthorized, "invalid user ID", nil)
+		}
+		if id != userID {
+			return ErrorResponseJSON(c, fiber.StatusForbidden, "You are not allowed to update this user", nil)
 		}
 
 		service := service.NewUserService(uowFactory)
 		user, err := service.GetUser(id)
 		if err != nil {
-			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-				"error": err.Error(),
-			})
+			return ErrorResponseJSON(c, fiber.StatusNotFound, "User not found", nil)
 		}
 		err = service.UpdateUser(user)
 		if err != nil {
-			return c.Status(500).JSON(fiber.Map{"status": "error", "message": "Failed to update user", "data": nil})
+			return ErrorResponseJSON(c, fiber.StatusInternalServerError, "Failed to update user", err.Error())
 		}
 		return c.JSON(fiber.Map{"status": "success", "message": "User updated successfully", "data": user})
 	}
@@ -129,22 +124,24 @@ func DeleteUser(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler 
 		id, err := uuid.Parse(c.Params("id"))
 		if err != nil {
 			log.Errorf("Invalid account ID for deposit: %v", err)
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": err.Error(),
-			})
+			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid account ID", err.Error())
 		}
-		token := c.Locals("user").(*jwt.Token)
-		if !validToken(token, id) {
-			return c.Status(500).JSON(fiber.Map{"status": "error", "message": "Invalid token id", "data": nil})
+		userID, err := GetCurrentUserId(c)
+		if err != nil {
+			log.Errorf("Failed to parse user ID from token: %v", err)
+			return ErrorResponseJSON(c, fiber.StatusUnauthorized, "invalid user ID", nil)
+		}
+		if id != userID {
+			return ErrorResponseJSON(c, fiber.StatusForbidden, "You are not allowed to update this user", nil)
 		}
 		service := service.NewUserService(uowFactory)
 		if !service.ValidUser(id, pi.Password) {
-			return c.Status(500).JSON(fiber.Map{"status": "error", "message": "Not valid user", "data": nil})
+			return ErrorResponseJSON(c, fiber.StatusInternalServerError, "Not valid user", nil)
 		}
 
 		err = service.DeleteUser(id, pi.Password)
 		if err != nil {
-			return c.Status(500).JSON(fiber.Map{"status": "error", "message": "Failed to delete user", "data": nil})
+			return ErrorResponseJSON(c, fiber.StatusInternalServerError, "Failed to delete user", err.Error())
 		}
 		return c.JSON(fiber.Map{"status": "success", "message": "User successfully deleted", "data": nil})
 	}

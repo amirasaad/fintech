@@ -31,16 +31,14 @@ func CreateAccount(uowFactory func() (repository.UnitOfWork, error)) fiber.Handl
 		userID, err := GetCurrentUserId(c)
 		if err != nil {
 			log.Errorf("Failed to parse user ID from token: %v", err)
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid user ID"})
+			return ErrorResponseJSON(c, fiber.StatusUnauthorized, "invalid user ID", nil)
 		}
 		service := service.NewAccountService(uowFactory)
 		a, err := service.CreateAccount(userID)
 		if err != nil {
 			log.Errorf("Failed to create account: %v", err)
 			status := ErrorToStatusCode(err)
-			return c.Status(status).JSON(fiber.Map{
-				"error": err.Error(),
-			})
+			return ErrorResponseJSON(c, status, "Failed to create account", err.Error())
 		}
 
 		log.Infof("Account created: %+v", a)
@@ -53,14 +51,12 @@ func Deposit(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
 		userID, err := GetCurrentUserId(c)
 		if err != nil {
 			log.Errorf("Failed to parse user ID from token: %v", err)
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid user ID"})
+			return ErrorResponseJSON(c, fiber.StatusUnauthorized, "invalid user ID", nil)
 		}
 		id, err := uuid.Parse(c.Params("id"))
 		if err != nil {
 			log.Errorf("Invalid account ID for deposit: %v", err)
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": err.Error(),
-			})
+			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid account ID", err.Error())
 		}
 		type DepositRequest struct {
 			Amount float64 `json:"amount" xml:"amount" form:"amount"`
@@ -69,18 +65,14 @@ func Deposit(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
 		err = c.BodyParser(&request)
 		if err != nil {
 			log.Errorf("Failed to parse deposit request: %v", err)
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": err.Error(),
-			})
+			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Failed to parse deposit request", err.Error())
 		}
 
 		tx, err := service.Deposit(userID, id, request.Amount)
 		if err != nil {
 			log.Errorf("Failed to deposit: %v", err)
 			status := ErrorToStatusCode(err)
-			return c.Status(status).JSON(fiber.Map{
-				"error": err.Error(),
-			})
+			return ErrorResponseJSON(c, status, "Failed to deposit", err.Error())
 		}
 		return c.JSON(tx)
 	}
@@ -92,14 +84,12 @@ func Withdraw(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
 		userID, err := GetCurrentUserId(c)
 		if err != nil {
 			log.Errorf("Failed to parse user ID from token: %v", err)
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid user ID"})
+			return ErrorResponseJSON(c, fiber.StatusUnauthorized, "invalid user ID", nil)
 		}
 		id, err := uuid.Parse(c.Params("id"))
 		if err != nil {
 			log.Errorf("Invalid account ID for withdrawal: %v", err)
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": err.Error(),
-			})
+			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid account ID", err.Error())
 		}
 		type WithdrawRequest struct {
 			Amount float64 `json:"amount"`
@@ -108,17 +98,13 @@ func Withdraw(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
 		err = c.BodyParser(&request)
 		if err != nil {
 			log.Errorf("Failed to parse withdrawal request: %v", err)
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": err.Error(),
-			})
+			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Failed to parse withdrawal request", err.Error())
 		}
 		tx, err := service.Withdraw(userID, id, request.Amount)
 		if err != nil {
 			log.Errorf("Failed to withdraw: %v", err)
 			status := ErrorToStatusCode(err)
-			return c.Status(status).JSON(fiber.Map{
-				"error": err.Error(),
-			})
+			return ErrorResponseJSON(c, status, "Failed to withdraw", err.Error())
 		}
 		return c.JSON(tx)
 	}
@@ -130,23 +116,19 @@ func GetTransactions(uowFactory func() (repository.UnitOfWork, error)) fiber.Han
 		userID, err := GetCurrentUserId(c)
 		if err != nil {
 			log.Errorf("Failed to parse user ID from token: %v", err)
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid user ID"})
+			return ErrorResponseJSON(c, fiber.StatusUnauthorized, "invalid user ID", nil)
 		}
 		id, err := uuid.Parse(c.Params("id"))
 		if err != nil {
 			log.Errorf("Invalid account ID for transactions: %v", err)
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": err.Error(),
-			})
+			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid account ID", err.Error())
 		}
 
 		tx, err := service.GetTransactions(userID, id)
 		if err != nil {
 			log.Errorf("Failed to list transactions for account ID %s: %v", id, err)
 			status := ErrorToStatusCode(err)
-			return c.Status(status).JSON(fiber.Map{
-				"error": err.Error(),
-			})
+			return ErrorResponseJSON(c, status, "Failed to list transactions", err.Error())
 		}
 		return c.JSON(tx)
 	}
@@ -158,23 +140,19 @@ func GetBalance(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler 
 		userID, err := GetCurrentUserId(c)
 		if err != nil {
 			log.Errorf("Failed to parse user ID from token: %v", err)
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid user ID"})
+			return ErrorResponseJSON(c, fiber.StatusUnauthorized, "invalid user ID", nil)
 		}
 		id, err := uuid.Parse(c.Params("id"))
 		if err != nil {
 			log.Errorf("Invalid account ID for balance: %v", err)
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": err.Error(),
-			})
+			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid account ID", err.Error())
 		}
 
 		balance, err := service.GetBalance(userID, id)
 		if err != nil {
 			log.Errorf("Failed to fetch balance for account ID %s: %v", id, err)
 			status := ErrorToStatusCode(err)
-			return c.Status(status).JSON(fiber.Map{
-				"error": err.Error(),
-			})
+			return ErrorResponseJSON(c, status, "Failed to fetch balance", err.Error())
 		}
 		return c.Status(fiber.StatusOK).JSON(fiber.Map{
 			"balance": balance,

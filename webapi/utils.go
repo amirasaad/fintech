@@ -4,9 +4,38 @@ import (
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/log"
+
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 )
+
+// ProblemDetails follows RFC 9457 Problem Details for HTTP APIs.
+type ProblemDetails struct {
+	Type     string `json:"type,omitempty"`     // A URI reference that identifies the problem type
+	Title    string `json:"title"`              // Short, human-readable summary
+	Status   int    `json:"status"`             // HTTP status code
+	Detail   string `json:"detail,omitempty"`   // Human-readable explanation
+	Instance string `json:"instance,omitempty"` // URI reference that identifies the specific occurrence
+	Errors   any    `json:"errors,omitempty"`   // Optional: additional error details
+}
+
+// ErrorResponseJSON returns a response following RFC 9457 Problem Details
+func ErrorResponseJSON(c *fiber.Ctx, status int, title string, detail any) error {
+	pd := ProblemDetails{
+		Type:   "about:blank",
+		Title:  title,
+		Status: status,
+	}
+	if detail != nil {
+		if s, ok := detail.(string); ok {
+			pd.Detail = s
+		} else {
+			pd.Errors = detail
+		}
+	}
+	pd.Instance = c.OriginalURL()
+	return c.Status(status).JSON(pd)
+}
 
 // ErrorToStatusCode maps domain errors to appropriate HTTP status codes.
 func ErrorToStatusCode(err error) int {

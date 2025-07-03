@@ -37,14 +37,14 @@ func Login(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
 		input := new(LoginInput)
 
 		if err := c.BodyParser(input); err != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "error", "message": "Error on login request", "errors": err.Error()})
+			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Error on login request", err.Error())
 		}
 
 		identity := input.Identity
 		pass := input.Password
 		uow, err := uowFactory()
 		if err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "	error", "message": "Failed to create unit of work", "data": nil})
+			return ErrorResponseJSON(c, fiber.StatusInternalServerError, "Failed to create unit of work", err.Error())
 		}
 		defer uow.Rollback()
 		var user *domain.User
@@ -57,17 +57,17 @@ func Login(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
 		const dummyHash = "$2a$10$7zFqzDbD3RrlkMTczbXG9OWZ0FLOXjIxXzSZ.QZxkVXjXcx7QZQiC" // => Hashed " "
 
 		if err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "error", "message": "Internal Server Error", "data": err})
+			return ErrorResponseJSON(c, fiber.StatusInternalServerError, "Internal Server Error", err.Error())
 		}
 		if user == nil {
 			// Always perform a hash check, even if the user doesn't exist, to prevent timing attacks
 			CheckPasswordHash(pass, dummyHash)
 
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "error", "message": "Invalid identity or password", "data": err})
+			return ErrorResponseJSON(c, fiber.StatusUnauthorized, "Invalid identity or password", nil)
 		}
 
 		if !CheckPasswordHash(pass, user.Password) {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "error", "message": "Invalid identity or password", "data": nil})
+			return ErrorResponseJSON(c, fiber.StatusUnauthorized, "Invalid identity or password", nil)
 		}
 
 		token := jwt.New(jwt.SigningMethodHS256)
@@ -81,7 +81,7 @@ func Login(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
 		t, err := token.SignedString([]byte("SECRET"))
 
 		if err != nil {
-			return c.SendStatus(fiber.StatusInternalServerError)
+			return ErrorResponseJSON(c, fiber.StatusInternalServerError, "Failed to sign token", err.Error())
 		}
 
 		return c.JSON(fiber.Map{"status": "success", "message": "Success login", "token": t})
