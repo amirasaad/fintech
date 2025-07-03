@@ -218,7 +218,7 @@ func TestAccountWithdraw(t *testing.T) {
 	app, userRepo, accountRepo, transactionRepo, mockUow, testUser := setupTestApp(t)
 
 	testAccount := domain.NewAccount(testUser.ID)
-	testAccount.Deposit(testUser.ID, 1000)
+	_, _ = testAccount.Deposit(testUser.ID, 1000)
 	accountRepo.On("Get", mock.Anything).Return(testAccount, nil)
 	transactionRepo.On("Create", mock.Anything).Return(nil)
 	accountRepo.On("Update", mock.Anything).Return(nil)
@@ -580,7 +580,7 @@ func getTestToken(t *testing.T, app *fiber.App, userRepo *UserMockRepo, mockUow 
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	var result struct {
 		Token string `json:"token"`

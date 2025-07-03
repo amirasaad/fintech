@@ -151,7 +151,7 @@ func TestWithdraw_Success(t *testing.T) {
 	account := domain.NewAccount(userID)
 	accountRepo.account = account
 	// Deposit first
-	account.Deposit(userID, 100.0)
+	_, _ = account.Deposit(userID, 100.0)
 	accountRepo.On("Get", account.ID).Return(account, nil)
 	accountRepo.On("Update", mock.Anything).Return(nil)
 	transactionRepo.On("Create", mock.Anything).Return(nil)
@@ -227,7 +227,7 @@ func TestGetBalance_Success(t *testing.T) {
 	svc, accountRepo, _ := newServiceWithMocks()
 	userID := uuid.New()
 	account := domain.NewAccount(userID)
-	account.Deposit(userID, 123.45)
+	_, _ = account.Deposit(userID, 123.45)
 	accountRepo.account = account
 	accountRepo.On("Get", account.ID).Return(account, nil)
 

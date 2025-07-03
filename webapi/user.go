@@ -32,7 +32,6 @@ func GetUser(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{"status": "error", "message": "Failed to create unit of work", "data": nil})
 		}
-		defer uow.Rollback()
 
 		user, err := uow.UserRepository().Get(id)
 		if err != nil {
