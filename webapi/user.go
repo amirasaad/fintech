@@ -1,7 +1,7 @@
 package webapi
 
 import (
-	"github.com/amirasaad/fintech/middleware"
+	"github.com/amirasaad/fintech/pkg/middleware"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/amirasaad/fintech/pkg/service"
 	"github.com/go-playground/validator"

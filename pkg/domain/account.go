@@ -31,6 +31,7 @@ type Account struct {
 
 type Transaction struct {
 	ID        uuid.UUID
+	UserID    uuid.UUID
 	AccountID uuid.UUID
 	Amount    int64
 	Balance   int64 // Account balance snapshot
@@ -59,9 +60,10 @@ func NewAccountFromData(id, userID uuid.UUID, balance int64, created, updated ti
 	}
 }
 
-func NewTransactionFromData(id, accountID uuid.UUID, amount, balance int64, created time.Time) *Transaction {
+func NewTransactionFromData(id, userID, accountID uuid.UUID, amount, balance int64, created time.Time) *Transaction {
 	return &Transaction{
 		ID:        id,
+		UserID:    userID,
 		AccountID: accountID,
 		Amount:    amount,
 		Balance:   balance,
@@ -95,6 +97,7 @@ func (a *Account) Deposit(userID uuid.UUID, amount float64) (*Transaction, error
 	slog.Info("Balance after deposit", slog.Int64("balance", a.Balance))
 	transaction := Transaction{
 		ID:        uuid.New(),
+		UserID:    userID,
 		AccountID: a.ID,
 		Amount:    parsedAmount,
 		Balance:   a.Balance,
@@ -128,6 +131,7 @@ func (a *Account) Withdraw(userID uuid.UUID, amount float64) (*Transaction, erro
 	slog.Info("Balance after withdrawal", slog.Int64("balance", a.Balance))
 	transaction := Transaction{
 		ID:        uuid.New(),
+		UserID:    userID,
 		AccountID: a.ID,
 		Amount:    -parsedAmount,
 		Balance:   a.Balance,
