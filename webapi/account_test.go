@@ -139,7 +139,6 @@ func (m *MockUoW) TransactionRepository() repository.TransactionRepository {
 func setupCommonMocks(userRepo *UserMockRepo, mockUow *MockUoW, testUser *domain.User) {
 	userRepo.On("GetByUsername", "testuser").Return(testUser, nil)
 	// userRepo.On("GetByEmail", "test@example.com").Return(testUser, nil)
-	mockUow.On("Rollback").Return(nil)
 }
 
 func setupTestApp(t *testing.T) (*fiber.App, *UserMockRepo, *AccountMockRepo, *TransactionMockRepo, *MockUoW, *domain.User) {
@@ -195,7 +194,6 @@ func TestAccountDeposit(t *testing.T) {
 	accountRepo.On("Update", mock.Anything).Return(nil)
 	mockUow.On("Begin").Return(nil)
 	mockUow.On("Commit").Return(nil)
-	mockUow.On("Rollback").Return(nil)
 
 	depositBody := bytes.NewBuffer([]byte(`{"amount": 100.0}`))
 	req := httptest.NewRequest("POST", fmt.Sprintf("/account/%s/deposit", uuid.New()), depositBody)
@@ -226,7 +224,6 @@ func TestAccountWithdraw(t *testing.T) {
 	accountRepo.On("Update", mock.Anything).Return(nil)
 	mockUow.On("Begin").Return(nil)
 	mockUow.On("Commit").Return(nil)
-	mockUow.On("Rollback").Return(nil)
 
 	withdrawBody := bytes.NewBuffer([]byte(`{"amount": 100.0}`))
 	req := httptest.NewRequest("POST", fmt.Sprintf("/account/%s/withdraw", testAccount.ID), withdrawBody)
@@ -435,6 +432,7 @@ func TestGetTransactions(t *testing.T) {
 func TestAccountRoutesRollbackWhenCreateFails(t *testing.T) {
 	app, userRepo, accountRepo, transactionRepo, mockUow, testUser := setupTestApp(t)
 	mockUow.On("Begin").Return(nil)
+	mockUow.On("Rollback").Return(nil)
 	accountRepo.On("Create", mock.Anything).Return(errors.New("failed to create account"))
 	// Test the route
 	req := httptest.NewRequest("POST", "/account", nil)
@@ -454,6 +452,7 @@ func TestAccountRoutesRollbackWhenCreateFails(t *testing.T) {
 func TestAccountRoutesRollbackWhenDepositFails(t *testing.T) {
 	app, userRepo, accountRepo, transactionRepo, mockUow, testUser := setupTestApp(t)
 	mockUow.On("Begin").Return(nil)
+	mockUow.On("Rollback").Return(nil)
 	account := domain.NewAccount(testUser.ID)
 	accountRepo.On("Get", account.ID).Return(account, nil)
 	transactionRepo.On("Create", mock.Anything).Return(errors.New("failed to create transaction"))

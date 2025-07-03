@@ -61,20 +61,28 @@ func GetCurrentUserId(c *fiber.Ctx) (uuid.UUID, error) {
 	tokenVal := c.Locals("user")
 	if tokenVal == nil {
 		log.Error("Missing or invalid token")
-		return uuid.Nil, c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "missing or invalid token"})
+		return uuid.Nil, domain.ErrUserUnauthorized
 	}
 	token, ok := tokenVal.(*jwt.Token)
 	log.Infof("Token type: %T", token)
 	if !ok {
-		log.Errorf("Invalid token type %s", ok)
-		return uuid.Nil, c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid token type"})
+		log.Errorf("Invalid token type %v", tokenVal)
+		return uuid.Nil, domain.ErrUserUnauthorized
 	}
-	claims := token.Claims.(jwt.MapClaims)
-	userID, err := uuid.Parse(claims["user_id"].(string))
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		log.Errorf("Invalid claims type %v", token.Claims)
+		return uuid.Nil, domain.ErrUserUnauthorized
+	}
+	userIDRaw, ok := claims["user_id"].(string)
+	if !ok {
+		log.Error("user_id not found in claims or not a string")
+		return uuid.Nil, domain.ErrUserUnauthorized
+	}
+	userID, err := uuid.Parse(userIDRaw)
 	if err != nil {
 		log.Errorf("Failed to parse user ID from token: %v", err)
-		return uuid.Nil, c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid user ID"})
+		return uuid.Nil, domain.ErrUserUnauthorized
 	}
-
 	return userID, nil
 }

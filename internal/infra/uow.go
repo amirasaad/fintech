@@ -25,7 +25,7 @@ func NewGormUoW() (*UoW, error) {
 	}, nil
 }
 func (u *UoW) Begin() error {
-	slog.Info("Starting transaction")
+	slog.Info("UoW Begin()")
 	if u.session == nil {
 		slog.Error("Session is nil, cannot start transaction")
 		return fmt.Errorf("session is nil")
@@ -51,7 +51,7 @@ func (u *UoW) Begin() error {
 	return nil
 }
 func (u *UoW) Commit() error {
-	slog.Info("Committing transaction")
+	slog.Info("UoW Commit()")
 	if !u.started {
 		slog.Info("Transaction not started, nothing to commit")
 		return nil // No transaction to commit
@@ -66,7 +66,7 @@ func (u *UoW) Commit() error {
 	return err
 }
 func (u *UoW) Rollback() error {
-	slog.Info("Rolling back transaction")
+	slog.Info("UoW Rollback()")
 	if !u.started {
 		slog.Info("Transaction not started, nothing to rollback")
 		return nil // No transaction to rollback

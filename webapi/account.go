@@ -31,7 +31,8 @@ func CreateAccount(uowFactory func() (repository.UnitOfWork, error)) fiber.Handl
 		userID, err := GetCurrentUserId(c)
 		if err != nil {
 			log.Errorf("Failed to parse user ID from token: %v", err)
-			return ErrorResponseJSON(c, fiber.StatusUnauthorized, "invalid user ID", nil)
+			status := ErrorToStatusCode(err)
+			return ErrorResponseJSON(c, status, "invalid user ID", err.Error())
 		}
 		service := service.NewAccountService(uowFactory)
 		a, err := service.CreateAccount(userID)
@@ -51,7 +52,8 @@ func Deposit(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
 		userID, err := GetCurrentUserId(c)
 		if err != nil {
 			log.Errorf("Failed to parse user ID from token: %v", err)
-			return ErrorResponseJSON(c, fiber.StatusUnauthorized, "invalid user ID", nil)
+			status := ErrorToStatusCode(err)
+			return ErrorResponseJSON(c, status, "invalid user ID", err.Error())
 		}
 		id, err := uuid.Parse(c.Params("id"))
 		if err != nil {
@@ -84,7 +86,8 @@ func Withdraw(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
 		userID, err := GetCurrentUserId(c)
 		if err != nil {
 			log.Errorf("Failed to parse user ID from token: %v", err)
-			return ErrorResponseJSON(c, fiber.StatusUnauthorized, "invalid user ID", nil)
+			status := ErrorToStatusCode(err)
+			return ErrorResponseJSON(c, status, "invalid user ID", err.Error())
 		}
 		id, err := uuid.Parse(c.Params("id"))
 		if err != nil {
@@ -116,7 +119,8 @@ func GetTransactions(uowFactory func() (repository.UnitOfWork, error)) fiber.Han
 		userID, err := GetCurrentUserId(c)
 		if err != nil {
 			log.Errorf("Failed to parse user ID from token: %v", err)
-			return ErrorResponseJSON(c, fiber.StatusUnauthorized, "invalid user ID", nil)
+			status := ErrorToStatusCode(err)
+			return ErrorResponseJSON(c, status, "invalid user ID", err.Error())
 		}
 		id, err := uuid.Parse(c.Params("id"))
 		if err != nil {
@@ -140,7 +144,8 @@ func GetBalance(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler 
 		userID, err := GetCurrentUserId(c)
 		if err != nil {
 			log.Errorf("Failed to parse user ID from token: %v", err)
-			return ErrorResponseJSON(c, fiber.StatusUnauthorized, "invalid user ID", nil)
+			status := ErrorToStatusCode(err)
+			return ErrorResponseJSON(c, status, "invalid user ID", err.Error())
 		}
 		id, err := uuid.Parse(c.Params("id"))
 		if err != nil {

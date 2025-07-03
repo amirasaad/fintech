@@ -2,6 +2,7 @@ package webapi
 
 import (
 	"net/mail"
+	"os"
 	"time"
 
 	"github.com/amirasaad/fintech/pkg/domain"
@@ -46,7 +47,6 @@ func Login(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
 		if err != nil {
 			return ErrorResponseJSON(c, fiber.StatusInternalServerError, "Failed to create unit of work", err.Error())
 		}
-		defer uow.Rollback()
 		var user *domain.User
 		if valid(identity) {
 			user, err = uow.UserRepository().GetByEmail(identity)
@@ -75,10 +75,10 @@ func Login(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
 		claims := token.Claims.(jwt.MapClaims)
 		claims["username"] = user.Username
 		claims["email"] = user.Email
-		claims["user_id"] = user.ID
+		claims["user_id"] = user.ID.String()
 		claims["exp"] = time.Now().Add(time.Hour * 72).Unix()
 
-		t, err := token.SignedString([]byte("SECRET"))
+		t, err := token.SignedString([]byte(os.Getenv("JWT_SECRET_KEY")))
 
 		if err != nil {
 			return ErrorResponseJSON(c, fiber.StatusInternalServerError, "Failed to sign token", err.Error())
