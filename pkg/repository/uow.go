@@ -6,4 +6,5 @@ type UnitOfWork interface {
 	Rollback() error
 	AccountRepository() AccountRepository
 	TransactionRepository() TransactionRepository
+	UserRepository() UserRepository
 }

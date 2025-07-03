@@ -1,7 +1,7 @@
 openapi: 3.1.1
 info:
   title: Fintech
-  version: 1.0.0
+  version: 2.0.0
   description: Fintech API
 paths:
   /account:
@@ -16,8 +16,10 @@ paths:
                 $ref: "#/components/schemas/Account"
         500:
           description: Internal server error
-          schema:
-            $ref: "#/components/schemas/Error"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
   /account/{id}/deposit:
     post:
@@ -35,11 +37,10 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                amount:
-                  type: float
-                  description: Amount to deposit
+              type:
+                type: number
+                format: float
+                description: Amount to deposit
             examples:
               valid:
                 summary: valid deposit request
@@ -55,9 +56,17 @@ paths:
               schema:
                 $ref: "#/components/schemas/Transaction"
         400:
-          description: Invalid request
-          schema:
-            $ref: "#/components/schemas/Error"
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        422:
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         404:
           description: Account not found
           schema:
@@ -76,8 +85,8 @@ paths:
             required: true
             schema:
               type: string
-              format: uuid
-              description: Account ID
+              schema:
+                $ref: "#/components/schemas/WithdrawRequest"
         requestBody:
           required: true
           content:
@@ -97,7 +106,7 @@ paths:
             content:
               application/json:
                 schema:
-                  $ref: "#/components/schemas/Transaction"
+                  $ref: "#/components/schemas/Response"
           400:
             description: Invalid request
             schema:
@@ -194,8 +203,7 @@ components:
           format: date-time
           description: Account update date
     DepositRequest:
-      type: object
-      properties:
+      type:
         amount:
           type: float
           description: Amount to deposit
@@ -222,9 +230,38 @@ components:
           type: string
           format: date-time
           description: Transaction creation date
+    Response:
+      type: object
+      properties:
+        status:
+          type: int
+          description: HTTP status code
+        message:
+          type: string
+          description: Human-readable explanation
+        data:
+          type: object
+          description: Response data
+
     Error:
       type: object
       properties:
-        error:
+        type:
           type: string
-          description: Error message
+          description: A URI reference that identifies the problem type
+        title:
+          type: string
+          description: short, human-readable summary
+        status:
+          type: int
+          description: HTTP status code
+        detail:
+          type: string
+          description: Human-readable explanation
+        instance:
+          type: string
+          description: URI reference that identifies the specific occurrence
+        errors:
+          required: false
+          type: object
+          description: additional error details

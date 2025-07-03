@@ -15,5 +15,15 @@ type AccountRepository interface {
 type TransactionRepository interface {
 	Create(transaction *domain.Transaction) error
 	Get(id uuid.UUID) (*domain.Transaction, error)
-	List(accountID uuid.UUID) ([]*domain.Transaction, error)
+	List(userID, accountID uuid.UUID) ([]*domain.Transaction, error)
+}
+
+type UserRepository interface {
+	Get(id uuid.UUID) (*domain.User, error)
+	GetByUsername(username string) (*domain.User, error)
+	GetByEmail(email string) (*domain.User, error)
+	Valid(id uuid.UUID, password string) bool
+	Create(user *domain.User) error
+	Update(user *domain.User) error
+	Delete(id uuid.UUID) error
 }

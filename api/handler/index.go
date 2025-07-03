@@ -1,0 +1,32 @@
+package handler
+
+import (
+	"net/http"
+
+	"github.com/amirasaad/fintech/webapi"
+	"github.com/amirasaad/fintech/webapi/infra"
+
+	"github.com/amirasaad/fintech/pkg/repository"
+	"github.com/gofiber/fiber/v2/middleware/adaptor"
+)
+
+// Handler is the main entry point of the application. Think of it like the main() method
+func Handler(w http.ResponseWriter, r *http.Request) {
+	// This is needed to set the proper request path in `*fiber.Ctx`
+	r.RequestURI = r.URL.String()
+
+	handler().ServeHTTP(w, r)
+}
+
+// building the fiber application
+func handler() http.HandlerFunc {
+	db, err := infra.NewDBConnection()
+	if err != nil {
+		panic(err)
+	}
+	app := webapi.NewApp(func() (repository.UnitOfWork, error) {
+		return infra.NewGormUoW(db)
+	})
+
+	return adaptor.FiberApp(app)
+}

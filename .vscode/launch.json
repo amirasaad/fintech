@@ -13,6 +13,7 @@
             "env": {
                 "GO_ENV": "development",
                 "DATABASE_URL": "postgres://postgres:password@localhost:5432/fintech?sslmode=disable",
+                "JWT_SECRET_KEY": "SECRET"
             },
         }
     ]
