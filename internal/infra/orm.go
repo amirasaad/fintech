@@ -21,7 +21,7 @@ func (r *accountRepository) Get(id uuid.UUID) (*domain.Account, error) {
 	if result.Error != nil {
 		return nil, result.Error
 	}
-	return domain.NewAccountFromData(a.ID, uuid.New(), a.Balance, a.Created, a.Updated), nil
+	return domain.NewAccountFromData(a.ID, uuid.New(), a.Balance, a.CreatedAt, a.UpdatedAt), nil
 }
 
 func (r *accountRepository) Create(a *domain.Account) error {
@@ -75,18 +75,18 @@ func (r *transactionRepository) Get(id uuid.UUID) (*domain.Transaction, error) {
 	if result.Error != nil {
 		return nil, result.Error
 	}
-	return domain.NewTransactionFromData(t.ID, t.AccountID, t.Amount, t.Balance, t.Created), nil
+	return domain.NewTransactionFromData(t.ID, t.AccountID, t.Amount, t.Balance, t.CreatedAt), nil
 }
 
 func (r *transactionRepository) List(userID, accountID uuid.UUID) ([]*domain.Transaction, error) {
 	var dbTransactions []*Transaction
-	result := r.db.Where("account_id = ?", accountID).Order("created desc").Limit(100).Find(&dbTransactions)
+	result := r.db.Where("account_id = ? and user_id = ?", accountID, userID).Order("created desc").Limit(100).Find(&dbTransactions)
 	if result.Error != nil {
 		return nil, result.Error
 	}
 	tx := make([]*domain.Transaction, 0, len(dbTransactions))
 	for _, t := range dbTransactions {
-		tx = append(tx, domain.NewTransactionFromData(t.ID, t.AccountID, t.Amount, t.Balance, t.Created))
+		tx = append(tx, domain.NewTransactionFromData(t.ID, t.AccountID, t.Amount, t.Balance, t.CreatedAt))
 	}
 	return tx, nil
 }

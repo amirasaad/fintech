@@ -24,8 +24,8 @@ type Account struct {
 	ID      uuid.UUID
 	UserID  uuid.UUID
 	Balance int64
-	Created time.Time
-	Updated time.Time
+	CreatedAt time.Time
+	UpdatedAt time.Time
 	mu      sync.Mutex
 }
 
@@ -34,15 +34,15 @@ type Transaction struct {
 	AccountID uuid.UUID
 	Amount    int64
 	Balance   int64 // Account balance snapshot
-	Created   time.Time
+	CreatedAt   time.Time
 }
 
 func NewAccount(userID uuid.UUID) *Account {
 	return &Account{
 		ID:      uuid.New(),
 		UserID:  userID,
-		Created: time.Now(),
-		Updated: time.Now(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
 		Balance: 0,
 		mu:      sync.Mutex{},
 	}
@@ -53,8 +53,8 @@ func NewAccountFromData(id, userID uuid.UUID, balance int64, created, updated ti
 		ID:      id,
 		UserID:  userID,
 		Balance: balance,
-		Created: created,
-		Updated: updated,
+		CreatedAt: created,
+		UpdatedAt: updated,
 		mu:      sync.Mutex{},
 	}
 }
@@ -65,7 +65,7 @@ func NewTransactionFromData(id, accountID uuid.UUID, amount, balance int64, crea
 		AccountID: accountID,
 		Amount:    amount,
 		Balance:   balance,
-		Created:   created,
+		CreatedAt:   created,
 	}
 }
 
@@ -98,7 +98,7 @@ func (a *Account) Deposit(userID uuid.UUID, amount float64) (*Transaction, error
 		AccountID: a.ID,
 		Amount:    parsedAmount,
 		Balance:   a.Balance,
-		Created:   time.Now().UTC(),
+		CreatedAt:   time.Now().UTC(),
 	}
 	slog.Info("Transaction created", slog.Any("transaction", transaction))
 
@@ -131,7 +131,7 @@ func (a *Account) Withdraw(userID uuid.UUID, amount float64) (*Transaction, erro
 		AccountID: a.ID,
 		Amount:    -parsedAmount,
 		Balance:   a.Balance,
-		Created:   time.Now().UTC(),
+		CreatedAt:   time.Now().UTC(),
 	}
 	slog.Info("Transaction created:", slog.Any("transaction", transaction))
 

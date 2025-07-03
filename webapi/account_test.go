@@ -188,7 +188,9 @@ func TestAccountDeposit(t *testing.T) {
 
 	app, userRepo, accountRepo, transactionRepo, mockUow, testUser := setupTestApp(t)
 
-	accountRepo.On("Get", mock.Anything).Return(domain.NewAccount(testUser.ID), nil)
+	// Always return an account with the correct ID and UserID
+	testAccount := domain.NewAccount(testUser.ID)
+	accountRepo.On("Get", mock.Anything).Return(testAccount, nil)
 	transactionRepo.On("Create", mock.Anything).Return(nil)
 	accountRepo.On("Update", mock.Anything).Return(nil)
 	mockUow.On("Begin").Return(nil)
@@ -219,7 +221,6 @@ func TestAccountWithdraw(t *testing.T) {
 
 	testAccount := domain.NewAccount(testUser.ID)
 	testAccount.Deposit(testUser.ID, 1000)
-
 	accountRepo.On("Get", mock.Anything).Return(testAccount, nil)
 	transactionRepo.On("Create", mock.Anything).Return(nil)
 	accountRepo.On("Update", mock.Anything).Return(nil)
@@ -228,7 +229,7 @@ func TestAccountWithdraw(t *testing.T) {
 	mockUow.On("Rollback").Return(nil)
 
 	withdrawBody := bytes.NewBuffer([]byte(`{"amount": 100.0}`))
-	req := httptest.NewRequest("POST", fmt.Sprintf("/account/%s/withdraw", uuid.New()), withdrawBody)
+	req := httptest.NewRequest("POST", fmt.Sprintf("/account/%s/withdraw", testAccount.ID), withdrawBody)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+getTestToken(t, app, userRepo, mockUow, testUser))
 
@@ -313,8 +314,8 @@ func TestAccountRoutesTransactionList(t *testing.T) {
 	created1, _ := time.Parse(time.RFC3339, "2023-10-01T00:00:00Z")
 	created2, _ := time.Parse(time.RFC3339, "2023-10-02T00:00:00Z")
 	transactionRepo.On("List", testUser.ID, account.ID).Return([]*domain.Transaction{
-		{ID: uuid.New(), Amount: 100.0, Balance: 100.0, Created: created1},
-		{ID: uuid.New(), Amount: 50.0, Balance: 150.0, Created: created2},
+		{ID: uuid.New(), Amount: 100.0, Balance: 100.0, CreatedAt: created1},
+		{ID: uuid.New(), Amount: 50.0, Balance: 150.0, CreatedAt: created2},
 	}, nil)
 
 	req := httptest.NewRequest("GET", fmt.Sprintf("/account/%s/transactions", account.ID), nil)
@@ -503,16 +504,16 @@ func TestSimultaneousRequests(t *testing.T) {
 	wg.Add(numOperations * 2)
 	token := getTestToken(t, app, userRepo, mockUow, testUser)
 
-	for range numOperations {
+	for i := 0; i < numOperations; i++ {
 		go func() {
 			defer wg.Done()
 			depositBody := bytes.NewBuffer(fmt.Appendf(nil, `{"amount": %f}`, depositAmount))
-			req := httptest.NewRequest("POST", fmt.Sprintf("/account/%s/deposit", uuid.New()), depositBody)
+			req := httptest.NewRequest("POST", fmt.Sprintf("/account/%s/deposit", acc.ID), depositBody)
 			req.Header.Set("Content-Type", "application/json")
 			req.Header.Set("Authorization", "Bearer "+token)
 			resp, depositErr := app.Test(req)
 			if depositErr != nil {
-				t.Errorf("Deposit request failed: %v", err)
+				t.Errorf("Deposit request failed: %v", depositErr)
 				return
 			}
 			defer resp.Body.Close() //nolint:errcheck
@@ -523,12 +524,12 @@ func TestSimultaneousRequests(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			withdrawBody := bytes.NewBuffer(fmt.Appendf(nil, `{"amount": %f}`, withdrawAmount))
-			req := httptest.NewRequest("POST", fmt.Sprintf("/account/%s/withdraw", uuid.New()), withdrawBody)
+			req := httptest.NewRequest("POST", fmt.Sprintf("/account/%s/withdraw", acc.ID), withdrawBody)
 			req.Header.Set("Content-Type", "application/json")
 			req.Header.Set("Authorization", "Bearer "+token)
 			resp, withdrawErr := app.Test(req)
 			if withdrawErr != nil {
-				t.Errorf("Withdraw request failed: %v", err)
+				t.Errorf("Withdraw request failed: %v", withdrawErr)
 				return
 			}
 			defer resp.Body.Close() //nolint:errcheck
