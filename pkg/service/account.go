@@ -69,8 +69,6 @@ func (s *AccountService) Deposit(userID, accountID uuid.UUID, amount float64) (*
 		_ = uow.Rollback()
 		return nil, domain.ErrAccountNotFound
 	}
-	slog.Info("Deposit:", slog.Any("userID", userID), slog.Any("accountID", accountID), slog.Any("account.UserID", a.UserID))
-
 	tx, err := a.Deposit(userID, amount)
 	if err != nil {
 		_ = uow.Rollback()
