@@ -1,9 +1,18 @@
-// The `package handler` in this code snippet is defining a Go package that contains HTTP handler
-// functions for handling various account-related operations such as creating an account, depositing
-// funds, withdrawing funds, retrieving transactions, and checking the account balance. These handler
-// functions are responsible for processing incoming HTTP requests, interacting with the `service`
-// layer to perform the necessary business logic, and returning appropriate responses to the client.
-// The handlers are using the Fiber web framework for building the HTTP server and handling routing.
+// AccountRoutes registers HTTP routes for account-related operations using the Fiber web framework.
+// It sets up endpoints for creating accounts, depositing and withdrawing funds, retrieving account balances,
+// and listing account transactions. All routes are protected by authentication middleware and require a valid user context.
+//
+// Parameters:
+//   - app: The Fiber application instance to register routes on.
+//   - uowFactory: A factory function that returns a new UnitOfWork for database operations.
+//
+// Routes:
+//   - POST   /account                   : Create a new account for the authenticated user.
+//   - POST   /account/:id/deposit       : Deposit funds into the specified account.
+//   - POST   /account/:id/withdraw      : Withdraw funds from the specified account.
+//   - GET    /account/:id/balance       : Retrieve the balance of the specified account.
+//   - GET    /account/:id/transactions  : List transactions for the specified account.
+
 package webapi
 
 import (
@@ -23,8 +32,16 @@ func AccountRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, err
 	app.Get("/account/:id/transactions", middleware.Protected(), GetTransactions(uowFactory))
 }
 
-// The `AccountRoutes` function defines various HTTP routes for account-related operations using Fiber
-// in Go.
+// CreateAccount returns a Fiber handler for creating a new account for the current user.
+// It extracts the user ID from the request context, initializes the account service using the provided
+// UnitOfWork factory, and attempts to create a new account. On success, it returns the created account as JSON.
+// On failure, it logs the error and returns an appropriate error response.
+//
+// Parameters:
+//   - uowFactory: A function that returns a new instance of repository.UnitOfWork and an error.
+//
+// Returns:
+//   - fiber.Handler: The HTTP handler function for account creation.
 func CreateAccount(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		log.Infof("Creating new account")
@@ -46,6 +63,16 @@ func CreateAccount(uowFactory func() (repository.UnitOfWork, error)) fiber.Handl
 		return c.JSON(a)
 	}
 }
+
+// Deposit returns a Fiber handler for depositing an amount into a user's account.
+// It expects a UnitOfWork factory function as a dependency for transactional operations.
+// The handler parses the current user ID from the request context, validates the account ID from the URL,
+// and parses the deposit amount from the request body. If successful, it performs the deposit operation
+// using the AccountService and returns the transaction as JSON. On error, it logs the issue and returns
+// an appropriate JSON error response.
+//
+//	@param uowFactory A function that returns a new repository.UnitOfWork and error.
+//	@return fiber.Handler A Fiber handler function for processing deposit requests.
 func Deposit(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		service := service.NewAccountService(uowFactory)
@@ -80,6 +107,24 @@ func Deposit(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
 	}
 }
 
+// Withdraw returns a Fiber handler for processing account withdrawal requests.
+// It expects a UnitOfWork factory function as a dependency for transactional operations.
+//
+// The handler performs the following steps:
+//  1. Retrieves the current user ID from the request context.
+//  2. Parses the account ID from the route parameters.
+//  3. Parses the withdrawal amount from the request body.
+//  4. Calls the AccountService.Withdraw method to process the withdrawal.
+//  5. Returns the transaction details as a JSON response on success.
+//
+// Error responses are returned in JSON format with appropriate status codes
+// if any step fails (e.g., invalid user ID, invalid account ID, parsing errors, or withdrawal errors).
+//
+// Parameters:
+//   - uowFactory: A function that returns a new UnitOfWork and error.
+//
+// Returns:
+//   - fiber.Handler: The HTTP handler for the withdrawal endpoint.
 func Withdraw(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		service := service.NewAccountService(uowFactory)
@@ -113,6 +158,23 @@ func Withdraw(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
 	}
 }
 
+// GetTransactions returns a Fiber handler that retrieves the list of transactions for a specific account.
+// It expects a UnitOfWork factory function as a dependency for service instantiation.
+// The handler extracts the current user ID from the request context and parses the account ID from the URL parameters.
+// On success, it returns the transactions as a JSON response. On error, it logs the error and returns an appropriate JSON error response.
+//
+// Route parameters:
+//   - id: UUID of the account whose transactions are to be retrieved.
+//
+// Responses:
+//   - 200: JSON array of transactions
+//   - 400: Invalid account ID or user ID
+//   - 401/403: Unauthorized or forbidden
+//   - 500: Internal server error
+//
+// Example usage:
+//
+//	app.Get("/accounts/:id/transactions", GetTransactions(uowFactory))
 func GetTransactions(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		service := service.NewAccountService(uowFactory)

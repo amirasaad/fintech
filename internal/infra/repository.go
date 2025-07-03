@@ -35,6 +35,7 @@ func (r *accountRepository) Create(a *domain.Account) error {
 func (r *accountRepository) Update(a *domain.Account) error {
 	dbModel := domain.Account{
 		ID:      a.ID,
+		UserID:  a.UserID,
 		Balance: a.Balance,
 	}
 	result := r.db.Save(&dbModel)
