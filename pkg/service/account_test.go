@@ -4,9 +4,10 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/amirasaad/fintech/internal/fixtures"
+
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/repository"
-	"github.com/amirasaad/fintech/test"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -16,10 +17,10 @@ import (
 func newServiceWithMocks(t interface {
 	mock.TestingT
 	Cleanup(func())
-}) (scv *AccountService, accountRepo *test.MockAccountRepository, transactionRepo *test.MockTransactionRepository, uow *test.MockUnitOfWork) {
-	accountRepo = test.NewMockAccountRepository(t)
-	transactionRepo = test.NewMockTransactionRepository(t)
-	uow = test.NewMockUnitOfWork(t)
+}) (scv *AccountService, accountRepo *fixtures.MockAccountRepository, transactionRepo *fixtures.MockTransactionRepository, uow *fixtures.MockUnitOfWork) {
+	accountRepo = fixtures.NewMockAccountRepository(t)
+	transactionRepo = fixtures.NewMockTransactionRepository(t)
+	uow = fixtures.NewMockUnitOfWork(t)
 	svc := NewAccountService(func() (repository.UnitOfWork, error) { return uow, nil })
 	return svc, accountRepo, transactionRepo, uow
 }

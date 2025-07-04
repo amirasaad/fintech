@@ -2,11 +2,11 @@ package service
 
 import (
 	"errors"
+	"github.com/amirasaad/fintech/internal/fixtures"
 	"testing"
 
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/repository"
-	"github.com/amirasaad/fintech/test"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -16,9 +16,9 @@ import (
 func newUserServiceWithMocks(t interface {
 	mock.TestingT
 	Cleanup(func())
-}) (*UserService, *test.MockUserRepository, *test.MockUnitOfWork) {
-	userRepo := test.NewMockUserRepository(t)
-	uow := test.NewMockUnitOfWork(t)
+}) (*UserService, *fixtures.MockUserRepository, *fixtures.MockUnitOfWork) {
+	userRepo := fixtures.NewMockUserRepository(t)
+	uow := fixtures.NewMockUnitOfWork(t)
 	uow.EXPECT().UserRepository().Return(userRepo)
 	svc := NewUserService(func() (repository.UnitOfWork, error) { return uow, nil })
 	return svc, userRepo, uow

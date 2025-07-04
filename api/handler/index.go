@@ -3,10 +3,10 @@ package handler
 import (
 	"net/http"
 
-	"github.com/amirasaad/fintech/webapi"
-	"github.com/amirasaad/fintech/webapi/infra"
+	"github.com/amirasaad/fintech/infra"
 
 	"github.com/amirasaad/fintech/pkg/repository"
+	"github.com/amirasaad/fintech/webapi"
 	"github.com/gofiber/fiber/v2/middleware/adaptor"
 )
 

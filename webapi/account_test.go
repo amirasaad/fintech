@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/amirasaad/fintech/pkg/domain"
-	"github.com/amirasaad/fintech/test"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -140,7 +139,7 @@ func TestAccountRoutesFailureTransaction(t *testing.T) {
 	mockUow.On("Rollback").Return(nil)
 	accountRepo.On("Get", mock.Anything).Return(&domain.Account{Balance: 100.0, UserID: testUser.ID}, nil)
 
-	// test deposit negative amount
+	// fixtures deposit negative amount
 	req := httptest.NewRequest("POST", fmt.Sprintf("/account/%s/deposit", uuid.New()), bytes.NewBuffer([]byte(`{"amount": -100.0}`)))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+getTestToken(t, app, userRepo, mockUow, testUser))
@@ -149,7 +148,7 @@ func TestAccountRoutesFailureTransaction(t *testing.T) {
 	defer resp.Body.Close() //nolint:errcheck
 	assert.Equal(fiber.StatusBadRequest, resp.StatusCode)
 
-	// test withdraw negative amount
+	// fixtures withdraw negative amount
 	req = httptest.NewRequest("POST", fmt.Sprintf("/account/%s/withdraw", uuid.New()), bytes.NewBuffer([]byte(`{"amount": -100.0}`)))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+getTestToken(t, app, userRepo, mockUow, testUser))
@@ -331,35 +330,4 @@ func TestAccountRoutesRollbackWhenDepositFails(t *testing.T) {
 	accountRepo.AssertExpectations(t)
 	transactionRepo.AssertExpectations(t)
 
-}
-
-func getTestToken(t *testing.T, app *fiber.App, userRepo *test.MockUserRepository, mockUow *test.MockUnitOfWork, testUser *domain.User) string {
-	t.Helper()
-	mockUow.EXPECT().UserRepository().Return(userRepo)
-	userRepo.EXPECT().GetByUsername("testuser").Return(testUser, nil)
-	req := httptest.NewRequest("POST", "/login",
-		bytes.NewBuffer([]byte(`{"identity":"testuser","password":"password123"}`)))
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := app.Test(req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer resp.Body.Close() //nolint:errcheck
-
-	var result struct {
-		Data struct {
-			Token string `json:"token"`
-		} `json:"data"`
-	}
-	fmt.Println("Response status:", resp.StatusCode)
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := json.Unmarshal(bodyBytes, &result); err != nil {
-		t.Fatal(err)
-	}
-	token := result.Data.Token
-	return token
 }

@@ -2,7 +2,7 @@
 // github.com/vektra/mockery
 // template: testify
 
-package test
+package fixtures
 
 import (
 	"github.com/amirasaad/fintech/pkg/domain"

@@ -2,9 +2,9 @@ template: testify
 packages:
     github.com/amirasaad/fintech/pkg/repository:
         config:
-            dir: "test"
+            dir: "internal/fixtures"
             filename: "mocks.go"
-            pkgname: "test"
+            pkgname: "fixtures"
             structname: "Mock{{.InterfaceName}}"
         interfaces:
           TransactionRepository:
