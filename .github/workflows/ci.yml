@@ -13,7 +13,7 @@ permissions:
 jobs:
   lint:
     name: lint
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -36,6 +36,13 @@ jobs:
         run: go mod download
       - name: Build
         run: go build -v ./...
-      - name: Test with Go
-        run: go test ./...
+      - name: install gotestsum
+        run: go install gotest.tools/gotestsum@latest
+      - name: Run gotestsum
+        run: gotestsum --junitfile report.xml --format standard-quiet
+      - name: Test Summary
+        uses: test-summary/action@v2
+        with:
+          paths: "report.xml" # Or specify a glob pattern if you have multiple files
+        if: always() # Ensures the summary is displayed even if tests fail
 

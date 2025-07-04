@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 func TestRepository_AccountCreate(t *testing.T) {
@@ -17,7 +18,9 @@ func TestRepository_AccountCreate(t *testing.T) {
 		Conn:       mockDb,
 		DriverName: "postgres",
 	})
-	db, err := gorm.Open(dialector, &gorm.Config{})
+	db, err := gorm.Open(dialector, &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent),
+	})
 	assert.NoError(t, err)
 
 	accRepo := accountRepository{db: db}

@@ -7,6 +7,7 @@ import (
 	"github.com/go-playground/validator"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/log"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 )
 
@@ -78,10 +79,16 @@ func UpdateUser(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler 
 			log.Errorf("Invalid account ID for deposit: %v", err)
 			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid user ID", err.Error())
 		}
-		userID, err := GetCurrentUserId(c)
+		authSvc := service.NewAuthService(uowFactory)
+		token, ok := c.Locals("user").(*jwt.Token)
+		if !ok {
+			return ErrorResponseJSON(c, fiber.StatusUnauthorized, "unauthorized", "missing user context")
+		}
+		userID, err := authSvc.GetCurrentUserId(token)
 		if err != nil {
 			log.Errorf("Failed to parse user ID from token: %v", err)
-			return ErrorResponseJSON(c, fiber.StatusUnauthorized, "invalid user ID", nil)
+			status := ErrorToStatusCode(err)
+			return ErrorResponseJSON(c, status, "invalid user ID", err.Error())
 		}
 		if id != userID {
 			return ErrorResponseJSON(c, fiber.StatusForbidden, "You are not allowed to update this user", nil)
@@ -115,10 +122,16 @@ func DeleteUser(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler 
 			log.Errorf("Invalid account ID for deposit: %v", err)
 			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid user ID", err.Error())
 		}
-		userID, err := GetCurrentUserId(c)
+		authSvc := service.NewAuthService(uowFactory)
+		token, ok := c.Locals("user").(*jwt.Token)
+		if !ok {
+			return ErrorResponseJSON(c, fiber.StatusUnauthorized, "unauthorized", "missing user context")
+		}
+		userID, err := authSvc.GetCurrentUserId(token)
 		if err != nil {
 			log.Errorf("Failed to parse user ID from token: %v", err)
-			return ErrorResponseJSON(c, fiber.StatusUnauthorized, "invalid user ID", nil)
+			status := ErrorToStatusCode(err)
+			return ErrorResponseJSON(c, status, "invalid user ID", err.Error())
 		}
 		if id != userID {
 			return ErrorResponseJSON(c, fiber.StatusForbidden, "You are not allowed to update this user", nil)

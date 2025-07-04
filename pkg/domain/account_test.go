@@ -1,7 +1,11 @@
 package domain_test
 
 import (
+	"io"
+	"log"
+	"log/slog"
 	"math"
+	"os"
 	"sync"
 	"testing"
 
@@ -11,6 +15,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestMain runs before any tests and applies globally for all tests in the package.
+func TestMain(m *testing.M) {
+	slog.SetDefault(slog.New(slog.NewTextHandler(io.Discard, nil)))
+	log.SetOutput(io.Discard)
+
+	exitVal := m.Run()
+	os.Exit(exitVal)
+}
 func TestNewAccount(t *testing.T) {
 	assert := assert.New(t)
 

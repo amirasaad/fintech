@@ -5,7 +5,7 @@ COPY . .
 
 RUN go mod download
 # Optimize build by removing debug information and disable cross compilation
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /go/bin/fintech ./cmd
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /go/bin/fintech ./cmd/server/main.go
 
 FROM scratch
 

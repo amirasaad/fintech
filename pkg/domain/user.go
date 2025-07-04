@@ -1,11 +1,14 @@
 package domain
 
 import (
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
+
+var ErrUserNotFound = errors.New("user not found")
 
 type User struct {
 	ID        uuid.UUID `json:"id"`

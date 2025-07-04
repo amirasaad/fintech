@@ -11,6 +11,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/stretchr/testify v1.10.0
 	golang.org/x/crypto v0.37.0
+	golang.org/x/term v0.31.0
 	gorm.io/gorm v1.30.0
 )
 

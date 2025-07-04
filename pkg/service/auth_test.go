@@ -2,12 +2,12 @@ package service
 
 import (
 	"errors"
+	"github.com/amirasaad/fintech/internal/fixtures"
 	"os"
 	"testing"
 
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/repository"
-	"github.com/amirasaad/fintech/test"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -27,7 +27,7 @@ func TestCheckPasswordHash(t *testing.T) {
 
 func TestValidEmail(t *testing.T) {
 	s := &AuthService{}
-	if !s.ValidEmail("test@example.com") {
+	if !s.ValidEmail("fixtures@example.com") {
 		t.Error("expected valid email")
 	}
 	if s.ValidEmail("not-an-email") {
@@ -39,9 +39,9 @@ func TestLogin_Success(t *testing.T) {
 	os.Setenv("JWT_SECRET_KEY", "testsecret") // nolint: errcheck
 	hash, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
 	user := &domain.User{ID: uuid.New(), Username: "user", Email: "user@example.com", Password: string(hash)}
-	repo := test.NewMockUserRepository(t)
+	repo := fixtures.NewMockUserRepository(t)
 	repo.EXPECT().GetByEmail("user@example.com").Return(user, nil).Once()
-	uow := test.NewMockUnitOfWork(t)
+	uow := fixtures.NewMockUnitOfWork(t)
 	uow.EXPECT().UserRepository().Return(repo).Once()
 	s := NewAuthService(func() (repository.UnitOfWork, error) { return uow, nil })
 	gotUser, token, err := s.Login("user@example.com", "password")
@@ -58,9 +58,9 @@ func TestLogin_Success(t *testing.T) {
 func TestLogin_InvalidPassword(t *testing.T) {
 	hash, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
 	user := &domain.User{ID: uuid.New(), Username: "user", Email: "user@example.com", Password: string(hash)}
-	repo := test.NewMockUserRepository(t)
+	repo := fixtures.NewMockUserRepository(t)
 	repo.EXPECT().GetByEmail("user@example.com").Return(user, nil).Once()
-	uow := test.NewMockUnitOfWork(t)
+	uow := fixtures.NewMockUnitOfWork(t)
 	uow.EXPECT().UserRepository().Return(repo).Once()
 
 	s := NewAuthService(func() (repository.UnitOfWork, error) { return uow, nil })
@@ -72,10 +72,10 @@ func TestLogin_InvalidPassword(t *testing.T) {
 
 func TestLogin_UserNotFound(t *testing.T) {
 	assert := assert.New(t)
-	repo := test.NewMockUserRepository(t)
+	repo := fixtures.NewMockUserRepository(t)
 
 	repo.EXPECT().GetByEmail("notfound@example.com").Return(&domain.User{}, errors.New("user not found")).Once()
-	uow := test.NewMockUnitOfWork(t)
+	uow := fixtures.NewMockUnitOfWork(t)
 	uow.EXPECT().UserRepository().Return(repo).Once()
 
 	s := NewAuthService(func() (repository.UnitOfWork, error) { return uow, nil })
@@ -97,11 +97,11 @@ func TestLogin_RepoError(t *testing.T) {
 	t.Parallel()
 	hash, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
 
-	repo := test.NewMockUserRepository(t)
+	repo := fixtures.NewMockUserRepository(t)
 	user := &domain.User{ID: uuid.New(), Username: "user", Email: "user@example.com", Password: string(hash)}
 
 	repo.EXPECT().GetByEmail("user@example.com").Return(user, nil).Once()
-	uow := test.NewMockUnitOfWork(t)
+	uow := fixtures.NewMockUnitOfWork(t)
 	uow.EXPECT().UserRepository().Return(repo).Once()
 
 	s := NewAuthService(func() (repository.UnitOfWork, error) { return uow, nil })
@@ -115,9 +115,9 @@ func TestLogin_JWTSignError(t *testing.T) {
 	t.Parallel()
 	hash, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
 	user := &domain.User{ID: uuid.New(), Username: "user", Email: "user@example.com", Password: string(hash)}
-	repo := test.NewMockUserRepository(t)
+	repo := fixtures.NewMockUserRepository(t)
 	repo.EXPECT().GetByEmail("user@example.com").Return(user, nil).Once()
-	uow := test.NewMockUnitOfWork(t)
+	uow := fixtures.NewMockUnitOfWork(t)
 	uow.EXPECT().UserRepository().Return(repo).Once()
 
 	s := NewAuthService(func() (repository.UnitOfWork, error) { return uow, nil })
@@ -139,10 +139,10 @@ func BenchmarkCheckPasswordHash(b *testing.B) {
 func BenchmarkLogin_Success(b *testing.B) {
 	hash, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
 	user := &domain.User{ID: uuid.New(), Username: "user", Email: "user@example.com", Password: string(hash)}
-	repo := test.NewMockUserRepository(b)
+	repo := fixtures.NewMockUserRepository(b)
 
 	repo.EXPECT().GetByEmail("user@example.com").Return(user, nil).Maybe()
-	uow := test.NewMockUnitOfWork(b)
+	uow := fixtures.NewMockUnitOfWork(b)
 	uow.EXPECT().UserRepository().Return(repo).Maybe()
 	s := NewAuthService(func() (repository.UnitOfWork, error) { return uow, nil })
 	os.Setenv("JWT_SECRET_KEY", "testsecret") // nolint: errcheck
@@ -162,9 +162,9 @@ func BenchmarkValidEmail(b *testing.B) {
 func BenchmarkLogin_InvalidPassword(b *testing.B) {
 	hash, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
 	user := &domain.User{ID: uuid.New(), Username: "user", Email: "user@example.com", Password: string(hash)}
-	repo := test.NewMockUserRepository(b)
+	repo := fixtures.NewMockUserRepository(b)
 	repo.EXPECT().GetByEmail("user@example.com").Return(user, nil).Maybe()
-	uow := test.NewMockUnitOfWork(b)
+	uow := fixtures.NewMockUnitOfWork(b)
 	uow.EXPECT().UserRepository().Return(repo).Maybe()
 	s := NewAuthService(func() (repository.UnitOfWork, error) { return uow, nil })
 	os.Setenv("JWT_SECRET_KEY", "testsecret") // nolint: errcheck
@@ -175,9 +175,9 @@ func BenchmarkLogin_InvalidPassword(b *testing.B) {
 }
 
 func BenchmarkLogin_UserNotFound(b *testing.B) {
-	repo := test.NewMockUserRepository(b)
+	repo := fixtures.NewMockUserRepository(b)
 	repo.EXPECT().GetByEmail("notfound@example.com").Return(&domain.User{}, errors.New("user not found")).Maybe()
-	uow := test.NewMockUnitOfWork(b)
+	uow := fixtures.NewMockUnitOfWork(b)
 	uow.EXPECT().UserRepository().Return(repo).Maybe()
 	s := NewAuthService(func() (repository.UnitOfWork, error) { return uow, nil })
 	b.ResetTimer()
