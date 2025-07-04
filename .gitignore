@@ -4,3 +4,4 @@ cover.out
 **/__debug_*
 tmp
 .env.development.local
+report.xml
