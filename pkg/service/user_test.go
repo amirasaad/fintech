@@ -13,7 +13,10 @@ import (
 )
 
 // Helper to create a service with mocks
-func newUserServiceWithMocks(t *testing.T) (*UserService, *test.MockUserRepository, *test.MockUnitOfWork) {
+func newUserServiceWithMocks(t interface {
+	mock.TestingT
+	Cleanup(func())
+}) (*UserService, *test.MockUserRepository, *test.MockUnitOfWork) {
 	userRepo := test.NewMockUserRepository(t)
 	uow := test.NewMockUnitOfWork(t)
 	uow.EXPECT().UserRepository().Return(userRepo)
@@ -167,4 +170,25 @@ func TestValidUser_False(t *testing.T) {
 
 	ok := svc.ValidUser(id, "wrongpass")
 	assert.False(t, ok)
+}
+
+func BenchmarkCreateUser(b *testing.B) {
+	svc, userRepo, uow := newUserServiceWithMocks(&testing.T{})
+	uow.EXPECT().Begin().Return(nil).Maybe()
+	uow.EXPECT().Commit().Return(nil).Maybe()
+	userRepo.On("Create", mock.Anything).Return(nil).Maybe()
+	b.ResetTimer()
+	for b.Loop() {
+		_, _ = svc.CreateUser("benchuser", "bench@example.com", "password")
+	}
+}
+
+func BenchmarkValidUser(b *testing.B) {
+	svc, userRepo, _ := newUserServiceWithMocks(b)
+	id := uuid.New()
+	userRepo.On("Valid", id, "password").Return(true).Maybe()
+	b.ResetTimer()
+	for b.Loop() {
+		_ = svc.ValidUser(id, "password")
+	}
 }

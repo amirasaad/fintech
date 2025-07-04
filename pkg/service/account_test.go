@@ -13,7 +13,10 @@ import (
 )
 
 // Helper to create a service with mocks
-func newServiceWithMocks(t *testing.T) (scv *AccountService, accountRepo *test.MockAccountRepository, transactionRepo *test.MockTransactionRepository, uow *test.MockUnitOfWork) {
+func newServiceWithMocks(t interface {
+	mock.TestingT
+	Cleanup(func())
+}) (scv *AccountService, accountRepo *test.MockAccountRepository, transactionRepo *test.MockTransactionRepository, uow *test.MockUnitOfWork) {
 	accountRepo = test.NewMockAccountRepository(t)
 	transactionRepo = test.NewMockTransactionRepository(t)
 	uow = test.NewMockUnitOfWork(t)
@@ -206,4 +209,52 @@ func TestGetBalance_NotFound(t *testing.T) {
 	balance, err := svc.GetBalance(uuid.New(), uuid.New())
 	assert.Error(t, err)
 	assert.Equal(t, 0.0, balance)
+}
+
+func BenchmarkCreateAccount(b *testing.B) {
+	svc, accountRepo, _, uow := newServiceWithMocks(b)
+	uow.EXPECT().Begin().Return(nil).Maybe()
+	uow.EXPECT().Commit().Return(nil).Maybe()
+	uow.EXPECT().AccountRepository().Return(accountRepo).Maybe()
+	accountRepo.On("Create", mock.Anything).Return(nil).Maybe()
+	userID := uuid.New()
+	b.ResetTimer()
+	for b.Loop() {
+		_, _ = svc.CreateAccount(userID)
+	}
+}
+
+func BenchmarkDeposit(b *testing.B) {
+	svc, accountRepo, transactionRepo, uow := newServiceWithMocks(b)
+	uow.EXPECT().Begin().Return(nil).Maybe()
+	uow.EXPECT().Commit().Return(nil).Maybe()
+	uow.EXPECT().AccountRepository().Return(accountRepo).Maybe()
+	uow.EXPECT().TransactionRepository().Return(transactionRepo).Maybe()
+	userID := uuid.New()
+	account := domain.NewAccount(userID)
+	accountRepo.On("Get", account.ID).Return(account, nil).Maybe()
+	accountRepo.On("Update", mock.Anything).Return(nil).Maybe()
+	transactionRepo.On("Create", mock.Anything).Return(nil).Maybe()
+	b.ResetTimer()
+	for b.Loop() {
+		_, _ = svc.Deposit(userID, account.ID, 100.0)
+	}
+}
+
+func BenchmarkWithdraw(b *testing.B) {
+	svc, accountRepo, transactionRepo, uow := newServiceWithMocks(b)
+	uow.EXPECT().Begin().Return(nil).Maybe()
+	uow.EXPECT().Commit().Return(nil).Maybe()
+	uow.EXPECT().AccountRepository().Return(accountRepo).Maybe()
+	uow.EXPECT().TransactionRepository().Return(transactionRepo).Maybe()
+	userID := uuid.New()
+	account := domain.NewAccount(userID)
+	_, _ = account.Deposit(userID, float64(50*b.N))
+	accountRepo.On("Get", account.ID).Return(account, nil).Maybe()
+	accountRepo.On("Update", mock.Anything).Return(nil).Maybe()
+	transactionRepo.On("Create", mock.Anything).Return(nil).Maybe()
+	b.ResetTimer()
+	for b.Loop() {
+		_, _ = svc.Withdraw(userID, account.ID, 50.0)
+	}
 }

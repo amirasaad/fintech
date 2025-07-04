@@ -127,3 +127,61 @@ func TestLogin_JWTSignError(t *testing.T) {
 		t.Errorf("expected JWT sign error, got err=%v user=%v token=%v", err, gotUser, token)
 	}
 }
+
+func BenchmarkCheckPasswordHash(b *testing.B) {
+	hash, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
+	s := &AuthService{}
+	for b.Loop() {
+		s.CheckPasswordHash("password", string(hash))
+	}
+}
+
+func BenchmarkLogin_Success(b *testing.B) {
+	hash, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
+	user := &domain.User{ID: uuid.New(), Username: "user", Email: "user@example.com", Password: string(hash)}
+	repo := test.NewMockUserRepository(b)
+
+	repo.EXPECT().GetByEmail("user@example.com").Return(user, nil).Maybe()
+	uow := test.NewMockUnitOfWork(b)
+	uow.EXPECT().UserRepository().Return(repo).Maybe()
+	s := NewAuthService(func() (repository.UnitOfWork, error) { return uow, nil })
+	os.Setenv("JWT_SECRET_KEY", "testsecret") // nolint: errcheck
+	b.ResetTimer()
+	for b.Loop() {
+		_, _, _ = s.Login("user@example.com", "password")
+	}
+}
+
+func BenchmarkValidEmail(b *testing.B) {
+	s := &AuthService{}
+	for b.Loop() {
+		_ = s.ValidEmail("user@example.com")
+	}
+}
+
+func BenchmarkLogin_InvalidPassword(b *testing.B) {
+	hash, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
+	user := &domain.User{ID: uuid.New(), Username: "user", Email: "user@example.com", Password: string(hash)}
+	repo := test.NewMockUserRepository(b)
+	repo.EXPECT().GetByEmail("user@example.com").Return(user, nil).Maybe()
+	uow := test.NewMockUnitOfWork(b)
+	uow.EXPECT().UserRepository().Return(repo).Maybe()
+	s := NewAuthService(func() (repository.UnitOfWork, error) { return uow, nil })
+	os.Setenv("JWT_SECRET_KEY", "testsecret") // nolint: errcheck
+	b.ResetTimer()
+	for b.Loop() {
+		_, _, _ = s.Login("user@example.com", "wrong")
+	}
+}
+
+func BenchmarkLogin_UserNotFound(b *testing.B) {
+	repo := test.NewMockUserRepository(b)
+	repo.EXPECT().GetByEmail("notfound@example.com").Return(&domain.User{}, errors.New("user not found")).Maybe()
+	uow := test.NewMockUnitOfWork(b)
+	uow.EXPECT().UserRepository().Return(repo).Maybe()
+	s := NewAuthService(func() (repository.UnitOfWork, error) { return uow, nil })
+	b.ResetTimer()
+	for b.Loop() {
+		_, _, _ = s.Login("notfound@example.com", "password")
+	}
+}
