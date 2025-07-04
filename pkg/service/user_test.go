@@ -2,8 +2,9 @@ package service
 
 import (
 	"errors"
-	"github.com/amirasaad/fintech/internal/fixtures"
 	"testing"
+
+	fixtures "github.com/amirasaad/fintech/internal/fixtures/repository"
 
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/repository"

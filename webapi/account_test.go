@@ -330,3 +330,165 @@ func TestAccountRoutesRollbackWhenDepositFails(t *testing.T) {
 	}
 
 }
+
+func TestCreateAccount_Unauthorized(t *testing.T) {
+	app, _, _, _, _, _ := SetupTestApp(t)
+	req := httptest.NewRequest("POST", "/account", nil)
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	assert.Equal(t, fiber.StatusUnauthorized, resp.StatusCode)
+}
+
+func TestCreateAccount_InvalidUserID(t *testing.T) {
+	app, userRepo, _, _, mockUow, testUser := SetupTestApp(t)
+	mockUow.EXPECT().UserRepository().Return(userRepo).Once()
+	userRepo.EXPECT().GetByUsername("testuser").Return(testUser, nil).Once()
+	mockUow.EXPECT().Begin().Return(errors.New("uow error")).Once()
+
+	req := httptest.NewRequest("POST", "/account", nil)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+getTestToken(t, app, userRepo, mockUow, testUser))
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	assert.Equal(t, fiber.StatusInternalServerError, resp.StatusCode)
+}
+
+func TestDeposit_Unauthorized(t *testing.T) {
+	app, _, _, _, _, _ := SetupTestApp(t)
+	req := httptest.NewRequest("POST", fmt.Sprintf("/account/%s/deposit", uuid.New()), nil)
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	assert.Equal(t, fiber.StatusUnauthorized, resp.StatusCode)
+}
+
+func TestDeposit_InvalidAccountID(t *testing.T) {
+	app, userRepo, _, _, mockUow, testUser := SetupTestApp(t)
+	mockUow.EXPECT().UserRepository().Return(userRepo).Once()
+	userRepo.EXPECT().GetByUsername("testuser").Return(testUser, nil).Once()
+
+	depositBody := bytes.NewBuffer([]byte(`{"amount": 100.0}`))
+	req := httptest.NewRequest("POST", "/account/invalid-uuid/deposit", depositBody)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+getTestToken(t, app, userRepo, mockUow, testUser))
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	assert.Equal(t, fiber.StatusBadRequest, resp.StatusCode)
+}
+
+func TestDeposit_InvalidBody(t *testing.T) {
+	app, userRepo, _, _, mockUow, testUser := SetupTestApp(t)
+	mockUow.EXPECT().UserRepository().Return(userRepo).Once()
+	userRepo.EXPECT().GetByUsername("testuser").Return(testUser, nil).Once()
+
+	depositBody := bytes.NewBuffer([]byte(`{"amount":"invalid"}`)) // Invalid body
+	req := httptest.NewRequest("POST", fmt.Sprintf("/account/%s/deposit", uuid.New()), depositBody)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+getTestToken(t, app, userRepo, mockUow, testUser))
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	assert.Equal(t, fiber.StatusBadRequest, resp.StatusCode)
+}
+
+func TestWithdraw_Unauthorized(t *testing.T) {
+	app, _, _, _, _, _ := SetupTestApp(t)
+	req := httptest.NewRequest("POST", fmt.Sprintf("/account/%s/withdraw", uuid.New()), nil)
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	assert.Equal(t, fiber.StatusUnauthorized, resp.StatusCode)
+}
+
+func TestWithdraw_InvalidAccountID(t *testing.T) {
+	app, userRepo, _, _, mockUow, testUser := SetupTestApp(t)
+	mockUow.EXPECT().UserRepository().Return(userRepo).Once()
+	userRepo.EXPECT().GetByUsername("testuser").Return(testUser, nil).Once()
+
+	withdrawBody := bytes.NewBuffer([]byte(`{"amount": 100.0}`))
+	req := httptest.NewRequest("POST", "/account/invalid-uuid/withdraw", withdrawBody)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+getTestToken(t, app, userRepo, mockUow, testUser))
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	assert.Equal(t, fiber.StatusBadRequest, resp.StatusCode)
+}
+
+func TestWithdraw_InvalidBody(t *testing.T) {
+	app, userRepo, _, _, mockUow, testUser := SetupTestApp(t)
+	mockUow.EXPECT().UserRepository().Return(userRepo).Once()
+	userRepo.EXPECT().GetByUsername("testuser").Return(testUser, nil).Once()
+
+	withdrawBody := bytes.NewBuffer([]byte(`{"amount":"invalid"}`)) // Invalid body
+	req := httptest.NewRequest("POST", fmt.Sprintf("/account/%s/withdraw", uuid.New()), withdrawBody)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+getTestToken(t, app, userRepo, mockUow, testUser))
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	assert.Equal(t, fiber.StatusBadRequest, resp.StatusCode)
+}
+
+func TestGetTransactions_Unauthorized(t *testing.T) {
+	app, _, _, _, _, _ := SetupTestApp(t)
+	req := httptest.NewRequest("GET", fmt.Sprintf("/account/%s/transactions", uuid.New()), nil)
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	assert.Equal(t, fiber.StatusUnauthorized, resp.StatusCode)
+}
+
+func TestGetTransactions_InvalidAccountID(t *testing.T) {
+	app, userRepo, _, _, mockUow, testUser := SetupTestApp(t)
+	mockUow.EXPECT().UserRepository().Return(userRepo).Once()
+	userRepo.EXPECT().GetByUsername("testuser").Return(testUser, nil).Once()
+
+	req := httptest.NewRequest("GET", "/account/invalid-uuid/transactions", nil)
+	req.Header.Set("Authorization", "Bearer "+getTestToken(t, app, userRepo, mockUow, testUser))
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	assert.Equal(t, fiber.StatusBadRequest, resp.StatusCode)
+}
+
+func TestGetTransactions_InternalServerError(t *testing.T) {
+	app, userRepo, _, transactionRepo, mockUow, testUser := SetupTestApp(t)
+	mockUow.EXPECT().UserRepository().Return(userRepo).Once()
+	userRepo.EXPECT().GetByUsername("testuser").Return(testUser, nil).Once()
+	mockUow.EXPECT().TransactionRepository().Return(transactionRepo).Once()
+	transactionRepo.On("List", mock.Anything, mock.Anything).Return(nil, errors.New("db error")).Once()
+
+	req := httptest.NewRequest("GET", fmt.Sprintf("/account/%s/transactions", uuid.New()), nil)
+	req.Header.Set("Authorization", "Bearer "+getTestToken(t, app, userRepo, mockUow, testUser))
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	assert.Equal(t, fiber.StatusInternalServerError, resp.StatusCode)
+}
+
+func TestGetBalance_Unauthorized(t *testing.T) {
+	app, _, _, _, _, _ := SetupTestApp(t)
+	req := httptest.NewRequest("GET", fmt.Sprintf("/account/%s/balance", uuid.New()), nil)
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	assert.Equal(t, fiber.StatusUnauthorized, resp.StatusCode)
+}
+
+func TestGetBalance_InvalidAccountID(t *testing.T) {
+	app, userRepo, _, _, mockUow, testUser := SetupTestApp(t)
+	mockUow.EXPECT().UserRepository().Return(userRepo).Once()
+	userRepo.EXPECT().GetByUsername("testuser").Return(testUser, nil).Once()
+
+	req := httptest.NewRequest("GET", "/account/invalid-uuid/balance", nil)
+	req.Header.Set("Authorization", "Bearer "+getTestToken(t, app, userRepo, mockUow, testUser))
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	assert.Equal(t, fiber.StatusBadRequest, resp.StatusCode)
+}
+
+func TestGetBalance_InternalServerError(t *testing.T) {
+	app, userRepo, accountRepo, _, mockUow, testUser := SetupTestApp(t)
+	mockUow.EXPECT().UserRepository().Return(userRepo).Once()
+	userRepo.EXPECT().GetByUsername("testuser").Return(testUser, nil).Once()
+	mockUow.EXPECT().AccountRepository().Return(accountRepo).Once()
+	accountRepo.On("Get", mock.Anything).Return(nil, errors.New("db error")).Once()
+
+	req := httptest.NewRequest("GET", fmt.Sprintf("/account/%s/balance", uuid.New()), nil)
+	req.Header.Set("Authorization", "Bearer "+getTestToken(t, app, userRepo, mockUow, testUser))
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	assert.Equal(t, fiber.StatusInternalServerError, resp.StatusCode)
+}

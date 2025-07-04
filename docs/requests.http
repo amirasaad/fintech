@@ -1,5 +1,4 @@
-@host = http://localhost:3000
-### Create User
+@host = https://fintech-beryl-beta.vercel.app
 POST {{host}}/user HTTP/1.1
 Content-Type: application/json
 

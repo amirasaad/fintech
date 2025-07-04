@@ -2,10 +2,10 @@ package service
 
 import (
 	"errors"
-	"github.com/amirasaad/fintech/internal/fixtures"
 	"os"
 	"testing"
 
+	fixtures "github.com/amirasaad/fintech/internal/fixtures/repository"
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/golang-jwt/jwt/v5"
