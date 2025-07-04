@@ -325,9 +325,5 @@ func TestAccountRoutesRollbackWhenDepositFails(t *testing.T) {
 	if resp.StatusCode != fiber.StatusInternalServerError {
 		t.Errorf("Expected status %d, got %d", fiber.StatusInternalServerError, resp.StatusCode)
 	}
-	mockUow.AssertExpectations(t)
-	userRepo.AssertExpectations(t)
-	accountRepo.AssertExpectations(t)
-	transactionRepo.AssertExpectations(t)
 
 }

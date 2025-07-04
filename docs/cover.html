@@ -3,7 +3,7 @@
 <html>
 	<head>
 		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-		<title>cli: Go Coverage Report</title>
+		<title>cmd: Go Coverage Report</title>
 		<style>
 			body {
 				background: black;
@@ -55,41 +55,37 @@
 			<div id="nav">
 				<select id="files">
 				
-				<option value="file0">github.com/amirasaad/fintech/cmd/cli/main.go (0.0%)</option>
+				<option value="file0">github.com/amirasaad/fintech/cmd/server.go (0.0%)</option>
 				
-				<option value="file1">github.com/amirasaad/fintech/cmd/server/main.go (0.0%)</option>
+				<option value="file1">github.com/amirasaad/fintech/pkg/domain/account.go (94.9%)</option>
 				
-				<option value="file2">github.com/amirasaad/fintech/infra/database.go (30.0%)</option>
+				<option value="file2">github.com/amirasaad/fintech/pkg/domain/user.go (0.0%)</option>
 				
-				<option value="file3">github.com/amirasaad/fintech/infra/repository.go (13.2%)</option>
+				<option value="file3">github.com/amirasaad/fintech/pkg/middleware/auth.go (75.0%)</option>
 				
-				<option value="file4">github.com/amirasaad/fintech/infra/uow.go (13.5%)</option>
+				<option value="file4">github.com/amirasaad/fintech/pkg/service/account.go (71.6%)</option>
 				
-				<option value="file5">github.com/amirasaad/fintech/internal/fixtures/mocks.go (0.0%)</option>
+				<option value="file5">github.com/amirasaad/fintech/pkg/service/auth.go (87.9%)</option>
 				
-				<option value="file6">github.com/amirasaad/fintech/pkg/domain/account.go (94.9%)</option>
+				<option value="file6">github.com/amirasaad/fintech/pkg/service/user.go (77.0%)</option>
 				
-				<option value="file7">github.com/amirasaad/fintech/pkg/domain/user.go (0.0%)</option>
+				<option value="file7">github.com/amirasaad/fintech/webapi/account.go (70.0%)</option>
 				
-				<option value="file8">github.com/amirasaad/fintech/pkg/middleware/auth.go (75.0%)</option>
+				<option value="file8">github.com/amirasaad/fintech/webapi/app.go (61.5%)</option>
 				
-				<option value="file9">github.com/amirasaad/fintech/pkg/service/account.go (71.6%)</option>
+				<option value="file9">github.com/amirasaad/fintech/webapi/auth.go (76.9%)</option>
 				
-				<option value="file10">github.com/amirasaad/fintech/pkg/service/auth.go (87.9%)</option>
+				<option value="file10">github.com/amirasaad/fintech/webapi/infra/database.go (30.0%)</option>
 				
-				<option value="file11">github.com/amirasaad/fintech/pkg/service/user.go (77.0%)</option>
+				<option value="file11">github.com/amirasaad/fintech/webapi/infra/repository.go (13.2%)</option>
 				
-				<option value="file12">github.com/amirasaad/fintech/webapi/account.go (70.0%)</option>
+				<option value="file12">github.com/amirasaad/fintech/webapi/infra/uow.go (13.5%)</option>
 				
-				<option value="file13">github.com/amirasaad/fintech/webapi/app.go (61.5%)</option>
+				<option value="file13">github.com/amirasaad/fintech/webapi/testutils.go (100.0%)</option>
 				
-				<option value="file14">github.com/amirasaad/fintech/webapi/auth.go (76.9%)</option>
+				<option value="file14">github.com/amirasaad/fintech/webapi/user.go (10.8%)</option>
 				
-				<option value="file15">github.com/amirasaad/fintech/webapi/testutils.go (90.3%)</option>
-				
-				<option value="file16">github.com/amirasaad/fintech/webapi/user.go (35.1%)</option>
-				
-				<option value="file17">github.com/amirasaad/fintech/webapi/utils.go (63.2%)</option>
+				<option value="file15">github.com/amirasaad/fintech/webapi/utils.go (63.2%)</option>
 				
 				</select>
 			</div>
@@ -106,1551 +102,26 @@
 		<pre class="file" id="file0" style="display: none">package main
 
 import (
-        "fmt"
-        "github.com/amirasaad/fintech/infra"
-        "os"
-
-        "github.com/amirasaad/fintech/pkg/domain"
-        "github.com/amirasaad/fintech/pkg/repository"
-        "github.com/amirasaad/fintech/pkg/service"
-        "github.com/google/uuid"
-        "gorm.io/driver/sqlite"
-        "gorm.io/gorm"
-)
-
-func main() <span class="cov0" title="0">{
-        argsLen := len(os.Args)
-        if argsLen &lt; 2 </span><span class="cov0" title="0">{
-                println("cmd is required")
-                return
-        }</span>
-        <span class="cov0" title="0">cmd := os.Args[1]
-        println(fmt.Sprintf("argsLen: %d", argsLen))
-        println(fmt.Sprintf("cmd: %s", cmd))
-        dialector := sqlite.Open("fixtures.db")
-
-        db, err := gorm.Open(dialector, &amp;gorm.Config{})
-        db.AutoMigrate(&amp;domain.Account{}, &amp;domain.Transaction{})
-        scv := service.NewAccountService(func() (repository.UnitOfWork, error) </span><span class="cov0" title="0">{
-                return infra.NewGormUoW(db)
-        }</span>)
-        <span class="cov0" title="0">var account *domain.Account
-        switch cmd </span>{
-        case "create":<span class="cov0" title="0">
-                account, err = scv.CreateAccount(uuid.New())</span>
-        }
-        <span class="cov0" title="0">if err != nil </span><span class="cov0" title="0">{
-                println("An error occurred", err)
-                return
-        }</span>
-        <span class="cov0" title="0">println(account)</span>
-}
-</pre>
-		
-		<pre class="file" id="file1" style="display: none">package main
-
-import (
-        infra2 "github.com/amirasaad/fintech/infra"
         "log"
 
         "github.com/amirasaad/fintech/pkg/repository"
         "github.com/amirasaad/fintech/webapi"
+        "github.com/amirasaad/fintech/webapi/infra"
 )
 
 func main() <span class="cov0" title="0">{
-        db, err := infra2.NewDBConnection()
+        db, err := infra.NewDBConnection()
         if err != nil </span><span class="cov0" title="0">{
                 log.Fatal(err)
         }</span>
         <span class="cov0" title="0">log.Fatal(webapi.NewApp(func() (repository.UnitOfWork, error) </span><span class="cov0" title="0">{
-                return infra2.NewGormUoW(db)
+                return infra.NewGormUoW(db)
         }</span>).Listen(":3000"))
 
 }
 </pre>
 		
-		<pre class="file" id="file2" style="display: none">package infra
-
-import (
-        "errors"
-        "os"
-
-        "gorm.io/driver/postgres"
-        "gorm.io/gorm"
-)
-
-func NewDBConnection() (*gorm.DB, error) <span class="cov8" title="1">{
-        databaseUrl := os.Getenv("DATABASE_URL")
-        if databaseUrl == "" </span><span class="cov8" title="1">{
-                return nil, errors.New("DATABASE_URL is not set")
-        }</span>
-        <span class="cov0" title="0">connection, err := gorm.Open(postgres.Open(databaseUrl), &amp;gorm.Config{SkipDefaultTransaction: true})
-        if err != nil </span><span class="cov0" title="0">{
-                return nil, err
-        }</span>
-        <span class="cov0" title="0">err = connection.AutoMigrate(&amp;Account{}, &amp;Transaction{}, &amp;User{})
-        if err != nil </span><span class="cov0" title="0">{
-                return nil, err
-        }</span>
-        <span class="cov0" title="0">return connection, nil</span>
-}
-</pre>
-		
-		<pre class="file" id="file3" style="display: none">package infra
-
-import (
-        "github.com/amirasaad/fintech/pkg/domain"
-        "github.com/amirasaad/fintech/pkg/repository"
-        "github.com/google/uuid"
-        "gorm.io/gorm"
-)
-
-type accountRepository struct {
-        db *gorm.DB
-}
-
-func NewAccountRepository(db *gorm.DB) repository.AccountRepository <span class="cov8" title="1">{
-        return &amp;accountRepository{db: db}
-}</span>
-
-func (r *accountRepository) Get(id uuid.UUID) (*domain.Account, error) <span class="cov8" title="1">{
-        var a domain.Account
-        result := r.db.First(&amp;a, id)
-        if result.Error != nil </span><span class="cov8" title="1">{
-                return nil, result.Error
-        }</span>
-        <span class="cov0" title="0">return domain.NewAccountFromData(a.ID, a.UserID, a.Balance, a.CreatedAt, a.UpdatedAt), nil</span>
-}
-
-func (r *accountRepository) Create(a *domain.Account) error <span class="cov8" title="1">{
-        result := r.db.Create(a)
-        if result.Error != nil </span><span class="cov8" title="1">{
-                return result.Error
-        }</span>
-        <span class="cov0" title="0">return nil</span>
-}
-
-func (r *accountRepository) Update(a *domain.Account) error <span class="cov0" title="0">{
-        dbModel := domain.Account{
-                ID:      a.ID,
-                UserID:  a.UserID,
-                Balance: a.Balance,
-        }
-        result := r.db.Save(&amp;dbModel)
-        if result.Error != nil </span><span class="cov0" title="0">{
-                return result.Error
-        }</span>
-        <span class="cov0" title="0">return nil</span>
-}
-
-func (r *accountRepository) Delete(id uuid.UUID) error <span class="cov0" title="0">{
-        result := r.db.Delete(&amp;Account{}, id)
-        if result.Error != nil </span><span class="cov0" title="0">{
-                return result.Error
-        }</span>
-        <span class="cov0" title="0">return nil</span>
-}
-
-type transactionRepository struct {
-        db *gorm.DB
-}
-
-func NewTransactionRepository(db *gorm.DB) repository.TransactionRepository <span class="cov8" title="1">{
-        return &amp;transactionRepository{db: db}
-}</span>
-
-func (r *transactionRepository) Create(transaction *domain.Transaction) error <span class="cov0" title="0">{
-
-        result := r.db.Create(transaction)
-        if result.Error != nil </span><span class="cov0" title="0">{
-                return result.Error
-        }</span>
-        <span class="cov0" title="0">return nil</span>
-}
-
-func (r *transactionRepository) Get(id uuid.UUID) (*domain.Transaction, error) <span class="cov0" title="0">{
-        var t Transaction
-        result := r.db.First(&amp;t, id)
-        if result.Error != nil </span><span class="cov0" title="0">{
-                return nil, result.Error
-        }</span>
-        <span class="cov0" title="0">return domain.NewTransactionFromData(t.ID, t.UserID, t.AccountID, t.Amount, t.Balance, t.CreatedAt), nil</span>
-}
-
-func (r *transactionRepository) List(userID, accountID uuid.UUID) ([]*domain.Transaction, error) <span class="cov0" title="0">{
-        var dbTransactions []*Transaction
-        result := r.db.Where("account_id = ? and user_id = ?", accountID, userID).Order("created_at desc").Limit(100).Find(&amp;dbTransactions)
-        if result.Error != nil </span><span class="cov0" title="0">{
-                return nil, result.Error
-        }</span>
-        <span class="cov0" title="0">tx := make([]*domain.Transaction, 0, len(dbTransactions))
-        for _, t := range dbTransactions </span><span class="cov0" title="0">{
-                tx = append(tx, domain.NewTransactionFromData(t.ID, t.UserID, t.AccountID, t.Amount, t.Balance, t.CreatedAt))
-        }</span>
-        <span class="cov0" title="0">return tx, nil</span>
-}
-
-type userRepository struct {
-        db *gorm.DB
-}
-
-// Valid implements repository.UserRepository.
-func (u *userRepository) Valid(id uuid.UUID, password string) bool <span class="cov0" title="0">{
-        var user domain.User
-        result := u.db.Where("id = ? AND password = ?", id, password).First(&amp;user)
-        return result.Error == nil
-}</span>
-
-// Create implements repository.UserRepository.
-func (u *userRepository) Create(user *domain.User) error <span class="cov0" title="0">{
-        result := u.db.Create(user)
-        if result.Error != nil </span><span class="cov0" title="0">{
-                return result.Error
-        }</span>
-        <span class="cov0" title="0">return nil</span>
-}
-
-// Delete implements repository.UserRepository.
-func (u *userRepository) Delete(id uuid.UUID) error <span class="cov0" title="0">{
-        result := u.db.Delete(&amp;domain.User{}, id)
-        if result.Error != nil </span><span class="cov0" title="0">{
-                return result.Error
-        }</span>
-        <span class="cov0" title="0">return nil</span>
-}
-
-// Get implements repository.UserRepository.
-func (u *userRepository) Get(id uuid.UUID) (*domain.User, error) <span class="cov0" title="0">{
-        var user domain.User
-        result := u.db.First(&amp;user, id)
-        if result.Error != nil </span><span class="cov0" title="0">{
-                return nil, result.Error
-        }</span>
-        <span class="cov0" title="0">return &amp;user, nil</span>
-}
-
-// GetByEmail implements repository.UserRepository.
-func (u *userRepository) GetByEmail(email string) (*domain.User, error) <span class="cov0" title="0">{
-        var user domain.User
-        result := u.db.Where("email = ?", email).First(&amp;user)
-        if result.Error != nil </span><span class="cov0" title="0">{
-                return nil, result.Error
-        }</span>
-        <span class="cov0" title="0">return &amp;user, nil</span>
-}
-
-// GetByUsername implements repository.UserRepository.
-func (u *userRepository) GetByUsername(username string) (*domain.User, error) <span class="cov0" title="0">{
-        var user domain.User
-        result := u.db.Where("username = ?", username).First(&amp;user)
-        if result.Error != nil </span><span class="cov0" title="0">{
-                return nil, result.Error
-        }</span>
-        <span class="cov0" title="0">return &amp;user, nil</span>
-}
-
-// Update implements repository.UserRepository.
-func (u *userRepository) Update(user *domain.User) error <span class="cov0" title="0">{
-        result := u.db.Save(user)
-        if result.Error != nil </span><span class="cov0" title="0">{
-                return result.Error
-        }</span>
-        <span class="cov0" title="0">return nil</span>
-}
-
-func NewUserRepository(db *gorm.DB) repository.UserRepository <span class="cov0" title="0">{
-        return &amp;userRepository{db: db}
-}</span>
-</pre>
-		
-		<pre class="file" id="file4" style="display: none">package infra
-
-import (
-        "fmt"
-        "log/slog"
-
-        "github.com/amirasaad/fintech/pkg/repository"
-        "gorm.io/gorm"
-)
-
-type UoW struct {
-        session *gorm.DB
-        started bool
-}
-
-func NewGormUoW(dbConn *gorm.DB) (*UoW, error) <span class="cov8" title="1">{
-
-        return &amp;UoW{
-                session: dbConn,
-                started: false,
-        }, nil
-}</span>
-func (u *UoW) Begin() error <span class="cov0" title="0">{
-        slog.Info("UoW Begin()")
-        if u.session == nil </span><span class="cov0" title="0">{
-                slog.Error("Session is nil, cannot start transaction")
-                return fmt.Errorf("session is nil")
-        }</span>
-        <span class="cov0" title="0">if u.started </span><span class="cov0" title="0">{
-                slog.Info("Transaction already started")
-                return nil // Transaction already started
-        }</span>
-        <span class="cov0" title="0">slog.Info("Starting new transaction")
-        tx := u.session.Begin()
-        defer func() </span><span class="cov0" title="0">{
-                if r := recover(); r != nil </span><span class="cov0" title="0">{
-                        tx.Rollback()
-                }</span>
-        }()
-        <span class="cov0" title="0">if tx.Error != nil </span><span class="cov0" title="0">{
-                slog.Error("Failed to start transaction", slog.Any("error", tx.Error))
-                return tx.Error
-        }</span>
-        <span class="cov0" title="0">slog.Info("Transaction started successfully")
-        u.session = tx
-        u.started = true
-        return nil</span>
-}
-func (u *UoW) Commit() error <span class="cov0" title="0">{
-        slog.Info("UoW Commit()")
-        if !u.started </span><span class="cov0" title="0">{
-                slog.Info("Transaction not started, nothing to commit")
-                return nil // No transaction to commit
-        }</span>
-        <span class="cov0" title="0">err := u.session.Commit().Error
-        if err != nil </span><span class="cov0" title="0">{
-                slog.Error("Failed to commit transaction", slog.Any("error", err))
-        }</span> else<span class="cov0" title="0"> {
-                u.started = true
-                slog.Info("Transaction committed successfully")
-        }</span>
-        <span class="cov0" title="0">return err</span>
-}
-func (u *UoW) Rollback() error <span class="cov0" title="0">{
-        slog.Info("UoW Rollback()")
-        if !u.started </span><span class="cov0" title="0">{
-                slog.Info("Transaction not started, nothing to rollback")
-                return nil // No transaction to rollback
-        }</span>
-        <span class="cov0" title="0">err := u.session.Rollback().Error
-        if err != nil </span><span class="cov0" title="0">{
-                slog.Error("Failed to rollback transaction", slog.Any("error", err))
-        }</span> else<span class="cov0" title="0"> {
-                u.started = false
-                slog.Info("Transaction rolled back successfully")
-        }</span>
-        <span class="cov0" title="0">return err</span>
-}
-
-func (u *UoW) AccountRepository() repository.AccountRepository <span class="cov8" title="1">{
-        if !u.started </span><span class="cov8" title="1">{
-                db, _ := NewDBConnection()
-                return NewAccountRepository(db)
-        }</span>
-        <span class="cov0" title="0">return NewAccountRepository(u.session)</span>
-}
-func (u *UoW) TransactionRepository() repository.TransactionRepository <span class="cov8" title="1">{
-        if !u.started </span><span class="cov8" title="1">{
-                db, _ := NewDBConnection()
-                return NewTransactionRepository(db)
-        }</span>
-        <span class="cov0" title="0">return NewTransactionRepository(u.session)</span>
-}
-
-func (u *UoW) UserRepository() repository.UserRepository <span class="cov0" title="0">{
-        if !u.started </span><span class="cov0" title="0">{
-                db, _ := NewDBConnection()
-                return NewUserRepository(db)
-        }</span>
-        <span class="cov0" title="0">return NewUserRepository(u.session)</span>
-}
-</pre>
-		
-		<pre class="file" id="file5" style="display: none">// Code generated by mockery; DO NOT EDIT.
-// github.com/vektra/mockery
-// template: testify
-
-package fixtures
-
-import (
-        "github.com/amirasaad/fintech/pkg/domain"
-        "github.com/amirasaad/fintech/pkg/repository"
-        "github.com/google/uuid"
-        mock "github.com/stretchr/testify/mock"
-)
-
-// NewMockAccountRepository creates a new instance of MockAccountRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
-// The first argument is typically a *testing.T value.
-func NewMockAccountRepository(t interface {
-        mock.TestingT
-        Cleanup(func())
-}) *MockAccountRepository <span class="cov0" title="0">{
-        mock := &amp;MockAccountRepository{}
-        mock.Mock.Test(t)
-
-        t.Cleanup(func() </span><span class="cov0" title="0">{ mock.AssertExpectations(t) }</span>)
-
-        <span class="cov0" title="0">return mock</span>
-}
-
-// MockAccountRepository is an autogenerated mock type for the AccountRepository type
-type MockAccountRepository struct {
-        mock.Mock
-}
-
-type MockAccountRepository_Expecter struct {
-        mock *mock.Mock
-}
-
-func (_m *MockAccountRepository) EXPECT() *MockAccountRepository_Expecter <span class="cov0" title="0">{
-        return &amp;MockAccountRepository_Expecter{mock: &amp;_m.Mock}
-}</span>
-
-// Create provides a mock function for the type MockAccountRepository
-func (_mock *MockAccountRepository) Create(account *domain.Account) error <span class="cov0" title="0">{
-        ret := _mock.Called(account)
-
-        if len(ret) == 0 </span><span class="cov0" title="0">{
-                panic("no return value specified for Create")</span>
-        }
-
-        <span class="cov0" title="0">var r0 error
-        if returnFunc, ok := ret.Get(0).(func(*domain.Account) error); ok </span><span class="cov0" title="0">{
-                r0 = returnFunc(account)
-        }</span> else<span class="cov0" title="0"> {
-                r0 = ret.Error(0)
-        }</span>
-        <span class="cov0" title="0">return r0</span>
-}
-
-// MockAccountRepository_Create_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Create'
-type MockAccountRepository_Create_Call struct {
-        *mock.Call
-}
-
-// Create is a helper method to define mock.On call
-//   - account *domain.Account
-func (_e *MockAccountRepository_Expecter) Create(account interface{}) *MockAccountRepository_Create_Call <span class="cov0" title="0">{
-        return &amp;MockAccountRepository_Create_Call{Call: _e.mock.On("Create", account)}
-}</span>
-
-func (_c *MockAccountRepository_Create_Call) Run(run func(account *domain.Account)) *MockAccountRepository_Create_Call <span class="cov0" title="0">{
-        _c.Call.Run(func(args mock.Arguments) </span><span class="cov0" title="0">{
-                var arg0 *domain.Account
-                if args[0] != nil </span><span class="cov0" title="0">{
-                        arg0 = args[0].(*domain.Account)
-                }</span>
-                <span class="cov0" title="0">run(
-                        arg0,
-                )</span>
-        })
-        <span class="cov0" title="0">return _c</span>
-}
-
-func (_c *MockAccountRepository_Create_Call) Return(err error) *MockAccountRepository_Create_Call <span class="cov0" title="0">{
-        _c.Call.Return(err)
-        return _c
-}</span>
-
-func (_c *MockAccountRepository_Create_Call) RunAndReturn(run func(account *domain.Account) error) *MockAccountRepository_Create_Call <span class="cov0" title="0">{
-        _c.Call.Return(run)
-        return _c
-}</span>
-
-// Delete provides a mock function for the type MockAccountRepository
-func (_mock *MockAccountRepository) Delete(id uuid.UUID) error <span class="cov0" title="0">{
-        ret := _mock.Called(id)
-
-        if len(ret) == 0 </span><span class="cov0" title="0">{
-                panic("no return value specified for Delete")</span>
-        }
-
-        <span class="cov0" title="0">var r0 error
-        if returnFunc, ok := ret.Get(0).(func(uuid.UUID) error); ok </span><span class="cov0" title="0">{
-                r0 = returnFunc(id)
-        }</span> else<span class="cov0" title="0"> {
-                r0 = ret.Error(0)
-        }</span>
-        <span class="cov0" title="0">return r0</span>
-}
-
-// MockAccountRepository_Delete_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Delete'
-type MockAccountRepository_Delete_Call struct {
-        *mock.Call
-}
-
-// Delete is a helper method to define mock.On call
-//   - id uuid.UUID
-func (_e *MockAccountRepository_Expecter) Delete(id interface{}) *MockAccountRepository_Delete_Call <span class="cov0" title="0">{
-        return &amp;MockAccountRepository_Delete_Call{Call: _e.mock.On("Delete", id)}
-}</span>
-
-func (_c *MockAccountRepository_Delete_Call) Run(run func(id uuid.UUID)) *MockAccountRepository_Delete_Call <span class="cov0" title="0">{
-        _c.Call.Run(func(args mock.Arguments) </span><span class="cov0" title="0">{
-                var arg0 uuid.UUID
-                if args[0] != nil </span><span class="cov0" title="0">{
-                        arg0 = args[0].(uuid.UUID)
-                }</span>
-                <span class="cov0" title="0">run(
-                        arg0,
-                )</span>
-        })
-        <span class="cov0" title="0">return _c</span>
-}
-
-func (_c *MockAccountRepository_Delete_Call) Return(err error) *MockAccountRepository_Delete_Call <span class="cov0" title="0">{
-        _c.Call.Return(err)
-        return _c
-}</span>
-
-func (_c *MockAccountRepository_Delete_Call) RunAndReturn(run func(id uuid.UUID) error) *MockAccountRepository_Delete_Call <span class="cov0" title="0">{
-        _c.Call.Return(run)
-        return _c
-}</span>
-
-// Get provides a mock function for the type MockAccountRepository
-func (_mock *MockAccountRepository) Get(id uuid.UUID) (*domain.Account, error) <span class="cov0" title="0">{
-        ret := _mock.Called(id)
-
-        if len(ret) == 0 </span><span class="cov0" title="0">{
-                panic("no return value specified for Get")</span>
-        }
-
-        <span class="cov0" title="0">var r0 *domain.Account
-        var r1 error
-        if returnFunc, ok := ret.Get(0).(func(uuid.UUID) (*domain.Account, error)); ok </span><span class="cov0" title="0">{
-                return returnFunc(id)
-        }</span>
-        <span class="cov0" title="0">if returnFunc, ok := ret.Get(0).(func(uuid.UUID) *domain.Account); ok </span><span class="cov0" title="0">{
-                r0 = returnFunc(id)
-        }</span> else<span class="cov0" title="0"> {
-                if ret.Get(0) != nil </span><span class="cov0" title="0">{
-                        r0 = ret.Get(0).(*domain.Account)
-                }</span>
-        }
-        <span class="cov0" title="0">if returnFunc, ok := ret.Get(1).(func(uuid.UUID) error); ok </span><span class="cov0" title="0">{
-                r1 = returnFunc(id)
-        }</span> else<span class="cov0" title="0"> {
-                r1 = ret.Error(1)
-        }</span>
-        <span class="cov0" title="0">return r0, r1</span>
-}
-
-// MockAccountRepository_Get_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Get'
-type MockAccountRepository_Get_Call struct {
-        *mock.Call
-}
-
-// Get is a helper method to define mock.On call
-//   - id uuid.UUID
-func (_e *MockAccountRepository_Expecter) Get(id interface{}) *MockAccountRepository_Get_Call <span class="cov0" title="0">{
-        return &amp;MockAccountRepository_Get_Call{Call: _e.mock.On("Get", id)}
-}</span>
-
-func (_c *MockAccountRepository_Get_Call) Run(run func(id uuid.UUID)) *MockAccountRepository_Get_Call <span class="cov0" title="0">{
-        _c.Call.Run(func(args mock.Arguments) </span><span class="cov0" title="0">{
-                var arg0 uuid.UUID
-                if args[0] != nil </span><span class="cov0" title="0">{
-                        arg0 = args[0].(uuid.UUID)
-                }</span>
-                <span class="cov0" title="0">run(
-                        arg0,
-                )</span>
-        })
-        <span class="cov0" title="0">return _c</span>
-}
-
-func (_c *MockAccountRepository_Get_Call) Return(account *domain.Account, err error) *MockAccountRepository_Get_Call <span class="cov0" title="0">{
-        _c.Call.Return(account, err)
-        return _c
-}</span>
-
-func (_c *MockAccountRepository_Get_Call) RunAndReturn(run func(id uuid.UUID) (*domain.Account, error)) *MockAccountRepository_Get_Call <span class="cov0" title="0">{
-        _c.Call.Return(run)
-        return _c
-}</span>
-
-// Update provides a mock function for the type MockAccountRepository
-func (_mock *MockAccountRepository) Update(account *domain.Account) error <span class="cov0" title="0">{
-        ret := _mock.Called(account)
-
-        if len(ret) == 0 </span><span class="cov0" title="0">{
-                panic("no return value specified for Update")</span>
-        }
-
-        <span class="cov0" title="0">var r0 error
-        if returnFunc, ok := ret.Get(0).(func(*domain.Account) error); ok </span><span class="cov0" title="0">{
-                r0 = returnFunc(account)
-        }</span> else<span class="cov0" title="0"> {
-                r0 = ret.Error(0)
-        }</span>
-        <span class="cov0" title="0">return r0</span>
-}
-
-// MockAccountRepository_Update_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Update'
-type MockAccountRepository_Update_Call struct {
-        *mock.Call
-}
-
-// Update is a helper method to define mock.On call
-//   - account *domain.Account
-func (_e *MockAccountRepository_Expecter) Update(account interface{}) *MockAccountRepository_Update_Call <span class="cov0" title="0">{
-        return &amp;MockAccountRepository_Update_Call{Call: _e.mock.On("Update", account)}
-}</span>
-
-func (_c *MockAccountRepository_Update_Call) Run(run func(account *domain.Account)) *MockAccountRepository_Update_Call <span class="cov0" title="0">{
-        _c.Call.Run(func(args mock.Arguments) </span><span class="cov0" title="0">{
-                var arg0 *domain.Account
-                if args[0] != nil </span><span class="cov0" title="0">{
-                        arg0 = args[0].(*domain.Account)
-                }</span>
-                <span class="cov0" title="0">run(
-                        arg0,
-                )</span>
-        })
-        <span class="cov0" title="0">return _c</span>
-}
-
-func (_c *MockAccountRepository_Update_Call) Return(err error) *MockAccountRepository_Update_Call <span class="cov0" title="0">{
-        _c.Call.Return(err)
-        return _c
-}</span>
-
-func (_c *MockAccountRepository_Update_Call) RunAndReturn(run func(account *domain.Account) error) *MockAccountRepository_Update_Call <span class="cov0" title="0">{
-        _c.Call.Return(run)
-        return _c
-}</span>
-
-// NewMockTransactionRepository creates a new instance of MockTransactionRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
-// The first argument is typically a *testing.T value.
-func NewMockTransactionRepository(t interface {
-        mock.TestingT
-        Cleanup(func())
-}) *MockTransactionRepository <span class="cov0" title="0">{
-        mock := &amp;MockTransactionRepository{}
-        mock.Mock.Test(t)
-
-        t.Cleanup(func() </span><span class="cov0" title="0">{ mock.AssertExpectations(t) }</span>)
-
-        <span class="cov0" title="0">return mock</span>
-}
-
-// MockTransactionRepository is an autogenerated mock type for the TransactionRepository type
-type MockTransactionRepository struct {
-        mock.Mock
-}
-
-type MockTransactionRepository_Expecter struct {
-        mock *mock.Mock
-}
-
-func (_m *MockTransactionRepository) EXPECT() *MockTransactionRepository_Expecter <span class="cov0" title="0">{
-        return &amp;MockTransactionRepository_Expecter{mock: &amp;_m.Mock}
-}</span>
-
-// Create provides a mock function for the type MockTransactionRepository
-func (_mock *MockTransactionRepository) Create(transaction *domain.Transaction) error <span class="cov0" title="0">{
-        ret := _mock.Called(transaction)
-
-        if len(ret) == 0 </span><span class="cov0" title="0">{
-                panic("no return value specified for Create")</span>
-        }
-
-        <span class="cov0" title="0">var r0 error
-        if returnFunc, ok := ret.Get(0).(func(*domain.Transaction) error); ok </span><span class="cov0" title="0">{
-                r0 = returnFunc(transaction)
-        }</span> else<span class="cov0" title="0"> {
-                r0 = ret.Error(0)
-        }</span>
-        <span class="cov0" title="0">return r0</span>
-}
-
-// MockTransactionRepository_Create_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Create'
-type MockTransactionRepository_Create_Call struct {
-        *mock.Call
-}
-
-// Create is a helper method to define mock.On call
-//   - transaction *domain.Transaction
-func (_e *MockTransactionRepository_Expecter) Create(transaction interface{}) *MockTransactionRepository_Create_Call <span class="cov0" title="0">{
-        return &amp;MockTransactionRepository_Create_Call{Call: _e.mock.On("Create", transaction)}
-}</span>
-
-func (_c *MockTransactionRepository_Create_Call) Run(run func(transaction *domain.Transaction)) *MockTransactionRepository_Create_Call <span class="cov0" title="0">{
-        _c.Call.Run(func(args mock.Arguments) </span><span class="cov0" title="0">{
-                var arg0 *domain.Transaction
-                if args[0] != nil </span><span class="cov0" title="0">{
-                        arg0 = args[0].(*domain.Transaction)
-                }</span>
-                <span class="cov0" title="0">run(
-                        arg0,
-                )</span>
-        })
-        <span class="cov0" title="0">return _c</span>
-}
-
-func (_c *MockTransactionRepository_Create_Call) Return(err error) *MockTransactionRepository_Create_Call <span class="cov0" title="0">{
-        _c.Call.Return(err)
-        return _c
-}</span>
-
-func (_c *MockTransactionRepository_Create_Call) RunAndReturn(run func(transaction *domain.Transaction) error) *MockTransactionRepository_Create_Call <span class="cov0" title="0">{
-        _c.Call.Return(run)
-        return _c
-}</span>
-
-// Get provides a mock function for the type MockTransactionRepository
-func (_mock *MockTransactionRepository) Get(id uuid.UUID) (*domain.Transaction, error) <span class="cov0" title="0">{
-        ret := _mock.Called(id)
-
-        if len(ret) == 0 </span><span class="cov0" title="0">{
-                panic("no return value specified for Get")</span>
-        }
-
-        <span class="cov0" title="0">var r0 *domain.Transaction
-        var r1 error
-        if returnFunc, ok := ret.Get(0).(func(uuid.UUID) (*domain.Transaction, error)); ok </span><span class="cov0" title="0">{
-                return returnFunc(id)
-        }</span>
-        <span class="cov0" title="0">if returnFunc, ok := ret.Get(0).(func(uuid.UUID) *domain.Transaction); ok </span><span class="cov0" title="0">{
-                r0 = returnFunc(id)
-        }</span> else<span class="cov0" title="0"> {
-                if ret.Get(0) != nil </span><span class="cov0" title="0">{
-                        r0 = ret.Get(0).(*domain.Transaction)
-                }</span>
-        }
-        <span class="cov0" title="0">if returnFunc, ok := ret.Get(1).(func(uuid.UUID) error); ok </span><span class="cov0" title="0">{
-                r1 = returnFunc(id)
-        }</span> else<span class="cov0" title="0"> {
-                r1 = ret.Error(1)
-        }</span>
-        <span class="cov0" title="0">return r0, r1</span>
-}
-
-// MockTransactionRepository_Get_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Get'
-type MockTransactionRepository_Get_Call struct {
-        *mock.Call
-}
-
-// Get is a helper method to define mock.On call
-//   - id uuid.UUID
-func (_e *MockTransactionRepository_Expecter) Get(id interface{}) *MockTransactionRepository_Get_Call <span class="cov0" title="0">{
-        return &amp;MockTransactionRepository_Get_Call{Call: _e.mock.On("Get", id)}
-}</span>
-
-func (_c *MockTransactionRepository_Get_Call) Run(run func(id uuid.UUID)) *MockTransactionRepository_Get_Call <span class="cov0" title="0">{
-        _c.Call.Run(func(args mock.Arguments) </span><span class="cov0" title="0">{
-                var arg0 uuid.UUID
-                if args[0] != nil </span><span class="cov0" title="0">{
-                        arg0 = args[0].(uuid.UUID)
-                }</span>
-                <span class="cov0" title="0">run(
-                        arg0,
-                )</span>
-        })
-        <span class="cov0" title="0">return _c</span>
-}
-
-func (_c *MockTransactionRepository_Get_Call) Return(transaction *domain.Transaction, err error) *MockTransactionRepository_Get_Call <span class="cov0" title="0">{
-        _c.Call.Return(transaction, err)
-        return _c
-}</span>
-
-func (_c *MockTransactionRepository_Get_Call) RunAndReturn(run func(id uuid.UUID) (*domain.Transaction, error)) *MockTransactionRepository_Get_Call <span class="cov0" title="0">{
-        _c.Call.Return(run)
-        return _c
-}</span>
-
-// List provides a mock function for the type MockTransactionRepository
-func (_mock *MockTransactionRepository) List(userID uuid.UUID, accountID uuid.UUID) ([]*domain.Transaction, error) <span class="cov0" title="0">{
-        ret := _mock.Called(userID, accountID)
-
-        if len(ret) == 0 </span><span class="cov0" title="0">{
-                panic("no return value specified for List")</span>
-        }
-
-        <span class="cov0" title="0">var r0 []*domain.Transaction
-        var r1 error
-        if returnFunc, ok := ret.Get(0).(func(uuid.UUID, uuid.UUID) ([]*domain.Transaction, error)); ok </span><span class="cov0" title="0">{
-                return returnFunc(userID, accountID)
-        }</span>
-        <span class="cov0" title="0">if returnFunc, ok := ret.Get(0).(func(uuid.UUID, uuid.UUID) []*domain.Transaction); ok </span><span class="cov0" title="0">{
-                r0 = returnFunc(userID, accountID)
-        }</span> else<span class="cov0" title="0"> {
-                if ret.Get(0) != nil </span><span class="cov0" title="0">{
-                        r0 = ret.Get(0).([]*domain.Transaction)
-                }</span>
-        }
-        <span class="cov0" title="0">if returnFunc, ok := ret.Get(1).(func(uuid.UUID, uuid.UUID) error); ok </span><span class="cov0" title="0">{
-                r1 = returnFunc(userID, accountID)
-        }</span> else<span class="cov0" title="0"> {
-                r1 = ret.Error(1)
-        }</span>
-        <span class="cov0" title="0">return r0, r1</span>
-}
-
-// MockTransactionRepository_List_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'List'
-type MockTransactionRepository_List_Call struct {
-        *mock.Call
-}
-
-// List is a helper method to define mock.On call
-//   - userID uuid.UUID
-//   - accountID uuid.UUID
-func (_e *MockTransactionRepository_Expecter) List(userID interface{}, accountID interface{}) *MockTransactionRepository_List_Call <span class="cov0" title="0">{
-        return &amp;MockTransactionRepository_List_Call{Call: _e.mock.On("List", userID, accountID)}
-}</span>
-
-func (_c *MockTransactionRepository_List_Call) Run(run func(userID uuid.UUID, accountID uuid.UUID)) *MockTransactionRepository_List_Call <span class="cov0" title="0">{
-        _c.Call.Run(func(args mock.Arguments) </span><span class="cov0" title="0">{
-                var arg0 uuid.UUID
-                if args[0] != nil </span><span class="cov0" title="0">{
-                        arg0 = args[0].(uuid.UUID)
-                }</span>
-                <span class="cov0" title="0">var arg1 uuid.UUID
-                if args[1] != nil </span><span class="cov0" title="0">{
-                        arg1 = args[1].(uuid.UUID)
-                }</span>
-                <span class="cov0" title="0">run(
-                        arg0,
-                        arg1,
-                )</span>
-        })
-        <span class="cov0" title="0">return _c</span>
-}
-
-func (_c *MockTransactionRepository_List_Call) Return(transactions []*domain.Transaction, err error) *MockTransactionRepository_List_Call <span class="cov0" title="0">{
-        _c.Call.Return(transactions, err)
-        return _c
-}</span>
-
-func (_c *MockTransactionRepository_List_Call) RunAndReturn(run func(userID uuid.UUID, accountID uuid.UUID) ([]*domain.Transaction, error)) *MockTransactionRepository_List_Call <span class="cov0" title="0">{
-        _c.Call.Return(run)
-        return _c
-}</span>
-
-// NewMockUserRepository creates a new instance of MockUserRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
-// The first argument is typically a *testing.T value.
-func NewMockUserRepository(t interface {
-        mock.TestingT
-        Cleanup(func())
-}) *MockUserRepository <span class="cov0" title="0">{
-        mock := &amp;MockUserRepository{}
-        mock.Mock.Test(t)
-
-        t.Cleanup(func() </span><span class="cov0" title="0">{ mock.AssertExpectations(t) }</span>)
-
-        <span class="cov0" title="0">return mock</span>
-}
-
-// MockUserRepository is an autogenerated mock type for the UserRepository type
-type MockUserRepository struct {
-        mock.Mock
-}
-
-type MockUserRepository_Expecter struct {
-        mock *mock.Mock
-}
-
-func (_m *MockUserRepository) EXPECT() *MockUserRepository_Expecter <span class="cov0" title="0">{
-        return &amp;MockUserRepository_Expecter{mock: &amp;_m.Mock}
-}</span>
-
-// Create provides a mock function for the type MockUserRepository
-func (_mock *MockUserRepository) Create(user *domain.User) error <span class="cov0" title="0">{
-        ret := _mock.Called(user)
-
-        if len(ret) == 0 </span><span class="cov0" title="0">{
-                panic("no return value specified for Create")</span>
-        }
-
-        <span class="cov0" title="0">var r0 error
-        if returnFunc, ok := ret.Get(0).(func(*domain.User) error); ok </span><span class="cov0" title="0">{
-                r0 = returnFunc(user)
-        }</span> else<span class="cov0" title="0"> {
-                r0 = ret.Error(0)
-        }</span>
-        <span class="cov0" title="0">return r0</span>
-}
-
-// MockUserRepository_Create_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Create'
-type MockUserRepository_Create_Call struct {
-        *mock.Call
-}
-
-// Create is a helper method to define mock.On call
-//   - user *domain.User
-func (_e *MockUserRepository_Expecter) Create(user interface{}) *MockUserRepository_Create_Call <span class="cov0" title="0">{
-        return &amp;MockUserRepository_Create_Call{Call: _e.mock.On("Create", user)}
-}</span>
-
-func (_c *MockUserRepository_Create_Call) Run(run func(user *domain.User)) *MockUserRepository_Create_Call <span class="cov0" title="0">{
-        _c.Call.Run(func(args mock.Arguments) </span><span class="cov0" title="0">{
-                var arg0 *domain.User
-                if args[0] != nil </span><span class="cov0" title="0">{
-                        arg0 = args[0].(*domain.User)
-                }</span>
-                <span class="cov0" title="0">run(
-                        arg0,
-                )</span>
-        })
-        <span class="cov0" title="0">return _c</span>
-}
-
-func (_c *MockUserRepository_Create_Call) Return(err error) *MockUserRepository_Create_Call <span class="cov0" title="0">{
-        _c.Call.Return(err)
-        return _c
-}</span>
-
-func (_c *MockUserRepository_Create_Call) RunAndReturn(run func(user *domain.User) error) *MockUserRepository_Create_Call <span class="cov0" title="0">{
-        _c.Call.Return(run)
-        return _c
-}</span>
-
-// Delete provides a mock function for the type MockUserRepository
-func (_mock *MockUserRepository) Delete(id uuid.UUID) error <span class="cov0" title="0">{
-        ret := _mock.Called(id)
-
-        if len(ret) == 0 </span><span class="cov0" title="0">{
-                panic("no return value specified for Delete")</span>
-        }
-
-        <span class="cov0" title="0">var r0 error
-        if returnFunc, ok := ret.Get(0).(func(uuid.UUID) error); ok </span><span class="cov0" title="0">{
-                r0 = returnFunc(id)
-        }</span> else<span class="cov0" title="0"> {
-                r0 = ret.Error(0)
-        }</span>
-        <span class="cov0" title="0">return r0</span>
-}
-
-// MockUserRepository_Delete_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Delete'
-type MockUserRepository_Delete_Call struct {
-        *mock.Call
-}
-
-// Delete is a helper method to define mock.On call
-//   - id uuid.UUID
-func (_e *MockUserRepository_Expecter) Delete(id interface{}) *MockUserRepository_Delete_Call <span class="cov0" title="0">{
-        return &amp;MockUserRepository_Delete_Call{Call: _e.mock.On("Delete", id)}
-}</span>
-
-func (_c *MockUserRepository_Delete_Call) Run(run func(id uuid.UUID)) *MockUserRepository_Delete_Call <span class="cov0" title="0">{
-        _c.Call.Run(func(args mock.Arguments) </span><span class="cov0" title="0">{
-                var arg0 uuid.UUID
-                if args[0] != nil </span><span class="cov0" title="0">{
-                        arg0 = args[0].(uuid.UUID)
-                }</span>
-                <span class="cov0" title="0">run(
-                        arg0,
-                )</span>
-        })
-        <span class="cov0" title="0">return _c</span>
-}
-
-func (_c *MockUserRepository_Delete_Call) Return(err error) *MockUserRepository_Delete_Call <span class="cov0" title="0">{
-        _c.Call.Return(err)
-        return _c
-}</span>
-
-func (_c *MockUserRepository_Delete_Call) RunAndReturn(run func(id uuid.UUID) error) *MockUserRepository_Delete_Call <span class="cov0" title="0">{
-        _c.Call.Return(run)
-        return _c
-}</span>
-
-// Get provides a mock function for the type MockUserRepository
-func (_mock *MockUserRepository) Get(id uuid.UUID) (*domain.User, error) <span class="cov0" title="0">{
-        ret := _mock.Called(id)
-
-        if len(ret) == 0 </span><span class="cov0" title="0">{
-                panic("no return value specified for Get")</span>
-        }
-
-        <span class="cov0" title="0">var r0 *domain.User
-        var r1 error
-        if returnFunc, ok := ret.Get(0).(func(uuid.UUID) (*domain.User, error)); ok </span><span class="cov0" title="0">{
-                return returnFunc(id)
-        }</span>
-        <span class="cov0" title="0">if returnFunc, ok := ret.Get(0).(func(uuid.UUID) *domain.User); ok </span><span class="cov0" title="0">{
-                r0 = returnFunc(id)
-        }</span> else<span class="cov0" title="0"> {
-                if ret.Get(0) != nil </span><span class="cov0" title="0">{
-                        r0 = ret.Get(0).(*domain.User)
-                }</span>
-        }
-        <span class="cov0" title="0">if returnFunc, ok := ret.Get(1).(func(uuid.UUID) error); ok </span><span class="cov0" title="0">{
-                r1 = returnFunc(id)
-        }</span> else<span class="cov0" title="0"> {
-                r1 = ret.Error(1)
-        }</span>
-        <span class="cov0" title="0">return r0, r1</span>
-}
-
-// MockUserRepository_Get_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Get'
-type MockUserRepository_Get_Call struct {
-        *mock.Call
-}
-
-// Get is a helper method to define mock.On call
-//   - id uuid.UUID
-func (_e *MockUserRepository_Expecter) Get(id interface{}) *MockUserRepository_Get_Call <span class="cov0" title="0">{
-        return &amp;MockUserRepository_Get_Call{Call: _e.mock.On("Get", id)}
-}</span>
-
-func (_c *MockUserRepository_Get_Call) Run(run func(id uuid.UUID)) *MockUserRepository_Get_Call <span class="cov0" title="0">{
-        _c.Call.Run(func(args mock.Arguments) </span><span class="cov0" title="0">{
-                var arg0 uuid.UUID
-                if args[0] != nil </span><span class="cov0" title="0">{
-                        arg0 = args[0].(uuid.UUID)
-                }</span>
-                <span class="cov0" title="0">run(
-                        arg0,
-                )</span>
-        })
-        <span class="cov0" title="0">return _c</span>
-}
-
-func (_c *MockUserRepository_Get_Call) Return(user *domain.User, err error) *MockUserRepository_Get_Call <span class="cov0" title="0">{
-        _c.Call.Return(user, err)
-        return _c
-}</span>
-
-func (_c *MockUserRepository_Get_Call) RunAndReturn(run func(id uuid.UUID) (*domain.User, error)) *MockUserRepository_Get_Call <span class="cov0" title="0">{
-        _c.Call.Return(run)
-        return _c
-}</span>
-
-// GetByEmail provides a mock function for the type MockUserRepository
-func (_mock *MockUserRepository) GetByEmail(email string) (*domain.User, error) <span class="cov0" title="0">{
-        ret := _mock.Called(email)
-
-        if len(ret) == 0 </span><span class="cov0" title="0">{
-                panic("no return value specified for GetByEmail")</span>
-        }
-
-        <span class="cov0" title="0">var r0 *domain.User
-        var r1 error
-        if returnFunc, ok := ret.Get(0).(func(string) (*domain.User, error)); ok </span><span class="cov0" title="0">{
-                return returnFunc(email)
-        }</span>
-        <span class="cov0" title="0">if returnFunc, ok := ret.Get(0).(func(string) *domain.User); ok </span><span class="cov0" title="0">{
-                r0 = returnFunc(email)
-        }</span> else<span class="cov0" title="0"> {
-                if ret.Get(0) != nil </span><span class="cov0" title="0">{
-                        r0 = ret.Get(0).(*domain.User)
-                }</span>
-        }
-        <span class="cov0" title="0">if returnFunc, ok := ret.Get(1).(func(string) error); ok </span><span class="cov0" title="0">{
-                r1 = returnFunc(email)
-        }</span> else<span class="cov0" title="0"> {
-                r1 = ret.Error(1)
-        }</span>
-        <span class="cov0" title="0">return r0, r1</span>
-}
-
-// MockUserRepository_GetByEmail_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetByEmail'
-type MockUserRepository_GetByEmail_Call struct {
-        *mock.Call
-}
-
-// GetByEmail is a helper method to define mock.On call
-//   - email string
-func (_e *MockUserRepository_Expecter) GetByEmail(email interface{}) *MockUserRepository_GetByEmail_Call <span class="cov0" title="0">{
-        return &amp;MockUserRepository_GetByEmail_Call{Call: _e.mock.On("GetByEmail", email)}
-}</span>
-
-func (_c *MockUserRepository_GetByEmail_Call) Run(run func(email string)) *MockUserRepository_GetByEmail_Call <span class="cov0" title="0">{
-        _c.Call.Run(func(args mock.Arguments) </span><span class="cov0" title="0">{
-                var arg0 string
-                if args[0] != nil </span><span class="cov0" title="0">{
-                        arg0 = args[0].(string)
-                }</span>
-                <span class="cov0" title="0">run(
-                        arg0,
-                )</span>
-        })
-        <span class="cov0" title="0">return _c</span>
-}
-
-func (_c *MockUserRepository_GetByEmail_Call) Return(user *domain.User, err error) *MockUserRepository_GetByEmail_Call <span class="cov0" title="0">{
-        _c.Call.Return(user, err)
-        return _c
-}</span>
-
-func (_c *MockUserRepository_GetByEmail_Call) RunAndReturn(run func(email string) (*domain.User, error)) *MockUserRepository_GetByEmail_Call <span class="cov0" title="0">{
-        _c.Call.Return(run)
-        return _c
-}</span>
-
-// GetByUsername provides a mock function for the type MockUserRepository
-func (_mock *MockUserRepository) GetByUsername(username string) (*domain.User, error) <span class="cov0" title="0">{
-        ret := _mock.Called(username)
-
-        if len(ret) == 0 </span><span class="cov0" title="0">{
-                panic("no return value specified for GetByUsername")</span>
-        }
-
-        <span class="cov0" title="0">var r0 *domain.User
-        var r1 error
-        if returnFunc, ok := ret.Get(0).(func(string) (*domain.User, error)); ok </span><span class="cov0" title="0">{
-                return returnFunc(username)
-        }</span>
-        <span class="cov0" title="0">if returnFunc, ok := ret.Get(0).(func(string) *domain.User); ok </span><span class="cov0" title="0">{
-                r0 = returnFunc(username)
-        }</span> else<span class="cov0" title="0"> {
-                if ret.Get(0) != nil </span><span class="cov0" title="0">{
-                        r0 = ret.Get(0).(*domain.User)
-                }</span>
-        }
-        <span class="cov0" title="0">if returnFunc, ok := ret.Get(1).(func(string) error); ok </span><span class="cov0" title="0">{
-                r1 = returnFunc(username)
-        }</span> else<span class="cov0" title="0"> {
-                r1 = ret.Error(1)
-        }</span>
-        <span class="cov0" title="0">return r0, r1</span>
-}
-
-// MockUserRepository_GetByUsername_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetByUsername'
-type MockUserRepository_GetByUsername_Call struct {
-        *mock.Call
-}
-
-// GetByUsername is a helper method to define mock.On call
-//   - username string
-func (_e *MockUserRepository_Expecter) GetByUsername(username interface{}) *MockUserRepository_GetByUsername_Call <span class="cov0" title="0">{
-        return &amp;MockUserRepository_GetByUsername_Call{Call: _e.mock.On("GetByUsername", username)}
-}</span>
-
-func (_c *MockUserRepository_GetByUsername_Call) Run(run func(username string)) *MockUserRepository_GetByUsername_Call <span class="cov0" title="0">{
-        _c.Call.Run(func(args mock.Arguments) </span><span class="cov0" title="0">{
-                var arg0 string
-                if args[0] != nil </span><span class="cov0" title="0">{
-                        arg0 = args[0].(string)
-                }</span>
-                <span class="cov0" title="0">run(
-                        arg0,
-                )</span>
-        })
-        <span class="cov0" title="0">return _c</span>
-}
-
-func (_c *MockUserRepository_GetByUsername_Call) Return(user *domain.User, err error) *MockUserRepository_GetByUsername_Call <span class="cov0" title="0">{
-        _c.Call.Return(user, err)
-        return _c
-}</span>
-
-func (_c *MockUserRepository_GetByUsername_Call) RunAndReturn(run func(username string) (*domain.User, error)) *MockUserRepository_GetByUsername_Call <span class="cov0" title="0">{
-        _c.Call.Return(run)
-        return _c
-}</span>
-
-// Update provides a mock function for the type MockUserRepository
-func (_mock *MockUserRepository) Update(user *domain.User) error <span class="cov0" title="0">{
-        ret := _mock.Called(user)
-
-        if len(ret) == 0 </span><span class="cov0" title="0">{
-                panic("no return value specified for Update")</span>
-        }
-
-        <span class="cov0" title="0">var r0 error
-        if returnFunc, ok := ret.Get(0).(func(*domain.User) error); ok </span><span class="cov0" title="0">{
-                r0 = returnFunc(user)
-        }</span> else<span class="cov0" title="0"> {
-                r0 = ret.Error(0)
-        }</span>
-        <span class="cov0" title="0">return r0</span>
-}
-
-// MockUserRepository_Update_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Update'
-type MockUserRepository_Update_Call struct {
-        *mock.Call
-}
-
-// Update is a helper method to define mock.On call
-//   - user *domain.User
-func (_e *MockUserRepository_Expecter) Update(user interface{}) *MockUserRepository_Update_Call <span class="cov0" title="0">{
-        return &amp;MockUserRepository_Update_Call{Call: _e.mock.On("Update", user)}
-}</span>
-
-func (_c *MockUserRepository_Update_Call) Run(run func(user *domain.User)) *MockUserRepository_Update_Call <span class="cov0" title="0">{
-        _c.Call.Run(func(args mock.Arguments) </span><span class="cov0" title="0">{
-                var arg0 *domain.User
-                if args[0] != nil </span><span class="cov0" title="0">{
-                        arg0 = args[0].(*domain.User)
-                }</span>
-                <span class="cov0" title="0">run(
-                        arg0,
-                )</span>
-        })
-        <span class="cov0" title="0">return _c</span>
-}
-
-func (_c *MockUserRepository_Update_Call) Return(err error) *MockUserRepository_Update_Call <span class="cov0" title="0">{
-        _c.Call.Return(err)
-        return _c
-}</span>
-
-func (_c *MockUserRepository_Update_Call) RunAndReturn(run func(user *domain.User) error) *MockUserRepository_Update_Call <span class="cov0" title="0">{
-        _c.Call.Return(run)
-        return _c
-}</span>
-
-// Valid provides a mock function for the type MockUserRepository
-func (_mock *MockUserRepository) Valid(id uuid.UUID, password string) bool <span class="cov0" title="0">{
-        ret := _mock.Called(id, password)
-
-        if len(ret) == 0 </span><span class="cov0" title="0">{
-                panic("no return value specified for Valid")</span>
-        }
-
-        <span class="cov0" title="0">var r0 bool
-        if returnFunc, ok := ret.Get(0).(func(uuid.UUID, string) bool); ok </span><span class="cov0" title="0">{
-                r0 = returnFunc(id, password)
-        }</span> else<span class="cov0" title="0"> {
-                r0 = ret.Get(0).(bool)
-        }</span>
-        <span class="cov0" title="0">return r0</span>
-}
-
-// MockUserRepository_Valid_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Valid'
-type MockUserRepository_Valid_Call struct {
-        *mock.Call
-}
-
-// Valid is a helper method to define mock.On call
-//   - id uuid.UUID
-//   - password string
-func (_e *MockUserRepository_Expecter) Valid(id interface{}, password interface{}) *MockUserRepository_Valid_Call <span class="cov0" title="0">{
-        return &amp;MockUserRepository_Valid_Call{Call: _e.mock.On("Valid", id, password)}
-}</span>
-
-func (_c *MockUserRepository_Valid_Call) Run(run func(id uuid.UUID, password string)) *MockUserRepository_Valid_Call <span class="cov0" title="0">{
-        _c.Call.Run(func(args mock.Arguments) </span><span class="cov0" title="0">{
-                var arg0 uuid.UUID
-                if args[0] != nil </span><span class="cov0" title="0">{
-                        arg0 = args[0].(uuid.UUID)
-                }</span>
-                <span class="cov0" title="0">var arg1 string
-                if args[1] != nil </span><span class="cov0" title="0">{
-                        arg1 = args[1].(string)
-                }</span>
-                <span class="cov0" title="0">run(
-                        arg0,
-                        arg1,
-                )</span>
-        })
-        <span class="cov0" title="0">return _c</span>
-}
-
-func (_c *MockUserRepository_Valid_Call) Return(b bool) *MockUserRepository_Valid_Call <span class="cov0" title="0">{
-        _c.Call.Return(b)
-        return _c
-}</span>
-
-func (_c *MockUserRepository_Valid_Call) RunAndReturn(run func(id uuid.UUID, password string) bool) *MockUserRepository_Valid_Call <span class="cov0" title="0">{
-        _c.Call.Return(run)
-        return _c
-}</span>
-
-// NewMockUnitOfWork creates a new instance of MockUnitOfWork. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
-// The first argument is typically a *testing.T value.
-func NewMockUnitOfWork(t interface {
-        mock.TestingT
-        Cleanup(func())
-}) *MockUnitOfWork <span class="cov0" title="0">{
-        mock := &amp;MockUnitOfWork{}
-        mock.Mock.Test(t)
-
-        t.Cleanup(func() </span><span class="cov0" title="0">{ mock.AssertExpectations(t) }</span>)
-
-        <span class="cov0" title="0">return mock</span>
-}
-
-// MockUnitOfWork is an autogenerated mock type for the UnitOfWork type
-type MockUnitOfWork struct {
-        mock.Mock
-}
-
-type MockUnitOfWork_Expecter struct {
-        mock *mock.Mock
-}
-
-func (_m *MockUnitOfWork) EXPECT() *MockUnitOfWork_Expecter <span class="cov0" title="0">{
-        return &amp;MockUnitOfWork_Expecter{mock: &amp;_m.Mock}
-}</span>
-
-// AccountRepository provides a mock function for the type MockUnitOfWork
-func (_mock *MockUnitOfWork) AccountRepository() repository.AccountRepository <span class="cov0" title="0">{
-        ret := _mock.Called()
-
-        if len(ret) == 0 </span><span class="cov0" title="0">{
-                panic("no return value specified for AccountRepository")</span>
-        }
-
-        <span class="cov0" title="0">var r0 repository.AccountRepository
-        if returnFunc, ok := ret.Get(0).(func() repository.AccountRepository); ok </span><span class="cov0" title="0">{
-                r0 = returnFunc()
-        }</span> else<span class="cov0" title="0"> {
-                if ret.Get(0) != nil </span><span class="cov0" title="0">{
-                        r0 = ret.Get(0).(repository.AccountRepository)
-                }</span>
-        }
-        <span class="cov0" title="0">return r0</span>
-}
-
-// MockUnitOfWork_AccountRepository_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AccountRepository'
-type MockUnitOfWork_AccountRepository_Call struct {
-        *mock.Call
-}
-
-// AccountRepository is a helper method to define mock.On call
-func (_e *MockUnitOfWork_Expecter) AccountRepository() *MockUnitOfWork_AccountRepository_Call <span class="cov0" title="0">{
-        return &amp;MockUnitOfWork_AccountRepository_Call{Call: _e.mock.On("AccountRepository")}
-}</span>
-
-func (_c *MockUnitOfWork_AccountRepository_Call) Run(run func()) *MockUnitOfWork_AccountRepository_Call <span class="cov0" title="0">{
-        _c.Call.Run(func(args mock.Arguments) </span><span class="cov0" title="0">{
-                run()
-        }</span>)
-        <span class="cov0" title="0">return _c</span>
-}
-
-func (_c *MockUnitOfWork_AccountRepository_Call) Return(accountRepository repository.AccountRepository) *MockUnitOfWork_AccountRepository_Call <span class="cov0" title="0">{
-        _c.Call.Return(accountRepository)
-        return _c
-}</span>
-
-func (_c *MockUnitOfWork_AccountRepository_Call) RunAndReturn(run func() repository.AccountRepository) *MockUnitOfWork_AccountRepository_Call <span class="cov0" title="0">{
-        _c.Call.Return(run)
-        return _c
-}</span>
-
-// Begin provides a mock function for the type MockUnitOfWork
-func (_mock *MockUnitOfWork) Begin() error <span class="cov0" title="0">{
-        ret := _mock.Called()
-
-        if len(ret) == 0 </span><span class="cov0" title="0">{
-                panic("no return value specified for Begin")</span>
-        }
-
-        <span class="cov0" title="0">var r0 error
-        if returnFunc, ok := ret.Get(0).(func() error); ok </span><span class="cov0" title="0">{
-                r0 = returnFunc()
-        }</span> else<span class="cov0" title="0"> {
-                r0 = ret.Error(0)
-        }</span>
-        <span class="cov0" title="0">return r0</span>
-}
-
-// MockUnitOfWork_Begin_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Begin'
-type MockUnitOfWork_Begin_Call struct {
-        *mock.Call
-}
-
-// Begin is a helper method to define mock.On call
-func (_e *MockUnitOfWork_Expecter) Begin() *MockUnitOfWork_Begin_Call <span class="cov0" title="0">{
-        return &amp;MockUnitOfWork_Begin_Call{Call: _e.mock.On("Begin")}
-}</span>
-
-func (_c *MockUnitOfWork_Begin_Call) Run(run func()) *MockUnitOfWork_Begin_Call <span class="cov0" title="0">{
-        _c.Call.Run(func(args mock.Arguments) </span><span class="cov0" title="0">{
-                run()
-        }</span>)
-        <span class="cov0" title="0">return _c</span>
-}
-
-func (_c *MockUnitOfWork_Begin_Call) Return(err error) *MockUnitOfWork_Begin_Call <span class="cov0" title="0">{
-        _c.Call.Return(err)
-        return _c
-}</span>
-
-func (_c *MockUnitOfWork_Begin_Call) RunAndReturn(run func() error) *MockUnitOfWork_Begin_Call <span class="cov0" title="0">{
-        _c.Call.Return(run)
-        return _c
-}</span>
-
-// Commit provides a mock function for the type MockUnitOfWork
-func (_mock *MockUnitOfWork) Commit() error <span class="cov0" title="0">{
-        ret := _mock.Called()
-
-        if len(ret) == 0 </span><span class="cov0" title="0">{
-                panic("no return value specified for Commit")</span>
-        }
-
-        <span class="cov0" title="0">var r0 error
-        if returnFunc, ok := ret.Get(0).(func() error); ok </span><span class="cov0" title="0">{
-                r0 = returnFunc()
-        }</span> else<span class="cov0" title="0"> {
-                r0 = ret.Error(0)
-        }</span>
-        <span class="cov0" title="0">return r0</span>
-}
-
-// MockUnitOfWork_Commit_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Commit'
-type MockUnitOfWork_Commit_Call struct {
-        *mock.Call
-}
-
-// Commit is a helper method to define mock.On call
-func (_e *MockUnitOfWork_Expecter) Commit() *MockUnitOfWork_Commit_Call <span class="cov0" title="0">{
-        return &amp;MockUnitOfWork_Commit_Call{Call: _e.mock.On("Commit")}
-}</span>
-
-func (_c *MockUnitOfWork_Commit_Call) Run(run func()) *MockUnitOfWork_Commit_Call <span class="cov0" title="0">{
-        _c.Call.Run(func(args mock.Arguments) </span><span class="cov0" title="0">{
-                run()
-        }</span>)
-        <span class="cov0" title="0">return _c</span>
-}
-
-func (_c *MockUnitOfWork_Commit_Call) Return(err error) *MockUnitOfWork_Commit_Call <span class="cov0" title="0">{
-        _c.Call.Return(err)
-        return _c
-}</span>
-
-func (_c *MockUnitOfWork_Commit_Call) RunAndReturn(run func() error) *MockUnitOfWork_Commit_Call <span class="cov0" title="0">{
-        _c.Call.Return(run)
-        return _c
-}</span>
-
-// Rollback provides a mock function for the type MockUnitOfWork
-func (_mock *MockUnitOfWork) Rollback() error <span class="cov0" title="0">{
-        ret := _mock.Called()
-
-        if len(ret) == 0 </span><span class="cov0" title="0">{
-                panic("no return value specified for Rollback")</span>
-        }
-
-        <span class="cov0" title="0">var r0 error
-        if returnFunc, ok := ret.Get(0).(func() error); ok </span><span class="cov0" title="0">{
-                r0 = returnFunc()
-        }</span> else<span class="cov0" title="0"> {
-                r0 = ret.Error(0)
-        }</span>
-        <span class="cov0" title="0">return r0</span>
-}
-
-// MockUnitOfWork_Rollback_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Rollback'
-type MockUnitOfWork_Rollback_Call struct {
-        *mock.Call
-}
-
-// Rollback is a helper method to define mock.On call
-func (_e *MockUnitOfWork_Expecter) Rollback() *MockUnitOfWork_Rollback_Call <span class="cov0" title="0">{
-        return &amp;MockUnitOfWork_Rollback_Call{Call: _e.mock.On("Rollback")}
-}</span>
-
-func (_c *MockUnitOfWork_Rollback_Call) Run(run func()) *MockUnitOfWork_Rollback_Call <span class="cov0" title="0">{
-        _c.Call.Run(func(args mock.Arguments) </span><span class="cov0" title="0">{
-                run()
-        }</span>)
-        <span class="cov0" title="0">return _c</span>
-}
-
-func (_c *MockUnitOfWork_Rollback_Call) Return(err error) *MockUnitOfWork_Rollback_Call <span class="cov0" title="0">{
-        _c.Call.Return(err)
-        return _c
-}</span>
-
-func (_c *MockUnitOfWork_Rollback_Call) RunAndReturn(run func() error) *MockUnitOfWork_Rollback_Call <span class="cov0" title="0">{
-        _c.Call.Return(run)
-        return _c
-}</span>
-
-// TransactionRepository provides a mock function for the type MockUnitOfWork
-func (_mock *MockUnitOfWork) TransactionRepository() repository.TransactionRepository <span class="cov0" title="0">{
-        ret := _mock.Called()
-
-        if len(ret) == 0 </span><span class="cov0" title="0">{
-                panic("no return value specified for TransactionRepository")</span>
-        }
-
-        <span class="cov0" title="0">var r0 repository.TransactionRepository
-        if returnFunc, ok := ret.Get(0).(func() repository.TransactionRepository); ok </span><span class="cov0" title="0">{
-                r0 = returnFunc()
-        }</span> else<span class="cov0" title="0"> {
-                if ret.Get(0) != nil </span><span class="cov0" title="0">{
-                        r0 = ret.Get(0).(repository.TransactionRepository)
-                }</span>
-        }
-        <span class="cov0" title="0">return r0</span>
-}
-
-// MockUnitOfWork_TransactionRepository_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'TransactionRepository'
-type MockUnitOfWork_TransactionRepository_Call struct {
-        *mock.Call
-}
-
-// TransactionRepository is a helper method to define mock.On call
-func (_e *MockUnitOfWork_Expecter) TransactionRepository() *MockUnitOfWork_TransactionRepository_Call <span class="cov0" title="0">{
-        return &amp;MockUnitOfWork_TransactionRepository_Call{Call: _e.mock.On("TransactionRepository")}
-}</span>
-
-func (_c *MockUnitOfWork_TransactionRepository_Call) Run(run func()) *MockUnitOfWork_TransactionRepository_Call <span class="cov0" title="0">{
-        _c.Call.Run(func(args mock.Arguments) </span><span class="cov0" title="0">{
-                run()
-        }</span>)
-        <span class="cov0" title="0">return _c</span>
-}
-
-func (_c *MockUnitOfWork_TransactionRepository_Call) Return(transactionRepository repository.TransactionRepository) *MockUnitOfWork_TransactionRepository_Call <span class="cov0" title="0">{
-        _c.Call.Return(transactionRepository)
-        return _c
-}</span>
-
-func (_c *MockUnitOfWork_TransactionRepository_Call) RunAndReturn(run func() repository.TransactionRepository) *MockUnitOfWork_TransactionRepository_Call <span class="cov0" title="0">{
-        _c.Call.Return(run)
-        return _c
-}</span>
-
-// UserRepository provides a mock function for the type MockUnitOfWork
-func (_mock *MockUnitOfWork) UserRepository() repository.UserRepository <span class="cov0" title="0">{
-        ret := _mock.Called()
-
-        if len(ret) == 0 </span><span class="cov0" title="0">{
-                panic("no return value specified for UserRepository")</span>
-        }
-
-        <span class="cov0" title="0">var r0 repository.UserRepository
-        if returnFunc, ok := ret.Get(0).(func() repository.UserRepository); ok </span><span class="cov0" title="0">{
-                r0 = returnFunc()
-        }</span> else<span class="cov0" title="0"> {
-                if ret.Get(0) != nil </span><span class="cov0" title="0">{
-                        r0 = ret.Get(0).(repository.UserRepository)
-                }</span>
-        }
-        <span class="cov0" title="0">return r0</span>
-}
-
-// MockUnitOfWork_UserRepository_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UserRepository'
-type MockUnitOfWork_UserRepository_Call struct {
-        *mock.Call
-}
-
-// UserRepository is a helper method to define mock.On call
-func (_e *MockUnitOfWork_Expecter) UserRepository() *MockUnitOfWork_UserRepository_Call <span class="cov0" title="0">{
-        return &amp;MockUnitOfWork_UserRepository_Call{Call: _e.mock.On("UserRepository")}
-}</span>
-
-func (_c *MockUnitOfWork_UserRepository_Call) Run(run func()) *MockUnitOfWork_UserRepository_Call <span class="cov0" title="0">{
-        _c.Call.Run(func(args mock.Arguments) </span><span class="cov0" title="0">{
-                run()
-        }</span>)
-        <span class="cov0" title="0">return _c</span>
-}
-
-func (_c *MockUnitOfWork_UserRepository_Call) Return(userRepository repository.UserRepository) *MockUnitOfWork_UserRepository_Call <span class="cov0" title="0">{
-        _c.Call.Return(userRepository)
-        return _c
-}</span>
-
-func (_c *MockUnitOfWork_UserRepository_Call) RunAndReturn(run func() repository.UserRepository) *MockUnitOfWork_UserRepository_Call <span class="cov0" title="0">{
-        _c.Call.Return(run)
-        return _c
-}</span>
-</pre>
-		
-		<pre class="file" id="file6" style="display: none">package domain
+		<pre class="file" id="file1" style="display: none">package domain
 
 import (
         "errors"
@@ -1805,17 +276,14 @@ func (a *Account) GetBalance(userID uuid.UUID) (float64, error) <span class="cov
 }
 </pre>
 		
-		<pre class="file" id="file7" style="display: none">package domain
+		<pre class="file" id="file2" style="display: none">package domain
 
 import (
-        "errors"
         "time"
 
         "github.com/google/uuid"
         "golang.org/x/crypto/bcrypt"
 )
-
-var ErrUserNotFound = errors.New("user not found")
 
 type User struct {
         ID        uuid.UUID `json:"id"`
@@ -1857,7 +325,7 @@ func NewUserFromData(id uuid.UUID, username, email, password string, created, up
 }</span>
 </pre>
 		
-		<pre class="file" id="file8" style="display: none">package middleware
+		<pre class="file" id="file3" style="display: none">package middleware
 
 import (
         "os"
@@ -1884,7 +352,7 @@ func jwtError(c *fiber.Ctx, err error) error <span class="cov8" title="1">{
 }
 </pre>
 		
-		<pre class="file" id="file9" style="display: none">// Package service provides business logic for interacting with domain entities such as accounts and transactions.
+		<pre class="file" id="file4" style="display: none">// Package service provides business logic for interacting with domain entities such as accounts and transactions.
 // It defines the AccountService struct and its methods for creating accounts, depositing and withdrawing funds,
 // retrieving account details, listing transactions, and checking account balances.
 package service
@@ -2075,7 +543,7 @@ func (s *AccountService) GetBalance(userID, accountID uuid.UUID) (float64, error
 }
 </pre>
 		
-		<pre class="file" id="file10" style="display: none">package service
+		<pre class="file" id="file5" style="display: none">package service
 
 import (
         "errors"
@@ -2147,7 +615,7 @@ func (s *AuthService) Login(identity, password string) (*domain.User, string, er
 }
 </pre>
 		
-		<pre class="file" id="file11" style="display: none">package service
+		<pre class="file" id="file6" style="display: none">package service
 
 import (
         "github.com/amirasaad/fintech/pkg/domain"
@@ -2292,7 +760,7 @@ func (s *UserService) ValidUser(id uuid.UUID, password string) bool <span class=
 }
 </pre>
 		
-		<pre class="file" id="file12" style="display: none">// AccountRoutes registers HTTP routes for account-related operations using the Fiber web framework.
+		<pre class="file" id="file7" style="display: none">// AccountRoutes registers HTTP routes for account-related operations using the Fiber web framework.
 // It sets up endpoints for creating accounts, depositing and withdrawing funds, retrieving account balances,
 // and listing account transactions. All routes are protected by authentication middleware and require a valid user context.
 //
@@ -2520,7 +988,7 @@ func GetBalance(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler 
 }
 </pre>
 		
-		<pre class="file" id="file13" style="display: none">package webapi
+		<pre class="file" id="file8" style="display: none">package webapi
 
 import (
         "github.com/amirasaad/fintech/pkg/repository"
@@ -2556,7 +1024,7 @@ func NewApp(uowFactory func() (repository.UnitOfWork, error)) *fiber.App <span c
 }
 </pre>
 		
-		<pre class="file" id="file14" style="display: none">package webapi
+		<pre class="file" id="file9" style="display: none">package webapi
 
 import (
         "github.com/amirasaad/fintech/pkg/repository"
@@ -2594,35 +1062,327 @@ func Login(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler <span
 }
 </pre>
 		
-		<pre class="file" id="file15" style="display: none">package webapi
+		<pre class="file" id="file10" style="display: none">package infra
 
 import (
-        "bytes"
-        "encoding/json"
-        "io"
-        "net/http/httptest"
-        "testing"
+        "errors"
+        "os"
 
-        "github.com/amirasaad/fintech/internal/fixtures"
+        "gorm.io/driver/postgres"
+        "gorm.io/gorm"
+)
+
+func NewDBConnection() (*gorm.DB, error) <span class="cov8" title="1">{
+        databaseUrl := os.Getenv("DATABASE_URL")
+        if databaseUrl == "" </span><span class="cov8" title="1">{
+                return nil, errors.New("DATABASE_URL is not set")
+        }</span>
+        <span class="cov0" title="0">connection, err := gorm.Open(postgres.Open(databaseUrl), &amp;gorm.Config{SkipDefaultTransaction: true})
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov0" title="0">err = connection.AutoMigrate(&amp;Account{}, &amp;Transaction{}, &amp;User{})
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov0" title="0">return connection, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file11" style="display: none">package infra
+
+import (
+        "github.com/amirasaad/fintech/pkg/domain"
+        "github.com/amirasaad/fintech/pkg/repository"
+        "github.com/google/uuid"
+        "gorm.io/gorm"
+)
+
+type accountRepository struct {
+        db *gorm.DB
+}
+
+func NewAccountRepository(db *gorm.DB) repository.AccountRepository <span class="cov8" title="1">{
+        return &amp;accountRepository{db: db}
+}</span>
+
+func (r *accountRepository) Get(id uuid.UUID) (*domain.Account, error) <span class="cov8" title="1">{
+        var a domain.Account
+        result := r.db.First(&amp;a, id)
+        if result.Error != nil </span><span class="cov8" title="1">{
+                return nil, result.Error
+        }</span>
+        <span class="cov0" title="0">return domain.NewAccountFromData(a.ID, a.UserID, a.Balance, a.CreatedAt, a.UpdatedAt), nil</span>
+}
+
+func (r *accountRepository) Create(a *domain.Account) error <span class="cov8" title="1">{
+        result := r.db.Create(a)
+        if result.Error != nil </span><span class="cov8" title="1">{
+                return result.Error
+        }</span>
+        <span class="cov0" title="0">return nil</span>
+}
+
+func (r *accountRepository) Update(a *domain.Account) error <span class="cov0" title="0">{
+        dbModel := domain.Account{
+                ID:      a.ID,
+                UserID:  a.UserID,
+                Balance: a.Balance,
+        }
+        result := r.db.Save(&amp;dbModel)
+        if result.Error != nil </span><span class="cov0" title="0">{
+                return result.Error
+        }</span>
+        <span class="cov0" title="0">return nil</span>
+}
+
+func (r *accountRepository) Delete(id uuid.UUID) error <span class="cov0" title="0">{
+        result := r.db.Delete(&amp;Account{}, id)
+        if result.Error != nil </span><span class="cov0" title="0">{
+                return result.Error
+        }</span>
+        <span class="cov0" title="0">return nil</span>
+}
+
+type transactionRepository struct {
+        db *gorm.DB
+}
+
+func NewTransactionRepository(db *gorm.DB) repository.TransactionRepository <span class="cov8" title="1">{
+        return &amp;transactionRepository{db: db}
+}</span>
+
+func (r *transactionRepository) Create(transaction *domain.Transaction) error <span class="cov0" title="0">{
+
+        result := r.db.Create(transaction)
+        if result.Error != nil </span><span class="cov0" title="0">{
+                return result.Error
+        }</span>
+        <span class="cov0" title="0">return nil</span>
+}
+
+func (r *transactionRepository) Get(id uuid.UUID) (*domain.Transaction, error) <span class="cov0" title="0">{
+        var t Transaction
+        result := r.db.First(&amp;t, id)
+        if result.Error != nil </span><span class="cov0" title="0">{
+                return nil, result.Error
+        }</span>
+        <span class="cov0" title="0">return domain.NewTransactionFromData(t.ID, t.UserID, t.AccountID, t.Amount, t.Balance, t.CreatedAt), nil</span>
+}
+
+func (r *transactionRepository) List(userID, accountID uuid.UUID) ([]*domain.Transaction, error) <span class="cov0" title="0">{
+        var dbTransactions []*Transaction
+        result := r.db.Where("account_id = ? and user_id = ?", accountID, userID).Order("created_at desc").Limit(100).Find(&amp;dbTransactions)
+        if result.Error != nil </span><span class="cov0" title="0">{
+                return nil, result.Error
+        }</span>
+        <span class="cov0" title="0">tx := make([]*domain.Transaction, 0, len(dbTransactions))
+        for _, t := range dbTransactions </span><span class="cov0" title="0">{
+                tx = append(tx, domain.NewTransactionFromData(t.ID, t.UserID, t.AccountID, t.Amount, t.Balance, t.CreatedAt))
+        }</span>
+        <span class="cov0" title="0">return tx, nil</span>
+}
+
+type userRepository struct {
+        db *gorm.DB
+}
+
+// Valid implements repository.UserRepository.
+func (u *userRepository) Valid(id uuid.UUID, password string) bool <span class="cov0" title="0">{
+        var user domain.User
+        result := u.db.Where("id = ? AND password = ?", id, password).First(&amp;user)
+        return result.Error == nil
+}</span>
+
+// Create implements repository.UserRepository.
+func (u *userRepository) Create(user *domain.User) error <span class="cov0" title="0">{
+        result := u.db.Create(user)
+        if result.Error != nil </span><span class="cov0" title="0">{
+                return result.Error
+        }</span>
+        <span class="cov0" title="0">return nil</span>
+}
+
+// Delete implements repository.UserRepository.
+func (u *userRepository) Delete(id uuid.UUID) error <span class="cov0" title="0">{
+        result := u.db.Delete(&amp;domain.User{}, id)
+        if result.Error != nil </span><span class="cov0" title="0">{
+                return result.Error
+        }</span>
+        <span class="cov0" title="0">return nil</span>
+}
+
+// Get implements repository.UserRepository.
+func (u *userRepository) Get(id uuid.UUID) (*domain.User, error) <span class="cov0" title="0">{
+        var user domain.User
+        result := u.db.First(&amp;user, id)
+        if result.Error != nil </span><span class="cov0" title="0">{
+                return nil, result.Error
+        }</span>
+        <span class="cov0" title="0">return &amp;user, nil</span>
+}
+
+// GetByEmail implements repository.UserRepository.
+func (u *userRepository) GetByEmail(email string) (*domain.User, error) <span class="cov0" title="0">{
+        var user domain.User
+        result := u.db.Where("email = ?", email).First(&amp;user)
+        if result.Error != nil </span><span class="cov0" title="0">{
+                return nil, result.Error
+        }</span>
+        <span class="cov0" title="0">return &amp;user, nil</span>
+}
+
+// GetByUsername implements repository.UserRepository.
+func (u *userRepository) GetByUsername(username string) (*domain.User, error) <span class="cov0" title="0">{
+        var user domain.User
+        result := u.db.Where("username = ?", username).First(&amp;user)
+        if result.Error != nil </span><span class="cov0" title="0">{
+                return nil, result.Error
+        }</span>
+        <span class="cov0" title="0">return &amp;user, nil</span>
+}
+
+// Update implements repository.UserRepository.
+func (u *userRepository) Update(user *domain.User) error <span class="cov0" title="0">{
+        result := u.db.Save(user)
+        if result.Error != nil </span><span class="cov0" title="0">{
+                return result.Error
+        }</span>
+        <span class="cov0" title="0">return nil</span>
+}
+
+func NewUserRepository(db *gorm.DB) repository.UserRepository <span class="cov0" title="0">{
+        return &amp;userRepository{db: db}
+}</span>
+</pre>
+		
+		<pre class="file" id="file12" style="display: none">package infra
+
+import (
+        "fmt"
+        "log/slog"
+
+        "github.com/amirasaad/fintech/pkg/repository"
+        "gorm.io/gorm"
+)
+
+type UoW struct {
+        session *gorm.DB
+        started bool
+}
+
+func NewGormUoW(dbConn *gorm.DB) (*UoW, error) <span class="cov8" title="1">{
+
+        return &amp;UoW{
+                session: dbConn,
+                started: false,
+        }, nil
+}</span>
+func (u *UoW) Begin() error <span class="cov0" title="0">{
+        slog.Info("UoW Begin()")
+        if u.session == nil </span><span class="cov0" title="0">{
+                slog.Error("Session is nil, cannot start transaction")
+                return fmt.Errorf("session is nil")
+        }</span>
+        <span class="cov0" title="0">if u.started </span><span class="cov0" title="0">{
+                slog.Info("Transaction already started")
+                return nil // Transaction already started
+        }</span>
+        <span class="cov0" title="0">slog.Info("Starting new transaction")
+        tx := u.session.Begin()
+        defer func() </span><span class="cov0" title="0">{
+                if r := recover(); r != nil </span><span class="cov0" title="0">{
+                        tx.Rollback()
+                }</span>
+        }()
+        <span class="cov0" title="0">if tx.Error != nil </span><span class="cov0" title="0">{
+                slog.Error("Failed to start transaction", slog.Any("error", tx.Error))
+                return tx.Error
+        }</span>
+        <span class="cov0" title="0">slog.Info("Transaction started successfully")
+        u.session = tx
+        u.started = true
+        return nil</span>
+}
+func (u *UoW) Commit() error <span class="cov0" title="0">{
+        slog.Info("UoW Commit()")
+        if !u.started </span><span class="cov0" title="0">{
+                slog.Info("Transaction not started, nothing to commit")
+                return nil // No transaction to commit
+        }</span>
+        <span class="cov0" title="0">err := u.session.Commit().Error
+        if err != nil </span><span class="cov0" title="0">{
+                slog.Error("Failed to commit transaction", slog.Any("error", err))
+        }</span> else<span class="cov0" title="0"> {
+                u.started = true
+                slog.Info("Transaction committed successfully")
+        }</span>
+        <span class="cov0" title="0">return err</span>
+}
+func (u *UoW) Rollback() error <span class="cov0" title="0">{
+        slog.Info("UoW Rollback()")
+        if !u.started </span><span class="cov0" title="0">{
+                slog.Info("Transaction not started, nothing to rollback")
+                return nil // No transaction to rollback
+        }</span>
+        <span class="cov0" title="0">err := u.session.Rollback().Error
+        if err != nil </span><span class="cov0" title="0">{
+                slog.Error("Failed to rollback transaction", slog.Any("error", err))
+        }</span> else<span class="cov0" title="0"> {
+                u.started = false
+                slog.Info("Transaction rolled back successfully")
+        }</span>
+        <span class="cov0" title="0">return err</span>
+}
+
+func (u *UoW) AccountRepository() repository.AccountRepository <span class="cov8" title="1">{
+        if !u.started </span><span class="cov8" title="1">{
+                db, _ := NewDBConnection()
+                return NewAccountRepository(db)
+        }</span>
+        <span class="cov0" title="0">return NewAccountRepository(u.session)</span>
+}
+func (u *UoW) TransactionRepository() repository.TransactionRepository <span class="cov8" title="1">{
+        if !u.started </span><span class="cov8" title="1">{
+                db, _ := NewDBConnection()
+                return NewTransactionRepository(db)
+        }</span>
+        <span class="cov0" title="0">return NewTransactionRepository(u.session)</span>
+}
+
+func (u *UoW) UserRepository() repository.UserRepository <span class="cov0" title="0">{
+        if !u.started </span><span class="cov0" title="0">{
+                db, _ := NewDBConnection()
+                return NewUserRepository(db)
+        }</span>
+        <span class="cov0" title="0">return NewUserRepository(u.session)</span>
+}
+</pre>
+		
+		<pre class="file" id="file13" style="display: none">package webapi
+
+import (
+        "testing"
 
         "github.com/amirasaad/fintech/pkg/domain"
         "github.com/amirasaad/fintech/pkg/repository"
+        "github.com/amirasaad/fintech/test"
         "github.com/gofiber/fiber/v2"
 )
 
-func SetupCommonMocks(userRepo *fixtures.MockUserRepository, mockUow *fixtures.MockUnitOfWork, testUser *domain.User) {<span class="cov0" title="0">
+func SetupCommonMocks(userRepo *test.MockUserRepository, mockUow *test.MockUnitOfWork, testUser *domain.User) {<span class="cov0" title="0">
         // placeholder for common mocks
 }</span>
 
-func SetupTestApp(t *testing.T) (app *fiber.App, userRepo *fixtures.MockUserRepository, accountRepo *fixtures.MockAccountRepository, transactionRepo *fixtures.MockTransactionRepository, mockUow *fixtures.MockUnitOfWork, testUser *domain.User) <span class="cov8" title="1">{
+func SetupTestApp(t *testing.T) (app *fiber.App, userRepo *test.MockUserRepository, accountRepo *test.MockAccountRepository, transactionRepo *test.MockTransactionRepository, mockUow *test.MockUnitOfWork, testUser *domain.User) <span class="cov8" title="1">{
         t.Helper()
         t.Setenv("JWT_SECRET_KEY", "secret")
 
-        userRepo = fixtures.NewMockUserRepository(t)
-        accountRepo = fixtures.NewMockAccountRepository(t)
-        transactionRepo = fixtures.NewMockTransactionRepository(t)
+        userRepo = test.NewMockUserRepository(t)
+        accountRepo = test.NewMockAccountRepository(t)
+        transactionRepo = test.NewMockTransactionRepository(t)
 
-        mockUow = fixtures.NewMockUnitOfWork(t)
+        mockUow = test.NewMockUnitOfWork(t)
 
         app = NewApp(func() (repository.UnitOfWork, error) </span><span class="cov8" title="1">{ return mockUow, nil }</span>)
         <span class="cov8" title="1">testUser, _ = domain.NewUser("testuser", "testuser@example.com", "password123")
@@ -2633,39 +1393,9 @@ func SetupTestApp(t *testing.T) (app *fiber.App, userRepo *fixtures.MockUserRepo
         defer transactionRepo.AssertExpectations(t)
         return</span>
 }
-
-func getTestToken(t *testing.T, app *fiber.App, userRepo *fixtures.MockUserRepository, mockUow *fixtures.MockUnitOfWork, testUser *domain.User) string <span class="cov8" title="1">{
-        t.Helper()
-        mockUow.EXPECT().UserRepository().Return(userRepo)
-        userRepo.EXPECT().GetByUsername("testuser").Return(testUser, nil)
-        req := httptest.NewRequest("POST", "/login",
-                bytes.NewBuffer([]byte(`{"identity":"testuser","password":"password123"}`)))
-        req.Header.Set("Content-Type", "application/json")
-
-        resp, err := app.Test(req)
-        if err != nil </span><span class="cov0" title="0">{
-                t.Fatal(err)
-        }</span>
-        <span class="cov8" title="1">defer resp.Body.Close() //nolint:errcheck
-
-        var result struct {
-                Data struct {
-                        Token string `json:"token"`
-                } `json:"data"`
-        }
-        bodyBytes, err := io.ReadAll(resp.Body)
-        if err != nil </span><span class="cov0" title="0">{
-                t.Fatal(err)
-        }</span>
-        <span class="cov8" title="1">if err := json.Unmarshal(bodyBytes, &amp;result); err != nil </span><span class="cov0" title="0">{
-                t.Fatal(err)
-        }</span>
-        <span class="cov8" title="1">token := result.Data.Token
-        return token</span>
-}
 </pre>
 		
-		<pre class="file" id="file16" style="display: none">package webapi
+		<pre class="file" id="file14" style="display: none">package webapi
 
 import (
         "github.com/amirasaad/fintech/pkg/middleware"
@@ -2686,24 +1416,24 @@ func UserRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, error)
 
 // GetUser get a user
 func GetUser(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler <span class="cov8" title="1">{
-        return func(c *fiber.Ctx) error </span><span class="cov8" title="1">{
+        return func(c *fiber.Ctx) error </span><span class="cov0" title="0">{
                 id, err := uuid.Parse(c.Params("id"))
                 if err != nil </span><span class="cov0" title="0">{
                         log.Errorf("Invalid account ID for deposit: %v", err)
                         return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid user ID", err.Error())
                 }</span>
-                <span class="cov8" title="1">userService := service.NewUserService(uowFactory)
+                <span class="cov0" title="0">userService := service.NewUserService(uowFactory)
                 user, err := userService.GetUser(id)
-                if err != nil </span><span class="cov8" title="1">{
+                if err != nil </span><span class="cov0" title="0">{
                         return ErrorResponseJSON(c, fiber.StatusNotFound, "No user found with ID", nil)
                 }</span>
-                <span class="cov8" title="1">return c.JSON(Response{Status: fiber.StatusCreated, Message: "User found", Data: user})</span>
+                <span class="cov0" title="0">return c.JSON(Response{Status: fiber.StatusCreated, Message: "User found", Data: user})</span>
         }
 }
 
 // CreateUser new user
 func CreateUser(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler <span class="cov8" title="1">{
-        return func(c *fiber.Ctx) error </span><span class="cov8" title="1">{
+        return func(c *fiber.Ctx) error </span><span class="cov0" title="0">{
                 type NewUser struct {
                         Username string `json:"username" validate:"required,max=50"`
                         Email    string `json:"email" validate:"required,email,max=50"`
@@ -2714,19 +1444,19 @@ func CreateUser(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler 
                 if err := c.BodyParser(&amp;newUser); err != nil </span><span class="cov0" title="0">{
                         return ErrorResponseJSON(c, fiber.StatusBadRequest, "Review your input", err.Error())
                 }</span>
-                <span class="cov8" title="1">validate := validator.New()
-                if err := validate.Struct(newUser); err != nil </span><span class="cov8" title="1">{
+                <span class="cov0" title="0">validate := validator.New()
+                if err := validate.Struct(newUser); err != nil </span><span class="cov0" title="0">{
                         return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid request body", err.Error())
                 }</span>
-                <span class="cov8" title="1">if len(newUser.Password) &gt; 72 </span><span class="cov0" title="0">{
+                <span class="cov0" title="0">if len(newUser.Password) &gt; 72 </span><span class="cov0" title="0">{
                         return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid request body", "Password too long")
                 }</span>
-                <span class="cov8" title="1">service := service.NewUserService(uowFactory)
+                <span class="cov0" title="0">service := service.NewUserService(uowFactory)
                 user, err := service.CreateUser(newUser.Username, newUser.Email, newUser.Password)
                 if err != nil </span><span class="cov0" title="0">{
                         return ErrorResponseJSON(c, fiber.StatusInternalServerError, "Couldn't create user", err.Error())
                 }</span>
-                <span class="cov8" title="1">return c.Status(fiber.StatusCreated).JSON(Response{Status: fiber.StatusCreated, Message: "Created user", Data: user})</span>
+                <span class="cov0" title="0">return c.Status(fiber.StatusCreated).JSON(Response{Status: fiber.StatusCreated, Message: "Created user", Data: user})</span>
         }
 }
 
@@ -2804,7 +1534,7 @@ func DeleteUser(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler 
 }
 </pre>
 		
-		<pre class="file" id="file17" style="display: none">package webapi
+		<pre class="file" id="file15" style="display: none">package webapi
 
 import (
         "github.com/amirasaad/fintech/pkg/domain"
