@@ -4,6 +4,7 @@ go 1.24.4
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.2
+	github.com/fatih/color v1.18.0
 	github.com/go-playground/validator v9.31.0+incompatible
 	github.com/gofiber/contrib/jwt v1.1.2
 	github.com/gofiber/fiber/v2 v2.52.8
