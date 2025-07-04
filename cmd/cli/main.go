@@ -1,109 +1,151 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/amirasaad/fintech/infra"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/amirasaad/fintech/pkg/service"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 )
 
+var jwtToken string
+var userID uuid.UUID
+
 func main() {
-	argsLen := len(os.Args)
-	if argsLen < 2 {
-		fmt.Println("Usage: cli <command> [arguments]")
-		fmt.Println("Commands: create, deposit <account_id> <amount>, withdraw <account_id> <amount>, balance <account_id>")
-		return
-	}
-	cmd := os.Args[1]
 	db, err := infra.NewDBConnection()
 	if err != nil {
 		fmt.Println("Failed to connect to database:", err)
 		return
 	}
-	scv := service.NewAccountService(func() (repository.UnitOfWork, error) {
+	uowFactory := func() (repository.UnitOfWork, error) {
 		return infra.NewGormUoW(db)
-	})
-	userID := uuid.New()
-	switch cmd {
-	case "create":
-		account, err := scv.CreateAccount(userID)
-		fmt.Println(account)
-		if err != nil {
-			fmt.Println("Error creating account:", err)
+	}
+	scv := service.NewAccountService(uowFactory)
+	authSvc := service.NewAuthService(uowFactory)
+
+	cliApp(scv, authSvc)
+}
+
+func cliApp(scv *service.AccountService, authSvc *service.AuthService) {
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Println("Welcome to the Fintech CLI!")
+	for {
+		if jwtToken == "" || userID == uuid.Nil {
+			fmt.Println("Please login to continue.")
+			fmt.Print("Username or Email: ")
+			identity, _ := reader.ReadString('\n')
+			identity = strings.TrimSpace(identity)
+			fmt.Print("Password: ")
+			password, _ := reader.ReadString('\n')
+			password = strings.TrimSpace(password)
+			user, tokenRaw, err := authSvc.Login(identity, password)
+			if err != nil {
+				fmt.Println("Login error:", err)
+				continue
+			}
+			if user == nil || tokenRaw == "" {
+				fmt.Println("Invalid credentials.")
+				continue
+			}
+			claims := jwt.MapClaims{}
+			token, err := jwt.ParseWithClaims(tokenRaw, &claims, func(token *jwt.Token) (interface{}, error) {
+				return []byte(os.Getenv("JWT_SECRET_KEY")), nil
+			})
+			if err != nil {
+				fmt.Println("Failed to parse token:", err)
+				jwtToken = ""
+				continue
+			}
+
+			userID, err = authSvc.GetCurrentUserId(token)
+			if err != nil {
+				fmt.Println("Failed to extract user ID from token:", err)
+				jwtToken = ""
+				continue
+			}
+			fmt.Println("Login successful!")
+		}
+		fmt.Println("\nAvailable commands: create, deposit <account_id> <amount>, withdraw <account_id> <amount>, balance <account_id>, logout, exit")
+		fmt.Print("> ")
+		input, _ := reader.ReadString('\n')
+		input = strings.TrimSpace(input)
+		if input == "exit" {
+			fmt.Println("Goodbye!")
 			return
 		}
-		balance, err := scv.GetBalance(userID, account.ID)
-		if err != nil {
-			fmt.Println("Error fetching balance:", err)
-			return
+		if input == "logout" {
+			jwtToken = ""
+			userID = uuid.Nil
+			fmt.Println("Logged out.")
+			continue
 		}
-		fmt.Printf("Account created: ID=%s, Balance=%.2f\n", account.ID, balance)
-	case "deposit":
-		if argsLen < 4 {
-			fmt.Println("Usage: deposit <account_id> <amount>")
-			return
+		args := strings.Fields(input)
+		if len(args) == 0 {
+			continue
 		}
-		accountID := os.Args[2]
-		amount, err := strconv.ParseFloat(os.Args[3], 64)
-		if err != nil {
-			fmt.Println("Invalid amount:", err)
-			return
+		cmd := args[0]
+		switch cmd {
+		case "create":
+			account, err := scv.CreateAccount(userID)
+			if err != nil {
+				fmt.Println("Error creating account:", err)
+				continue
+			}
+			fmt.Printf("Account created: ID=%s, Balance=%d\n", account.ID, account.Balance)
+		case "deposit":
+			if len(args) < 3 {
+				fmt.Println("Usage: deposit <account_id> <amount>")
+				continue
+			}
+			accountID := args[1]
+			amount, err := strconv.ParseFloat(args[2], 64)
+			if err != nil {
+				fmt.Println("Invalid amount:", err)
+				continue
+			}
+			account, err := scv.Deposit(userID, uuid.MustParse(accountID), amount)
+			if err != nil {
+				fmt.Println("Error depositing:", err)
+				continue
+			}
+			fmt.Printf("Deposited %.2f to account %s. New balance: %.d\n", amount, account.ID, account.Balance)
+		case "withdraw":
+			if len(args) < 3 {
+				fmt.Println("Usage: withdraw <account_id> <amount>")
+				continue
+			}
+			accountID := args[1]
+			amount, err := strconv.ParseFloat(args[2], 64)
+			if err != nil {
+				fmt.Println("Invalid amount:", err)
+				continue
+			}
+			account, err := scv.Withdraw(userID, uuid.MustParse(accountID), amount)
+			if err != nil {
+				fmt.Println("Error withdrawing:", err)
+				continue
+			}
+			fmt.Printf("Withdrew %.2f from account %s. New balance: %d\n", amount, account.ID, account.Balance)
+		case "balance":
+			if len(args) < 2 {
+				fmt.Println("Usage: balance <account_id>")
+				continue
+			}
+			accountID := args[1]
+			account, err := scv.GetAccount(userID, uuid.MustParse(accountID))
+			if err != nil {
+				fmt.Println("Error fetching balance:", err)
+				continue
+			}
+			fmt.Printf("Account %s balance: %d\n", account.ID, account.Balance)
+		default:
+			fmt.Println("Unknown command:", cmd)
 		}
-		account, err := scv.Deposit(userID, uuid.MustParse(accountID), amount)
-		if err != nil {
-			fmt.Println("Error depositing:", err)
-			return
-		}
-		balance, err := scv.GetBalance(userID, account.ID)
-		if err != nil {
-			fmt.Println("Error fetching balance:", err)
-			return
-		}
-		fmt.Printf("Deposited %.2f to account %s. New balance: %.2f\n", amount, account.ID, balance)
-	case "withdraw":
-		if argsLen < 4 {
-			fmt.Println("Usage: withdraw <account_id> <amount>")
-			return
-		}
-		accountID := os.Args[2]
-		amount, err := strconv.ParseFloat(os.Args[3], 64)
-		if err != nil {
-			fmt.Println("Invalid amount:", err)
-			return
-		}
-		account, err := scv.Withdraw(userID, uuid.MustParse(accountID), amount)
-		if err != nil {
-			fmt.Println("Error withdrawing:", err)
-			return
-		}
-		balance, err := scv.GetBalance(userID, account.ID)
-		if err != nil {
-			fmt.Println("Error fetching balance:", err)
-			return
-		}
-		fmt.Printf("Withdrew %.2f from account %s. New balance: %.2f\n", amount, account.ID, balance)
-	case "balance":
-		if argsLen < 3 {
-			fmt.Println("Usage: balance <account_id>")
-			return
-		}
-		accountID := os.Args[2]
-		account, err := scv.GetAccount(userID, uuid.MustParse(accountID))
-		if err != nil {
-			fmt.Println("Error fetching balance:", err)
-			return
-		}
-		balance, err := scv.GetBalance(userID, account.ID)
-		if err != nil {
-			fmt.Println("Error fetching balance:", err)
-			return
-		}
-		fmt.Printf("Account %s balance: %.2f\n", account.ID, balance)
-	default:
-		fmt.Println("Unknown command:", cmd)
 	}
 }
