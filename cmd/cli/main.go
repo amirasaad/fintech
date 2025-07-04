@@ -2,7 +2,10 @@ package main
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
+	"io"
+	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -17,6 +20,11 @@ import (
 var userID uuid.UUID
 
 func main() {
+	verbose := flag.Bool("v", false, "enable verbose output")
+	flag.Parse()
+	if !*verbose {
+		log.SetOutput(io.Discard)
+	}
 	db, err := infra.NewDBConnection()
 	if err != nil {
 		fmt.Println("Failed to connect to database:", err)
