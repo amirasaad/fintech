@@ -6,9 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http/httptest"
-	"os"
 	"testing"
 	"time"
 
@@ -19,18 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/log"
 )
-
-// TestMain runs before any tests and applies globally for all tests in the package.
-func TestMain(m *testing.M) {
-	slog.SetDefault(slog.New(slog.NewTextHandler(io.Discard, nil)))
-	slog.SetLogLoggerLevel(slog.LevelError)
-	log.SetOutput(io.Discard)
-
-	exitVal := m.Run()
-	os.Exit(exitVal)
-}
 
 func TestAccountCreate(t *testing.T) {
 	assert := assert.New(t)
