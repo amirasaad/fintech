@@ -21,6 +21,7 @@ import (
 	"github.com/amirasaad/fintech/pkg/service"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/log"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 )
 
@@ -45,7 +46,12 @@ func AccountRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, err
 func CreateAccount(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		log.Infof("Creating new account")
-		userID, err := GetCurrentUserId(c)
+		authSvc := service.NewAuthService(uowFactory)
+		token, ok := c.Locals("user").(*jwt.Token)
+		if !ok {
+			return ErrorResponseJSON(c, fiber.StatusUnauthorized, "unauthorized", "missing user context")
+		}
+		userID, err := authSvc.GetCurrentUserId(token)
 		if err != nil {
 			log.Errorf("Failed to parse user ID from token: %v", err)
 			status := ErrorToStatusCode(err)
@@ -75,8 +81,12 @@ func CreateAccount(uowFactory func() (repository.UnitOfWork, error)) fiber.Handl
 //	@return fiber.Handler A Fiber handler function for processing deposit requests.
 func Deposit(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		service := service.NewAccountService(uowFactory)
-		userID, err := GetCurrentUserId(c)
+		authSvc := service.NewAuthService(uowFactory)
+		token, ok := c.Locals("user").(*jwt.Token)
+		if !ok {
+			return ErrorResponseJSON(c, fiber.StatusUnauthorized, "unauthorized", "missing user context")
+		}
+		userID, err := authSvc.GetCurrentUserId(token)
 		if err != nil {
 			log.Errorf("Failed to parse user ID from token: %v", err)
 			status := ErrorToStatusCode(err)
@@ -96,8 +106,9 @@ func Deposit(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
 			log.Errorf("Failed to parse deposit request: %v", err)
 			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Failed to parse deposit request", err.Error())
 		}
+		accountSvc := service.NewAccountService(uowFactory)
 
-		tx, err := service.Deposit(userID, id, request.Amount)
+		tx, err := accountSvc.Deposit(userID, id, request.Amount)
 		if err != nil {
 			log.Errorf("Failed to deposit: %v", err)
 			status := ErrorToStatusCode(err)
@@ -127,8 +138,12 @@ func Deposit(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
 //   - fiber.Handler: The HTTP handler for the withdrawal endpoint.
 func Withdraw(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		service := service.NewAccountService(uowFactory)
-		userID, err := GetCurrentUserId(c)
+		authSvc := service.NewAuthService(uowFactory)
+		token, ok := c.Locals("user").(*jwt.Token)
+		if !ok {
+			return ErrorResponseJSON(c, fiber.StatusUnauthorized, "unauthorized", "missing user context")
+		}
+		userID, err := authSvc.GetCurrentUserId(token)
 		if err != nil {
 			log.Errorf("Failed to parse user ID from token: %v", err)
 			status := ErrorToStatusCode(err)
@@ -148,7 +163,8 @@ func Withdraw(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
 			log.Errorf("Failed to parse withdrawal request: %v", err)
 			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Failed to parse withdrawal request", err.Error())
 		}
-		tx, err := service.Withdraw(userID, id, request.Amount)
+		accountSvc := service.NewAccountService(uowFactory)
+		tx, err := accountSvc.Withdraw(userID, id, request.Amount)
 		if err != nil {
 			log.Errorf("Failed to withdraw: %v", err)
 			status := ErrorToStatusCode(err)
@@ -177,8 +193,12 @@ func Withdraw(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
 //	app.Get("/accounts/:id/transactions", GetTransactions(uowFactory))
 func GetTransactions(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		service := service.NewAccountService(uowFactory)
-		userID, err := GetCurrentUserId(c)
+		authSvc := service.NewAuthService(uowFactory)
+		token, ok := c.Locals("user").(*jwt.Token)
+		if !ok {
+			return ErrorResponseJSON(c, fiber.StatusUnauthorized, "unauthorized", "missing user context")
+		}
+		userID, err := authSvc.GetCurrentUserId(token)
 		if err != nil {
 			log.Errorf("Failed to parse user ID from token: %v", err)
 			status := ErrorToStatusCode(err)
@@ -190,6 +210,7 @@ func GetTransactions(uowFactory func() (repository.UnitOfWork, error)) fiber.Han
 			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid account ID", err.Error())
 		}
 
+		service := service.NewAccountService(uowFactory)
 		tx, err := service.GetTransactions(userID, id)
 		if err != nil {
 			log.Errorf("Failed to list transactions for account ID %s: %v", id, err)
@@ -202,8 +223,12 @@ func GetTransactions(uowFactory func() (repository.UnitOfWork, error)) fiber.Han
 
 func GetBalance(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		service := service.NewAccountService(uowFactory)
-		userID, err := GetCurrentUserId(c)
+		authSvc := service.NewAuthService(uowFactory)
+		token, ok := c.Locals("user").(*jwt.Token)
+		if !ok {
+			return ErrorResponseJSON(c, fiber.StatusUnauthorized, "unauthorized", "missing user context")
+		}
+		userID, err := authSvc.GetCurrentUserId(token)
 		if err != nil {
 			log.Errorf("Failed to parse user ID from token: %v", err)
 			status := ErrorToStatusCode(err)
@@ -214,6 +239,7 @@ func GetBalance(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler 
 			log.Errorf("Invalid account ID for balance: %v", err)
 			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid account ID", err.Error())
 		}
+		service := service.NewAccountService(uowFactory)
 
 		balance, err := service.GetBalance(userID, id)
 		if err != nil {

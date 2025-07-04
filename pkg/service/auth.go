@@ -9,6 +9,7 @@ import (
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -28,6 +29,18 @@ func (s *AuthService) CheckPasswordHash(password, hash string) bool {
 func (s *AuthService) ValidEmail(email string) bool {
 	_, err := mail.ParseAddress(email)
 	return err == nil
+}
+
+func (s *AuthService) GetCurrentUserId(token *jwt.Token) (uuid.UUID, error) {
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return uuid.Nil, domain.ErrUserUnauthorized
+	}
+	userIDRaw, ok := claims["user_id"].(string)
+	if !ok {
+		return uuid.Nil, domain.ErrUserUnauthorized
+	}
+	return uuid.Parse(userIDRaw)
 }
 
 func (s *AuthService) Login(identity, password string) (*domain.User, string, error) {
