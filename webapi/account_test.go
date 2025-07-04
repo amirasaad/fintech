@@ -297,6 +297,7 @@ func TestGetTransactions(t *testing.T) {
 }
 
 func TestAccountRoutesRollbackWhenCreateFails(t *testing.T) {
+	assert := assert.New(t)
 	app, userRepo, accountRepo, _, mockUow, testUser := SetupTestApp(t)
 	mockUow.EXPECT().AccountRepository().Return(accountRepo)
 	mockUow.On("Begin").Return(nil)
@@ -310,6 +311,8 @@ func TestAccountRoutesRollbackWhenCreateFails(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer resp.Body.Close() //nolint:errcheck
+
+	assert.Equal(fiber.StatusInternalServerError, resp.StatusCode)
 
 }
 

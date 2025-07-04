@@ -141,7 +141,7 @@ func DeleteUser(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler 
 			return ErrorResponseJSON(c, fiber.StatusUnauthorized, "Not valid user", nil)
 		}
 
-		err = userService.DeleteUser(id, pi.Password)
+		err = userService.DeleteUser(id)
 		if err != nil {
 			return ErrorResponseJSON(c, fiber.StatusInternalServerError, "Failed to delete user", err.Error())
 		}

@@ -2,24 +2,60 @@ openapi: 3.1.1
 info:
   title: Fintech
   version: 2.0.0
-  description: Fintech API
+  description: |
+    Fintech API
+
+    **Rate Limiting:** All endpoints are subject to rate limiting. By default, a user can make a certain number of requests within a given time window. If the limit is exceeded, a `429 Too Many Requests` status code will be returned.
 paths:
   /account:
     post:
       summary: Create a new account
       responses:
-        200:
+        201:
           description: Account created
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Account"
+                $ref: "#/components/schemas/Response"
+              examples:
+                success:
+                  summary: Successful account creation
+                  value:
+                    status: 201
+                    message: Account created successfully
+                    data:
+                      id: "123e4567-e89b-12d3-a456-426614174000"
+                      balance: 0.0
+                      created: "2023-10-27T10:00:00Z"
+                      updated: "2023-10-27T10:00:00Z"
         500:
           description: Internal server error
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              examples:
+                error:
+                  summary: Internal server error
+                  value:
+                    status: 500
+                    message: An unexpected error occurred.
+                    data: null
+        429:
+          description: Too Many Requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                tooManyRequests:
+                  summary: Too Many Requests
+                  value:
+                    type: "/errors/too-many-requests"
+                    title: "Too Many Requests"
+                    status: 429
+                    detail: "Rate limit exceeded"
+                    instance: "/account"
 
   /account/{id}/deposit:
     post:
@@ -37,10 +73,12 @@ paths:
         content:
           application/json:
             schema:
-              type:
-                type: number
-                format: float
-                description: Amount to deposit
+              type: object
+              properties:
+                amount:
+                  type: number
+                  format: float
+                  description: Amount to deposit
             examples:
               valid:
                 summary: valid deposit request
@@ -54,71 +92,211 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Transaction"
+                $ref: "#/components/schemas/Response"
+              examples:
+                success:
+                  summary: Successful deposit
+                  value:
+                    status: 200
+                    message: Deposit successful
+                    data:
+                      id: "123e4567-e89b-12d3-a456-426614174001"
+                      amount: 10000
+                      balance: 10000
+                      created: "2023-10-27T10:05:00Z"
         400:
-          description: Not found
+          description: Bad Request
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              examples:
+                badRequest:
+                  summary: Invalid amount
+                  value:
+                    type: "/errors/bad-request"
+                    title: "Bad Request"
+                    status: 400
+                    detail: "Transaction amount must be positive"
+                    instance: "/account/{id}/deposit"
         422:
           description: Unprocessable Entity
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              examples:
+                unprocessableEntity:
+                  summary: Unprocessable Entity
+                  value:
+                    type: "/errors/unprocessable-entity"
+                    title: "Unprocessable Entity"
+                    status: 422
+                    detail: "Insufficient funds for withdrawal"
+                    instance: "/account/{id}/deposit"
         404:
           description: Account not found
-          schema:
-            $ref: "#/components/schemas/Error"
-        500:
-          description: Internal server error
-          schema:
-            $ref: "#/components/schemas/Error"
-
-    /account/{id}/withdraw:
-      post:
-        summary: Withdraw money from an account
-        parameters:
-          - in: path
-            name: id
-            required: true
-            schema:
-              type: string
-              schema:
-                $ref: "#/components/schemas/WithdrawRequest"
-        requestBody:
-          required: true
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/DepositRequest"
+                $ref: "#/components/schemas/Error"
               examples:
-                valid:
-                  summary: valid deposit request
-                  value: { "amount": 100.0 }
-                invalid:
-                  summary: invalid deposit request
-                  value: { "amount": -100.0 }
-        responses:
-          200:
-            description: Money withdrawn
-            content:
-              application/json:
-                schema:
-                  $ref: "#/components/schemas/Response"
-          400:
-            description: Invalid request
+                notFound:
+                  summary: Account not found
+                  value:
+                    type: "/errors/not-found"
+                    title: "Not Found"
+                    status: 404
+                    detail: "Account not found"
+                    instance: "/account/{id}/deposit"
+        500:
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                internalServerError:
+                  summary: Internal server error
+                  value:
+                    type: "/errors/internal-server-error"
+                    title: "Internal Server Error"
+                    status: 500
+                    detail: "An unexpected error occurred."
+                    instance: "/account/{id}/deposit"
+        429:
+          description: Too Many Requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                tooManyRequests:
+                  summary: Too Many Requests
+                  value:
+                    type: "/errors/too-many-requests"
+                    title: "Too Many Requests"
+                    status: 429
+                    detail: "Rate limit exceeded"
+                    instance: "/account/{id}/deposit"
+
+  /account/{id}/withdraw:
+    post:
+      summary: Withdraw money from an account
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+            description: Account ID
+      requestBody:
+        required: true
+        content:
+          application/json:
             schema:
-              $ref: "#/components/schemas/Error"
-          404:
-            description: Account not found
-            schema:
-              $ref: "#/components/schemas/Error"
-          500:
-            description: Internal server error
-            schema:
-              $ref: "#/components/schemas/Error"
+              $ref: "#/components/schemas/DepositRequest"
+            examples:
+              valid:
+                summary: valid withdrawal request
+                value: { "amount": 100.0 }
+              invalid:
+                summary: invalid withdrawal request
+                value: { "amount": -100.0 }
+      responses:
+        200:
+          description: Money withdrawn
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Response"
+              examples:
+                success:
+                  summary: Successful withdrawal
+                  value:
+                    status: 200
+                    message: Withdrawal successful
+                    data:
+                      id: "123e4567-e89b-12d3-a456-426614174002"
+                      amount: -10000
+                      balance: 990000
+                      created: "2023-10-27T10:10:00Z"
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                badRequest:
+                  summary: Invalid amount
+                  value:
+                    type: "/errors/bad-request"
+                    title: "Bad Request"
+                    status: 400
+                    detail: "Withdrawal amount must be positive"
+                    instance: "/account/{id}/withdraw"
+        404:
+          description: Account not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                notFound:
+                  summary: Account not found
+                  value:
+                    type: "/errors/not-found"
+                    title: "Not Found"
+                    status: 404
+                    detail: "Account not found"
+                    instance: "/account/{id}/withdraw"
+        422:
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                unprocessableEntity:
+                  summary: Insufficient funds
+                  value:
+                    type: "/errors/unprocessable-entity"
+                    title: "Unprocessable Entity"
+                    status: 422
+                    detail: "Insufficient funds for withdrawal"
+                    instance: "/account/{id}/withdraw"
+        500:
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                internalServerError:
+                  summary: Internal server error
+                  value:
+                    type: "/errors/internal-server-error"
+                    title: "Internal Server Error"
+                    status: 500
+                    detail: "An unexpected error occurred."
+                    instance: "/account/{id}/withdraw"
+        429:
+          description: Too Many Requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                tooManyRequests:
+                  summary: Too Many Requests
+                  value:
+                    type: "/errors/too-many-requests"
+                    title: "Too Many Requests"
+                    status: 429
+                    detail: "Rate limit exceeded"
+                    instance: "/account/{id}/withdraw"
 
   /account/{id}/balance:
     get:
@@ -137,21 +315,60 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  balance:
-                    type: float
-                    description: Account balance in dollars
-            examples:
-              schema:
+                $ref: "#/components/schemas/Response"
+              examples:
+                success:
+                  summary: Successful balance retrieval
+                  value:
+                    status: 200
+                    message: Balance retrieved successfully
+                    data:
+                      balance: 123.45
         404:
           description: Account not found
-          schema:
-            $ref: "#/components/schemas/Error"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                notFound:
+                  summary: Account not found
+                  value:
+                    type: "/errors/not-found"
+                    title: "Not Found"
+                    status: 404
+                    detail: "Account not found"
+                    instance: "/account/{id}/balance"
         500:
           description: Internal server error
-          schema:
-            $ref: "#/components/schemas/Error"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                internalServerError:
+                  summary: Internal server error
+                  value:
+                    type: "/errors/internal-server-error"
+                    title: "Internal Server Error"
+                    status: 500
+                    detail: "An unexpected error occurred."
+                    instance: "/account/{id}/balance"
+        429:
+          description: Too Many Requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                tooManyRequests:
+                  summary: Too Many Requests
+                  value:
+                    type: "/errors/too-many-requests"
+                    title: "Too Many Requests"
+                    status: 429
+                    detail: "Rate limit exceeded"
+                    instance: "/account/{id}/balance"
 
   /account/{id}/transactions:
     get:
@@ -170,17 +387,67 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Transaction"
+                $ref: "#/components/schemas/Response"
+              examples:
+                success:
+                  summary: Successful transaction list retrieval
+                  value:
+                    status: 200
+                    message: Transactions retrieved successfully
+                    data:
+                      - id: "123e4567-e89b-12d3-a456-426614174003"
+                        amount: 10000
+                        balance: 10000
+                        created: "2023-10-27T10:15:00Z"
+                      - id: "123e4567-e89b-12d3-a456-426614174004"
+                        amount: -5000
+                        balance: 5000
+                        created: "2023-10-27T10:20:00Z"
         404:
           description: Account not found
-          schema:
-            $ref: "#/components/schemas/Error"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                notFound:
+                  summary: Account not found
+                  value:
+                    type: "/errors/not-found"
+                    title: "Not Found"
+                    status: 404
+                    detail: "Account not found"
+                    instance: "/account/{id}/transactions"
         500:
           description: Internal server error
-          schema:
-            $ref: "#/components/schemas/Error"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                internalServerError:
+                  summary: Internal server error
+                  value:
+                    type: "/errors/internal-server-error"
+                    title: "Internal Server Error"
+                    status: 500
+                    detail: "An unexpected error occurred."
+                    instance: "/account/{id}/transactions"
+        429:
+          description: Too Many Requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                tooManyRequests:
+                  summary: Too Many Requests
+                  value:
+                    type: "/errors/too-many-requests"
+                    title: "Too Many Requests"
+                    status: 429
+                    detail: "Rate limit exceeded"
+                    instance: "/account/{id}/transactions"
 
 components:
   schemas:
@@ -192,7 +459,8 @@ components:
           format: uuid
           description: Account ID
         balance:
-          type: integer
+          type: number
+          format: float
           description: Account balance
         created:
           type: string
@@ -203,15 +471,18 @@ components:
           format: date-time
           description: Account update date
     DepositRequest:
-      type:
+      type: object
+      properties:
         amount:
-          type: float
+          type: number
+          format: float
           description: Amount to deposit
     WithdrawRequest:
       type: object
       properties:
         amount:
-          type: float
+          type: number
+          format: float
           description: Amount to withdraw
     Transaction:
       type: object
@@ -221,11 +492,13 @@ components:
           format: uuid
           description: Transaction ID
         amount:
-          type: integer
-          description: Transaction amount in cents
+          type: number
+          format: float
+          description: Transaction amount in dollars
         balance:
-          type: integer
-          description: Account balance after transaction in cents
+          type: number
+          format: float
+          description: Account balance after transaction in dollars
         created:
           type: string
           format: date-time
@@ -234,7 +507,7 @@ components:
       type: object
       properties:
         status:
-          type: int
+          type: integer
           description: HTTP status code
         message:
           type: string
@@ -242,6 +515,7 @@ components:
         data:
           type: object
           description: Response data
+          nullable: true
 
     Error:
       type: object
@@ -253,7 +527,7 @@ components:
           type: string
           description: short, human-readable summary
         status:
-          type: int
+          type: integer
           description: HTTP status code
         detail:
           type: string

@@ -52,6 +52,27 @@ func TestCreateAccount_RepoError(t *testing.T) {
 	assert.Nil(t, account)
 }
 
+func TestCreateAccount_UoWFactoryError(t *testing.T) {
+	svc := NewAccountService(func() (repository.UnitOfWork, error) { return nil, errors.New("uow error") })
+	account, err := svc.CreateAccount(uuid.New())
+	assert.Error(t, err)
+	assert.Nil(t, account)
+}
+
+func TestCreateAccount_CommitError(t *testing.T) {
+	svc, accountRepo, _, uow := newServiceWithMocks(t)
+	uow.EXPECT().Begin().Return(nil).Once()
+	uow.EXPECT().Commit().Return(errors.New("commit error")).Once()
+	uow.EXPECT().Rollback().Return(nil).Once()
+	uow.EXPECT().AccountRepository().Return(accountRepo)
+	accountRepo.On("Create", mock.Anything).Return(nil)
+
+	userID := uuid.New()
+	account, err := svc.CreateAccount(userID)
+	assert.Error(t, err)
+	assert.Nil(t, account)
+}
+
 func TestDeposit_Success(t *testing.T) {
 	svc, accountRepo, transactionRepo, uow := newServiceWithMocks(t)
 	uow.EXPECT().Begin().Return(nil).Once()
@@ -99,6 +120,28 @@ func TestDeposit_NegativeAmount(t *testing.T) {
 	assert.Equal(t, domain.ErrTransactionAmountMustBePositive, err)
 }
 
+func TestDeposit_UoWFactoryError(t *testing.T) {
+	svc := NewAccountService(func() (repository.UnitOfWork, error) { return nil, errors.New("uow error") })
+	tx, err := svc.Deposit(uuid.New(), uuid.New(), 100.0)
+	assert.Error(t, err)
+	assert.Nil(t, tx)
+}
+
+func TestDeposit_UpdateError(t *testing.T) {
+	svc, accountRepo, _, uow := newServiceWithMocks(t)
+	uow.EXPECT().Begin().Return(nil).Once()
+	uow.EXPECT().Rollback().Return(nil).Once()
+	uow.EXPECT().AccountRepository().Return(accountRepo)
+	userID := uuid.New()
+	account := domain.NewAccount(userID)
+	accountRepo.On("Get", account.ID).Return(account, nil)
+	accountRepo.On("Update", mock.Anything).Return(errors.New("update error"))
+
+	tx, err := svc.Deposit(userID, account.ID, 100.0)
+	assert.Error(t, err)
+	assert.Nil(t, tx)
+}
+
 func TestWithdraw_Success(t *testing.T) {
 	svc, accountRepo, transactionRepo, uow := newServiceWithMocks(t)
 	uow.EXPECT().Begin().Return(nil).Once()
@@ -135,6 +178,29 @@ func TestWithdraw_InsufficientFunds(t *testing.T) {
 	assert.Equal(t, domain.ErrInsufficientFunds, err)
 }
 
+func TestWithdraw_UoWFactoryError(t *testing.T) {
+	svc := NewAccountService(func() (repository.UnitOfWork, error) { return nil, errors.New("uow error") })
+	tx, err := svc.Withdraw(uuid.New(), uuid.New(), 100.0)
+	assert.Error(t, err)
+	assert.Nil(t, tx)
+}
+
+func TestWithdraw_UpdateError(t *testing.T) {
+	svc, accountRepo, _, uow := newServiceWithMocks(t)
+	uow.EXPECT().Begin().Return(nil).Once()
+	uow.EXPECT().Rollback().Return(nil).Once()
+	uow.EXPECT().AccountRepository().Return(accountRepo)
+	userID := uuid.New()
+	account := domain.NewAccount(userID)
+	_, _ = account.Deposit(userID, 100.0)
+	accountRepo.On("Get", account.ID).Return(account, nil)
+	accountRepo.On("Update", mock.Anything).Return(errors.New("update error"))
+
+	tx, err := svc.Withdraw(userID, account.ID, 50.0)
+	assert.Error(t, err)
+	assert.Nil(t, tx)
+}
+
 func TestGetAccount_Success(t *testing.T) {
 	svc, accountRepo, _, uow := newServiceWithMocks(t)
 	uow.EXPECT().AccountRepository().Return(accountRepo)
@@ -156,6 +222,25 @@ func TestGetAccount_NotFound(t *testing.T) {
 	assert.Error(t, err)
 	assert.Nil(t, got)
 	assert.Equal(t, domain.ErrAccountNotFound, err)
+}
+
+func TestGetAccount_UoWFactoryError(t *testing.T) {
+	svc := NewAccountService(func() (repository.UnitOfWork, error) { return nil, errors.New("uow error") })
+	_, err := svc.GetAccount(uuid.New(), uuid.New())
+	assert.Error(t, err)
+}
+
+func TestGetAccount_Unauthorized(t *testing.T) {
+	svc, accountRepo, _, uow := newServiceWithMocks(t)
+	uow.EXPECT().AccountRepository().Return(accountRepo)
+	userID := uuid.New()
+	account := domain.NewAccount(userID)
+	accountRepo.On("Get", account.ID).Return(account, nil)
+
+	got, err := svc.GetAccount(uuid.New(), account.ID)
+	assert.Error(t, err)
+	assert.Nil(t, got)
+	assert.Equal(t, domain.ErrUserUnauthorized, err)
 }
 
 func TestGetTransactions_Success(t *testing.T) {
@@ -187,6 +272,12 @@ func TestGetTransactions_Error(t *testing.T) {
 	assert.Nil(t, got)
 }
 
+func TestGetTransactions_UoWFactoryError(t *testing.T) {
+	svc := NewAccountService(func() (repository.UnitOfWork, error) { return nil, errors.New("uow error") })
+	_, err := svc.GetTransactions(uuid.New(), uuid.New())
+	assert.Error(t, err)
+}
+
 func TestGetBalance_Success(t *testing.T) {
 	svc, accountRepo, _, uow := newServiceWithMocks(t)
 	uow.EXPECT().AccountRepository().Return(accountRepo)
@@ -210,6 +301,12 @@ func TestGetBalance_NotFound(t *testing.T) {
 	balance, err := svc.GetBalance(uuid.New(), uuid.New())
 	assert.Error(t, err)
 	assert.Equal(t, 0.0, balance)
+}
+
+func TestGetBalance_UoWFactoryError(t *testing.T) {
+	svc := NewAccountService(func() (repository.UnitOfWork, error) { return nil, errors.New("uow error") })
+	_, err := svc.GetBalance(uuid.New(), uuid.New())
+	assert.Error(t, err)
 }
 
 func BenchmarkCreateAccount(b *testing.B) {

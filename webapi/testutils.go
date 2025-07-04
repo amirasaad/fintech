@@ -15,10 +15,6 @@ import (
 	"github.com/gofiber/fiber/v2/log"
 )
 
-func SetupCommonMocks(userRepo *fixtures.MockUserRepository, mockUow *fixtures.MockUnitOfWork, testUser *domain.User) {
-	// placeholder for common mocks
-}
-
 func SetupTestApp(t *testing.T) (app *fiber.App, userRepo *fixtures.MockUserRepository, accountRepo *fixtures.MockAccountRepository, transactionRepo *fixtures.MockTransactionRepository, mockUow *fixtures.MockUnitOfWork, testUser *domain.User) {
 	t.Helper()
 	t.Setenv("JWT_SECRET_KEY", "secret")

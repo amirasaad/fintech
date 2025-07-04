@@ -8,6 +8,7 @@ import (
 	"os"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/google/uuid"
@@ -323,4 +324,27 @@ func TestAccount_GetBalanceUnauthorized(t *testing.T) {
 	_, err := account.GetBalance(uuid.New())
 	assert.Error(err, "Deposit with different user id should return error")
 	assert.ErrorIs(err, domain.ErrUserUnauthorized)
+}
+
+func TestNewUserFromData(t *testing.T) {
+	assert := assert.New(t)
+	userID := uuid.New()
+	user := domain.NewUserFromData(userID, "test", "test@test.com", "password", time.Now(), time.Now())
+	assert.Equal(userID, user.ID)
+	assert.Equal("test", user.Username)
+	assert.Equal("test@test.com", user.Email)
+	assert.Equal("password", user.Password)
+}
+
+func TestNewTransactionFromData(t *testing.T) {
+	assert := assert.New(t)
+	userID := uuid.New()
+	accountID := uuid.New()
+	transactionID := uuid.New()
+	transaction := domain.NewTransactionFromData(transactionID, userID, accountID, 100, 100, time.Now())
+	assert.Equal(transactionID, transaction.ID)
+	assert.Equal(userID, transaction.UserID)
+	assert.Equal(accountID, transaction.AccountID)
+	assert.Equal(int64(100), transaction.Amount)
+	assert.Equal(int64(100), transaction.Balance)
 }
