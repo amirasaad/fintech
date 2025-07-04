@@ -41,7 +41,14 @@ func main() {
 
 func cliApp(scv *service.AccountService, authSvc *service.AuthService) {
 	reader := bufio.NewReader(os.Stdin)
-	fmt.Println("Welcome to the Fintech CLI!")
+	fmt.Println(`
+	███████╗██╗███╗   ██╗████████╗███████╗ ██████╗██╗  ██╗     ██████╗██╗     ██╗
+	██╔════╝██║████╗  ██║╚══██╔══╝██╔════╝██╔════╝██║  ██║    ██╔════╝██║     ██║
+	█████╗  ██║██╔██╗ ██║   ██║   █████╗  ██║     ███████║    ██║     ██║     ██║
+	██╔══╝  ██║██║╚██╗██║   ██║   ██╔══╝  ██║     ██╔══██║    ██║     ██║     ██║
+	██║     ██║██║ ╚████║   ██║   ███████╗╚██████╗██║  ██║    ╚██████╗███████╗██║
+	╚═╝     ╚═╝╚═╝  ╚═══╝   ╚═╝   ╚══════╝ ╚═════╝╚═╝  ╚═╝     ╚═════╝╚══════╝╚═╝
+	`)
 	for {
 		if userID == uuid.Nil {
 			fmt.Println("Please login to continue.")
