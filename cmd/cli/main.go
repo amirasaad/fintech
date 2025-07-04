@@ -53,6 +53,7 @@ func cliApp(scv *service.AccountService, authSvc *service.AuthService) {
 	██╔══╝  ██║██║╚██╗██║   ██║   ██╔══╝  ██║     ██╔══██║    ██║     ██║     ██║
 	██║     ██║██║ ╚████║   ██║   ███████╗╚██████╗██║  ██║    ╚██████╗███████╗██║
 	╚═╝     ╚═╝╚═╝  ╚═══╝   ╚═╝   ╚══════╝ ╚═════╝╚═╝  ╚═╝     ╚═════╝╚══════╝╚═╝
+        								Version (v1.0.0)
 	`))
 	for {
 		if userID == uuid.Nil {
@@ -123,7 +124,7 @@ func cliApp(scv *service.AccountService, authSvc *service.AuthService) {
 				fmt.Println(errorMsg("Error depositing:"), err)
 				continue
 			}
-			balance, err := scv.GetBalance(userID, account.ID)
+			balance, err := scv.GetBalance(userID, uuid.MustParse(accountID))
 			if err != nil {
 				fmt.Println(errorMsg("Error fetching account balance:"), err)
 				continue
