@@ -12,6 +12,7 @@ import (
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/log"
 )
 
 func SetupCommonMocks(userRepo *fixtures.MockUserRepository, mockUow *fixtures.MockUnitOfWork, testUser *domain.User) {
@@ -30,7 +31,7 @@ func SetupTestApp(t *testing.T) (app *fiber.App, userRepo *fixtures.MockUserRepo
 
 	app = NewApp(func() (repository.UnitOfWork, error) { return mockUow, nil })
 	testUser, _ = domain.NewUser("testuser", "testuser@example.com", "password123")
-
+	log.SetOutput(io.Discard)
 	defer mockUow.AssertExpectations(t)
 	defer userRepo.AssertExpectations(t)
 	defer accountRepo.AssertExpectations(t)

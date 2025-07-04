@@ -69,7 +69,6 @@ func TestGetUserSuccess(t *testing.T) {
 	var response Response
 	bodyBytes, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
-	fmt.Printf("Response body: %s\n", string(bodyBytes))
 	err = json.Unmarshal(bodyBytes, &response)
 	require.NoError(t, err)
 	assert.NotNil(t, response.Data)
