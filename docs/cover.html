@@ -63,7 +63,7 @@
 				
 				<option value="file3">github.com/amirasaad/fintech/pkg/middleware/auth.go (75.0%)</option>
 				
-				<option value="file4">github.com/amirasaad/fintech/pkg/service/account.go (71.9%)</option>
+				<option value="file4">github.com/amirasaad/fintech/pkg/service/account.go (71.6%)</option>
 				
 				<option value="file5">github.com/amirasaad/fintech/pkg/service/auth.go (87.9%)</option>
 				
@@ -423,9 +423,7 @@ func (s *AccountService) Deposit(userID, accountID uuid.UUID, amount float64) (*
                 _ = uow.Rollback()
                 return nil, domain.ErrAccountNotFound
         }</span>
-        <span class="cov8" title="1">slog.Info("Deposit:", slog.Any("userID", userID), slog.Any("accountID", accountID), slog.Any("account.UserID", a.UserID))
-
-        tx, err := a.Deposit(userID, amount)
+        <span class="cov8" title="1">tx, err := a.Deposit(userID, amount)
         if err != nil </span><span class="cov8" title="1">{
                 _ = uow.Rollback()
                 return nil, err
