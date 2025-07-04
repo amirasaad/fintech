@@ -11,6 +11,7 @@ import (
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/amirasaad/fintech/pkg/service"
 	"github.com/google/uuid"
+	"golang.org/x/term"
 )
 
 var userID uuid.UUID
@@ -40,8 +41,9 @@ func cliApp(scv *service.AccountService, authSvc *service.AuthService) {
 			identity, _ := reader.ReadString('\n')
 			identity = strings.TrimSpace(identity)
 			fmt.Print("Password: ")
-			password, _ := reader.ReadString('\n')
-			password = strings.TrimSpace(password)
+			bytePassword, _ := term.ReadPassword(int(os.Stdin.Fd()))
+			fmt.Println()
+			password := string(bytePassword)
 			user, _, err := authSvc.Login(identity, password)
 			if err != nil {
 				fmt.Println("Login error:", err)
