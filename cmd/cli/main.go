@@ -10,11 +10,9 @@ import (
 	"github.com/amirasaad/fintech/infra"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/amirasaad/fintech/pkg/service"
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 )
 
-var jwtToken string
 var userID uuid.UUID
 
 func main() {
@@ -27,7 +25,7 @@ func main() {
 		return infra.NewGormUoW(db)
 	}
 	scv := service.NewAccountService(uowFactory)
-	authSvc := service.NewAuthService(uowFactory)
+	authSvc := service.NewBasicAuthService(uowFactory)
 
 	cliApp(scv, authSvc)
 }
@@ -36,7 +34,7 @@ func cliApp(scv *service.AccountService, authSvc *service.AuthService) {
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Println("Welcome to the Fintech CLI!")
 	for {
-		if jwtToken == "" || userID == uuid.Nil {
+		if userID == uuid.Nil {
 			fmt.Println("Please login to continue.")
 			fmt.Print("Username or Email: ")
 			identity, _ := reader.ReadString('\n')
@@ -44,31 +42,16 @@ func cliApp(scv *service.AccountService, authSvc *service.AuthService) {
 			fmt.Print("Password: ")
 			password, _ := reader.ReadString('\n')
 			password = strings.TrimSpace(password)
-			user, tokenRaw, err := authSvc.Login(identity, password)
+			user, _, err := authSvc.Login(identity, password)
 			if err != nil {
 				fmt.Println("Login error:", err)
 				continue
 			}
-			if user == nil || tokenRaw == "" {
+			if user == nil {
 				fmt.Println("Invalid credentials.")
 				continue
 			}
-			claims := jwt.MapClaims{}
-			token, err := jwt.ParseWithClaims(tokenRaw, &claims, func(token *jwt.Token) (interface{}, error) {
-				return []byte(os.Getenv("JWT_SECRET_KEY")), nil
-			})
-			if err != nil {
-				fmt.Println("Failed to parse token:", err)
-				jwtToken = ""
-				continue
-			}
-
-			userID, err = authSvc.GetCurrentUserId(token)
-			if err != nil {
-				fmt.Println("Failed to extract user ID from token:", err)
-				jwtToken = ""
-				continue
-			}
+			userID = user.ID
 			fmt.Println("Login successful!")
 		}
 		fmt.Println("\nAvailable commands: create, deposit <account_id> <amount>, withdraw <account_id> <amount>, balance <account_id>, logout, exit")
@@ -80,7 +63,6 @@ func cliApp(scv *service.AccountService, authSvc *service.AuthService) {
 			return
 		}
 		if input == "logout" {
-			jwtToken = ""
 			userID = uuid.Nil
 			fmt.Println("Logged out.")
 			continue
