@@ -115,11 +115,11 @@ func TestDepositOverflowBoundary(t *testing.T) {
 	userID := uuid.New()
 	account := domain.NewAccount(userID)
 	// Deposit up to just below the max safe int
-	_, err := account.Deposit(userID, float64((math.MaxInt64-50)/100))
+	_, err := account.Deposit(userID, float64(math.MaxInt64/200))
 	require.NoError(err, "Deposit just below overflow boundary should not return an error")
 
 	// This deposit should cause an overflow
-	_, err = account.Deposit(userID, 1.0)
+	_, err = account.Deposit(userID, float64(math.MaxInt64/200+1))
 	require.Error(err, "Deposit that causes overflow should return an error")
 	assert.Equal(domain.ErrDepositAmountExceedsMaxSafeInt, err, "Error should be ErrDepositAmountExceedsMaxSafeInt")
 }

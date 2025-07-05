@@ -88,6 +88,10 @@ func (a *Account) Deposit(userID uuid.UUID, amount float64) (*Transaction, error
 
 	parsedAmount := int64(amount * 100) // Convert to cents for precision
 
+	if parsedAmount < 0 {
+		return nil, ErrDepositAmountExceedsMaxSafeInt
+	}
+
 	// Check for overflow after conversion as well
 	if a.Balance > int64(math.MaxInt64)-parsedAmount {
 		return nil, ErrDepositAmountExceedsMaxSafeInt
@@ -121,6 +125,10 @@ func (a *Account) Withdraw(userID uuid.UUID, amount float64) (*Transaction, erro
 	// Check if the amount is positive before proceeding with the withdrawal
 	if amount <= 0 {
 		return nil, ErrWithdrawalAmountMustBePositive
+	}
+	// Check for overflow before converting to cents
+	if amount > math.MaxInt64/100.0 {
+		return nil, ErrInsufficientFunds
 	}
 	parsedAmount := int64(amount * 100) // Convert to cents for precision
 	if parsedAmount > a.Balance {
