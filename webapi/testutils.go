@@ -40,14 +40,18 @@ func SetupTestApp(
 		service.NewJWTAuthStrategy(func() (repository.UnitOfWork, error) { return mockUow, nil }))
 	testUser, _ = domain.NewUser("testuser", "testuser@example.com", "password123")
 	log.SetOutput(io.Discard)
+	defer userRepo.AssertExpectations(t)
+	defer accountRepo.AssertExpectations(t)
+	defer transactionRepo.AssertExpectations(t)
+	defer mockUow.AssertExpectations(t)
 	return
 }
 
 func getTestToken(t *testing.T, app *fiber.App, userRepo *fixtures.MockUserRepository, mockUow *fixtures.MockUnitOfWork, testUser *domain.User) string {
 	t.Helper()
-	mockUow.EXPECT().UserRepository().Return(userRepo).Once()
-	userRepo.EXPECT().GetByUsername("testuser").Return(testUser, nil).Once()
-	userRepo.EXPECT().Valid(mock.Anything, mock.Anything).Return(true).Once()
+	mockUow.EXPECT().UserRepository().Return(userRepo)
+	userRepo.EXPECT().GetByUsername("testuser").Return(testUser, nil)
+	userRepo.EXPECT().Valid(mock.Anything, mock.Anything).Return(true)
 	req := httptest.NewRequest("POST", "/login",
 		bytes.NewBuffer([]byte(`{"identity":"testuser","password":"password123"}`)))
 	req.Header.Set("Content-Type", "application/json")
