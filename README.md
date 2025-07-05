@@ -123,6 +123,153 @@ Once the CLI is running, you will be prompted to log in. After successful authen
 - `logout`: Logs out the current user. 👋
 - `exit`: Exits the CLI application. 🚪
 
+## Examples 💡
+
+Here are some examples demonstrating how to interact with the Fintech App.
+
+### CLI Interaction
+
+1. **Start the CLI:**
+
+    ```bash
+    go run cmd/cli/main.go
+    ```
+
+2. **Login (when prompted):**
+
+    ```bash
+    
+        ███████╗██╗███╗   ██╗████████╗███████╗ ██████╗██╗  ██╗     ██████╗██╗     ██╗
+        ██╔════╝██║████╗  ██║╚══██╔══╝██╔════╝██╔════╝██║  ██║    ██╔════╝██║     ██║
+        █████╗  ██║██╔██╗ ██║   ██║   █████╗  ██║     ███████║    ██║     ██║     ██║
+        ██╔══╝  ██║██║╚██╗██║   ██║   ██╔══╝  ██║     ██╔══██║    ██║     ██║     ██║
+        ██║     ██║██║ ╚████║   ██║   ███████╗╚██████╗██║  ██║    ╚██████╗███████╗██║
+        ╚═╝     ╚═╝╚═╝  ╚═══╝   ╚═╝   ╚══════╝ ╚═════╝╚═╝  ╚═╝     ╚═════╝╚══════╝╚═╝
+                                                                        Version (v1.0.0)
+
+    Please login to continue.
+    Username or Email: 
+    Username or Email: your_username
+    Password: your_password
+    Login successful!
+    ```
+
+3. **Create an account:**
+
+    ```bash
+    > create
+    Account created: ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx, Balance=0.00
+    ```
+
+4. **Deposit funds:**
+
+    ```bash
+    > deposit xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx 100.50
+    Deposited 100.50 to account xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx. New balance: 100.50
+    ```
+
+5. **Check balance:**
+
+    ```bash
+    > balance xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+    Account xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx balance: 100.50
+    ```
+
+### API Interaction (using `curl`)
+
+First, ensure the API server is running (e.g., via `docker compose up -d` or `go run cmd/server/main.go`).
+
+1. **Register a new user:**
+
+    ```bash
+    curl -X POST http://localhost:3000/user \
+      -H "Content-Type: application/json" \
+      -d '{"username":"apiuser","email":"api@example.com","password":"apipassword"}'
+    ```
+
+    *Expected Output (truncated):*
+
+    ```json
+    {
+      "status": 201,
+      "message": "Created user",
+      "data": {
+        "id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+        "username": "apiuser",
+        "email": "api@example.com",
+        "password": "...",
+        "created": "...",
+        "updated": "..."
+      }
+    }
+    ```
+
+2. **Login to get a JWT token:**
+
+    ```bash
+    curl -X POST http://localhost:3000/login \
+      -H "Content-Type: application/json" \
+      -d '{"identity":"apiuser","password":"apipassword"}'
+    ```
+
+    *Expected Output (truncated):*
+
+    ```json
+    {
+      "status": 200,
+      "message": "Success login",
+      "data": {
+        "token": "eyJ..."
+      }
+    }
+    ```
+
+    *Note: Copy the `token` value for subsequent requests.*
+
+3. **Create an account (using the JWT token):**
+    Replace `YOUR_JWT_TOKEN` with the token obtained from the login step.
+
+    ```bash
+    curl -X POST http://localhost:3000/account \
+      -H "Authorization: Bearer YOUR_JWT_TOKEN"
+    ```
+
+    *Expected Output (truncated):*
+
+    ```json
+    {
+      "status": 201,
+      "message": "Account created",
+      "data": {
+        "ID": "yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy",
+        "UserID": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+        "Balance": 0,
+        "CreatedAt": "...",
+        "UpdatedAt": "..."
+      }
+    }
+    ```
+
+    *Note: Copy the `ID` value of the newly created account for subsequent requests.*
+
+4. **Deposit funds into the account:**
+    Replace `YOUR_JWT_TOKEN` and `YOUR_ACCOUNT_ID`.
+
+    ```bash
+    curl -X POST http://localhost:3000/account/YOUR_ACCOUNT_ID/deposit \
+      -H "Content-Type: application/json" \
+      -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+      -d '{"amount": 500.75}'
+    ```
+
+5. **Get account balance:**
+    Replace `YOUR_JWT_TOKEN` and `YOUR_ACCOUNT_ID`.
+
+    ```bash
+    curl -X GET http://localhost:3000/account/YOUR_ACCOUNT_ID/balance \
+      -H "Authorization: Bearer YOUR_JWT_TOKEN"
+    ```
+
 ## API Endpoints 🔗
 
 The Fintech App exposes a comprehensive RESTful API for all its functionalities. The API design prioritizes clear resource naming, standard HTTP methods, and meaningful status codes.
