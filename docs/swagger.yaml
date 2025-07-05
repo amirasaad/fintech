@@ -1,0 +1,486 @@
+basePath: /
+definitions:
+  webapi.DepositRequest:
+    properties:
+      amount:
+        type: number
+    type: object
+  webapi.LoginInput:
+    properties:
+      identity:
+        type: string
+      password:
+        type: string
+    type: object
+  webapi.NewUser:
+    properties:
+      email:
+        maxLength: 50
+        type: string
+      password:
+        minLength: 6
+        type: string
+      username:
+        maxLength: 50
+        type: string
+    required:
+    - email
+    - password
+    - username
+    type: object
+  webapi.PasswordInput:
+    properties:
+      password:
+        type: string
+    type: object
+  webapi.ProblemDetails:
+    properties:
+      detail:
+        description: Human-readable explanation
+        type: string
+      errors:
+        description: 'Optional: additional error details'
+      instance:
+        description: URI reference that identifies the specific occurrence
+        type: string
+      status:
+        description: HTTP status code
+        type: integer
+      title:
+        description: Short, human-readable summary
+        type: string
+      type:
+        description: A URI reference that identifies the problem type
+        type: string
+    type: object
+  webapi.Response:
+    properties:
+      data:
+        description: Response data
+      message:
+        description: Human-readable explanation
+        type: string
+      status:
+        description: HTTP status code
+        type: integer
+    type: object
+  webapi.UpdateUserInput:
+    properties:
+      names:
+        type: string
+    type: object
+  webapi.WithdrawRequest:
+    properties:
+      amount:
+        type: number
+    type: object
+host: localhost:3000
+info:
+  contact:
+    email: fiber@swagger.io
+    name: API Support
+  description: Fintech API documentation
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/MIT
+  termsOfService: http://swagger.io/terms/
+  title: Fintech API
+  version: 1.0.0
+paths:
+  /account:
+    post:
+      consumes:
+      - application/json
+      description: Create a new account for the authenticated user
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/webapi.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+      security:
+      - Bearer: []
+      summary: Create a new account
+      tags:
+      - accounts
+  /account/{id}/balance:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve the balance of a specific account
+      parameters:
+      - description: Account ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/webapi.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+      security:
+      - Bearer: []
+      summary: Get account balance
+      tags:
+      - accounts
+  /account/{id}/deposit:
+    post:
+      consumes:
+      - application/json
+      description: Deposit a specified amount into the user's account
+      parameters:
+      - description: Account ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Deposit request with amount
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/webapi.DepositRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/webapi.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+      security:
+      - Bearer: []
+      summary: Deposit funds into an account
+      tags:
+      - accounts
+  /account/{id}/transactions:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve the list of transactions for a specific account
+      parameters:
+      - description: Account ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/webapi.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+      security:
+      - Bearer: []
+      summary: Get account transactions
+      tags:
+      - accounts
+  /account/{id}/withdraw:
+    post:
+      consumes:
+      - application/json
+      description: Withdraw a specified amount from the user's account
+      parameters:
+      - description: Account ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Withdrawal request with amount
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/webapi.WithdrawRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/webapi.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+      security:
+      - Bearer: []
+      summary: Withdraw funds from an account
+      tags:
+      - accounts
+  /login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate user with identity (username or email) and password
+      parameters:
+      - description: Login credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/webapi.LoginInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/webapi.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+      summary: User login
+      tags:
+      - auth
+  /user:
+    post:
+      consumes:
+      - application/json
+      description: Create a new user account with username, email, and password
+      parameters:
+      - description: User creation data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/webapi.NewUser'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/webapi.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+      summary: Create a new user
+      tags:
+      - users
+  /user/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a user account by ID with password confirmation
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Password confirmation
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/webapi.PasswordInput'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+          schema:
+            $ref: '#/definitions/webapi.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+      security:
+      - Bearer: []
+      summary: Delete user
+      tags:
+      - users
+    get:
+      consumes:
+      - application/json
+      description: Get a user by their unique identifier
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/webapi.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/webapi.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/webapi.Response'
+      security:
+      - Bearer: []
+      summary: Get user by ID
+      tags:
+      - users
+    put:
+      consumes:
+      - application/json
+      description: Update user information by ID
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: User update data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/webapi.UpdateUserInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/webapi.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+      security:
+      - Bearer: []
+      summary: Update user
+      tags:
+      - users
+swagger: "2.0"
