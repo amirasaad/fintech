@@ -67,7 +67,7 @@
 				
 				<option value="file5">github.com/amirasaad/fintech/infra/uow.go (80.8%)</option>
 				
-				<option value="file6">github.com/amirasaad/fintech/pkg/domain/account.go (97.4%)</option>
+				<option value="file6">github.com/amirasaad/fintech/pkg/domain/account.go (92.5%)</option>
 				
 				<option value="file7">github.com/amirasaad/fintech/pkg/domain/user.go (14.3%)</option>
 				
@@ -1397,7 +1397,9 @@ func (u *UoW) UserRepository() repository.UserRepository <span class="cov0" titl
 
 import (
         "errors"
+        "fmt"
         "math"
+        "math/big"
         "sync"
         "time"
 
@@ -1476,20 +1478,43 @@ func (a *Account) Deposit(userID uuid.UUID, amount float64) (*Transaction, error
         <span class="cov8" title="1">slog.Info("Balance before deposit", slog.Int64("balance", a.Balance))
         a.mu.Lock()
         defer a.mu.Unlock()
-        // Check if the amount is positive before proceeding with the deposit
+
         if amount &lt;= 0 </span><span class="cov8" title="1">{
                 return nil, ErrTransactionAmountMustBePositive
         }</span>
 
-        <span class="cov8" title="1">parsedAmount := int64(amount * 100) // Convert to cents for precision
+        <span class="cov8" title="1">amountStr := fmt.Sprintf("%.2f", amount)
+        amountRat, ok := new(big.Rat).SetString(amountStr)
+        if !ok </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("invalid amount format")
+        }</span>
 
-        // Check for overflow after conversion as well
-        if a.Balance &gt; int64(math.MaxInt64)-parsedAmount </span><span class="cov8" title="1">{
+        <span class="cov8" title="1">multiplier := big.NewRat(100, 1)
+        centsRat := new(big.Rat).Mul(amountRat, multiplier)
+
+        if !centsRat.IsInt() </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("amount has more than 2 decimal places")
+        }</span>
+
+        <span class="cov8" title="1">cents := centsRat.Num()
+
+        if cents.Sign() &lt;= 0 </span><span class="cov0" title="0">{
+                return nil, ErrTransactionAmountMustBePositive
+        }</span>
+
+        <span class="cov8" title="1">max := big.NewInt(math.MaxInt64)
+        balanceBig := big.NewInt(a.Balance)
+        newBalance := new(big.Int).Add(balanceBig, cents)
+
+        if newBalance.Cmp(max) &gt; 0 </span><span class="cov8" title="1">{
                 return nil, ErrDepositAmountExceedsMaxSafeInt
         }</span>
-        <span class="cov8" title="1">slog.Info("Depositing amount", slog.Int64("amount", parsedAmount))
+
+        <span class="cov8" title="1">parsedAmount := cents.Int64()
+        slog.Info("Depositing amount", slog.Int64("amount", parsedAmount))
         a.Balance += parsedAmount
         slog.Info("Balance after deposit", slog.Int64("balance", a.Balance))
+
         transaction := Transaction{
                 ID:        uuid.New(),
                 UserID:    userID,
@@ -1517,18 +1542,18 @@ func (a *Account) Withdraw(userID uuid.UUID, amount float64) (*Transaction, erro
         if amount &lt;= 0 </span><span class="cov8" title="1">{
                 return nil, ErrWithdrawalAmountMustBePositive
         }</span>
-        <span class="cov8" title="1">parsedAmount := int64(amount * 100) // Convert to cents for precision
-        if parsedAmount &gt; a.Balance </span><span class="cov8" title="1">{
+        <span class="cov8" title="1">cents := int64(math.Round(amount * 100))
+        if cents &gt; a.Balance </span><span class="cov8" title="1">{
                 return nil, ErrInsufficientFunds
         }</span>
-        <span class="cov8" title="1">slog.Info("Withdrawing amount", slog.Int64("amount", parsedAmount))
-        a.Balance -= parsedAmount
+        <span class="cov8" title="1">slog.Info("Withdrawing amount", slog.Int64("amount", cents))
+        a.Balance -= cents
         slog.Info("Balance after withdrawal", slog.Int64("balance", a.Balance))
         transaction := Transaction{
                 ID:        uuid.New(),
                 UserID:    userID,
                 AccountID: a.ID,
-                Amount:    -parsedAmount,
+                Amount:    -cents,
                 Balance:   a.Balance,
                 CreatedAt: time.Now().UTC(),
         }

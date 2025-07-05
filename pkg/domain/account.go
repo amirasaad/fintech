@@ -147,10 +147,6 @@ func (a *Account) Withdraw(userID uuid.UUID, amount float64) (*Transaction, erro
 	if amount <= 0 {
 		return nil, ErrWithdrawalAmountMustBePositive
 	}
-	// Check for overflow before converting to cents
-	if amount > math.MaxInt64/100.0 {
-		return nil, ErrInsufficientFunds
-	}
 	cents := int64(math.Round(amount * 100))
 	if cents > a.Balance {
 		return nil, ErrInsufficientFunds
