@@ -20,6 +20,7 @@ import (
 )
 
 func TestAccountCreate(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	require := require.New(t)
 
@@ -45,6 +46,7 @@ func TestAccountCreate(t *testing.T) {
 }
 
 func TestAccountDeposit(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	require := require.New(t)
 
@@ -72,6 +74,7 @@ func TestAccountDeposit(t *testing.T) {
 }
 
 func TestAccountWithdraw(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	require := require.New(t)
 
@@ -244,6 +247,7 @@ func TestGetBalanceAccountNotFound(t *testing.T) {
 	assert.Equal(fiber.StatusNotFound, resp.StatusCode)
 }
 func TestGetTransactions(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	require := require.New(t)
 	app, userRepo, _, transactionRepo, mockUow, testUser := SetupTestApp(t)
@@ -401,6 +405,7 @@ func TestWithdraw_InvalidBody(t *testing.T) {
 }
 
 func TestGetTransactions_Unauthorized(t *testing.T) {
+	t.Parallel()
 	app, _, _, _, _, _ := SetupTestApp(t)
 	req := httptest.NewRequest("GET", fmt.Sprintf("/account/%s/transactions", uuid.New()), nil)
 	resp, err := app.Test(req)

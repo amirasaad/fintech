@@ -10,6 +10,7 @@ import (
 )
 
 func TestRateLimit(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 
 	app := NewApp(nil, nil) // Pass nil for uowFactory as it's not needed for this test

@@ -73,6 +73,7 @@ func TestCreateAccount_CommitError(t *testing.T) {
 }
 
 func TestDeposit_Success(t *testing.T) {
+	t.Parallel()
 	svc, accountRepo, transactionRepo, uow := newServiceWithMocks(t)
 	uow.EXPECT().Begin().Return(nil).Once()
 	uow.EXPECT().Commit().Return(nil).Once()
@@ -92,6 +93,7 @@ func TestDeposit_Success(t *testing.T) {
 }
 
 func TestDeposit_AccountNotFound(t *testing.T) {
+	t.Parallel()
 	svc, accountRepo, _, uow := newServiceWithMocks(t)
 	uow.EXPECT().Begin().Return(nil).Once()
 	uow.EXPECT().Rollback().Return(nil).Once()
@@ -243,6 +245,7 @@ func TestGetAccount_Unauthorized(t *testing.T) {
 }
 
 func TestGetTransactions_Success(t *testing.T) {
+	t.Parallel()
 	svc, _, transactionRepo, uow := newServiceWithMocks(t)
 	uow.EXPECT().TransactionRepository().Return(transactionRepo).Once()
 
@@ -292,6 +295,7 @@ func TestGetBalance_Success(t *testing.T) {
 }
 
 func TestGetBalance_NotFound(t *testing.T) {
+	t.Parallel()
 	svc, accountRepo, _, uow := newServiceWithMocks(t)
 	uow.EXPECT().AccountRepository().Return(accountRepo)
 
@@ -308,50 +312,4 @@ func TestGetBalance_UoWFactoryError(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func BenchmarkCreateAccount(b *testing.B) {
-	svc, accountRepo, _, uow := newServiceWithMocks(b)
-	uow.EXPECT().Begin().Return(nil).Maybe()
-	uow.EXPECT().Commit().Return(nil).Maybe()
-	uow.EXPECT().AccountRepository().Return(accountRepo).Maybe()
-	accountRepo.EXPECT().Create(mock.Anything).Return(nil).Maybe()
-	userID := uuid.New()
-	b.ResetTimer()
-	for b.Loop() {
-		_, _ = svc.CreateAccount(userID)
-	}
-}
 
-func BenchmarkDeposit(b *testing.B) {
-	svc, accountRepo, transactionRepo, uow := newServiceWithMocks(b)
-	uow.EXPECT().Begin().Return(nil).Maybe()
-	uow.EXPECT().Commit().Return(nil).Maybe()
-	uow.EXPECT().AccountRepository().Return(accountRepo).Maybe()
-	uow.EXPECT().TransactionRepository().Return(transactionRepo).Maybe()
-	userID := uuid.New()
-	account := domain.NewAccount(userID)
-	accountRepo.EXPECT().Get(account.ID).Return(account, nil).Maybe()
-	accountRepo.EXPECT().Update(mock.Anything).Return(nil).Maybe()
-	transactionRepo.EXPECT().Create(mock.Anything).Return(nil).Maybe()
-	b.ResetTimer()
-	for b.Loop() {
-		_, _ = svc.Deposit(userID, account.ID, 100.0)
-	}
-}
-
-func BenchmarkWithdraw(b *testing.B) {
-	svc, accountRepo, transactionRepo, uow := newServiceWithMocks(b)
-	uow.EXPECT().Begin().Return(nil).Maybe()
-	uow.EXPECT().Commit().Return(nil).Maybe()
-	uow.EXPECT().AccountRepository().Return(accountRepo).Maybe()
-	uow.EXPECT().TransactionRepository().Return(transactionRepo).Maybe()
-	userID := uuid.New()
-	account := domain.NewAccount(userID)
-	_, _ = account.Deposit(userID, float64(50*b.N))
-	accountRepo.EXPECT().Get(account.ID).Return(account, nil).Maybe()
-	accountRepo.EXPECT().Update(mock.Anything).Return(nil).Maybe()
-	transactionRepo.EXPECT().Create(mock.Anything).Return(nil).Maybe()
-	b.ResetTimer()
-	for b.Loop() {
-		_, _ = svc.Withdraw(userID, account.ID, 50.0)
-	}
-}
