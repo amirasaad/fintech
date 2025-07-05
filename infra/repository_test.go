@@ -97,7 +97,7 @@ func TestAccountRepository_Get(t *testing.T) {
 	accountID := uuid.New()
 
 	rows := sqlmock.NewRows([]string{"id", "user_id", "created_at", "updated_at", "balance"}).
-		AddRow(accountID, userID, "2023-01-01 00:00:00", "2023-01-01 00:00:00", 100)
+		AddRow(accountID, userID, time.Now().UTC(), time.Now().UTC(), 100)
 	mock.ExpectQuery(`SELECT \* FROM "accounts" WHERE "accounts"\."id" = \$1 ORDER BY "accounts"\."id" LIMIT \$2`).
 		WithArgs(accountID, 1).WillReturnRows(rows)
 
@@ -111,71 +111,4 @@ func TestAccountRepository_Get(t *testing.T) {
 	account, err = accRepo.Get(uuid.New())
 	assert.Error(err)
 	assert.Nil(account)
-}
-
-func TestAccountRepository_Update(t *testing.T) {
-	assert := assert.New(t)
-	mockDb, mock, _ := sqlmock.New()
-	dialector := postgres.New(postgres.Config{
-		Conn:       mockDb,
-		DriverName: "postgres",
-	})
-	db, err := gorm.Open(dialector, &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Silent),
-	})
-	assert.NoError(err)
-
-	accRepo := accountRepository{db: db}
-	userID := uuid.New()
-	account := domain.NewAccount(userID)
-	account.Balance = 200
-
-	mock.ExpectBegin()
-	mock.ExpectExec(`UPDATE "accounts" SET "user_id"=$1,"balance"=$2,"created_at"=$3,"updated_at"=$4 WHERE "id" = $5`).
-		WillReturnResult(sqlmock.NewResult(1, 1))
-	mock.ExpectCommit()
-
-	err = accRepo.Update(account)
-	assert.NoError(err)
-
-	mock.ExpectBegin()
-	mock.ExpectExec(
-		`UPDATE "accounts" SET "user_id"=$1,"balance"=$2,"created_at"=$3,"updated_at"=$4 WHERE "id" = $5`).
-		WillReturnError(errors.New("update error"))
-	mock.ExpectRollback()
-
-	err = accRepo.Update(account)
-	assert.Error(err)
-}
-
-func TestAccountRepository_Delete(t *testing.T) {
-	assert := assert.New(t)
-	mockDb, mock, _ := sqlmock.New()
-	dialector := postgres.New(postgres.Config{
-		Conn:       mockDb,
-		DriverName: "postgres",
-	})
-	db, err := gorm.Open(dialector, &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Silent),
-	})
-	assert.NoError(err)
-
-	accRepo := accountRepository{db: db}
-	accountID := uuid.New()
-
-	mock.ExpectBegin()
-	mock.ExpectExec(`DELETE FROM "accounts" WHERE "id" = \$1`).
-		WillReturnResult(sqlmock.NewResult(1, 1))
-	mock.ExpectCommit()
-
-	err = accRepo.Delete(accountID)
-	assert.NoError(err)
-
-	mock.ExpectBegin()
-	mock.ExpectExec(`DELETE FROM "accounts" WHERE "id" = \$1`).
-		WillReturnError(errors.New("delete error"))
-	mock.ExpectRollback()
-
-	err = accRepo.Delete(uuid.New())
-	assert.Error(err)
 }

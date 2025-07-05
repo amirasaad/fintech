@@ -12,14 +12,14 @@ import (
 func TestRateLimit(t *testing.T) {
 	assert := assert.New(t)
 
-	app := NewApp(nil) // Pass nil for uowFactory as it's not needed for this test
+	app := NewApp(nil, nil) // Pass nil for uowFactory as it's not needed for this test
 
 	// Send requests until rate limit is hit
-	for i := 0; i < 6; i++ { // Default limit is 5 requests per IP per second
+	for i := range [6]int{} { // Default limit is 5 requests per IP per second
 		req := httptest.NewRequest(fiber.MethodGet, "/", nil)
 		resp, err := app.Test(req, 1000) // Add timeout to app.Test
 		assert.NoError(err)
-		defer resp.Body.Close()
+		defer resp.Body.Close() //nolint:errcheck
 
 		if i < 5 {
 			assert.Equal(fiber.StatusOK, resp.StatusCode, "Expected OK for request %d", i+1)
@@ -35,6 +35,6 @@ func TestRateLimit(t *testing.T) {
 	req := httptest.NewRequest(fiber.MethodGet, "/", nil)
 	resp, err := app.Test(req, 1000) // Add timeout to app.Test
 	assert.NoError(err)
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 	assert.Equal(fiber.StatusOK, resp.StatusCode, "Expected OK after rate limit reset")
 }

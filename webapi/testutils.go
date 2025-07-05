@@ -7,16 +7,26 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	fixtures "github.com/amirasaad/fintech/internal/fixtures/repository"
+	"github.com/amirasaad/fintech/internal/fixtures"
 	"github.com/stretchr/testify/mock"
 
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/repository"
+	"github.com/amirasaad/fintech/pkg/service"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/log"
 )
 
-func SetupTestApp(t *testing.T) (app *fiber.App, userRepo *fixtures.MockUserRepository, accountRepo *fixtures.MockAccountRepository, transactionRepo *fixtures.MockTransactionRepository, mockUow *fixtures.MockUnitOfWork, testUser *domain.User) {
+func SetupTestApp(
+	t *testing.T,
+) (
+	app *fiber.App,
+	userRepo *fixtures.MockUserRepository,
+	accountRepo *fixtures.MockAccountRepository,
+	transactionRepo *fixtures.MockTransactionRepository,
+	mockUow *fixtures.MockUnitOfWork,
+	testUser *domain.User,
+) {
 	t.Helper()
 	t.Setenv("JWT_SECRET_KEY", "secret")
 
@@ -26,7 +36,8 @@ func SetupTestApp(t *testing.T) (app *fiber.App, userRepo *fixtures.MockUserRepo
 
 	mockUow = fixtures.NewMockUnitOfWork(t)
 
-	app = NewApp(func() (repository.UnitOfWork, error) { return mockUow, nil })
+	app = NewApp(func() (repository.UnitOfWork, error) { return mockUow, nil },
+		service.NewJWTAuthStrategy(func() (repository.UnitOfWork, error) { return mockUow, nil }))
 	testUser, _ = domain.NewUser("testuser", "testuser@example.com", "password123")
 	log.SetOutput(io.Discard)
 	defer mockUow.AssertExpectations(t)

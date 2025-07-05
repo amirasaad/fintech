@@ -2,8 +2,8 @@ template: testify
 packages:
     github.com/amirasaad/fintech/pkg/repository:
         config:
-            dir: "internal/fixtures/repository"
-            filename: "mocks.go"
+            dir: "internal/fixtures"
+            filename: "repository.go"
             pkgname: "fixtures"
             structname: "Mock{{.InterfaceName}}"
         interfaces:
@@ -13,8 +13,8 @@ packages:
             UnitOfWork:
     github.com/amirasaad/fintech/pkg/service:
         config:
-            dir: "internal/fixtures/service"
-            filename: "mocks.go"
+            dir: "internal/fixtures"
+            filename: "service.go"
             pkgname: "fixtures"
             structname: "Mock{{.InterfaceName}}"
         interfaces:

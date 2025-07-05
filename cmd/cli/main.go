@@ -28,7 +28,7 @@ func main() {
 	}
 	db, err := infra.NewDBConnection()
 	if err != nil {
-		color.New(color.FgRed).Fprintln(os.Stderr, "Failed to connect to database:", err)
+		_, _ = color.New(color.FgRed).Fprintln(os.Stderr, "Failed to connect to database:", err)
 		return
 	}
 	uowFactory := func() (repository.UnitOfWork, error) {

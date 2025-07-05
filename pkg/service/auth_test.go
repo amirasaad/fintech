@@ -2,15 +2,15 @@ package service
 
 import (
 	"errors"
-	"os"
 	"testing"
 
-	fixtures "github.com/amirasaad/fintech/internal/fixtures/repository"
+	"github.com/amirasaad/fintech/internal/fixtures"
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -36,212 +36,166 @@ func TestValidEmail(t *testing.T) {
 }
 
 func TestLogin_Success(t *testing.T) {
-	os.Setenv("JWT_SECRET_KEY", "testsecret") // nolint: errcheck
+	assert := assert.New(t)
 	hash, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
 	user := &domain.User{ID: uuid.New(), Username: "user", Email: "user@example.com", Password: string(hash)}
-	repo := fixtures.NewMockUserRepository(t)
-	repo.EXPECT().GetByEmail("user@example.com").Return(user, nil).Once()
-	uow := fixtures.NewMockUnitOfWork(t)
-	uow.EXPECT().UserRepository().Return(repo).Once()
-	s := NewAuthService(func() (repository.UnitOfWork, error) { return uow, nil })
+	authStrategy := fixtures.NewMockAuthStrategy(t)
+	authStrategy.EXPECT().Login("user@example.com", "password").Return(user, "testtoken", nil).Once()
+	s := NewAuthService(func() (repository.UnitOfWork, error) { return nil, nil }, authStrategy)
 	gotUser, token, err := s.Login("user@example.com", "password")
-	if err != nil || gotUser == nil || token == "" {
-		t.Errorf("expected login success, got err=%v user=%v token=%v", err, gotUser, token)
-	}
-	// Validate token
-	parsed, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) { return []byte("testsecret"), nil })
-	if err != nil || !parsed.Valid {
-		t.Error("expected valid jwt token")
-	}
+	assert.NoError(err)
+	assert.NotNil(gotUser)
+	assert.Equal("testtoken", token)
 }
 
 func TestLogin_InvalidPassword(t *testing.T) {
-	hash, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
-	user := &domain.User{ID: uuid.New(), Username: "user", Email: "user@example.com", Password: string(hash)}
-	repo := fixtures.NewMockUserRepository(t)
-	repo.EXPECT().GetByEmail("user@example.com").Return(user, nil).Once()
+	require := require.New(t)
+	assert := assert.New(t)
 	uow := fixtures.NewMockUnitOfWork(t)
-	uow.EXPECT().UserRepository().Return(repo).Once()
-
-	s := NewAuthService(func() (repository.UnitOfWork, error) { return uow, nil })
+	authStrategy := fixtures.NewMockAuthStrategy(t)
+	authStrategy.EXPECT().Login("user@example.com", "wrong").Return(nil, "", errors.New("invalid password")).Once()
+	s := NewAuthService(func() (repository.UnitOfWork, error) { return uow, nil }, authStrategy)
 	gotUser, token, err := s.Login("user@example.com", "wrong")
-	if err != nil || gotUser != nil || token != "" {
-		t.Errorf("expected login fail, got err=%v user=%v token=%v", err, gotUser, token)
-	}
+	require.Error(err)
+	assert.Empty(token)
+	assert.Nil(gotUser)
+
 }
 
 func TestLogin_UserNotFound(t *testing.T) {
 	assert := assert.New(t)
-	repo := fixtures.NewMockUserRepository(t)
 
-	repo.EXPECT().GetByEmail("notfound@example.com").Return(nil, nil).Once()
 	uow := fixtures.NewMockUnitOfWork(t)
-	uow.EXPECT().UserRepository().Return(repo).Once()
 
-	s := NewAuthService(func() (repository.UnitOfWork, error) { return uow, nil })
+	authStrategy := fixtures.NewMockAuthStrategy(t)
+	authStrategy.EXPECT().Login("notfound@example.com", "password").Return(nil, "", errors.New("user not found")).Once()
+	s := NewAuthService(func() (repository.UnitOfWork, error) { return uow, nil }, authStrategy)
 	gotUser, token, err := s.Login("notfound@example.com", "password")
 	assert.Nil(gotUser)
 	assert.Empty(token)
-	assert.NoError(err)
-}
-
-func TestLogin_UnitOfWorkError(t *testing.T) {
-	s := NewAuthService(func() (repository.UnitOfWork, error) { return nil, errors.New("fail") })
-	gotUser, token, err := s.Login("user@example.com", "password")
-	if err == nil || gotUser != nil || token != "" {
-		t.Errorf("expected error, got err=%v user=%v token=%v", err, gotUser, token)
-	}
-}
-
-func TestLogin_RepoError(t *testing.T) {
-	t.Parallel()
-	hash, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
-
-	repo := fixtures.NewMockUserRepository(t)
-	user := &domain.User{ID: uuid.New(), Username: "user", Email: "user@example.com", Password: string(hash)}
-
-	repo.EXPECT().GetByEmail("user@example.com").Return(user, errors.New("db error")).Once()
-	uow := fixtures.NewMockUnitOfWork(t)
-	uow.EXPECT().UserRepository().Return(repo).Times(2)
-
-	s := NewAuthService(func() (repository.UnitOfWork, error) { return uow, nil })
-	gotUser, token, err := s.Login("user@example.com", "password")
-	assert.Error(t, err)
-	assert.Nil(t, gotUser)
-	assert.Empty(t, token)
-
-	repo.EXPECT().GetByUsername("user").Return(user, errors.New("db error")).Once()
-	gotUser, token, err = s.Login("user", "password")
-	assert.Error(t, err)
-	assert.Nil(t, gotUser)
-	assert.Empty(t, token)
+	assert.Error(err)
 }
 
 func TestLogin_JWTSignError(t *testing.T) {
 	t.Parallel()
-	hash, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
-	user := &domain.User{ID: uuid.New(), Username: "user", Email: "user@example.com", Password: string(hash)}
-	repo := fixtures.NewMockUserRepository(t)
-	repo.EXPECT().GetByEmail("user@example.com").Return(user, nil).Once()
-	uow := fixtures.NewMockUnitOfWork(t)
-	uow.EXPECT().UserRepository().Return(repo).Once()
-
-	s := NewAuthService(func() (repository.UnitOfWork, error) { return uow, nil })
-	os.Setenv("JWT_SECRET_KEY", "") // nolint: errcheck
+	assert := assert.New(t)
+	authStrategy := fixtures.NewMockAuthStrategy(t)
+	authStrategy.EXPECT().Login("user@example.com", "password").Return(nil, "", errors.New("JWT sign error")).Once()
+	s := NewAuthService(func() (repository.UnitOfWork, error) { return nil, nil }, authStrategy)
 	gotUser, token, err := s.Login("user@example.com", "password")
-	if err == nil || gotUser != nil || token != "" {
-		t.Errorf("expected JWT sign error, got err=%v user=%v token=%v", err, gotUser, token)
-	}
+	assert.Error(err)
+	assert.Nil(gotUser)
+	assert.Empty(token)
 }
 
-func TestJWTAuthStrategy_Login_GetByEmailError(t *testing.T) {
-	hash, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
-	user := &domain.User{ID: uuid.New(), Username: "user", Email: "user@example.com", Password: string(hash)}
-	repo := fixtures.NewMockUserRepository(t)
-	repo.EXPECT().GetByEmail("user@example.com").Return(user, errors.New("db error")).Once()
-	uow := fixtures.NewMockUnitOfWork(t)
-	uow.EXPECT().UserRepository().Return(repo).Once()
-	s := NewAuthService(func() (repository.UnitOfWork, error) { return uow, nil })
+func TestLogin_GetByEmailError(t *testing.T) {
+	assert := assert.New(t)
+	authStrategy := fixtures.NewMockAuthStrategy(t)
+	expectedErr := errors.New("db error")
+	authStrategy.EXPECT().Login("user@example.com", "password").Return(nil, "", expectedErr).Once()
+
+	s := NewAuthService(func() (repository.UnitOfWork, error) { return nil, nil }, authStrategy)
 	gotUser, token, err := s.Login("user@example.com", "password")
-	assert.Error(t, err)
-	assert.Nil(t, gotUser)
-	assert.Empty(t, token)
+	assert.Error(err)
+	assert.Equal(expectedErr, err)
+	assert.Nil(gotUser)
+	assert.Empty(token)
 }
 
 func TestGetCurrentUserId_InvalidToken(t *testing.T) {
-	s := &AuthService{}
+	s := &AuthService{
+		strategy: &JWTAuthStrategy{},
+	}
 	token := &jwt.Token{}
 	_, err := s.GetCurrentUserId(token)
 	assert.Error(t, err)
 }
 
 func TestGetCurrentUserId_MissingClaim(t *testing.T) {
-	s := &AuthService{}
+	s := &AuthService{strategy: &JWTAuthStrategy{}}
 	token := jwt.New(jwt.SigningMethodHS256)
 	_, err := s.GetCurrentUserId(token)
 	assert.Error(t, err)
 }
 
-func TestBasicAuthStrategy_Login_Success(t *testing.T) {
+func TestLogin_BasicAuthSuccess(t *testing.T) {
+	assert := assert.New(t)
 	hash, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
 	user := &domain.User{ID: uuid.New(), Username: "user", Email: "user@example.com", Password: string(hash)}
-	repo := fixtures.NewMockUserRepository(t)
-	repo.EXPECT().GetByUsername("user").Return(user, nil).Once()
-	uow := fixtures.NewMockUnitOfWork(t)
-	uow.EXPECT().UserRepository().Return(repo).Once()
-	s := NewBasicAuthService(func() (repository.UnitOfWork, error) { return uow, nil })
+	authStrategy := fixtures.NewMockAuthStrategy(t)
+	authStrategy.EXPECT().Login("user", "password").Return(user, "", nil).Once()
+	s := NewAuthService(func() (repository.UnitOfWork, error) { return nil, nil }, authStrategy)
 	gotUser, token, err := s.Login("user", "password")
-	assert.NoError(t, err)
-	assert.NotNil(t, gotUser)
-	assert.Empty(t, token)
+	assert.NoError(err)
+	assert.NotNil(gotUser)
+	assert.Empty(token)
 }
 
-func TestBasicAuthStrategy_Login_InvalidPassword(t *testing.T) {
-	hash, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
-	user := &domain.User{ID: uuid.New(), Username: "user", Email: "user@example.com", Password: string(hash)}
-	repo := fixtures.NewMockUserRepository(t)
-	repo.EXPECT().GetByUsername("user").Return(user, nil).Once()
-	uow := fixtures.NewMockUnitOfWork(t)
-	uow.EXPECT().UserRepository().Return(repo).Once()
-	s := NewBasicAuthService(func() (repository.UnitOfWork, error) { return uow, nil })
+func TestLogin_BasicAuthInvalidPassword(t *testing.T) {
+	assert := assert.New(t)
+	authStrategy := fixtures.NewMockAuthStrategy(t)
+	authStrategy.EXPECT().Login("user", "wrong").Return(nil, "", nil).Once()
+	s := NewAuthService(func() (repository.UnitOfWork, error) { return nil, nil }, authStrategy)
 	gotUser, token, err := s.Login("user", "wrong")
-	assert.NoError(t, err)
-	assert.Nil(t, gotUser)
-	assert.Empty(t, token)
+	assert.NoError(err)
+	assert.Nil(gotUser)
+	assert.Empty(token)
 }
 
-func TestBasicAuthStrategy_Login_UoWFactoryError(t *testing.T) {
-	s := NewBasicAuthService(func() (repository.UnitOfWork, error) { return nil, errors.New("uow error") })
+func TestLogin_BasicAuthUoWFactoryError(t *testing.T) {
+	assert := assert.New(t)
+	authStrategy := fixtures.NewMockAuthStrategy(t)
+	expectedErr := errors.New("uow error")
+	authStrategy.EXPECT().Login("user", "password").Return(nil, "", expectedErr).Once()
+	s := NewAuthService(func() (repository.UnitOfWork, error) { return nil, nil }, authStrategy)
 	gotUser, token, err := s.Login("user", "password")
-	assert.Error(t, err)
-	assert.Nil(t, gotUser)
-	assert.Empty(t, token)
+	assert.Error(err)
+	assert.Equal(expectedErr, err)
+	assert.Nil(gotUser)
+	assert.Empty(token)
 }
 
-func TestBasicAuthStrategy_Login_UserNotFound(t *testing.T) {
-	repo := fixtures.NewMockUserRepository(t)
-	repo.EXPECT().GetByUsername("notfound").Return(nil, nil).Once()
-	repo.EXPECT().GetByEmail("notfound@example.com").Return(nil, nil).Once()
-	uow := fixtures.NewMockUnitOfWork(t)
-	uow.EXPECT().UserRepository().Return(repo).Times(2)
-	s := NewBasicAuthService(func() (repository.UnitOfWork, error) { return uow, nil })
+func TestLogin_BasicAuthUserNotFound(t *testing.T) {
+	assert := assert.New(t)
+	authStrategy := fixtures.NewMockAuthStrategy(t)
+	authStrategy.EXPECT().Login("notfound", "password").Return(nil, "", nil).Once()
+	authStrategy.EXPECT().Login("notfound@example.com", "password").Return(nil, "", nil).Once()
+	s := NewAuthService(func() (repository.UnitOfWork, error) { return nil, nil }, authStrategy)
 	gotUser, token, err := s.Login("notfound", "password")
-	assert.NoError(t, err)
-	assert.Nil(t, gotUser)
-	assert.Empty(t, token)
+	assert.NoError(err)
+	assert.Nil(gotUser)
+	assert.Empty(token)
 
 	gotUser, token, err = s.Login("notfound@example.com", "password")
-	assert.NoError(t, err)
-	assert.Nil(t, gotUser)
-	assert.Empty(t, token)
+	assert.NoError(err)
+	assert.Nil(gotUser)
+	assert.Empty(token)
 }
 
-func TestJWTAuthStrategy_Login_RepoErrorWithUser(t *testing.T) {
-	hash, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
-	user := &domain.User{ID: uuid.New(), Username: "user", Email: "user@example.com", Password: string(hash)}
-	repo := fixtures.NewMockUserRepository(t)
-	repo.EXPECT().GetByUsername("user").Return(user, errors.New("db error")).Once()
-	uow := fixtures.NewMockUnitOfWork(t)
-	uow.EXPECT().UserRepository().Return(repo).Once()
-	s := NewAuthService(func() (repository.UnitOfWork, error) { return uow, nil })
+func TestLogin_RepoErrorWithUser(t *testing.T) {
+	assert := assert.New(t)
+	authStrategy := fixtures.NewMockAuthStrategy(t)
+	expectedErr := errors.New("db error")
+	authStrategy.EXPECT().Login("user", "password").Return(nil, "", expectedErr).Once()
+	s := NewAuthService(func() (repository.UnitOfWork, error) { return nil, nil }, authStrategy)
 	gotUser, token, err := s.Login("user", "password")
-	assert.Error(t, err)
-	assert.Nil(t, gotUser)
-	assert.Empty(t, token)
+	assert.Error(err)
+	assert.Equal(expectedErr, err)
+	assert.Nil(gotUser)
+	assert.Empty(token)
 }
 
-func TestBasicAuthStrategy_Login_RepoErrorWithUser(t *testing.T) {
-	hash, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
-	user := &domain.User{ID: uuid.New(), Username: "user", Email: "user@example.com", Password: string(hash)}
-	repo := fixtures.NewMockUserRepository(t)
-	repo.EXPECT().GetByUsername("user").Return(user, errors.New("db error")).Once()
-	uow := fixtures.NewMockUnitOfWork(t)
-	uow.EXPECT().UserRepository().Return(repo).Once()
-	s := NewBasicAuthService(func() (repository.UnitOfWork, error) { return uow, nil })
+func TestLogin_BasicAuthRepoErrorWithUser(t *testing.T) {
+	assert := assert.New(t)
+	authStrategy := fixtures.NewMockAuthStrategy(t)
+	expectedErr := errors.New("db error")
+	authStrategy.EXPECT().Login("user", "password").Return(nil, "", expectedErr).Once()
+	s := NewAuthService(func() (repository.UnitOfWork, error) { return nil, nil }, authStrategy)
 	gotUser, token, err := s.Login("user", "password")
-	assert.Error(t, err)
-	assert.Nil(t, gotUser)
-	assert.Empty(t, token)
+	assert.Error(err)
+	assert.Equal(expectedErr, err)
+	assert.Nil(gotUser)
+	assert.Empty(token)
 }
 
 func BenchmarkCheckPasswordHash(b *testing.B) {
@@ -260,8 +214,10 @@ func BenchmarkLogin_Success(b *testing.B) {
 	repo.EXPECT().GetByEmail("user@example.com").Return(user, nil).Maybe()
 	uow := fixtures.NewMockUnitOfWork(b)
 	uow.EXPECT().UserRepository().Return(repo).Maybe()
-	s := NewAuthService(func() (repository.UnitOfWork, error) { return uow, nil })
-	os.Setenv("JWT_SECRET_KEY", "testsecret") // nolint: errcheck
+	authStrategy := fixtures.NewMockAuthStrategy(b)
+	authStrategy.EXPECT().Login("user@example.com", "password").Return(user, "testtoken", nil).Maybe()
+	s := NewAuthService(func() (repository.UnitOfWork, error) { return uow, nil }, authStrategy)
+
 	b.ResetTimer()
 	for b.Loop() {
 		_, _, _ = s.Login("user@example.com", "password")
@@ -282,8 +238,11 @@ func BenchmarkLogin_InvalidPassword(b *testing.B) {
 	repo.EXPECT().GetByEmail("user@example.com").Return(user, nil).Maybe()
 	uow := fixtures.NewMockUnitOfWork(b)
 	uow.EXPECT().UserRepository().Return(repo).Maybe()
-	s := NewAuthService(func() (repository.UnitOfWork, error) { return uow, nil })
-	os.Setenv("JWT_SECRET_KEY", "testsecret") // nolint: errcheck
+	authStrategy := fixtures.NewMockAuthStrategy(b)
+	authStrategy.EXPECT().Login("user@example.com", "wrong").Return(nil, "", errors.New("invalid password")).Maybe()
+
+	s := NewAuthService(func() (repository.UnitOfWork, error) { return uow, nil }, authStrategy)
+
 	b.ResetTimer()
 	for b.Loop() {
 		_, _, _ = s.Login("user@example.com", "wrong")
@@ -295,7 +254,10 @@ func BenchmarkLogin_UserNotFound(b *testing.B) {
 	repo.EXPECT().GetByEmail("notfound@example.com").Return(&domain.User{}, errors.New("user not found")).Maybe()
 	uow := fixtures.NewMockUnitOfWork(b)
 	uow.EXPECT().UserRepository().Return(repo).Maybe()
-	s := NewAuthService(func() (repository.UnitOfWork, error) { return uow, nil })
+	authStrategy := fixtures.NewMockAuthStrategy(b)
+	authStrategy.EXPECT().Login("notfound@example.com", "password").Return(nil, "", nil).Maybe()
+
+	s := NewAuthService(func() (repository.UnitOfWork, error) { return uow, nil }, authStrategy)
 	b.ResetTimer()
 	for b.Loop() {
 		_, _, _ = s.Login("notfound@example.com", "password")

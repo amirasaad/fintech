@@ -6,6 +6,7 @@ import (
 	"github.com/amirasaad/fintech/infra"
 
 	"github.com/amirasaad/fintech/pkg/repository"
+	"github.com/amirasaad/fintech/pkg/service"
 	"github.com/amirasaad/fintech/webapi"
 	"github.com/gofiber/fiber/v2/middleware/adaptor"
 )
@@ -26,7 +27,9 @@ func handler() http.HandlerFunc {
 	}
 	app := webapi.NewApp(func() (repository.UnitOfWork, error) {
 		return infra.NewGormUoW(db)
-	})
+	}, service.NewJWTAuthStrategy(func() (repository.UnitOfWork, error) {
+		return infra.NewGormUoW(db)
+	}))
 
 	return adaptor.FiberApp(app)
 }

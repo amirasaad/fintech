@@ -4,8 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	fixtures "github.com/amirasaad/fintech/internal/fixtures/repository"
-
+	"github.com/amirasaad/fintech/internal/fixtures"
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/google/uuid"

@@ -25,12 +25,12 @@ import (
 	"github.com/google/uuid"
 )
 
-func AccountRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, error)) {
-	app.Post("/account", middleware.Protected(), CreateAccount(uowFactory))
-	app.Post("/account/:id/deposit", middleware.Protected(), Deposit(uowFactory))
-	app.Post("/account/:id/withdraw", middleware.Protected(), Withdraw(uowFactory))
-	app.Get("/account/:id/balance", middleware.Protected(), GetBalance(uowFactory))
-	app.Get("/account/:id/transactions", middleware.Protected(), GetTransactions(uowFactory))
+func AccountRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, error), strategy service.AuthStrategy) {
+	app.Post("/account", middleware.Protected(), CreateAccount(uowFactory, strategy))
+	app.Post("/account/:id/deposit", middleware.Protected(), Deposit(uowFactory, strategy))
+	app.Post("/account/:id/withdraw", middleware.Protected(), Withdraw(uowFactory, strategy))
+	app.Get("/account/:id/balance", middleware.Protected(), GetBalance(uowFactory, strategy))
+	app.Get("/account/:id/transactions", middleware.Protected(), GetTransactions(uowFactory, strategy))
 }
 
 // CreateAccount returns a Fiber handler for creating a new account for the current user.
@@ -43,10 +43,10 @@ func AccountRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, err
 //
 // Returns:
 //   - fiber.Handler: The HTTP handler function for account creation.
-func CreateAccount(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
+func CreateAccount(uowFactory func() (repository.UnitOfWork, error), strategy service.AuthStrategy) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		log.Infof("Creating new account")
-		authSvc := service.NewAuthService(uowFactory)
+		authSvc := service.NewAuthService(uowFactory, strategy)
 		token, ok := c.Locals("user").(*jwt.Token)
 		if !ok {
 			return ErrorResponseJSON(c, fiber.StatusUnauthorized, "unauthorized", "missing user context")
@@ -79,9 +79,9 @@ func CreateAccount(uowFactory func() (repository.UnitOfWork, error)) fiber.Handl
 //
 //	@param uowFactory A function that returns a new repository.UnitOfWork and error.
 //	@return fiber.Handler A Fiber handler function for processing deposit requests.
-func Deposit(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
+func Deposit(uowFactory func() (repository.UnitOfWork, error), strategy service.AuthStrategy) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		authSvc := service.NewAuthService(uowFactory)
+		authSvc := service.NewAuthService(uowFactory, strategy)
 		token, ok := c.Locals("user").(*jwt.Token)
 		if !ok {
 			return ErrorResponseJSON(c, fiber.StatusUnauthorized, "unauthorized", "missing user context")
@@ -136,9 +136,9 @@ func Deposit(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
 //
 // Returns:
 //   - fiber.Handler: The HTTP handler for the withdrawal endpoint.
-func Withdraw(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
+func Withdraw(uowFactory func() (repository.UnitOfWork, error), strategy service.AuthStrategy) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		authSvc := service.NewAuthService(uowFactory)
+		authSvc := service.NewAuthService(uowFactory, strategy)
 		token, ok := c.Locals("user").(*jwt.Token)
 		if !ok {
 			return ErrorResponseJSON(c, fiber.StatusUnauthorized, "unauthorized", "missing user context")
@@ -191,9 +191,9 @@ func Withdraw(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
 // Example usage:
 //
 //	app.Get("/accounts/:id/transactions", GetTransactions(uowFactory))
-func GetTransactions(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
+func GetTransactions(uowFactory func() (repository.UnitOfWork, error), strategy service.AuthStrategy) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		authSvc := service.NewAuthService(uowFactory)
+		authSvc := service.NewAuthService(uowFactory, strategy)
 		token, ok := c.Locals("user").(*jwt.Token)
 		if !ok {
 			return ErrorResponseJSON(c, fiber.StatusUnauthorized, "unauthorized", "missing user context")
@@ -221,9 +221,9 @@ func GetTransactions(uowFactory func() (repository.UnitOfWork, error)) fiber.Han
 	}
 }
 
-func GetBalance(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
+func GetBalance(uowFactory func() (repository.UnitOfWork, error), strategy service.AuthStrategy) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		authSvc := service.NewAuthService(uowFactory)
+		authSvc := service.NewAuthService(uowFactory, strategy)
 		token, ok := c.Locals("user").(*jwt.Token)
 		if !ok {
 			return ErrorResponseJSON(c, fiber.StatusUnauthorized, "unauthorized", "missing user context")
