@@ -2,9 +2,9 @@
 // It sets up endpoints for creating accounts, depositing and withdrawing funds, retrieving account balances,
 // and listing account transactions. All routes are protected by authentication middleware and require a valid user context.
 //
-// Parameters:
-//   - app: The Fiber application instance to register routes on.
-//   - uowFactory: A factory function that returns a new UnitOfWork for database operations.
+//	@param app The Fiber application instance to register routes on.
+//	@param uowFactory A function that returns a new repository.UnitOfWork and error.
+//	@param strategy The authentication strategy to use.
 //
 // Routes:
 //   - POST   /account                   : Create a new account for the authenticated user.
@@ -25,6 +25,14 @@ import (
 	"github.com/google/uuid"
 )
 
+type DepositRequest struct {
+	Amount float64 `json:"amount" xml:"amount" form:"amount"`
+}
+
+type WithdrawRequest struct {
+	Amount float64 `json:"amount" xml:"amount" form:"amount"`
+}
+
 func AccountRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, error), strategy service.AuthStrategy) {
 	app.Post("/account", middleware.Protected(), CreateAccount(uowFactory, strategy))
 	app.Post("/account/:id/deposit", middleware.Protected(), Deposit(uowFactory, strategy))
@@ -37,12 +45,18 @@ func AccountRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, err
 // It extracts the user ID from the request context, initializes the account service using the provided
 // UnitOfWork factory, and attempts to create a new account. On success, it returns the created account as JSON.
 // On failure, it logs the error and returns an appropriate error response.
-//
-// Parameters:
-//   - uowFactory: A function that returns a new instance of repository.UnitOfWork and an error.
-//
-// Returns:
-//   - fiber.Handler: The HTTP handler function for account creation.
+// @Summary Create a new account
+// @Description Create a new account for the authenticated user
+// @Tags accounts
+// @Accept json
+// @Produce json
+// @Success 201 {object} Response
+// @Failure 400 {object} ProblemDetails
+// @Failure 401 {object} ProblemDetails
+// @Failure 429 {object} ProblemDetails
+// @Failure 500 {object} ProblemDetails
+// @Router /account [post]
+// @Security Bearer
 func CreateAccount(uowFactory func() (repository.UnitOfWork, error), strategy service.AuthStrategy) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		log.Infof("Creating new account")
@@ -76,9 +90,20 @@ func CreateAccount(uowFactory func() (repository.UnitOfWork, error), strategy se
 // and parses the deposit amount from the request body. If successful, it performs the deposit operation
 // using the AccountService and returns the transaction as JSON. On error, it logs the issue and returns
 // an appropriate JSON error response.
-//
-//	@param uowFactory A function that returns a new repository.UnitOfWork and error.
-//	@return fiber.Handler A Fiber handler function for processing deposit requests.
+// @Summary Deposit funds into an account
+// @Description Deposit a specified amount into the user's account
+// @Tags accounts
+// @Accept json
+// @Produce json
+// @Param id path string true "Account ID"
+// @Param request body DepositRequest true "Deposit request with amount"
+// @Success 200 {object} Response
+// @Failure 400 {object} ProblemDetails
+// @Failure 401 {object} ProblemDetails
+// @Failure 429 {object} ProblemDetails
+// @Failure 500 {object} ProblemDetails
+// @Router /account/{id}/deposit [post]
+// @Security Bearer
 func Deposit(uowFactory func() (repository.UnitOfWork, error), strategy service.AuthStrategy) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		authSvc := service.NewAuthService(uowFactory, strategy)
@@ -97,9 +122,7 @@ func Deposit(uowFactory func() (repository.UnitOfWork, error), strategy service.
 			log.Errorf("Invalid account ID for deposit: %v", err)
 			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid account ID", err.Error())
 		}
-		type DepositRequest struct {
-			Amount float64 `json:"amount" xml:"amount" form:"amount"`
-		}
+
 		var request DepositRequest
 		err = c.BodyParser(&request)
 		if err != nil {
@@ -130,12 +153,20 @@ func Deposit(uowFactory func() (repository.UnitOfWork, error), strategy service.
 //
 // Error responses are returned in JSON format with appropriate status codes
 // if any step fails (e.g., invalid user ID, invalid account ID, parsing errors, or withdrawal errors).
-//
-// Parameters:
-//   - uowFactory: A function that returns a new UnitOfWork and error.
-//
-// Returns:
-//   - fiber.Handler: The HTTP handler for the withdrawal endpoint.
+// @Summary Withdraw funds from an account
+// @Description Withdraw a specified amount from the user's account
+// @Tags accounts
+// @Accept json
+// @Produce json
+// @Param id path string true "Account ID"
+// @Param request body WithdrawRequest true "Withdrawal request with amount"
+// @Success 200 {object} Response
+// @Failure 400 {object} ProblemDetails
+// @Failure 401 {object} ProblemDetails
+// @Failure 429 {object} ProblemDetails
+// @Failure 500 {object} ProblemDetails
+// @Router /account/{id}/withdraw [post]
+// @Security Bearer
 func Withdraw(uowFactory func() (repository.UnitOfWork, error), strategy service.AuthStrategy) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		authSvc := service.NewAuthService(uowFactory, strategy)
@@ -153,9 +184,6 @@ func Withdraw(uowFactory func() (repository.UnitOfWork, error), strategy service
 		if err != nil {
 			log.Errorf("Invalid account ID for withdrawal: %v", err)
 			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid account ID", err.Error())
-		}
-		type WithdrawRequest struct {
-			Amount float64 `json:"amount"`
 		}
 		var request WithdrawRequest
 		err = c.BodyParser(&request)
@@ -178,19 +206,19 @@ func Withdraw(uowFactory func() (repository.UnitOfWork, error), strategy service
 // It expects a UnitOfWork factory function as a dependency for service instantiation.
 // The handler extracts the current user ID from the request context and parses the account ID from the URL parameters.
 // On success, it returns the transactions as a JSON response. On error, it logs the error and returns an appropriate JSON error response.
-//
-// Route parameters:
-//   - id: UUID of the account whose transactions are to be retrieved.
-//
-// Responses:
-//   - 200: JSON array of transactions
-//   - 400: Invalid account ID or user ID
-//   - 401/403: Unauthorized or forbidden
-//   - 500: Internal server error
-//
-// Example usage:
-//
-//	app.Get("/accounts/:id/transactions", GetTransactions(uowFactory))
+// @Summary Get account transactions
+// @Description Retrieve the list of transactions for a specific account
+// @Tags accounts
+// @Accept json
+// @Produce json
+// @Param id path string true "Account ID"
+// @Success 200 {object} Response
+// @Failure 400 {object} ProblemDetails
+// @Failure 401 {object} ProblemDetails
+// @Failure 429 {object} ProblemDetails
+// @Failure 500 {object} ProblemDetails
+// @Router /account/{id}/transactions [get]
+// @Security Bearer
 func GetTransactions(uowFactory func() (repository.UnitOfWork, error), strategy service.AuthStrategy) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		authSvc := service.NewAuthService(uowFactory, strategy)
@@ -221,6 +249,23 @@ func GetTransactions(uowFactory func() (repository.UnitOfWork, error), strategy 
 	}
 }
 
+// GetBalance returns a Fiber handler for retrieving the balance of a specific account.
+// It expects a UnitOfWork factory function as a dependency for service instantiation.
+// The handler extracts the current user ID from the request context and parses the account ID from the URL parameters.
+// On success, it returns the account balance as a JSON response. On error, it logs the error and returns an appropriate JSON error response.
+// @Summary Get account balance
+// @Description Retrieve the balance of a specific account
+// @Tags accounts
+// @Accept json
+// @Produce json
+// @Param id path string true "Account ID"
+// @Success 200 {object} Response
+// @Failure 400 {object} ProblemDetails
+// @Failure 401 {object} ProblemDetails
+// @Failure 429 {object} ProblemDetails
+// @Failure 500 {object} ProblemDetails
+// @Router /account/{id}/balance [get]
+// @Security Bearer
 func GetBalance(uowFactory func() (repository.UnitOfWork, error), strategy service.AuthStrategy) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		authSvc := service.NewAuthService(uowFactory, strategy)

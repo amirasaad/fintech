@@ -2,7 +2,9 @@ package domain
 
 import (
 	"errors"
+	"fmt"
 	"math"
+	"math/big"
 	"sync"
 	"time"
 
@@ -81,20 +83,43 @@ func (a *Account) Deposit(userID uuid.UUID, amount float64) (*Transaction, error
 	slog.Info("Balance before deposit", slog.Int64("balance", a.Balance))
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	// Check if the amount is positive before proceeding with the deposit
+
 	if amount <= 0 {
 		return nil, ErrTransactionAmountMustBePositive
 	}
 
-	parsedAmount := int64(amount * 100) // Convert to cents for precision
+	amountStr := fmt.Sprintf("%.2f", amount)
+	amountRat, ok := new(big.Rat).SetString(amountStr)
+	if !ok {
+		return nil, fmt.Errorf("invalid amount format")
+	}
 
-	// Check for overflow after conversion as well
-	if a.Balance > int64(math.MaxInt64)-parsedAmount {
+	multiplier := big.NewRat(100, 1)
+	centsRat := new(big.Rat).Mul(amountRat, multiplier)
+
+	if !centsRat.IsInt() {
+		return nil, fmt.Errorf("amount has more than 2 decimal places")
+	}
+
+	cents := centsRat.Num()
+
+	if cents.Sign() <= 0 {
+		return nil, ErrTransactionAmountMustBePositive
+	}
+
+	max := big.NewInt(math.MaxInt64)
+	balanceBig := big.NewInt(a.Balance)
+	newBalance := new(big.Int).Add(balanceBig, cents)
+
+	if newBalance.Cmp(max) > 0 {
 		return nil, ErrDepositAmountExceedsMaxSafeInt
 	}
+
+	parsedAmount := cents.Int64()
 	slog.Info("Depositing amount", slog.Int64("amount", parsedAmount))
 	a.Balance += parsedAmount
 	slog.Info("Balance after deposit", slog.Int64("balance", a.Balance))
+
 	transaction := Transaction{
 		ID:        uuid.New(),
 		UserID:    userID,
@@ -122,18 +147,18 @@ func (a *Account) Withdraw(userID uuid.UUID, amount float64) (*Transaction, erro
 	if amount <= 0 {
 		return nil, ErrWithdrawalAmountMustBePositive
 	}
-	parsedAmount := int64(amount * 100) // Convert to cents for precision
-	if parsedAmount > a.Balance {
+	cents := int64(math.Round(amount * 100))
+	if cents > a.Balance {
 		return nil, ErrInsufficientFunds
 	}
-	slog.Info("Withdrawing amount", slog.Int64("amount", parsedAmount))
-	a.Balance -= parsedAmount
+	slog.Info("Withdrawing amount", slog.Int64("amount", cents))
+	a.Balance -= cents
 	slog.Info("Balance after withdrawal", slog.Int64("balance", a.Balance))
 	transaction := Transaction{
 		ID:        uuid.New(),
 		UserID:    userID,
 		AccountID: a.ID,
-		Amount:    -parsedAmount,
+		Amount:    -cents,
 		Balance:   a.Balance,
 		CreatedAt: time.Now().UTC(),
 	}

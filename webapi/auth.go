@@ -6,17 +6,31 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+type LoginInput struct {
+	Identity string `json:"identity"`
+	Password string `json:"password"`
+}
+
 func AuthRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, error), strategy service.AuthStrategy) {
 	app.Post("/login", Login(uowFactory, strategy))
 }
 
-// Login get user and password
+// Login handles user authentication and returns a JWT token.
+// @Summary User login
+// @Description Authenticate user with identity (username or email) and password
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body LoginInput true "Login credentials"
+// @Success 200 {object} Response
+// @Failure 400 {object} ProblemDetails
+// @Failure 401 {object} ProblemDetails
+// @Failure 429 {object} ProblemDetails
+// @Failure 500 {object} ProblemDetails
+// @Router /login [post]
 func Login(uowFactory func() (repository.UnitOfWork, error), strategy service.AuthStrategy) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		type LoginInput struct {
-			Identity string `json:"identity"`
-			Password string `json:"password"`
-		}
+
 		input := new(LoginInput)
 
 		if err := c.BodyParser(input); err != nil {

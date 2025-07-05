@@ -11,6 +11,20 @@ import (
 	"github.com/google/uuid"
 )
 
+type NewUser struct {
+	Username string `json:"username" validate:"required,max=50"`
+	Email    string `json:"email" validate:"required,email,max=50"`
+	Password string `json:"password" validate:"required,min=6"`
+}
+
+type UpdateUserInput struct {
+	Names string `json:"names"`
+}
+
+type PasswordInput struct {
+	Password string `json:"password"`
+}
+
 func UserRoutes(
 	app *fiber.App,
 	uowFactory func() (repository.UnitOfWork, error),
@@ -22,7 +36,18 @@ func UserRoutes(
 	app.Delete("/user/:id", middleware.Protected(), DeleteUser(uowFactory, strategy))
 }
 
-// GetUser get a user
+// GetUser retrieves a user by ID.
+// @Summary Get user by ID
+// @Description Get a user by their unique identifier
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param id path string true "User ID"
+// @Success 200 {object} Response
+// @Failure 400 {object} Response
+// @Failure 404 {object} Response
+// @Router /user/{id} [get]
+// @Security Bearer
 func GetUser(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		id, err := uuid.Parse(c.Params("id"))
@@ -39,14 +64,21 @@ func GetUser(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
 	}
 }
 
-// CreateUser new user
+// CreateUser creates a new user account.
+// @Summary Create a new user
+// @Description Create a new user account with username, email, and password
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param request body NewUser true "User creation data"
+// @Success 201 {object} Response
+// @Failure 400 {object} ProblemDetails
+// @Failure 401 {object} ProblemDetails
+// @Failure 429 {object} ProblemDetails
+// @Failure 500 {object} ProblemDetails
+// @Router /user [post]
 func CreateUser(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		type NewUser struct {
-			Username string `json:"username" validate:"required,max=50"`
-			Email    string `json:"email" validate:"required,email,max=50"`
-			Password string `json:"password" validate:"required,min=6"`
-		}
 
 		var newUser NewUser
 		if err := c.BodyParser(&newUser); err != nil {
@@ -68,12 +100,23 @@ func CreateUser(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler 
 	}
 }
 
-// UpdateUser update user
+// UpdateUser updates user information.
+// @Summary Update user
+// @Description Update user information by ID
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param id path string true "User ID"
+// @Param request body UpdateUserInput true "User update data"
+// @Success 200 {object} Response
+// @Failure 400 {object} ProblemDetails
+// @Failure 401 {object} ProblemDetails
+// @Failure 429 {object} ProblemDetails
+// @Failure 500 {object} ProblemDetails
+// @Router /user/{id} [put]
+// @Security Bearer
 func UpdateUser(uowFactory func() (repository.UnitOfWork, error), strategy service.AuthStrategy) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		type UpdateUserInput struct {
-			Names string `json:"names"`
-		}
 		var uui UpdateUserInput
 		if err := c.BodyParser(&uui); err != nil {
 			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Review your input", err.Error())
@@ -111,12 +154,23 @@ func UpdateUser(uowFactory func() (repository.UnitOfWork, error), strategy servi
 	}
 }
 
-// DeleteUser delete user
+// DeleteUser deletes a user account.
+// @Summary Delete user
+// @Description Delete a user account by ID with password confirmation
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param id path string true "User ID"
+// @Param request body PasswordInput true "Password confirmation"
+// @Success 204 {object} Response
+// @Failure 400 {object} ProblemDetails
+// @Failure 401 {object} ProblemDetails
+// @Failure 429 {object} ProblemDetails
+// @Failure 500 {object} ProblemDetails
+// @Router /user/{id} [delete]
+// @Security Bearer
 func DeleteUser(uowFactory func() (repository.UnitOfWork, error), strategy service.AuthStrategy) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		type PasswordInput struct {
-			Password string `json:"password"`
-		}
 		var pi PasswordInput
 		if err := c.BodyParser(&pi); err != nil {
 			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Review your input", err.Error())

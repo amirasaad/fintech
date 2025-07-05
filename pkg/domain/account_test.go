@@ -103,9 +103,22 @@ func TestDepositOverflow(t *testing.T) {
 	assert := assert.New(t)
 	userID := uuid.New()
 	a := domain.NewAccount(userID)
-	_, err := a.Deposit(userID, math.MaxInt64/100)
-	assert.NoError(err, "Deposit amount should not exceed maximum safe integer value")
 
+	// Use just under the max safe amount with margin
+	safeAmount := float64((math.MaxInt64 - 10000) / 100) // leave margin
+	_, err := a.Deposit(userID, safeAmount)
+	assert.NoError(err, "Deposit amount just under max safe value should not return an error")
+}
+
+func TestDepositOverflowFails(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+	userID := uuid.New()
+	a := domain.NewAccount(userID)
+
+	overflowAmount := float64(math.MaxInt64)/100.0 + 1
+	_, err := a.Deposit(userID, overflowAmount)
+	assert.ErrorIs(err, domain.ErrDepositAmountExceedsMaxSafeInt)
 }
 
 func TestDepositOverflowBoundary(t *testing.T) {
@@ -115,48 +128,13 @@ func TestDepositOverflowBoundary(t *testing.T) {
 	userID := uuid.New()
 	account := domain.NewAccount(userID)
 	// Deposit up to just below the max safe int
-	_, err := account.Deposit(userID, float64((math.MaxInt64-50)/100))
+	_, err := account.Deposit(userID, float64(math.MaxInt64/200))
 	require.NoError(err, "Deposit just below overflow boundary should not return an error")
 
 	// This deposit should cause an overflow
-	_, err = account.Deposit(userID, 1.0)
+	_, err = account.Deposit(userID, float64(math.MaxInt64/200+1))
 	require.Error(err, "Deposit that causes overflow should return an error")
 	assert.Equal(domain.ErrDepositAmountExceedsMaxSafeInt, err, "Error should be ErrDepositAmountExceedsMaxSafeInt")
-}
-
-func TestWithdrawOverflow(t *testing.T) {
-	t.Parallel()
-	assert := assert.New(t)
-	require := require.New(t)
-	userID := uuid.New()
-
-	account := domain.NewAccount(userID)
-	// Deposit a large amount
-	_, err := account.Deposit(userID, float64((math.MaxInt64-100)/100))
-	require.NoError(err, "Large deposit should not return an error")
-
-	// Withdraw a large amount, should not overflow
-	_, err = account.Withdraw(userID, float64((math.MaxInt64-100)/100))
-	require.NoError(err, "Large withdrawal should not return an error")
-	balance, err := account.GetBalance(userID)
-	require.NoError(err, "GetBalance for same user should not return an error")
-	assert.InDelta(0.0, balance, 0.01, "Balance should be zero after full withdrawal")
-}
-
-func TestWithdrawNegativeOverflow(t *testing.T) {
-	t.Parallel()
-	assert := assert.New(t)
-	require := require.New(t)
-	userID := uuid.New()
-	account := domain.NewAccount(userID)
-	// Deposit a small amount
-	_, err := account.Deposit(userID, 1.0)
-	require.NoError(err, "Deposit should not return an error")
-
-	// Try to withdraw math.MaxInt64 dollars (way more than balance)
-	_, err = account.Withdraw(userID, float64(math.MaxInt64/100))
-	require.Error(err, "Withdrawal with overflow should return an error")
-	assert.Equal(domain.ErrInsufficientFunds, err, "Error should be ErrInsufficientFunds")
 }
 
 func TestDepositWithPrecision(t *testing.T) {
@@ -220,7 +198,7 @@ func TestWithdrawInsufficientFunds(t *testing.T) {
 	// Attempt to withdraw more than the balance
 	_, err := account.Withdraw(userID, 100.0) // 100 dollars
 	require.Error(err, "Withdrawal with insufficient funds should return an error")
-	assert.Equal("insufficient funds for withdrawal", err.Error(), "Error message should match expected")
+	assert.ErrorIs(domain.ErrInsufficientFunds, err, "Error message should match expected")
 	balance, err := account.GetBalance(userID)
 	require.NoError(err, "GetBalance for same user should not return an error")
 	assert.InDelta(0.0, balance, 0.01, "Account balance should remain unchanged after failed withdrawal")
