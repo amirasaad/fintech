@@ -2,7 +2,7 @@
 
 [![build](https://github.com/amirasaad/fintech/actions/workflows/ci.yml/badge.svg)](https://github.com/amirasaad/fintech/actions/workflows/ci.yml)
 
-## Overview
+## Overview 📝
 
 The Fintech App is a robust, scalable, and secure financial transaction system designed to manage user accounts, deposits, withdrawals, and real-time transaction history. Built with Go (Golang), this application adheres to modern software engineering principles, including Domain-Driven Design (DDD) and clean architecture, to ensure maintainability, testability, and high performance. It provides a foundational platform for financial operations, emphasizing data integrity and concurrency safety.
 
@@ -260,7 +260,7 @@ We welcome contributions to the Fintech App! To contribute, please follow these 
 6. **Commit your changes:** Use [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) for clear and consistent commit messages. This helps in generating changelogs and understanding the project history. ✉️
     Example:
 
-    ```
+    ```vim
     feat: add new account creation endpoint
     
     This commit introduces the /account POST endpoint for creating new user accounts.
