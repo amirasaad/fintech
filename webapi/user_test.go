@@ -3,6 +3,7 @@ package webapi
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http/httptest"
@@ -84,6 +85,66 @@ func TestUpdateUserUnauthorized(t *testing.T) {
 	assert.Equal(t, fiber.StatusUnauthorized, resp.StatusCode)
 }
 
+func TestUpdateUserSuccess(t *testing.T) {
+	app, userRepo, _, _, mockUow, testUser := SetupTestApp(t)
+	mockUow.EXPECT().UserRepository().Return(userRepo).Times(2)
+	userRepo.EXPECT().Get(testUser.ID).Return(testUser, nil).Once()
+	userRepo.EXPECT().Update(mock.Anything).Return(nil).Once()
+	mockUow.EXPECT().Begin().Return(nil).Once()
+	mockUow.EXPECT().Commit().Return(nil).Once()
+
+	body := bytes.NewBuffer([]byte(`{"names":"newname"}`))
+	req := httptest.NewRequest("PUT", fmt.Sprintf("/user/%s", testUser.ID), body)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+getTestToken(t, app, userRepo, mockUow, testUser))
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+}
+
+func TestUpdateUserInvalidBody(t *testing.T) {
+	app, userRepo, _, _, mockUow, testUser := SetupTestApp(t)
+	mockUow.EXPECT().UserRepository().Return(userRepo).Once()
+	body := bytes.NewBuffer([]byte(`{"names":123}`)) // Invalid body
+	req := httptest.NewRequest("PUT", fmt.Sprintf("/user/%s", testUser.ID), body)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+getTestToken(t, app, userRepo, mockUow, testUser))
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	assert.Equal(t, fiber.StatusBadRequest, resp.StatusCode)
+}
+
+func TestUpdateUserNotFound(t *testing.T) {
+	app, userRepo, _, _, mockUow, testUser := SetupTestApp(t)
+	mockUow.EXPECT().UserRepository().Return(userRepo).Times(2)
+	userRepo.EXPECT().Get(testUser.ID).Return(nil, errors.New("not found")).Once()
+
+	body := bytes.NewBuffer([]byte(`{"names":"newname"}`))
+	req := httptest.NewRequest("PUT", fmt.Sprintf("/user/%s", testUser.ID), body)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+getTestToken(t, app, userRepo, mockUow, testUser))
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	assert.Equal(t, fiber.StatusNotFound, resp.StatusCode)
+}
+
+func TestUpdateUserInternalError(t *testing.T) {
+	app, userRepo, _, _, mockUow, testUser := SetupTestApp(t)
+	mockUow.EXPECT().UserRepository().Return(userRepo).Times(2)
+	userRepo.EXPECT().Get(testUser.ID).Return(testUser, nil).Once()
+	userRepo.EXPECT().Update(mock.Anything).Return(errors.New("internal error")).Once()
+	mockUow.EXPECT().Begin().Return(nil).Once()
+	mockUow.EXPECT().Rollback().Return(nil).Once()
+
+	body := bytes.NewBuffer([]byte(`{"names":"newname"}`))
+	req := httptest.NewRequest("PUT", fmt.Sprintf("/user/%s", testUser.ID), body)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+getTestToken(t, app, userRepo, mockUow, testUser))
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	assert.Equal(t, fiber.StatusInternalServerError, resp.StatusCode)
+}
+
 func TestDeleteUserUnauthorized(t *testing.T) {
 	app, _, _, _, _, _ := SetupTestApp(t)
 	id := uuid.New()
@@ -92,4 +153,66 @@ func TestDeleteUserUnauthorized(t *testing.T) {
 	resp, err := app.Test(req)
 	require.NoError(t, err)
 	assert.Equal(t, fiber.StatusUnauthorized, resp.StatusCode)
+}
+
+func TestDeleteUserSuccess(t *testing.T) {
+	app, userRepo, _, _, mockUow, testUser := SetupTestApp(t)
+	mockUow.EXPECT().UserRepository().Return(userRepo).Times(2)
+	userRepo.EXPECT().Valid(testUser.ID, "password123").Return(true).Once()
+	userRepo.EXPECT().Delete(testUser.ID).Return(nil).Once()
+	mockUow.EXPECT().Begin().Return(nil).Once()
+	mockUow.EXPECT().Commit().Return(nil).Once()
+
+	body := bytes.NewBuffer([]byte(`{"password":"password123"}`))
+	req := httptest.NewRequest("DELETE", fmt.Sprintf("/user/%s", testUser.ID), body)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+getTestToken(t, app, userRepo, mockUow, testUser))
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	assert.Equal(t, fiber.StatusNoContent, resp.StatusCode)
+}
+
+func TestDeleteUserInvalidBody(t *testing.T) {
+	app, userRepo, _, _, mockUow, testUser := SetupTestApp(t)
+	mockUow.EXPECT().UserRepository().Return(userRepo).Times(2)
+	userRepo.EXPECT().Valid(mock.Anything, "").Return(false).Once()
+
+	body := bytes.NewBuffer([]byte(`{"pass":123}`)) // Invalid body
+	req := httptest.NewRequest("DELETE", fmt.Sprintf("/user/%s", testUser.ID), body)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+getTestToken(t, app, userRepo, mockUow, testUser))
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	assert.Equal(t, fiber.StatusUnauthorized, resp.StatusCode)
+}
+
+func TestDeleteUserInvalidPassword(t *testing.T) {
+	app, userRepo, _, _, mockUow, testUser := SetupTestApp(t)
+	mockUow.EXPECT().UserRepository().Return(userRepo).Times(2)
+	userRepo.EXPECT().Valid(testUser.ID, "wrongpass").Return(false).Once()
+
+	body := bytes.NewBuffer([]byte(`{"password":"wrongpass"}`))
+	req := httptest.NewRequest("DELETE", fmt.Sprintf("/user/%s", testUser.ID), body)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+getTestToken(t, app, userRepo, mockUow, testUser))
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	assert.Equal(t, fiber.StatusUnauthorized, resp.StatusCode)
+}
+
+func TestDeleteUserInternalError(t *testing.T) {
+	app, userRepo, _, _, mockUow, testUser := SetupTestApp(t)
+	mockUow.EXPECT().UserRepository().Return(userRepo).Times(2)
+	userRepo.EXPECT().Valid(testUser.ID, "password123").Return(true).Once()
+	userRepo.EXPECT().Delete(testUser.ID).Return(errors.New("internal error")).Once()
+	mockUow.EXPECT().Begin().Return(nil).Once()
+	mockUow.EXPECT().Rollback().Return(nil).Once()
+
+	body := bytes.NewBuffer([]byte(`{"password":"password123"}`))
+	req := httptest.NewRequest("DELETE", fmt.Sprintf("/user/%s", testUser.ID), body)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+getTestToken(t, app, userRepo, mockUow, testUser))
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	assert.Equal(t, fiber.StatusInternalServerError, resp.StatusCode)
 }

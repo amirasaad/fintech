@@ -1,12 +1,25 @@
 package main_test
 
 import (
+	"io"
+	"log"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"github.com/amirasaad/fintech/webapi"
 )
+
+// TestMain runs before any tests and applies globally for all tests in the package.
+func TestMain(m *testing.M) {
+	slog.SetDefault(slog.New(slog.NewTextHandler(io.Discard, nil)))
+	log.SetOutput(io.Discard)
+
+	exitVal := m.Run()
+	os.Exit(exitVal)
+}
 
 func TestStartServer_RootRoute(t *testing.T) {
 	app, _, _, _, _, _ := webapi.SetupTestApp(t)

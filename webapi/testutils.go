@@ -8,18 +8,25 @@ import (
 	"testing"
 
 	"github.com/amirasaad/fintech/internal/fixtures"
+	"github.com/stretchr/testify/mock"
 
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/repository"
+	"github.com/amirasaad/fintech/pkg/service"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/log"
 )
 
-func SetupCommonMocks(userRepo *fixtures.MockUserRepository, mockUow *fixtures.MockUnitOfWork, testUser *domain.User) {
-	// placeholder for common mocks
-}
-
-func SetupTestApp(t *testing.T) (app *fiber.App, userRepo *fixtures.MockUserRepository, accountRepo *fixtures.MockAccountRepository, transactionRepo *fixtures.MockTransactionRepository, mockUow *fixtures.MockUnitOfWork, testUser *domain.User) {
+func SetupTestApp(
+	t *testing.T,
+) (
+	app *fiber.App,
+	userRepo *fixtures.MockUserRepository,
+	accountRepo *fixtures.MockAccountRepository,
+	transactionRepo *fixtures.MockTransactionRepository,
+	mockUow *fixtures.MockUnitOfWork,
+	testUser *domain.User,
+) {
 	t.Helper()
 	t.Setenv("JWT_SECRET_KEY", "secret")
 
@@ -29,20 +36,22 @@ func SetupTestApp(t *testing.T) (app *fiber.App, userRepo *fixtures.MockUserRepo
 
 	mockUow = fixtures.NewMockUnitOfWork(t)
 
-	app = NewApp(func() (repository.UnitOfWork, error) { return mockUow, nil })
+	app = NewApp(func() (repository.UnitOfWork, error) { return mockUow, nil },
+		service.NewJWTAuthStrategy(func() (repository.UnitOfWork, error) { return mockUow, nil }))
 	testUser, _ = domain.NewUser("testuser", "testuser@example.com", "password123")
 	log.SetOutput(io.Discard)
-	defer mockUow.AssertExpectations(t)
 	defer userRepo.AssertExpectations(t)
 	defer accountRepo.AssertExpectations(t)
 	defer transactionRepo.AssertExpectations(t)
+	defer mockUow.AssertExpectations(t)
 	return
 }
 
 func getTestToken(t *testing.T, app *fiber.App, userRepo *fixtures.MockUserRepository, mockUow *fixtures.MockUnitOfWork, testUser *domain.User) string {
 	t.Helper()
-	mockUow.EXPECT().UserRepository().Return(userRepo)
-	userRepo.EXPECT().GetByUsername("testuser").Return(testUser, nil)
+	mockUow.EXPECT().UserRepository().Return(userRepo).Maybe()
+	userRepo.EXPECT().GetByUsername("testuser").Return(testUser, nil).Maybe()
+	userRepo.EXPECT().Valid(mock.Anything, mock.Anything).Return(true).Maybe()
 	req := httptest.NewRequest("POST", "/login",
 		bytes.NewBuffer([]byte(`{"identity":"testuser","password":"password123"}`)))
 	req.Header.Set("Content-Type", "application/json")

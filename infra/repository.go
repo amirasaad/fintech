@@ -1,6 +1,8 @@
 package infra
 
 import (
+	"time"
+
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/google/uuid"
@@ -33,7 +35,13 @@ func (r *accountRepository) Create(a *domain.Account) error {
 }
 
 func (r *accountRepository) Update(a *domain.Account) error {
-	dbModel := domain.Account{
+	// Use infra.Account for DB operations
+	dbModel := Account{
+		Model: gorm.Model{
+			CreatedAt: a.CreatedAt,
+			DeletedAt: gorm.DeletedAt{},
+			UpdatedAt: time.Now().UTC(),
+		},
 		ID:      a.ID,
 		UserID:  a.UserID,
 		Balance: a.Balance,

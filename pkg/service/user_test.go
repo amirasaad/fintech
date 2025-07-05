@@ -2,9 +2,9 @@ package service
 
 import (
 	"errors"
-	"github.com/amirasaad/fintech/internal/fixtures"
 	"testing"
 
+	"github.com/amirasaad/fintech/internal/fixtures"
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/google/uuid"
@@ -25,6 +25,7 @@ func newUserServiceWithMocks(t interface {
 }
 
 func TestCreateUser_Success(t *testing.T) {
+	t.Parallel()
 	svc, userRepo, uow := newUserServiceWithMocks(t)
 	uow.EXPECT().Begin().Return(nil).Once()
 	uow.EXPECT().Commit().Return(nil)
@@ -38,6 +39,7 @@ func TestCreateUser_Success(t *testing.T) {
 }
 
 func TestCreateUser_RepoError(t *testing.T) {
+	t.Parallel()
 	svc, userRepo, uow := newUserServiceWithMocks(t)
 	uow.EXPECT().Begin().Return(nil).Once()
 	uow.EXPECT().Rollback().Return(nil).Once()
@@ -48,7 +50,29 @@ func TestCreateUser_RepoError(t *testing.T) {
 	assert.Nil(t, u)
 }
 
+func TestCreateUser_UoWFactoryError(t *testing.T) {
+	t.Parallel()
+	svc := NewUserService(func() (repository.UnitOfWork, error) { return nil, errors.New("uow error") })
+	u, err := svc.CreateUser("bob", "bob@example.com", "password")
+	assert.Error(t, err)
+	assert.Nil(t, u)
+}
+
+func TestCreateUser_CommitError(t *testing.T) {
+	t.Parallel()
+	svc, userRepo, uow := newUserServiceWithMocks(t)
+	uow.EXPECT().Begin().Return(nil).Once()
+	uow.EXPECT().Commit().Return(errors.New("commit error")).Once()
+	uow.EXPECT().Rollback().Return(nil).Once()
+	userRepo.On("Create", mock.Anything).Return(nil)
+
+	u, err := svc.CreateUser("bob", "bob@example.com", "password")
+	assert.Error(t, err)
+	assert.Nil(t, u)
+}
+
 func TestGetUser_Success(t *testing.T) {
+	t.Parallel()
 	svc, userRepo, _ := newUserServiceWithMocks(t)
 	user := &domain.User{ID: uuid.New(), Username: "alice"}
 	userRepo.On("Get", user.ID).Return(user, nil)
@@ -59,6 +83,7 @@ func TestGetUser_Success(t *testing.T) {
 }
 
 func TestGetUser_NotFound(t *testing.T) {
+	t.Parallel()
 	svc, userRepo, _ := newUserServiceWithMocks(t)
 	userRepo.On("Get", mock.Anything).Return(&domain.User{}, domain.ErrAccountNotFound)
 
@@ -67,7 +92,15 @@ func TestGetUser_NotFound(t *testing.T) {
 	assert.Nil(t, got)
 }
 
+func TestGetUser_UoWFactoryError(t *testing.T) {
+	t.Parallel()
+	svc := NewUserService(func() (repository.UnitOfWork, error) { return nil, errors.New("uow error") })
+	_, err := svc.GetUser(uuid.New())
+	assert.Error(t, err)
+}
+
 func TestGetUserByEmail_Success(t *testing.T) {
+	t.Parallel()
 	svc, userRepo, _ := newUserServiceWithMocks(t)
 
 	user := &domain.User{ID: uuid.New(), Email: "alice@example.com"}
@@ -79,6 +112,7 @@ func TestGetUserByEmail_Success(t *testing.T) {
 }
 
 func TestGetUserByEmail_NotFound(t *testing.T) {
+	t.Parallel()
 	svc, userRepo, _ := newUserServiceWithMocks(t)
 	userRepo.On("GetByEmail", mock.Anything).Return((*domain.User)(nil), errors.New("not found"))
 
@@ -87,7 +121,15 @@ func TestGetUserByEmail_NotFound(t *testing.T) {
 	assert.Nil(t, got)
 }
 
+func TestGetUserByEmail_UoWFactoryError(t *testing.T) {
+	t.Parallel()
+	svc := NewUserService(func() (repository.UnitOfWork, error) { return nil, errors.New("uow error") })
+	_, err := svc.GetUserByEmail("notfound@example.com")
+	assert.Error(t, err)
+}
+
 func TestGetUserByUsername_Success(t *testing.T) {
+	t.Parallel()
 	svc, userRepo, _ := newUserServiceWithMocks(t)
 	user := &domain.User{ID: uuid.New(), Username: "alice"}
 	userRepo.On("GetByUsername", user.Username).Return(user, nil)
@@ -98,6 +140,7 @@ func TestGetUserByUsername_Success(t *testing.T) {
 }
 
 func TestGetUserByUsername_NotFound(t *testing.T) {
+	t.Parallel()
 	svc, userRepo, _ := newUserServiceWithMocks(t)
 	userRepo.On("GetByUsername", mock.Anything).Return((*domain.User)(nil), errors.New("not found"))
 
@@ -106,7 +149,15 @@ func TestGetUserByUsername_NotFound(t *testing.T) {
 	assert.Nil(t, got)
 }
 
+func TestGetUserByUsername_UoWFactoryError(t *testing.T) {
+	t.Parallel()
+	svc := NewUserService(func() (repository.UnitOfWork, error) { return nil, errors.New("uow error") })
+	_, err := svc.GetUserByUsername("notfound")
+	assert.Error(t, err)
+}
+
 func TestUpdateUser_Success(t *testing.T) {
+	t.Parallel()
 	svc, userRepo, uow := newUserServiceWithMocks(t)
 	uow.EXPECT().Begin().Return(nil).Once()
 	uow.EXPECT().Commit().Return(nil).Once()
@@ -119,6 +170,7 @@ func TestUpdateUser_Success(t *testing.T) {
 }
 
 func TestUpdateUser_RepoError(t *testing.T) {
+	t.Parallel()
 	svc, userRepo, uow := newUserServiceWithMocks(t)
 	uow.EXPECT().Begin().Return(nil).Once()
 	uow.EXPECT().Rollback().Return(nil).Once()
@@ -130,7 +182,15 @@ func TestUpdateUser_RepoError(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestUpdateUser_UoWFactoryError(t *testing.T) {
+	t.Parallel()
+	svc := NewUserService(func() (repository.UnitOfWork, error) { return nil, errors.New("uow error") })
+	err := svc.UpdateUser(&domain.User{})
+	assert.Error(t, err)
+}
+
 func TestDeleteUser_Success(t *testing.T) {
+	t.Parallel()
 	svc, userRepo, uow := newUserServiceWithMocks(t)
 	uow.EXPECT().Begin().Return(nil).Once()
 	uow.EXPECT().Commit().Return(nil).Once()
@@ -138,11 +198,12 @@ func TestDeleteUser_Success(t *testing.T) {
 	id := uuid.New()
 	userRepo.On("Delete", id).Return(nil)
 
-	err := svc.DeleteUser(id, "password")
+	err := svc.DeleteUser(id)
 	assert.NoError(t, err)
 }
 
 func TestDeleteUser_RepoError(t *testing.T) {
+	t.Parallel()
 	svc, userRepo, uow := newUserServiceWithMocks(t)
 	uow.EXPECT().Begin().Return(nil).Once()
 	uow.EXPECT().Rollback().Return(nil).Once()
@@ -150,11 +211,19 @@ func TestDeleteUser_RepoError(t *testing.T) {
 	id := uuid.New()
 	userRepo.On("Delete", id).Return(errors.New("db error"))
 
-	err := svc.DeleteUser(id, "password")
+	err := svc.DeleteUser(id)
+	assert.Error(t, err)
+}
+
+func TestDeleteUser_UoWFactoryError(t *testing.T) {
+	t.Parallel()
+	svc := NewUserService(func() (repository.UnitOfWork, error) { return nil, errors.New("uow error") })
+	err := svc.DeleteUser(uuid.New())
 	assert.Error(t, err)
 }
 
 func TestValidUser_True(t *testing.T) {
+	t.Parallel()
 	svc, userRepo, _ := newUserServiceWithMocks(t)
 	id := uuid.New()
 	userRepo.On("Valid", id, "password").Return(true)
@@ -164,6 +233,7 @@ func TestValidUser_True(t *testing.T) {
 }
 
 func TestValidUser_False(t *testing.T) {
+	t.Parallel()
 	svc, userRepo, _ := newUserServiceWithMocks(t)
 	id := uuid.New()
 	userRepo.On("Valid", id, "wrongpass").Return(false)
@@ -172,23 +242,9 @@ func TestValidUser_False(t *testing.T) {
 	assert.False(t, ok)
 }
 
-func BenchmarkCreateUser(b *testing.B) {
-	svc, userRepo, uow := newUserServiceWithMocks(&testing.T{})
-	uow.EXPECT().Begin().Return(nil).Maybe()
-	uow.EXPECT().Commit().Return(nil).Maybe()
-	userRepo.On("Create", mock.Anything).Return(nil).Maybe()
-	b.ResetTimer()
-	for b.Loop() {
-		_, _ = svc.CreateUser("benchuser", "bench@example.com", "password")
-	}
-}
-
-func BenchmarkValidUser(b *testing.B) {
-	svc, userRepo, _ := newUserServiceWithMocks(b)
-	id := uuid.New()
-	userRepo.On("Valid", id, "password").Return(true).Maybe()
-	b.ResetTimer()
-	for b.Loop() {
-		_ = svc.ValidUser(id, "password")
-	}
+func TestValidUser_UoWFactoryError(t *testing.T) {
+	t.Parallel()
+	svc := NewUserService(func() (repository.UnitOfWork, error) { return nil, errors.New("uow error") })
+	ok := svc.ValidUser(uuid.New(), "password")
+	assert.False(t, ok)
 }

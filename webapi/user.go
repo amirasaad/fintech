@@ -11,11 +11,15 @@ import (
 	"github.com/google/uuid"
 )
 
-func UserRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, error)) {
+func UserRoutes(
+	app *fiber.App,
+	uowFactory func() (repository.UnitOfWork, error),
+	strategy service.AuthStrategy,
+) {
 	app.Get("/user/:id", middleware.Protected(), GetUser(uowFactory))
 	app.Post("/user", CreateUser(uowFactory))
-	app.Put("/user/:id", middleware.Protected(), UpdateUser(uowFactory))
-	app.Delete("/user/:id", middleware.Protected(), DeleteUser(uowFactory))
+	app.Put("/user/:id", middleware.Protected(), UpdateUser(uowFactory, strategy))
+	app.Delete("/user/:id", middleware.Protected(), DeleteUser(uowFactory, strategy))
 }
 
 // GetUser get a user
@@ -65,7 +69,7 @@ func CreateUser(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler 
 }
 
 // UpdateUser update user
-func UpdateUser(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
+func UpdateUser(uowFactory func() (repository.UnitOfWork, error), strategy service.AuthStrategy) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		type UpdateUserInput struct {
 			Names string `json:"names"`
@@ -79,7 +83,7 @@ func UpdateUser(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler 
 			log.Errorf("Invalid account ID for deposit: %v", err)
 			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid user ID", err.Error())
 		}
-		authSvc := service.NewAuthService(uowFactory)
+		authSvc := service.NewAuthService(uowFactory, strategy)
 		token, ok := c.Locals("user").(*jwt.Token)
 		if !ok {
 			return ErrorResponseJSON(c, fiber.StatusUnauthorized, "unauthorized", "missing user context")
@@ -108,7 +112,7 @@ func UpdateUser(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler 
 }
 
 // DeleteUser delete user
-func DeleteUser(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
+func DeleteUser(uowFactory func() (repository.UnitOfWork, error), strategy service.AuthStrategy) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		type PasswordInput struct {
 			Password string `json:"password"`
@@ -122,7 +126,7 @@ func DeleteUser(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler 
 			log.Errorf("Invalid account ID for deposit: %v", err)
 			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid user ID", err.Error())
 		}
-		authSvc := service.NewAuthService(uowFactory)
+		authSvc := service.NewAuthService(uowFactory, strategy)
 		token, ok := c.Locals("user").(*jwt.Token)
 		if !ok {
 			return ErrorResponseJSON(c, fiber.StatusUnauthorized, "unauthorized", "missing user context")
@@ -141,7 +145,7 @@ func DeleteUser(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler 
 			return ErrorResponseJSON(c, fiber.StatusUnauthorized, "Not valid user", nil)
 		}
 
-		err = userService.DeleteUser(id, pi.Password)
+		err = userService.DeleteUser(id)
 		if err != nil {
 			return ErrorResponseJSON(c, fiber.StatusInternalServerError, "Failed to delete user", err.Error())
 		}

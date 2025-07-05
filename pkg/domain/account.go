@@ -89,7 +89,7 @@ func (a *Account) Deposit(userID uuid.UUID, amount float64) (*Transaction, error
 	parsedAmount := int64(amount * 100) // Convert to cents for precision
 
 	// Check for overflow after conversion as well
-	if a.Balance > math.MaxInt64-parsedAmount {
+	if a.Balance > int64(math.MaxInt64)-parsedAmount {
 		return nil, ErrDepositAmountExceedsMaxSafeInt
 	}
 	slog.Info("Depositing amount", slog.Int64("amount", parsedAmount))

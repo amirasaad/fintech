@@ -109,7 +109,7 @@ func (s *UserService) UpdateUser(u *domain.User) error {
 	return nil
 }
 
-func (s *UserService) DeleteUser(id uuid.UUID, password string) error {
+func (s *UserService) DeleteUser(id uuid.UUID) error {
 	uow, err := s.uowFactory()
 	if err != nil {
 		return err

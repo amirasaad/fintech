@@ -8,6 +8,7 @@ import (
 	"os"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/google/uuid"
@@ -24,6 +25,7 @@ func TestMain(m *testing.M) {
 	os.Exit(exitVal)
 }
 func TestNewAccount(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 
 	// Open account should return an account ID
@@ -32,6 +34,7 @@ func TestNewAccount(t *testing.T) {
 }
 
 func TestDeposit(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	require := require.New(t)
 	userID := uuid.New()
@@ -48,6 +51,7 @@ func TestDeposit(t *testing.T) {
 }
 
 func TestDepositNegativeAmount(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	require := require.New(t)
 	userID := uuid.New()
@@ -62,6 +66,7 @@ func TestDepositNegativeAmount(t *testing.T) {
 }
 
 func TestDepositZeroAmount(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	require := require.New(t)
 	userID := uuid.New()
@@ -76,6 +81,7 @@ func TestDepositZeroAmount(t *testing.T) {
 }
 
 func TestDepositMultipleTimes(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	require := require.New(t)
 	userID := uuid.New()
@@ -93,6 +99,7 @@ func TestDepositMultipleTimes(t *testing.T) {
 }
 
 func TestDepositOverflow(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	userID := uuid.New()
 	a := domain.NewAccount(userID)
@@ -102,6 +109,7 @@ func TestDepositOverflow(t *testing.T) {
 }
 
 func TestDepositOverflowBoundary(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	require := require.New(t)
 	userID := uuid.New()
@@ -117,6 +125,7 @@ func TestDepositOverflowBoundary(t *testing.T) {
 }
 
 func TestWithdrawOverflow(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	require := require.New(t)
 	userID := uuid.New()
@@ -135,6 +144,7 @@ func TestWithdrawOverflow(t *testing.T) {
 }
 
 func TestWithdrawNegativeOverflow(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	require := require.New(t)
 	userID := uuid.New()
@@ -150,6 +160,7 @@ func TestWithdrawNegativeOverflow(t *testing.T) {
 }
 
 func TestDepositWithPrecision(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	require := require.New(t)
 	userID := uuid.New()
@@ -164,6 +175,7 @@ func TestDepositWithPrecision(t *testing.T) {
 }
 
 func TestDepositWithLargeAmount(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	require := require.New(t)
 
@@ -179,6 +191,7 @@ func TestDepositWithLargeAmount(t *testing.T) {
 }
 
 func TestWithdraw(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	require := require.New(t)
 	userID := uuid.New()
@@ -198,6 +211,7 @@ func TestWithdraw(t *testing.T) {
 }
 
 func TestWithdrawInsufficientFunds(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	require := require.New(t)
 	userID := uuid.New()
@@ -213,6 +227,7 @@ func TestWithdrawInsufficientFunds(t *testing.T) {
 }
 
 func TestWithdrawNegativeAmount(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	require := require.New(t)
 	userID := uuid.New()
@@ -227,6 +242,7 @@ func TestWithdrawNegativeAmount(t *testing.T) {
 }
 
 func TestWithdrawZeroAmount(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	require := require.New(t)
 	userID := uuid.New()
@@ -241,6 +257,7 @@ func TestWithdrawZeroAmount(t *testing.T) {
 }
 
 func TestGetBalance(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	require := require.New(t)
 
@@ -323,4 +340,27 @@ func TestAccount_GetBalanceUnauthorized(t *testing.T) {
 	_, err := account.GetBalance(uuid.New())
 	assert.Error(err, "Deposit with different user id should return error")
 	assert.ErrorIs(err, domain.ErrUserUnauthorized)
+}
+
+func TestNewUserFromData(t *testing.T) {
+	assert := assert.New(t)
+	userID := uuid.New()
+	user := domain.NewUserFromData(userID, "test", "test@test.com", "password", time.Now(), time.Now())
+	assert.Equal(userID, user.ID)
+	assert.Equal("test", user.Username)
+	assert.Equal("test@test.com", user.Email)
+	assert.Equal("password", user.Password)
+}
+
+func TestNewTransactionFromData(t *testing.T) {
+	assert := assert.New(t)
+	userID := uuid.New()
+	accountID := uuid.New()
+	transactionID := uuid.New()
+	transaction := domain.NewTransactionFromData(transactionID, userID, accountID, 100, 100, time.Now())
+	assert.Equal(transactionID, transaction.ID)
+	assert.Equal(userID, transaction.UserID)
+	assert.Equal(accountID, transaction.AccountID)
+	assert.Equal(int64(100), transaction.Amount)
+	assert.Equal(int64(100), transaction.Balance)
 }

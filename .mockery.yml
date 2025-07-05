@@ -3,11 +3,19 @@ packages:
     github.com/amirasaad/fintech/pkg/repository:
         config:
             dir: "internal/fixtures"
-            filename: "mocks.go"
+            filename: "repository.go"
             pkgname: "fixtures"
             structname: "Mock{{.InterfaceName}}"
         interfaces:
-          TransactionRepository:
-          AccountRepository:
-          UserRepository:
-          UnitOfWork:
+            TransactionRepository:
+            AccountRepository:
+            UserRepository:
+            UnitOfWork:
+    github.com/amirasaad/fintech/pkg/service:
+        config:
+            dir: "internal/fixtures"
+            filename: "service.go"
+            pkgname: "fixtures"
+            structname: "Mock{{.InterfaceName}}"
+        interfaces:
+            AuthStrategy:

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"net/mail"
 	"os"
@@ -13,8 +14,13 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+type contextKey string
+
+const userContextKey contextKey = "user"
+
 type AuthStrategy interface {
 	Login(identity, password string) (*domain.User, string, error)
+	GetCurrentUserID(ctx context.Context) (uuid.UUID, error)
 }
 
 type AuthService struct {
@@ -22,12 +28,12 @@ type AuthService struct {
 	strategy   AuthStrategy
 }
 
-func NewAuthService(uowFactory func() (repository.UnitOfWork, error)) *AuthService {
-	return &AuthService{uowFactory: uowFactory, strategy: &JWTAuthStrategy{uowFactory: uowFactory}}
+func NewAuthService(uowFactory func() (repository.UnitOfWork, error), strategy AuthStrategy) *AuthService {
+	return &AuthService{uowFactory: uowFactory, strategy: strategy}
 }
 
 func NewBasicAuthService(uowFactory func() (repository.UnitOfWork, error)) *AuthService {
-	return &AuthService{uowFactory: uowFactory, strategy: &BasicAuthStrategy{uowFactory: uowFactory}}
+	return NewAuthService(uowFactory, &BasicAuthStrategy{uowFactory: uowFactory})
 }
 
 func (s *AuthService) CheckPasswordHash(password, hash string) bool {
@@ -41,15 +47,8 @@ func (s *AuthService) ValidEmail(email string) bool {
 }
 
 func (s *AuthService) GetCurrentUserId(token *jwt.Token) (uuid.UUID, error) {
-	claims, ok := token.Claims.(jwt.MapClaims)
-	if !ok {
-		return uuid.Nil, domain.ErrUserUnauthorized
-	}
-	userIDRaw, ok := claims["user_id"].(string)
-	if !ok {
-		return uuid.Nil, domain.ErrUserUnauthorized
-	}
-	return uuid.Parse(userIDRaw)
+
+	return s.strategy.GetCurrentUserID(context.WithValue(context.TODO(), userContextKey, token))
 }
 
 func (s *AuthService) Login(identity, password string) (*domain.User, string, error) {
@@ -59,6 +58,10 @@ func (s *AuthService) Login(identity, password string) (*domain.User, string, er
 // JWTAuthStrategy implements AuthStrategy for JWT-based authentication
 type JWTAuthStrategy struct {
 	uowFactory func() (repository.UnitOfWork, error)
+}
+
+func NewJWTAuthStrategy(uowFactory func() (repository.UnitOfWork, error)) *JWTAuthStrategy {
+	return &JWTAuthStrategy{uowFactory: uowFactory}
 }
 
 func (s *JWTAuthStrategy) Login(identity, password string) (*domain.User, string, error) {
@@ -100,6 +103,20 @@ func (s *JWTAuthStrategy) Login(identity, password string) (*domain.User, string
 	return user, tokenString, nil
 }
 
+func (s *JWTAuthStrategy) GetCurrentUserID(ctx context.Context) (uuid.UUID, error) {
+	token := ctx.Value(userContextKey).(*jwt.Token)
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return uuid.Nil, domain.ErrUserUnauthorized
+	}
+	userIDRaw, ok := claims["user_id"].(string)
+	if !ok {
+		return uuid.Nil, domain.ErrUserUnauthorized
+	}
+	return uuid.Parse(userIDRaw)
+}
+
 // BasicAuthStrategy implements AuthStrategy for CLI (no JWT, just password check)
 type BasicAuthStrategy struct {
 	uowFactory func() (repository.UnitOfWork, error)
@@ -128,6 +145,10 @@ func (s *BasicAuthStrategy) Login(identity, password string) (*domain.User, stri
 		return nil, "", nil
 	}
 	return user, "", nil // No JWT token for CLI
+}
+
+func (s *BasicAuthStrategy) GetCurrentUserID(ctx context.Context) (uuid.UUID, error) {
+	return uuid.Nil, nil
 }
 
 // Helper functions
