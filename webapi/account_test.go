@@ -462,6 +462,7 @@ func TestGetBalance_InternalServerError(t *testing.T) {
 	accountRepo.On("Get", mock.Anything).Return(nil, errors.New("db error")).Once()
 
 	req := httptest.NewRequest("GET", fmt.Sprintf("/account/%s/balance", uuid.New()), nil)
+	req.Header.Set("Authorization", "Bearer "+getTestToken(t, app, userRepo, mockUow, testUser))
 	resp, err := app.Test(req)
 	require.NoError(t, err)
 	assert.Equal(t, fiber.StatusInternalServerError, resp.StatusCode)
