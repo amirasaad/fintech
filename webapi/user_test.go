@@ -115,7 +115,6 @@ func TestUpdateUserInvalidBody(t *testing.T) {
 }
 
 func TestUpdateUserNotFound(t *testing.T) {
-	t.Parallel()
 	app, userRepo, _, _, mockUow, testUser := SetupTestApp(t)
 	mockUow.EXPECT().UserRepository().Return(userRepo).Times(2)
 	userRepo.EXPECT().Get(testUser.ID).Return(nil, errors.New("not found")).Once()

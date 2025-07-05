@@ -25,6 +25,7 @@ func TestMain(m *testing.M) {
 	os.Exit(exitVal)
 }
 func TestNewAccount(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 
 	// Open account should return an account ID
@@ -33,6 +34,7 @@ func TestNewAccount(t *testing.T) {
 }
 
 func TestDeposit(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	require := require.New(t)
 	userID := uuid.New()
@@ -49,6 +51,7 @@ func TestDeposit(t *testing.T) {
 }
 
 func TestDepositNegativeAmount(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	require := require.New(t)
 	userID := uuid.New()
@@ -63,6 +66,7 @@ func TestDepositNegativeAmount(t *testing.T) {
 }
 
 func TestDepositZeroAmount(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	require := require.New(t)
 	userID := uuid.New()
@@ -77,6 +81,7 @@ func TestDepositZeroAmount(t *testing.T) {
 }
 
 func TestDepositMultipleTimes(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	require := require.New(t)
 	userID := uuid.New()
@@ -94,6 +99,7 @@ func TestDepositMultipleTimes(t *testing.T) {
 }
 
 func TestDepositOverflow(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	userID := uuid.New()
 	a := domain.NewAccount(userID)
@@ -103,6 +109,7 @@ func TestDepositOverflow(t *testing.T) {
 }
 
 func TestDepositOverflowBoundary(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	require := require.New(t)
 	userID := uuid.New()
@@ -118,6 +125,7 @@ func TestDepositOverflowBoundary(t *testing.T) {
 }
 
 func TestWithdrawOverflow(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	require := require.New(t)
 	userID := uuid.New()
@@ -136,6 +144,7 @@ func TestWithdrawOverflow(t *testing.T) {
 }
 
 func TestWithdrawNegativeOverflow(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	require := require.New(t)
 	userID := uuid.New()
@@ -151,6 +160,7 @@ func TestWithdrawNegativeOverflow(t *testing.T) {
 }
 
 func TestDepositWithPrecision(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	require := require.New(t)
 	userID := uuid.New()
@@ -165,6 +175,7 @@ func TestDepositWithPrecision(t *testing.T) {
 }
 
 func TestDepositWithLargeAmount(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	require := require.New(t)
 
@@ -180,6 +191,7 @@ func TestDepositWithLargeAmount(t *testing.T) {
 }
 
 func TestWithdraw(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	require := require.New(t)
 	userID := uuid.New()
@@ -199,6 +211,7 @@ func TestWithdraw(t *testing.T) {
 }
 
 func TestWithdrawInsufficientFunds(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	require := require.New(t)
 	userID := uuid.New()
@@ -214,6 +227,7 @@ func TestWithdrawInsufficientFunds(t *testing.T) {
 }
 
 func TestWithdrawNegativeAmount(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	require := require.New(t)
 	userID := uuid.New()
@@ -228,6 +242,7 @@ func TestWithdrawNegativeAmount(t *testing.T) {
 }
 
 func TestWithdrawZeroAmount(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	require := require.New(t)
 	userID := uuid.New()
@@ -242,6 +257,7 @@ func TestWithdrawZeroAmount(t *testing.T) {
 }
 
 func TestGetBalance(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	require := require.New(t)
 

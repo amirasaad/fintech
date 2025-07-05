@@ -15,6 +15,7 @@ import (
 )
 
 func TestCheckPasswordHash(t *testing.T) {
+	t.Parallel()
 	hash, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
 	s := &AuthService{}
 	if !s.CheckPasswordHash("password", string(hash)) {
@@ -26,6 +27,7 @@ func TestCheckPasswordHash(t *testing.T) {
 }
 
 func TestValidEmail(t *testing.T) {
+	t.Parallel()
 	s := &AuthService{}
 	if !s.ValidEmail("fixtures@example.com") {
 		t.Error("expected valid email")
@@ -36,6 +38,7 @@ func TestValidEmail(t *testing.T) {
 }
 
 func TestLogin_Success(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	hash, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
 	user := &domain.User{ID: uuid.New(), Username: "user", Email: "user@example.com", Password: string(hash)}
@@ -49,6 +52,7 @@ func TestLogin_Success(t *testing.T) {
 }
 
 func TestLogin_InvalidPassword(t *testing.T) {
+	t.Parallel()
 	require := require.New(t)
 	assert := assert.New(t)
 	uow := fixtures.NewMockUnitOfWork(t)
@@ -90,6 +94,7 @@ func TestLogin_JWTSignError(t *testing.T) {
 }
 
 func TestLogin_GetByEmailError(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	authStrategy := fixtures.NewMockAuthStrategy(t)
 	expectedErr := errors.New("db error")
@@ -104,6 +109,7 @@ func TestLogin_GetByEmailError(t *testing.T) {
 }
 
 func TestGetCurrentUserId_InvalidToken(t *testing.T) {
+	t.Parallel()
 	s := &AuthService{
 		strategy: &JWTAuthStrategy{},
 	}
@@ -113,6 +119,7 @@ func TestGetCurrentUserId_InvalidToken(t *testing.T) {
 }
 
 func TestGetCurrentUserId_MissingClaim(t *testing.T) {
+	t.Parallel()
 	s := &AuthService{strategy: &JWTAuthStrategy{}}
 	token := jwt.New(jwt.SigningMethodHS256)
 	_, err := s.GetCurrentUserId(token)
@@ -120,6 +127,7 @@ func TestGetCurrentUserId_MissingClaim(t *testing.T) {
 }
 
 func TestLogin_BasicAuthSuccess(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	hash, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
 	user := &domain.User{ID: uuid.New(), Username: "user", Email: "user@example.com", Password: string(hash)}
@@ -133,6 +141,7 @@ func TestLogin_BasicAuthSuccess(t *testing.T) {
 }
 
 func TestLogin_BasicAuthInvalidPassword(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	authStrategy := fixtures.NewMockAuthStrategy(t)
 	authStrategy.EXPECT().Login("user", "wrong").Return(nil, "", nil).Once()
@@ -144,6 +153,7 @@ func TestLogin_BasicAuthInvalidPassword(t *testing.T) {
 }
 
 func TestLogin_BasicAuthUoWFactoryError(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	authStrategy := fixtures.NewMockAuthStrategy(t)
 	expectedErr := errors.New("uow error")
@@ -157,6 +167,7 @@ func TestLogin_BasicAuthUoWFactoryError(t *testing.T) {
 }
 
 func TestLogin_BasicAuthUserNotFound(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	authStrategy := fixtures.NewMockAuthStrategy(t)
 	authStrategy.EXPECT().Login("notfound", "password").Return(nil, "", nil).Once()
@@ -174,6 +185,7 @@ func TestLogin_BasicAuthUserNotFound(t *testing.T) {
 }
 
 func TestLogin_RepoErrorWithUser(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	authStrategy := fixtures.NewMockAuthStrategy(t)
 	expectedErr := errors.New("db error")
@@ -187,6 +199,7 @@ func TestLogin_RepoErrorWithUser(t *testing.T) {
 }
 
 func TestLogin_BasicAuthRepoErrorWithUser(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	authStrategy := fixtures.NewMockAuthStrategy(t)
 	expectedErr := errors.New("db error")
@@ -198,5 +211,3 @@ func TestLogin_BasicAuthRepoErrorWithUser(t *testing.T) {
 	assert.Nil(gotUser)
 	assert.Empty(token)
 }
-
-
