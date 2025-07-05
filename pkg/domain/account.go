@@ -86,24 +86,25 @@ func (a *Account) Deposit(userID uuid.UUID, amount float64) (*Transaction, error
 		return nil, ErrTransactionAmountMustBePositive
 	}
 
-	amountInCents := int64(math.Round(amount * 100))
-
-	if amountInCents < 0 {
+	// Assumes 2 decimal places max
+	if amount < 0 {
+		return nil, ErrTransactionAmountMustBePositive
+	}
+	cents := int64(math.Round(amount * 100))
+	if cents < 0 {
+		return nil, ErrTransactionAmountMustBePositive
+	}
+	if a.Balance > math.MaxInt64-cents {
 		return nil, ErrDepositAmountExceedsMaxSafeInt
 	}
-
-	// Check for overflow after conversion as well
-	if a.Balance > int64(math.MaxInt64)-amountInCents {
-		return nil, ErrDepositAmountExceedsMaxSafeInt
-	}
-	slog.Info("Depositing amount", slog.Int64("amount", amountInCents))
-	a.Balance += amountInCents
+	slog.Info("Depositing amount", slog.Int64("amount", cents))
+	a.Balance += cents
 	slog.Info("Balance after deposit", slog.Int64("balance", a.Balance))
 	transaction := Transaction{
 		ID:        uuid.New(),
 		UserID:    userID,
 		AccountID: a.ID,
-		Amount:    amountInCents,
+		Amount:    cents,
 		Balance:   a.Balance,
 		CreatedAt: time.Now().UTC(),
 	}
@@ -130,18 +131,18 @@ func (a *Account) Withdraw(userID uuid.UUID, amount float64) (*Transaction, erro
 	if amount > math.MaxInt64/100.0 {
 		return nil, ErrInsufficientFunds
 	}
-	amountInCents := int64(math.Round(amount * 100))
-	if amountInCents > a.Balance {
+	cents := int64(math.Round(amount * 100))
+	if cents > a.Balance {
 		return nil, ErrInsufficientFunds
 	}
-	slog.Info("Withdrawing amount", slog.Int64("amount", amountInCents))
-	a.Balance -= amountInCents
+	slog.Info("Withdrawing amount", slog.Int64("amount", cents))
+	a.Balance -= cents
 	slog.Info("Balance after withdrawal", slog.Int64("balance", a.Balance))
 	transaction := Transaction{
 		ID:        uuid.New(),
 		UserID:    userID,
 		AccountID: a.ID,
-		Amount:    -amountInCents,
+		Amount:    -cents,
 		Balance:   a.Balance,
 		CreatedAt: time.Now().UTC(),
 	}
