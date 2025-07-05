@@ -2,7 +2,9 @@ package domain
 
 import (
 	"errors"
+	"fmt"
 	"math"
+	"math/big"
 	"sync"
 	"time"
 
@@ -81,30 +83,48 @@ func (a *Account) Deposit(userID uuid.UUID, amount float64) (*Transaction, error
 	slog.Info("Balance before deposit", slog.Int64("balance", a.Balance))
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	// Check if the amount is positive before proceeding with the deposit
+
 	if amount <= 0 {
 		return nil, ErrTransactionAmountMustBePositive
 	}
 
-	// Assumes 2 decimal places max
-	if amount < 0 {
+	amountStr := fmt.Sprintf("%.2f", amount)
+	amountRat, ok := new(big.Rat).SetString(amountStr)
+	if !ok {
+		return nil, fmt.Errorf("invalid amount format")
+	}
+
+	multiplier := big.NewRat(100, 1)
+	centsRat := new(big.Rat).Mul(amountRat, multiplier)
+
+	if !centsRat.IsInt() {
+		return nil, fmt.Errorf("amount has more than 2 decimal places")
+	}
+
+	cents := centsRat.Num()
+
+	if cents.Sign() <= 0 {
 		return nil, ErrTransactionAmountMustBePositive
 	}
-	cents := int64(math.Round(amount * 100))
-	if cents < 0 {
-		return nil, ErrTransactionAmountMustBePositive
-	}
-	if a.Balance > math.MaxInt64-cents {
+
+	max := big.NewInt(math.MaxInt64)
+	balanceBig := big.NewInt(a.Balance)
+	newBalance := new(big.Int).Add(balanceBig, cents)
+
+	if newBalance.Cmp(max) > 0 {
 		return nil, ErrDepositAmountExceedsMaxSafeInt
 	}
-	slog.Info("Depositing amount", slog.Int64("amount", cents))
-	a.Balance += cents
+
+	parsedAmount := cents.Int64()
+	slog.Info("Depositing amount", slog.Int64("amount", parsedAmount))
+	a.Balance += parsedAmount
 	slog.Info("Balance after deposit", slog.Int64("balance", a.Balance))
+
 	transaction := Transaction{
 		ID:        uuid.New(),
 		UserID:    userID,
 		AccountID: a.ID,
-		Amount:    cents,
+		Amount:    parsedAmount,
 		Balance:   a.Balance,
 		CreatedAt: time.Now().UTC(),
 	}
