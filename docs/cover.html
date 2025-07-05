@@ -61,7 +61,7 @@
 				
 				<option value="file2">github.com/amirasaad/fintech/infra/database.go (30.0%)</option>
 				
-				<option value="file3">github.com/amirasaad/fintech/infra/repository.go (14.7%)</option>
+				<option value="file3">github.com/amirasaad/fintech/infra/repository.go (22.1%)</option>
 				
 				<option value="file4">github.com/amirasaad/fintech/infra/uow.go (80.8%)</option>
 				
@@ -73,17 +73,17 @@
 				
 				<option value="file8">github.com/amirasaad/fintech/pkg/service/account.go (85.3%)</option>
 				
-				<option value="file9">github.com/amirasaad/fintech/pkg/service/auth.go (96.7%)</option>
+				<option value="file9">github.com/amirasaad/fintech/pkg/service/auth.go (21.5%)</option>
 				
 				<option value="file10">github.com/amirasaad/fintech/pkg/service/user.go (89.2%)</option>
 				
-				<option value="file11">github.com/amirasaad/fintech/webapi/account.go (70.8%)</option>
+				<option value="file11">github.com/amirasaad/fintech/webapi/account.go (83.3%)</option>
 				
 				<option value="file12">github.com/amirasaad/fintech/webapi/app.go (93.3%)</option>
 				
 				<option value="file13">github.com/amirasaad/fintech/webapi/auth.go (100.0%)</option>
 				
-				<option value="file14">github.com/amirasaad/fintech/webapi/testutils.go (90.9%)</option>
+				<option value="file14">github.com/amirasaad/fintech/webapi/testutils.go (90.0%)</option>
 				
 				<option value="file15">github.com/amirasaad/fintech/webapi/user.go (76.2%)</option>
 				
@@ -131,7 +131,7 @@ func main() <span class="cov0" title="0">{
         }</span>
         <span class="cov0" title="0">db, err := infra.NewDBConnection()
         if err != nil </span><span class="cov0" title="0">{
-                color.New(color.FgRed).Fprintln(os.Stderr, "Failed to connect to database:", err)
+                _, _ = color.New(color.FgRed).Fprintln(os.Stderr, "Failed to connect to database:", err)
                 return
         }</span>
         <span class="cov0" title="0">uowFactory := func() (repository.UnitOfWork, error) </span><span class="cov0" title="0">{
@@ -277,21 +277,25 @@ func cliApp(scv *service.AccountService, authSvc *service.AuthService) <span cla
 		<pre class="file" id="file1" style="display: none">package main
 
 import (
-        infra2 "github.com/amirasaad/fintech/infra"
         "log"
 
+        "github.com/amirasaad/fintech/infra"
+
         "github.com/amirasaad/fintech/pkg/repository"
+        "github.com/amirasaad/fintech/pkg/service"
         "github.com/amirasaad/fintech/webapi"
 )
 
 func main() <span class="cov0" title="0">{
-        db, err := infra2.NewDBConnection()
+        db, err := infra.NewDBConnection()
         if err != nil </span><span class="cov0" title="0">{
                 log.Fatal(err)
         }</span>
         <span class="cov0" title="0">log.Fatal(webapi.NewApp(func() (repository.UnitOfWork, error) </span><span class="cov0" title="0">{
-                return infra2.NewGormUoW(db)
-        }</span>).Listen(":3000"))
+                return infra.NewGormUoW(db)
+        }</span>, service.NewJWTAuthStrategy(func() (repository.UnitOfWork, error) <span class="cov0" title="0">{
+                return infra.NewGormUoW(db)
+        }</span>)).Listen(":3000"))
 
 }
 </pre>
@@ -329,6 +333,8 @@ func NewDBConnection() (*gorm.DB, error) <span class="cov8" title="1">{
 		<pre class="file" id="file3" style="display: none">package infra
 
 import (
+        "time"
+
         "github.com/amirasaad/fintech/pkg/domain"
         "github.com/amirasaad/fintech/pkg/repository"
         "github.com/google/uuid"
@@ -343,13 +349,13 @@ func NewAccountRepository(db *gorm.DB) repository.AccountRepository <span class=
         return &amp;accountRepository{db: db}
 }</span>
 
-func (r *accountRepository) Get(id uuid.UUID) (*domain.Account, error) <span class="cov0" title="0">{
+func (r *accountRepository) Get(id uuid.UUID) (*domain.Account, error) <span class="cov8" title="1">{
         var a domain.Account
         result := r.db.First(&amp;a, id)
-        if result.Error != nil </span><span class="cov0" title="0">{
+        if result.Error != nil </span><span class="cov8" title="1">{
                 return nil, result.Error
         }</span>
-        <span class="cov0" title="0">return domain.NewAccountFromData(a.ID, a.UserID, a.Balance, a.CreatedAt, a.UpdatedAt), nil</span>
+        <span class="cov8" title="1">return domain.NewAccountFromData(a.ID, a.UserID, a.Balance, a.CreatedAt, a.UpdatedAt), nil</span>
 }
 
 func (r *accountRepository) Create(a *domain.Account) error <span class="cov0" title="0">{
@@ -361,7 +367,13 @@ func (r *accountRepository) Create(a *domain.Account) error <span class="cov0" t
 }
 
 func (r *accountRepository) Update(a *domain.Account) error <span class="cov0" title="0">{
-        dbModel := domain.Account{
+        // Use infra.Account for DB operations
+        dbModel := Account{
+                Model: gorm.Model{
+                        CreatedAt: a.CreatedAt,
+                        DeletedAt: gorm.DeletedAt{},
+                        UpdatedAt: time.Now().UTC(),
+                },
                 ID:      a.ID,
                 UserID:  a.UserID,
                 Balance: a.Balance,
@@ -1024,6 +1036,7 @@ func (s *AccountService) GetBalance(userID, accountID uuid.UUID) (float64, error
 		<pre class="file" id="file9" style="display: none">package service
 
 import (
+        "context"
         "errors"
         "net/mail"
         "os"
@@ -1036,8 +1049,13 @@ import (
         "golang.org/x/crypto/bcrypt"
 )
 
+type contextKey string
+
+const userContextKey contextKey = "user"
+
 type AuthStrategy interface {
         Login(identity, password string) (*domain.User, string, error)
+        GetCurrentUserID(ctx context.Context) (uuid.UUID, error)
 }
 
 type AuthService struct {
@@ -1045,12 +1063,12 @@ type AuthService struct {
         strategy   AuthStrategy
 }
 
-func NewAuthService(uowFactory func() (repository.UnitOfWork, error)) *AuthService <span class="cov8" title="1">{
-        return &amp;AuthService{uowFactory: uowFactory, strategy: &amp;JWTAuthStrategy{uowFactory: uowFactory}}
+func NewAuthService(uowFactory func() (repository.UnitOfWork, error), strategy AuthStrategy) *AuthService <span class="cov8" title="1">{
+        return &amp;AuthService{uowFactory: uowFactory, strategy: strategy}
 }</span>
 
-func NewBasicAuthService(uowFactory func() (repository.UnitOfWork, error)) *AuthService <span class="cov8" title="1">{
-        return &amp;AuthService{uowFactory: uowFactory, strategy: &amp;BasicAuthStrategy{uowFactory: uowFactory}}
+func NewBasicAuthService(uowFactory func() (repository.UnitOfWork, error)) *AuthService <span class="cov0" title="0">{
+        return NewAuthService(uowFactory, &amp;BasicAuthStrategy{uowFactory: uowFactory})
 }</span>
 
 func (s *AuthService) CheckPasswordHash(password, hash string) bool <span class="cov8" title="1">{
@@ -1064,6 +1082,65 @@ func (s *AuthService) ValidEmail(email string) bool <span class="cov8" title="1"
 }</span>
 
 func (s *AuthService) GetCurrentUserId(token *jwt.Token) (uuid.UUID, error) <span class="cov8" title="1">{
+
+        return s.strategy.GetCurrentUserID(context.WithValue(context.TODO(), userContextKey, token))
+}</span>
+
+func (s *AuthService) Login(identity, password string) (*domain.User, string, error) <span class="cov8" title="1">{
+        return s.strategy.Login(identity, password)
+}</span>
+
+// JWTAuthStrategy implements AuthStrategy for JWT-based authentication
+type JWTAuthStrategy struct {
+        uowFactory func() (repository.UnitOfWork, error)
+}
+
+func NewJWTAuthStrategy(uowFactory func() (repository.UnitOfWork, error)) *JWTAuthStrategy <span class="cov0" title="0">{
+        return &amp;JWTAuthStrategy{uowFactory: uowFactory}
+}</span>
+
+func (s *JWTAuthStrategy) Login(identity, password string) (*domain.User, string, error) <span class="cov0" title="0">{
+        uow, err := s.uowFactory()
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, "", err
+        }</span>
+        <span class="cov0" title="0">var user *domain.User
+        if isEmail(identity) </span><span class="cov0" title="0">{
+                user, err = uow.UserRepository().GetByEmail(identity)
+        }</span> else<span class="cov0" title="0"> {
+                user, err = uow.UserRepository().GetByUsername(identity)
+        }</span>
+        <span class="cov0" title="0">const dummyHash = "$2a$10$7zFqzDbD3RrlkMTczbXG9OWZ0FLOXjIxXzSZ.QZxkVXjXcx7QZQiC"
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, "", err
+        }</span>
+        <span class="cov0" title="0">if user == nil </span><span class="cov0" title="0">{
+                checkPasswordHash(password, dummyHash)
+                return nil, "", nil
+        }</span>
+        <span class="cov0" title="0">if !checkPasswordHash(password, user.Password) </span><span class="cov0" title="0">{
+                return nil, "", nil
+        }</span>
+        <span class="cov0" title="0">secret := os.Getenv("JWT_SECRET_KEY")
+        if secret == "" </span><span class="cov0" title="0">{
+                return nil, "", errors.New("JWT secret key is not set")
+        }</span>
+        <span class="cov0" title="0">token := jwt.New(jwt.SigningMethodHS256)
+        claims := token.Claims.(jwt.MapClaims)
+        claims["username"] = user.Username
+        claims["email"] = user.Email
+        claims["user_id"] = user.ID.String()
+        claims["exp"] = time.Now().Add(time.Hour * 72).Unix()
+        tokenString, err := token.SignedString([]byte(secret))
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, "", err
+        }</span>
+        <span class="cov0" title="0">return user, tokenString, nil</span>
+}
+
+func (s *JWTAuthStrategy) GetCurrentUserID(ctx context.Context) (uuid.UUID, error) <span class="cov8" title="1">{
+        token := ctx.Value(userContextKey).(*jwt.Token)
+
         claims, ok := token.Claims.(jwt.MapClaims)
         if !ok </span><span class="cov8" title="1">{
                 return uuid.Nil, domain.ErrUserUnauthorized
@@ -1075,91 +1152,47 @@ func (s *AuthService) GetCurrentUserId(token *jwt.Token) (uuid.UUID, error) <spa
         <span class="cov0" title="0">return uuid.Parse(userIDRaw)</span>
 }
 
-func (s *AuthService) Login(identity, password string) (*domain.User, string, error) <span class="cov8" title="1">{
-        return s.strategy.Login(identity, password)
-}</span>
-
-// JWTAuthStrategy implements AuthStrategy for JWT-based authentication
-type JWTAuthStrategy struct {
-        uowFactory func() (repository.UnitOfWork, error)
-}
-
-func (s *JWTAuthStrategy) Login(identity, password string) (*domain.User, string, error) <span class="cov8" title="1">{
-        uow, err := s.uowFactory()
-        if err != nil </span><span class="cov8" title="1">{
-                return nil, "", err
-        }</span>
-        <span class="cov8" title="1">var user *domain.User
-        if isEmail(identity) </span><span class="cov8" title="1">{
-                user, err = uow.UserRepository().GetByEmail(identity)
-        }</span> else<span class="cov8" title="1"> {
-                user, err = uow.UserRepository().GetByUsername(identity)
-        }</span>
-        <span class="cov8" title="1">const dummyHash = "$2a$10$7zFqzDbD3RrlkMTczbXG9OWZ0FLOXjIxXzSZ.QZxkVXjXcx7QZQiC"
-        if err != nil </span><span class="cov8" title="1">{
-                return nil, "", err
-        }</span>
-        <span class="cov8" title="1">if user == nil </span><span class="cov8" title="1">{
-                checkPasswordHash(password, dummyHash)
-                return nil, "", nil
-        }</span>
-        <span class="cov8" title="1">if !checkPasswordHash(password, user.Password) </span><span class="cov8" title="1">{
-                return nil, "", nil
-        }</span>
-        <span class="cov8" title="1">secret := os.Getenv("JWT_SECRET_KEY")
-        if secret == "" </span><span class="cov8" title="1">{
-                return nil, "", errors.New("JWT secret key is not set")
-        }</span>
-        <span class="cov8" title="1">token := jwt.New(jwt.SigningMethodHS256)
-        claims := token.Claims.(jwt.MapClaims)
-        claims["username"] = user.Username
-        claims["email"] = user.Email
-        claims["user_id"] = user.ID.String()
-        claims["exp"] = time.Now().Add(time.Hour * 72).Unix()
-        tokenString, err := token.SignedString([]byte(secret))
-        if err != nil </span><span class="cov0" title="0">{
-                return nil, "", err
-        }</span>
-        <span class="cov8" title="1">return user, tokenString, nil</span>
-}
-
 // BasicAuthStrategy implements AuthStrategy for CLI (no JWT, just password check)
 type BasicAuthStrategy struct {
         uowFactory func() (repository.UnitOfWork, error)
 }
 
-func (s *BasicAuthStrategy) Login(identity, password string) (*domain.User, string, error) <span class="cov8" title="1">{
+func (s *BasicAuthStrategy) Login(identity, password string) (*domain.User, string, error) <span class="cov0" title="0">{
         uow, err := s.uowFactory()
-        if err != nil </span><span class="cov8" title="1">{
+        if err != nil </span><span class="cov0" title="0">{
                 return nil, "", err
         }</span>
-        <span class="cov8" title="1">var user *domain.User
-        if isEmail(identity) </span><span class="cov8" title="1">{
+        <span class="cov0" title="0">var user *domain.User
+        if isEmail(identity) </span><span class="cov0" title="0">{
                 user, err = uow.UserRepository().GetByEmail(identity)
-        }</span> else<span class="cov8" title="1"> {
+        }</span> else<span class="cov0" title="0"> {
                 user, err = uow.UserRepository().GetByUsername(identity)
         }</span>
-        <span class="cov8" title="1">const dummyHash = "$2a$10$7zFqzDbD3RrlkMTczbXG9OWZ0FLOXjIxXzSZ.QZxkVXjXcx7QZQiC"
-        if err != nil </span><span class="cov8" title="1">{
+        <span class="cov0" title="0">const dummyHash = "$2a$10$7zFqzDbD3RrlkMTczbXG9OWZ0FLOXjIxXzSZ.QZxkVXjXcx7QZQiC"
+        if err != nil </span><span class="cov0" title="0">{
                 return nil, "", err
         }</span>
-        <span class="cov8" title="1">if user == nil </span><span class="cov8" title="1">{
+        <span class="cov0" title="0">if user == nil </span><span class="cov0" title="0">{
                 checkPasswordHash(password, dummyHash)
                 return nil, "", nil
         }</span>
-        <span class="cov8" title="1">if !checkPasswordHash(password, user.Password) </span><span class="cov8" title="1">{
+        <span class="cov0" title="0">if !checkPasswordHash(password, user.Password) </span><span class="cov0" title="0">{
                 return nil, "", nil
         }</span>
-        <span class="cov8" title="1">return user, "", nil</span> // No JWT token for CLI
+        <span class="cov0" title="0">return user, "", nil</span> // No JWT token for CLI
 }
 
+func (s *BasicAuthStrategy) GetCurrentUserID(ctx context.Context) (uuid.UUID, error) <span class="cov0" title="0">{
+        return uuid.Nil, nil
+}</span>
+
 // Helper functions
-func isEmail(email string) bool <span class="cov8" title="1">{
+func isEmail(email string) bool <span class="cov0" title="0">{
         _, err := mail.ParseAddress(email)
         return err == nil
 }</span>
 
-func checkPasswordHash(password, hash string) bool <span class="cov8" title="1">{
+func checkPasswordHash(password, hash string) bool <span class="cov0" title="0">{
         return bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)) == nil
 }</span>
 </pre>
@@ -1336,12 +1369,12 @@ import (
         "github.com/google/uuid"
 )
 
-func AccountRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, error)) <span class="cov8" title="1">{
-        app.Post("/account", middleware.Protected(), CreateAccount(uowFactory))
-        app.Post("/account/:id/deposit", middleware.Protected(), Deposit(uowFactory))
-        app.Post("/account/:id/withdraw", middleware.Protected(), Withdraw(uowFactory))
-        app.Get("/account/:id/balance", middleware.Protected(), GetBalance(uowFactory))
-        app.Get("/account/:id/transactions", middleware.Protected(), GetTransactions(uowFactory))
+func AccountRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, error), strategy service.AuthStrategy) <span class="cov8" title="1">{
+        app.Post("/account", middleware.Protected(), CreateAccount(uowFactory, strategy))
+        app.Post("/account/:id/deposit", middleware.Protected(), Deposit(uowFactory, strategy))
+        app.Post("/account/:id/withdraw", middleware.Protected(), Withdraw(uowFactory, strategy))
+        app.Get("/account/:id/balance", middleware.Protected(), GetBalance(uowFactory, strategy))
+        app.Get("/account/:id/transactions", middleware.Protected(), GetTransactions(uowFactory, strategy))
 }</span>
 
 // CreateAccount returns a Fiber handler for creating a new account for the current user.
@@ -1354,10 +1387,10 @@ func AccountRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, err
 //
 // Returns:
 //   - fiber.Handler: The HTTP handler function for account creation.
-func CreateAccount(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler <span class="cov8" title="1">{
+func CreateAccount(uowFactory func() (repository.UnitOfWork, error), strategy service.AuthStrategy) fiber.Handler <span class="cov8" title="1">{
         return func(c *fiber.Ctx) error </span><span class="cov8" title="1">{
                 log.Infof("Creating new account")
-                authSvc := service.NewAuthService(uowFactory)
+                authSvc := service.NewAuthService(uowFactory, strategy)
                 token, ok := c.Locals("user").(*jwt.Token)
                 if !ok </span><span class="cov0" title="0">{
                         return ErrorResponseJSON(c, fiber.StatusUnauthorized, "unauthorized", "missing user context")
@@ -1390,9 +1423,9 @@ func CreateAccount(uowFactory func() (repository.UnitOfWork, error)) fiber.Handl
 //
 //        @param uowFactory A function that returns a new repository.UnitOfWork and error.
 //        @return fiber.Handler A Fiber handler function for processing deposit requests.
-func Deposit(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler <span class="cov8" title="1">{
+func Deposit(uowFactory func() (repository.UnitOfWork, error), strategy service.AuthStrategy) fiber.Handler <span class="cov8" title="1">{
         return func(c *fiber.Ctx) error </span><span class="cov8" title="1">{
-                authSvc := service.NewAuthService(uowFactory)
+                authSvc := service.NewAuthService(uowFactory, strategy)
                 token, ok := c.Locals("user").(*jwt.Token)
                 if !ok </span><span class="cov0" title="0">{
                         return ErrorResponseJSON(c, fiber.StatusUnauthorized, "unauthorized", "missing user context")
@@ -1404,7 +1437,7 @@ func Deposit(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler <sp
                         return ErrorResponseJSON(c, status, "invalid user ID", err.Error())
                 }</span>
                 <span class="cov8" title="1">id, err := uuid.Parse(c.Params("id"))
-                if err != nil </span><span class="cov0" title="0">{
+                if err != nil </span><span class="cov8" title="1">{
                         log.Errorf("Invalid account ID for deposit: %v", err)
                         return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid account ID", err.Error())
                 }</span>
@@ -1413,7 +1446,7 @@ func Deposit(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler <sp
                 }
                 var request DepositRequest
                 err = c.BodyParser(&amp;request)
-                if err != nil </span><span class="cov0" title="0">{
+                if err != nil </span><span class="cov8" title="1">{
                         log.Errorf("Failed to parse deposit request: %v", err)
                         return ErrorResponseJSON(c, fiber.StatusBadRequest, "Failed to parse deposit request", err.Error())
                 }</span>
@@ -1447,9 +1480,9 @@ func Deposit(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler <sp
 //
 // Returns:
 //   - fiber.Handler: The HTTP handler for the withdrawal endpoint.
-func Withdraw(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler <span class="cov8" title="1">{
+func Withdraw(uowFactory func() (repository.UnitOfWork, error), strategy service.AuthStrategy) fiber.Handler <span class="cov8" title="1">{
         return func(c *fiber.Ctx) error </span><span class="cov8" title="1">{
-                authSvc := service.NewAuthService(uowFactory)
+                authSvc := service.NewAuthService(uowFactory, strategy)
                 token, ok := c.Locals("user").(*jwt.Token)
                 if !ok </span><span class="cov0" title="0">{
                         return ErrorResponseJSON(c, fiber.StatusUnauthorized, "unauthorized", "missing user context")
@@ -1461,7 +1494,7 @@ func Withdraw(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler <s
                         return ErrorResponseJSON(c, status, "invalid user ID", err.Error())
                 }</span>
                 <span class="cov8" title="1">id, err := uuid.Parse(c.Params("id"))
-                if err != nil </span><span class="cov0" title="0">{
+                if err != nil </span><span class="cov8" title="1">{
                         log.Errorf("Invalid account ID for withdrawal: %v", err)
                         return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid account ID", err.Error())
                 }</span>
@@ -1470,7 +1503,7 @@ func Withdraw(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler <s
                 }
                 var request WithdrawRequest
                 err = c.BodyParser(&amp;request)
-                if err != nil </span><span class="cov0" title="0">{
+                if err != nil </span><span class="cov8" title="1">{
                         log.Errorf("Failed to parse withdrawal request: %v", err)
                         return ErrorResponseJSON(c, fiber.StatusBadRequest, "Failed to parse withdrawal request", err.Error())
                 }</span>
@@ -1502,9 +1535,9 @@ func Withdraw(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler <s
 // Example usage:
 //
 //        app.Get("/accounts/:id/transactions", GetTransactions(uowFactory))
-func GetTransactions(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler <span class="cov8" title="1">{
+func GetTransactions(uowFactory func() (repository.UnitOfWork, error), strategy service.AuthStrategy) fiber.Handler <span class="cov8" title="1">{
         return func(c *fiber.Ctx) error </span><span class="cov8" title="1">{
-                authSvc := service.NewAuthService(uowFactory)
+                authSvc := service.NewAuthService(uowFactory, strategy)
                 token, ok := c.Locals("user").(*jwt.Token)
                 if !ok </span><span class="cov0" title="0">{
                         return ErrorResponseJSON(c, fiber.StatusUnauthorized, "unauthorized", "missing user context")
@@ -1516,14 +1549,14 @@ func GetTransactions(uowFactory func() (repository.UnitOfWork, error)) fiber.Han
                         return ErrorResponseJSON(c, status, "invalid user ID", err.Error())
                 }</span>
                 <span class="cov8" title="1">id, err := uuid.Parse(c.Params("id"))
-                if err != nil </span><span class="cov0" title="0">{
+                if err != nil </span><span class="cov8" title="1">{
                         log.Errorf("Invalid account ID for transactions: %v", err)
                         return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid account ID", err.Error())
                 }</span>
 
                 <span class="cov8" title="1">service := service.NewAccountService(uowFactory)
                 tx, err := service.GetTransactions(userID, id)
-                if err != nil </span><span class="cov0" title="0">{
+                if err != nil </span><span class="cov8" title="1">{
                         log.Errorf("Failed to list transactions for account ID %s: %v", id, err)
                         status := ErrorToStatusCode(err)
                         return ErrorResponseJSON(c, status, "Failed to list transactions", err.Error())
@@ -1532,9 +1565,9 @@ func GetTransactions(uowFactory func() (repository.UnitOfWork, error)) fiber.Han
         }
 }
 
-func GetBalance(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler <span class="cov8" title="1">{
+func GetBalance(uowFactory func() (repository.UnitOfWork, error), strategy service.AuthStrategy) fiber.Handler <span class="cov8" title="1">{
         return func(c *fiber.Ctx) error </span><span class="cov8" title="1">{
-                authSvc := service.NewAuthService(uowFactory)
+                authSvc := service.NewAuthService(uowFactory, strategy)
                 token, ok := c.Locals("user").(*jwt.Token)
                 if !ok </span><span class="cov0" title="0">{
                         return ErrorResponseJSON(c, fiber.StatusUnauthorized, "unauthorized", "missing user context")
@@ -1546,7 +1579,7 @@ func GetBalance(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler 
                         return ErrorResponseJSON(c, status, "invalid user ID", err.Error())
                 }</span>
                 <span class="cov8" title="1">id, err := uuid.Parse(c.Params("id"))
-                if err != nil </span><span class="cov0" title="0">{
+                if err != nil </span><span class="cov8" title="1">{
                         log.Errorf("Invalid account ID for balance: %v", err)
                         return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid account ID", err.Error())
                 }</span>
@@ -1569,12 +1602,13 @@ import (
         "time"
 
         "github.com/amirasaad/fintech/pkg/repository"
+        "github.com/amirasaad/fintech/pkg/service"
         "github.com/gofiber/fiber/v2"
         "github.com/gofiber/fiber/v2/middleware/limiter"
         "github.com/gofiber/fiber/v2/middleware/recover"
 )
 
-func NewApp(uowFactory func() (repository.UnitOfWork, error)) *fiber.App <span class="cov8" title="1">{
+func NewApp(uowFactory func() (repository.UnitOfWork, error), strategy service.AuthStrategy) *fiber.App <span class="cov8" title="1">{
         app := fiber.New(fiber.Config{
                 ErrorHandler: func(c *fiber.Ctx, err error) error </span><span class="cov8" title="1">{
                         // Default to 500 if status code cannot be determined
@@ -1602,9 +1636,9 @@ func NewApp(uowFactory func() (repository.UnitOfWork, error)) *fiber.App <span c
                 return c.SendString("App is working! 🚀")
         }</span>)
 
-        <span class="cov8" title="1">AccountRoutes(app, uowFactory)
-        UserRoutes(app, uowFactory)
-        AuthRoutes(app, uowFactory)
+        <span class="cov8" title="1">AccountRoutes(app, uowFactory, strategy)
+        UserRoutes(app, uowFactory, strategy)
+        AuthRoutes(app, uowFactory, strategy)
 
         return app</span>
 }
@@ -1618,12 +1652,12 @@ import (
         "github.com/gofiber/fiber/v2"
 )
 
-func AuthRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, error)) <span class="cov8" title="1">{
-        app.Post("/login", Login(uowFactory))
+func AuthRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, error), strategy service.AuthStrategy) <span class="cov8" title="1">{
+        app.Post("/login", Login(uowFactory, strategy))
 }</span>
 
 // Login get user and password
-func Login(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler <span class="cov8" title="1">{
+func Login(uowFactory func() (repository.UnitOfWork, error), strategy service.AuthStrategy) fiber.Handler <span class="cov8" title="1">{
         return func(c *fiber.Ctx) error </span><span class="cov8" title="1">{
                 type LoginInput struct {
                         Identity string `json:"identity"`
@@ -1635,7 +1669,7 @@ func Login(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler <span
                         return ErrorResponseJSON(c, fiber.StatusBadRequest, "Error on login request", err.Error())
                 }</span>
 
-                <span class="cov8" title="1">authService := service.NewAuthService(uowFactory)
+                <span class="cov8" title="1">authService := service.NewAuthService(uowFactory, strategy)
                 user, token, err := authService.Login(input.Identity, input.Password)
                 if err != nil </span><span class="cov8" title="1">{
                         return ErrorResponseJSON(c, fiber.StatusInternalServerError, "Internal Server Error", err.Error())
@@ -1662,11 +1696,21 @@ import (
 
         "github.com/amirasaad/fintech/pkg/domain"
         "github.com/amirasaad/fintech/pkg/repository"
+        "github.com/amirasaad/fintech/pkg/service"
         "github.com/gofiber/fiber/v2"
         "github.com/gofiber/fiber/v2/log"
 )
 
-func SetupTestApp(t *testing.T) (app *fiber.App, userRepo *fixtures.MockUserRepository, accountRepo *fixtures.MockAccountRepository, transactionRepo *fixtures.MockTransactionRepository, mockUow *fixtures.MockUnitOfWork, testUser *domain.User) <span class="cov8" title="1">{
+func SetupTestApp(
+        t *testing.T,
+) (
+        app *fiber.App,
+        userRepo *fixtures.MockUserRepository,
+        accountRepo *fixtures.MockAccountRepository,
+        transactionRepo *fixtures.MockTransactionRepository,
+        mockUow *fixtures.MockUnitOfWork,
+        testUser *domain.User,
+) <span class="cov8" title="1">{
         t.Helper()
         t.Setenv("JWT_SECRET_KEY", "secret")
 
@@ -1676,21 +1720,18 @@ func SetupTestApp(t *testing.T) (app *fiber.App, userRepo *fixtures.MockUserRepo
 
         mockUow = fixtures.NewMockUnitOfWork(t)
 
-        app = NewApp(func() (repository.UnitOfWork, error) </span><span class="cov8" title="1">{ return mockUow, nil }</span>)
+        app = NewApp(func() (repository.UnitOfWork, error) </span><span class="cov8" title="1">{ return mockUow, nil }</span>,
+                service.NewJWTAuthStrategy(func() (repository.UnitOfWork, error) <span class="cov8" title="1">{ return mockUow, nil }</span>))
         <span class="cov8" title="1">testUser, _ = domain.NewUser("testuser", "testuser@example.com", "password123")
         log.SetOutput(io.Discard)
-        defer mockUow.AssertExpectations(t)
-        defer userRepo.AssertExpectations(t)
-        defer accountRepo.AssertExpectations(t)
-        defer transactionRepo.AssertExpectations(t)
         return</span>
 }
 
 func getTestToken(t *testing.T, app *fiber.App, userRepo *fixtures.MockUserRepository, mockUow *fixtures.MockUnitOfWork, testUser *domain.User) string <span class="cov8" title="1">{
         t.Helper()
-        mockUow.EXPECT().UserRepository().Return(userRepo)
-        userRepo.EXPECT().GetByUsername("testuser").Return(testUser, nil)
-        userRepo.EXPECT().Valid(mock.Anything, mock.Anything).Return(true).Maybe()
+        mockUow.EXPECT().UserRepository().Return(userRepo).Once()
+        userRepo.EXPECT().GetByUsername("testuser").Return(testUser, nil).Once()
+        userRepo.EXPECT().Valid(mock.Anything, mock.Anything).Return(true).Once()
         req := httptest.NewRequest("POST", "/login",
                 bytes.NewBuffer([]byte(`{"identity":"testuser","password":"password123"}`)))
         req.Header.Set("Content-Type", "application/json")
@@ -1731,11 +1772,15 @@ import (
         "github.com/google/uuid"
 )
 
-func UserRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, error)) <span class="cov8" title="1">{
+func UserRoutes(
+        app *fiber.App,
+        uowFactory func() (repository.UnitOfWork, error),
+        strategy service.AuthStrategy,
+) <span class="cov8" title="1">{
         app.Get("/user/:id", middleware.Protected(), GetUser(uowFactory))
         app.Post("/user", CreateUser(uowFactory))
-        app.Put("/user/:id", middleware.Protected(), UpdateUser(uowFactory))
-        app.Delete("/user/:id", middleware.Protected(), DeleteUser(uowFactory))
+        app.Put("/user/:id", middleware.Protected(), UpdateUser(uowFactory, strategy))
+        app.Delete("/user/:id", middleware.Protected(), DeleteUser(uowFactory, strategy))
 }</span>
 
 // GetUser get a user
@@ -1785,7 +1830,7 @@ func CreateUser(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler 
 }
 
 // UpdateUser update user
-func UpdateUser(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler <span class="cov8" title="1">{
+func UpdateUser(uowFactory func() (repository.UnitOfWork, error), strategy service.AuthStrategy) fiber.Handler <span class="cov8" title="1">{
         return func(c *fiber.Ctx) error </span><span class="cov8" title="1">{
                 type UpdateUserInput struct {
                         Names string `json:"names"`
@@ -1799,7 +1844,7 @@ func UpdateUser(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler 
                         log.Errorf("Invalid account ID for deposit: %v", err)
                         return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid user ID", err.Error())
                 }</span>
-                <span class="cov8" title="1">authSvc := service.NewAuthService(uowFactory)
+                <span class="cov8" title="1">authSvc := service.NewAuthService(uowFactory, strategy)
                 token, ok := c.Locals("user").(*jwt.Token)
                 if !ok </span><span class="cov0" title="0">{
                         return ErrorResponseJSON(c, fiber.StatusUnauthorized, "unauthorized", "missing user context")
@@ -1828,7 +1873,7 @@ func UpdateUser(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler 
 }
 
 // DeleteUser delete user
-func DeleteUser(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler <span class="cov8" title="1">{
+func DeleteUser(uowFactory func() (repository.UnitOfWork, error), strategy service.AuthStrategy) fiber.Handler <span class="cov8" title="1">{
         return func(c *fiber.Ctx) error </span><span class="cov8" title="1">{
                 type PasswordInput struct {
                         Password string `json:"password"`
@@ -1842,7 +1887,7 @@ func DeleteUser(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler 
                         log.Errorf("Invalid account ID for deposit: %v", err)
                         return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid user ID", err.Error())
                 }</span>
-                <span class="cov8" title="1">authSvc := service.NewAuthService(uowFactory)
+                <span class="cov8" title="1">authSvc := service.NewAuthService(uowFactory, strategy)
                 token, ok := c.Locals("user").(*jwt.Token)
                 if !ok </span><span class="cov0" title="0">{
                         return ErrorResponseJSON(c, fiber.StatusUnauthorized, "unauthorized", "missing user context")
