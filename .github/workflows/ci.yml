@@ -28,6 +28,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          cache: true
+          cache-dependency-path: go.sum
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
@@ -39,7 +42,7 @@ jobs:
       - name: install gotestsum
         run: go install gotest.tools/gotestsum@latest
       - name: Run gotestsum
-        run: gotestsum --junitfile report.xml --format standard-quiet
+        run: gotestsum --junitfile report.xml --format standard-quiet --debug -- -p 4 -json ./...
       - name: Test Summary
         uses: test-summary/action@v2
         with:
