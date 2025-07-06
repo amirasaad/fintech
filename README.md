@@ -1,20 +1,22 @@
 # Fintech App 🚀
 
+**Note:** This project is primarily a learning endeavor and a personal exploration of building a robust financial application with Go. It's a work in progress and serves as a practical playground for applying software engineering principles.
+
 [![build](https://github.com/amirasaad/fintech/actions/workflows/ci.yml/badge.svg)](https://github.com/amirasaad/fintech/actions/workflows/ci.yml)
 
 ## Overview 📝
 
-The Fintech App is a robust, scalable, and secure financial transaction system designed to manage user accounts, deposits, withdrawals, and real-time transaction history. Built with Go (Golang), this application adheres to modern software engineering principles, including Domain-Driven Design (DDD) and clean architecture, to ensure maintainability, testability, and high performance. It provides a foundational platform for financial operations, emphasizing data integrity and concurrency safety.
+This Fintech App is a personal project exploring the development of a financial transaction system. Built with Go (Golang), it's designed to manage user accounts, deposits, withdrawals, and transaction history. The project focuses on applying modern software engineering principles like Domain-Driven Design (DDD) and clean architecture to understand and implement maintainable, testable, and performant solutions, with an emphasis on data integrity and concurrency safety.
 
 ## Vision ✨
 
-Our vision is to create a reliable and efficient backend service for financial operations that can serve as a core component for various fintech products. We aim for a system that is:
+This project's vision is to build a foundational backend service for financial operations, primarily as a learning exercise. The goal is to explore and implement a system that is:
 
-- **Reliable:** Ensures all transactions are processed accurately and consistently. ✅
-- **Scalable:** Capable of handling a growing number of users and transactions without performance degradation. 📈
-- **Secure:** Protects sensitive financial data and prevents unauthorized access. 🔒
-- **Maintainable:** Designed with clear separation of concerns, making it easy to understand, modify, and extend. 🛠️
-- **Performant:** Leverages Go's concurrency features for high throughput and low latency. ⚡
+- **Reliable:** To understand how to ensure accurate and consistent transaction processing. ✅
+- **Scalable:** To learn about designing systems that can handle increasing loads. 📈
+- **Secure:** To practice protecting sensitive financial data and preventing unauthorized access. 🔒
+- **Maintainable:** To apply principles like clear separation of concerns for easier understanding and extension. 🛠️
+- **Performant:** To leverage Go's concurrency features for high throughput and low latency in a practical context. ⚡
 
 ## Features 🌟
 
