@@ -1,6 +1,4 @@
-# Project Rules for Trae AI Agent
-
-These guidelines define the conventions and practices to be followed by the AI agent for the `fintech` project.
+# Project Rules
 
 ## 1. Code Style
 
@@ -28,3 +26,12 @@ These guidelines define the conventions and practices to be followed by the AI a
 * Avoid introducing new external dependencies unless explicitly approved.
 * Prioritize using existing project utilities and helper functions (e.g., `ErrorResponseJSON`).
 * Do not use `fmt.Print` or `fmt.Println` for logging.
+
+## 4. Development Workflow
+
+* **Test-Driven Development (TDD):** All new features and bug fixes should follow a TDD approach:
+    1. Write a failing test that defines the desired behavior or reproduces the bug.
+    2. Write the minimum amount of code necessary to make the test pass.
+    3. Refactor the code to improve its design, readability, and maintainability, ensuring all tests still pass.
+* **Unit Tests:** Write comprehensive unit tests for all new or modified code. Tests should be placed alongside the code they test (e.g., `_test.go` files).
+* **Test Coverage:** Strive for high test coverage, especially for core business logic and critical paths.
