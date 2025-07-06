@@ -74,7 +74,7 @@ definitions:
       amount:
         type: number
     type: object
-host: localhost:3000
+host: fintech-beryl-beta.vercel.app
 info:
   contact:
     email: fiber@swagger.io
