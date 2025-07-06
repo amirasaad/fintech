@@ -18,7 +18,7 @@ import (
 // @contact.email fiber@swagger.io
 // @license.name Apache 2.0
 // @license.url http://www.apache.org/licenses/MIT
-// @host localhost:3000
+// @host fintech-beryl-beta.vercel.app
 // @BasePath /
 func main() {
 	db, err := infra.NewDBConnection()
