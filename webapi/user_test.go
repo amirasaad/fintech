@@ -20,11 +20,11 @@ import (
 
 type UserTestSuite struct {
 	E2ETestSuite
-	app      *fiber.App
-	userRepo *fixtures.MockUserRepository
-	mockUow  *fixtures.MockUnitOfWork
-	testUser *domain.User
-	testToken string
+	app         *fiber.App
+	userRepo    *fixtures.MockUserRepository
+	mockUow     *fixtures.MockUnitOfWork
+	testUser    *domain.User
+	testToken   string
 	authService *service.AuthService
 }
 
@@ -212,7 +212,7 @@ func (s *UserTestSuite) TestDeleteUserInvalidBody() {
 	resp, err := s.app.Test(req, 10000)
 	s.Require().NoError(err)
 	defer resp.Body.Close() //nolint: errcheck
-	s.Assert().Equal(fiber.StatusUnauthorized, resp.StatusCode)
+	s.Assert().Equal(fiber.StatusBadRequest, resp.StatusCode)
 }
 
 func (s *UserTestSuite) TestDeleteUserInvalidPassword() {

@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/amirasaad/fintech/internal/fixtures"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/amirasaad/fintech/pkg/domain"
@@ -28,6 +29,9 @@ func (suite *E2ETestSuite) BeforeTest(_, testName string) {
 		suite.ts = make(map[string]*testing.T, 1)
 	}
 	suite.ts[testName] = t
+	suite.T().Cleanup(func() {
+		mock.AssertExpectationsForObjects(suite.T())
+	})
 	t.Parallel()
 }
 
