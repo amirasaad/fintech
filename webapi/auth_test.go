@@ -23,7 +23,7 @@ type AuthTestSuite struct {
 }
 
 func (s *AuthTestSuite) SetupTest() {
-	s.app, s.userRepo, _, _, s.mockUow, s.testUser = SetupTestApp(s.T())
+	s.app, s.userRepo, _, _, s.mockUow, s.testUser, _ = SetupTestApp(s.T())
 }
 
 func (s *AuthTestSuite) TestLoginRoute_BadRequest() {

@@ -11,6 +11,7 @@ import (
 
 	"github.com/amirasaad/fintech/internal/fixtures"
 	"github.com/amirasaad/fintech/pkg/domain"
+	"github.com/amirasaad/fintech/pkg/service"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/mock"
@@ -24,11 +25,12 @@ type UserTestSuite struct {
 	mockUow  *fixtures.MockUnitOfWork
 	testUser *domain.User
 	testToken string
+	authService *service.AuthService
 }
 
 func (s *UserTestSuite) SetupTest() {
-	s.app, s.userRepo, _, _, s.mockUow, s.testUser = SetupTestApp(s.T())
-	s.testToken = getTestToken(s.T(), s.app, s.userRepo, s.mockUow, s.testUser)
+	s.app, s.userRepo, _, _, s.mockUow, s.testUser, s.authService = SetupTestApp(s.T())
+	s.testToken = getTestToken(s.T(), s.authService, s.userRepo, s.mockUow, s.testUser)
 }
 
 func (s *UserTestSuite) TestCreateUser() {

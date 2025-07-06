@@ -1,10 +1,7 @@
 package webapi
 
 import (
-	"bytes"
-	"encoding/json"
 	"io"
-	"net/http/httptest"
 	"runtime"
 	"strings"
 	"testing"
@@ -31,7 +28,7 @@ func (suite *E2ETestSuite) BeforeTest(_, testName string) {
 		suite.ts = make(map[string]*testing.T, 1)
 	}
 	suite.ts[testName] = t
-	// t.Parallel()
+	t.Parallel()
 }
 
 // T() overrides suite.Suite.T() with a way to find the proper *testing.T
@@ -104,6 +101,7 @@ func SetupTestApp(
 	transactionRepo *fixtures.MockTransactionRepository,
 	mockUow *fixtures.MockUnitOfWork,
 	testUser *domain.User,
+	authService *service.AuthService,
 ) {
 	t.Helper()
 	userRepo = fixtures.NewMockUserRepository(t)
@@ -112,8 +110,10 @@ func SetupTestApp(
 
 	mockUow = fixtures.NewMockUnitOfWork(t)
 
-	app = NewTestApp(func() (repository.UnitOfWork, error) { return mockUow, nil },
-		service.NewJWTAuthStrategy(func() (repository.UnitOfWork, error) { return mockUow, nil }))
+	authStrategy := service.NewJWTAuthStrategy(func() (repository.UnitOfWork, error) { return mockUow, nil })
+	authService = service.NewAuthService(func() (repository.UnitOfWork, error) { return mockUow, nil }, authStrategy)
+
+	app = NewTestApp(func() (repository.UnitOfWork, error) { return mockUow, nil }, authStrategy)
 	testUser, _ = domain.NewUser("testuser", "testuser@example.com", "password123")
 	log.SetOutput(io.Discard)
 	// os.Setenv("JWT_SECRET_KEY", "secret")
@@ -121,32 +121,14 @@ func SetupTestApp(
 	return
 }
 
-func getTestToken(t *testing.T, app *fiber.App, userRepo *fixtures.MockUserRepository, mockUow *fixtures.MockUnitOfWork, testUser *domain.User) string {
+func getTestToken(t *testing.T, authService *service.AuthService, userRepo *fixtures.MockUserRepository, mockUow *fixtures.MockUnitOfWork, testUser *domain.User) string {
 	t.Helper()
 	mockUow.EXPECT().UserRepository().Return(userRepo).Maybe()
 	userRepo.EXPECT().GetByUsername("testuser").Return(testUser, nil).Maybe()
-	req := httptest.NewRequest("POST", "/login",
-		bytes.NewBuffer([]byte(`{"identity":"testuser","password":"password123"}`)))
-	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := app.Test(req, 10000) // 10 second timeout
+	_, token, err := authService.Login("testuser", "password123")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp.Body.Close() //nolint:errcheck
-
-	var result struct {
-		Data struct {
-			Token string `json:"token"`
-		} `json:"data"`
-	}
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := json.Unmarshal(bodyBytes, &result); err != nil {
-		t.Fatal(err)
-	}
-	token := result.Data.Token
 	return token
 }
