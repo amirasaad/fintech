@@ -1,0 +1,66 @@
+---
+globs: pkg/service/*.go,pkg/repository/*.go,infra/*.go
+description: Architecture patterns and clean architecture guidelines
+---
+
+# Architecture Patterns
+
+## Clean Architecture Principles
+
+- Follow clean architecture principles
+- Use dependency injection and interfaces
+- Implement repository pattern with Unit of Work
+- Separate domain logic from infrastructure concerns
+- Use interfaces for dependency inversion
+
+## Service Layer
+
+- Business logic belongs in services - see [pkg/service/](mdc:pkg/service/)
+- Services depend on repositories through interfaces
+- Handle business rules and validation
+- Coordinate between multiple repositories
+- Examples: [pkg/service/account.go](mdc:pkg/service/account.go), [pkg/service/user.go](mdc:pkg/service/user.go)
+
+## Repository Pattern
+
+- Data access logic in repositories - see [pkg/repository/](mdc:pkg/repository/)
+- Use Unit of Work pattern for transactions
+- Implement interfaces for testability
+- Handle database operations and queries
+- Examples: [pkg/repository/repository.go](mdc:pkg/repository/repository.go), [pkg/repository/uow.go](mdc:pkg/repository/uow.go)
+
+## Infrastructure Layer
+
+- Database configuration and models - see [infra/](mdc:infra/)
+- GORM models and database setup
+- Connection pooling and configuration
+- Examples: [infra/database.go](mdc:infra/database.go), [infra/model.go](mdc:infra/model.go)
+
+## Domain Models
+
+- Core business entities - see [pkg/domain/](mdc:pkg/domain/)
+- Pure business logic without infrastructure concerns
+- Define interfaces for repositories
+- Examples: [pkg/domain/account.go](mdc:pkg/domain/account.go), [pkg/domain/user.go](mdc:pkg/domain/user.go)
+
+## Dependency Injection
+
+- Use interfaces for all dependencies
+- Inject dependencies through constructors
+- Enable easy testing and mocking
+- Follow the established patterns in existing services
+
+## Unit of Work Pattern
+
+- Coordinate multiple repository operations
+- Handle transactions properly
+- Ensure data consistency
+- See implementation in [infra/uow.go](mdc:infra/uow.go)
+
+## Best Practices
+
+- Keep services focused on business logic
+- Use repositories for data access
+- Implement proper error handling
+- Use interfaces for flexibility
+- Follow established patterns in the codebase
