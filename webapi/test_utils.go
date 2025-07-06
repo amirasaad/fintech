@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	"github.com/amirasaad/fintech/internal/fixtures"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/amirasaad/fintech/pkg/domain"
@@ -127,7 +126,6 @@ func getTestToken(t *testing.T, app *fiber.App, userRepo *fixtures.MockUserRepos
 	t.Helper()
 	mockUow.EXPECT().UserRepository().Return(userRepo).Maybe()
 	userRepo.EXPECT().GetByUsername("testuser").Return(testUser, nil).Maybe()
-	userRepo.EXPECT().Valid(mock.Anything, mock.Anything).Return(true).Maybe()
 	req := httptest.NewRequest("POST", "/login",
 		bytes.NewBuffer([]byte(`{"identity":"testuser","password":"password123"}`)))
 	req.Header.Set("Content-Type", "application/json")
