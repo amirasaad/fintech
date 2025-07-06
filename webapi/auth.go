@@ -1,7 +1,6 @@
 package webapi
 
 import (
-	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/amirasaad/fintech/pkg/service"
 	"github.com/gofiber/fiber/v2"
 )
@@ -11,8 +10,8 @@ type LoginInput struct {
 	Password string `json:"password"`
 }
 
-func AuthRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, error), strategy service.AuthStrategy) {
-	app.Post("/login", Login(uowFactory, strategy))
+func AuthRoutes(app *fiber.App, authSvc *service.AuthService) {
+	app.Post("/login", Login(authSvc))
 }
 
 // Login handles user authentication and returns a JWT token.
@@ -28,17 +27,13 @@ func AuthRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, error)
 // @Failure 429 {object} ProblemDetails
 // @Failure 500 {object} ProblemDetails
 // @Router /login [post]
-func Login(uowFactory func() (repository.UnitOfWork, error), strategy service.AuthStrategy) fiber.Handler {
+func Login(authSvc *service.AuthService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-
 		input := new(LoginInput)
-
 		if err := c.BodyParser(input); err != nil {
 			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Error on login request", err.Error())
 		}
-
-		authService := service.NewAuthService(uowFactory, strategy)
-		user, token, err := authService.Login(input.Identity, input.Password)
+		user, token, err := authSvc.Login(input.Identity, input.Password)
 		if err != nil {
 			return ErrorResponseJSON(c, fiber.StatusInternalServerError, "Internal Server Error", err.Error())
 		}

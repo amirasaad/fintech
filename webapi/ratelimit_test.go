@@ -7,6 +7,8 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/stretchr/testify/suite"
+	"github.com/amirasaad/fintech/pkg/service"
+	"github.com/amirasaad/fintech/pkg/repository"
 )
 
 type RateLimitTestSuite struct {
@@ -15,7 +17,13 @@ type RateLimitTestSuite struct {
 }
 
 func (s *RateLimitTestSuite) SetupTest() {
-	s.app = NewApp(nil, nil) // Pass nil for uowFactory as it's not needed for this test
+	// Provide dummy services for required arguments
+	dummyUow := func() (repository.UnitOfWork, error) { return nil, nil }
+	accountSvc := service.NewAccountService(dummyUow)
+	userSvc := service.NewUserService(dummyUow)
+	authSvc := &service.AuthService{} // Use zero value or a mock if available
+
+	s.app = NewApp(accountSvc, userSvc, authSvc)
 }
 
 func (s *RateLimitTestSuite) TestRateLimit() {

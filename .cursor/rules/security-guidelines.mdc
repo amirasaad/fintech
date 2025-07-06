@@ -1,0 +1,69 @@
+---
+globs: pkg/middleware/*.go,webapi/auth.go
+description: Security guidelines and authentication patterns
+---
+
+# Security Guidelines
+
+## Authentication & Authorization
+
+- Use JWT tokens for authentication - see [pkg/middleware/auth.go](mdc:pkg/middleware/auth.go)
+- Implement proper token validation
+- Check user permissions for protected endpoints
+- Use middleware for auth checks
+- Never expose sensitive data in logs or responses
+
+## JWT Implementation
+
+- Use github.com/golang-jwt/jwt/v5
+- Implement proper token signing and validation
+- Set appropriate expiration times
+- Include necessary claims (user ID, roles, etc.)
+- Handle token refresh properly
+
+## Middleware Security
+
+- Auth middleware: [pkg/middleware/auth.go](mdc:pkg/middleware/auth.go)
+- Rate limiting implementation
+- CORS configuration
+- Request validation
+- Security headers
+
+## Data Protection
+
+- Validate and sanitize all inputs
+- Use parameterized queries (GORM handles this)
+- Implement rate limiting
+- Log security-relevant events
+- Follow OWASP guidelines
+
+## Input Validation
+
+- Use go-playground/validator for struct validation
+- Validate all user inputs
+- Return clear validation error messages
+- Sanitize inputs to prevent injection attacks
+- Implement proper error handling for invalid inputs
+
+## Sensitive Data Handling
+
+- Never log passwords, tokens, or sensitive data
+- Use environment variables for configuration
+- Encrypt sensitive data at rest
+- Implement proper session management
+- Use HTTPS in production
+
+## Security Best Practices
+
+- Implement proper error handling
+- Use secure defaults
+- Keep dependencies updated
+- Implement proper logging
+- Follow the principle of least privilege
+- Use established security patterns from the codebase
+
+## Examples
+
+- Auth middleware: [pkg/middleware/auth.go](mdc:pkg/middleware/auth.go)
+- Auth handlers: [webapi/auth.go](mdc:webapi/auth.go)
+- Auth tests: [pkg/middleware/auth_test.go](mdc:pkg/middleware/auth_test.go)

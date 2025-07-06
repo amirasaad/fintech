@@ -25,11 +25,18 @@ func handler() http.HandlerFunc {
 	if err != nil {
 		panic(err)
 	}
-	app := webapi.NewApp(func() (repository.UnitOfWork, error) {
-		return infra.NewGormUoW(db)
-	}, service.NewJWTAuthStrategy(func() (repository.UnitOfWork, error) {
-		return infra.NewGormUoW(db)
-	}))
-
+	app := webapi.NewApp(
+		service.NewAccountService(func() (repository.UnitOfWork, error) {
+			return infra.NewGormUoW(db)
+		}),
+		service.NewUserService(func() (repository.UnitOfWork, error) {
+			return infra.NewGormUoW(db)
+		}),
+		service.NewAuthService(func() (repository.UnitOfWork, error) {
+			return infra.NewGormUoW(db)
+		}, service.NewJWTAuthStrategy(func() (repository.UnitOfWork, error) {
+			return infra.NewGormUoW(db)
+		})),
+	)
 	return adaptor.FiberApp(app)
 }

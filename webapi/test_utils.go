@@ -71,7 +71,11 @@ func (suite *E2ETestSuite) T() *testing.T {
 }
 
 // NewTestApp creates a new Fiber app for testing without rate limiting
-func NewTestApp(uowFactory func() (repository.UnitOfWork, error), strategy service.AuthStrategy) *fiber.App {
+func NewTestApp(
+	accountSvc *service.AccountService,
+	userSvc *service.UserService,
+	authSvc *service.AuthService,
+) *fiber.App {
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			// Default to 500 if status code cannot be determined
@@ -89,9 +93,9 @@ func NewTestApp(uowFactory func() (repository.UnitOfWork, error), strategy servi
 		return c.SendString("App is working! 🚀")
 	})
 
-	AccountRoutes(app, uowFactory, strategy)
-	UserRoutes(app, uowFactory, strategy)
-	AuthRoutes(app, uowFactory, strategy)
+	AccountRoutes(app, accountSvc, authSvc)
+	UserRoutes(app, userSvc, authSvc)
+	AuthRoutes(app, authSvc)
 
 	return app
 }
@@ -116,8 +120,12 @@ func SetupTestApp(
 
 	authStrategy := service.NewJWTAuthStrategy(func() (repository.UnitOfWork, error) { return mockUow, nil })
 	authService = service.NewAuthService(func() (repository.UnitOfWork, error) { return mockUow, nil }, authStrategy)
+	
+	// Create services with the mock UOW factory
+	accountSvc := service.NewAccountService(func() (repository.UnitOfWork, error) { return mockUow, nil })
+	userSvc := service.NewUserService(func() (repository.UnitOfWork, error) { return mockUow, nil })
 
-	app = NewTestApp(func() (repository.UnitOfWork, error) { return mockUow, nil }, authStrategy)
+	app = NewTestApp(accountSvc, userSvc, authService)
 	testUser, _ = domain.NewUser("testuser", "testuser@example.com", "password123")
 	log.SetOutput(io.Discard)
 	// os.Setenv("JWT_SECRET_KEY", "secret")

@@ -1,0 +1,49 @@
+---
+globs: *.go
+description: Go coding standards and conventions for the fintech project
+---
+
+# Go Coding Standards
+
+## Code Style
+
+- Use tabs for indentation (not spaces)
+- Follow Go naming conventions:
+  - Functions and methods: `CamelCase` (e.g., `CreateAccount`, `GetBalance`)
+  - Variables: `camelCase` (e.g., `uowFactory`, `request`)
+  - Package names: `lowercase`
+  - Exported functions start with uppercase
+  - Unexported functions start with lowercase
+- Use GoDoc comments for exported functions and complex logic
+- Handle errors explicitly, never ignore them
+- Use `slog/log` for structured logging, never `fmt.Print` or `fmt.Println`
+
+## Error Handling
+
+- Always check errors explicitly
+- Use `ErrorResponseJSON` for HTTP responses - see [webapi/utils.go](mdc:webapi/utils.go)
+- Return `fiber.Error` for API errors
+- Log errors with context
+- Use custom error types for domain-specific errors
+
+## Code Quality
+
+- Write self-documenting code
+- Keep functions small and focused
+- Follow SOLID principles
+- Use meaningful variable names
+- Avoid code duplication
+- Use interfaces for flexibility
+
+## Dependencies
+
+- Use existing project utilities like `ErrorResponseJSON`
+- Don't introduce new external dependencies without approval
+- Use the established patterns from [pkg/service/](mdc:pkg/service/) and [pkg/repository/](mdc:pkg/repository/)
+
+## Examples
+
+- Service pattern: [pkg/service/account.go](mdc:pkg/service/account.go)
+- Repository pattern: [pkg/repository/repository.go](mdc:pkg/repository/repository.go)
+- API handler: [webapi/account.go](mdc:webapi/account.go)
+- Domain model: [pkg/domain/account.go](mdc:pkg/domain/account.go)

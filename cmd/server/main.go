@@ -25,10 +25,16 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Fatal(webapi.NewApp(func() (repository.UnitOfWork, error) {
+	// Create UOW factory
+	uowFactory := func() (repository.UnitOfWork, error) {
 		return infra.NewGormUoW(db)
-	}, service.NewJWTAuthStrategy(func() (repository.UnitOfWork, error) {
-		return infra.NewGormUoW(db)
-	})).Listen(":3000"))
+	}
+
+	// Create services
+	accountSvc := service.NewAccountService(uowFactory)
+	userSvc := service.NewUserService(uowFactory)
+	authSvc := service.NewAuthService(uowFactory, service.NewJWTAuthStrategy(uowFactory))
+
+	log.Fatal(webapi.NewApp(accountSvc, userSvc, authSvc).Listen(":3000"))
 
 }
