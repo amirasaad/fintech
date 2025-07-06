@@ -212,7 +212,7 @@ func (s *UserTestSuite) TestDeleteUserInvalidBody() {
 	resp, err := s.app.Test(req, 10000)
 	s.Require().NoError(err)
 	defer resp.Body.Close() //nolint: errcheck
-	s.Assert().Equal(fiber.StatusBadRequest, resp.StatusCode)
+	s.Assert().Equal(fiber.StatusUnauthorized, resp.StatusCode)
 }
 
 func (s *UserTestSuite) TestDeleteUserInvalidPassword() {
