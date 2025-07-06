@@ -32,7 +32,7 @@ func (suite *E2ETestSuite) BeforeTest(_, testName string) {
 	suite.T().Cleanup(func() {
 		mock.AssertExpectationsForObjects(suite.T())
 	})
-	t.Parallel()
+	// Removed t.Parallel() to avoid concurrency issues with mocks
 }
 
 // T() overrides suite.Suite.T() with a way to find the proper *testing.T
