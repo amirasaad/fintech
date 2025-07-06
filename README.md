@@ -302,7 +302,7 @@ The Fintech App exposes a comprehensive RESTful API for all its functionalities.
 
 The project is meticulously organized to promote modularity, maintainability, and adherence to Domain-Driven Design (DDD) principles. This structure facilitates clear separation of concerns and simplifies development and testing.
 
-```
+```ascii
 .
 ├── .github/          # GitHub Actions workflows for CI/CD 🚀
 ├── api/              # Vercel serverless function entry point (for serverless deployments) ☁️
