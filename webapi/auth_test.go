@@ -32,6 +32,7 @@ func (s *AuthTestSuite) TestLoginRoute_BadRequest() {
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := s.app.Test(req, 10000)
 	s.Require().NoError(err)
+	defer resp.Body.Close() //nolint: errcheck
 	s.Assert().Equal(fiber.StatusBadRequest, resp.StatusCode)
 }
 
@@ -43,6 +44,7 @@ func (s *AuthTestSuite) TestLoginRoute_Unauthorized() {
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := s.app.Test(req, 10000)
 	s.Require().NoError(err)
+	defer resp.Body.Close() //nolint: errcheck
 	s.Assert().Equal(fiber.StatusUnauthorized, resp.StatusCode)
 }
 
@@ -57,6 +59,7 @@ func (s *AuthTestSuite) TestLoginRoute_InvalidPassword() {
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := s.app.Test(req, 10000)
 	s.Require().NoError(err)
+	defer resp.Body.Close() //nolint: errcheck
 	s.Assert().Equal(fiber.StatusUnauthorized, resp.StatusCode)
 }
 
@@ -69,6 +72,7 @@ func (s *AuthTestSuite) TestLoginRoute_Success() {
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := s.app.Test(req, 10000)
 	s.Require().NoError(err)
+	defer resp.Body.Close() //nolint: errcheck
 	s.Assert().Equal(fiber.StatusOK, resp.StatusCode)
 }
 
@@ -79,6 +83,7 @@ func (s *AuthTestSuite) TestLoginRoute_InternalServerError() {
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := s.app.Test(req, 10000)
 	s.Require().NoError(err)
+	defer resp.Body.Close() //nolint: errcheck
 	s.Assert().Equal(fiber.StatusInternalServerError, resp.StatusCode)
 }
 
@@ -88,6 +93,7 @@ func (s *AuthTestSuite) TestLoginRoute_ServiceError() {
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := s.app.Test(req, 10000)
 	s.Require().NoError(err)
+	defer resp.Body.Close() //nolint: errcheck
 	s.Assert().Equal(fiber.StatusInternalServerError, resp.StatusCode)
 }
 

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"io"
 	"net/http/httptest"
-	"os"
 	"runtime"
 	"strings"
 	"testing"
@@ -117,7 +116,7 @@ func SetupTestApp(
 		service.NewJWTAuthStrategy(func() (repository.UnitOfWork, error) { return mockUow, nil }))
 	testUser, _ = domain.NewUser("testuser", "testuser@example.com", "password123")
 	log.SetOutput(io.Discard)
-	os.Setenv("JWT_SECRET_KEY", "secret")
+	// os.Setenv("JWT_SECRET_KEY", "secret")
 
 	return
 }

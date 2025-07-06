@@ -25,7 +25,7 @@ func (s *RateLimitTestSuite) TestRateLimit() {
 		req := httptest.NewRequest(fiber.MethodGet, "/", nil)
 		resp, err := s.app.Test(req, 1000) // Add timeout to app.Test
 		s.Require().NoError(err)
-		defer resp.Body.Close()
+		defer resp.Body.Close() //nolint: errcheck
 
 		if i < 5 {
 			s.Assert().Equal(fiber.StatusOK, resp.StatusCode, "Expected OK for request %d", i+1)
@@ -41,7 +41,7 @@ func (s *RateLimitTestSuite) TestRateLimit() {
 	req := httptest.NewRequest(fiber.MethodGet, "/", nil)
 	resp, err := s.app.Test(req, 1000) // Add timeout to app.Test
 	s.Require().NoError(err)
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint: errcheck
 	s.Assert().Equal(fiber.StatusOK, resp.StatusCode, "Expected OK after rate limit reset")
 }
 

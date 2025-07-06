@@ -43,6 +43,7 @@ func (s *UserTestSuite) TestCreateUser() {
 
 	resp, err := s.app.Test(req, 10000)
 	s.Require().NoError(err)
+	defer resp.Body.Close() //nolint: errcheck
 	s.Assert().Equal(fiber.StatusCreated, resp.StatusCode)
 }
 
@@ -53,6 +54,7 @@ func (s *UserTestSuite) TestCreateUserInvalidBody() {
 
 	resp, err := s.app.Test(req, 10000)
 	s.Require().NoError(err)
+	defer resp.Body.Close() //nolint: errcheck
 	s.Assert().Equal(fiber.StatusBadRequest, resp.StatusCode)
 }
 
@@ -68,6 +70,7 @@ func (s *UserTestSuite) TestGetUserNotFound() {
 
 	resp, err := s.app.Test(req, 10000)
 	s.Require().NoError(err)
+	defer resp.Body.Close() //nolint: errcheck
 	s.Assert().Equal(fiber.StatusNotFound, resp.StatusCode)
 }
 
@@ -89,6 +92,7 @@ func (s *UserTestSuite) TestGetUserSuccess() {
 
 	err = json.Unmarshal(bodyBytes, &response)
 	s.Require().NoError(err)
+	defer resp.Body.Close() //nolint: errcheck
 	s.Assert().NotNil(response.Data)
 }
 
@@ -143,6 +147,7 @@ func (s *UserTestSuite) TestUpdateUserNotFound() {
 
 	resp, err := s.app.Test(req, 10000)
 	s.Require().NoError(err)
+	defer resp.Body.Close() //nolint: errcheck
 	s.Assert().Equal(fiber.StatusNotFound, resp.StatusCode)
 }
 
@@ -160,6 +165,7 @@ func (s *UserTestSuite) TestUpdateUserInternalError() {
 
 	resp, err := s.app.Test(req, 10000)
 	s.Require().NoError(err)
+	defer resp.Body.Close() //nolint: errcheck
 	s.Assert().Equal(fiber.StatusInternalServerError, resp.StatusCode)
 }
 
@@ -170,6 +176,7 @@ func (s *UserTestSuite) TestDeleteUserUnauthorized() {
 
 	resp, err := s.app.Test(req, 10000)
 	s.Require().NoError(err)
+	defer resp.Body.Close() //nolint: errcheck
 	s.Assert().Equal(fiber.StatusUnauthorized, resp.StatusCode)
 }
 
@@ -187,6 +194,7 @@ func (s *UserTestSuite) TestDeleteUserSuccess() {
 
 	resp, err := s.app.Test(req, 10000)
 	s.Require().NoError(err)
+	defer resp.Body.Close() //nolint: errcheck
 	s.Assert().Equal(fiber.StatusNoContent, resp.StatusCode)
 }
 
@@ -201,6 +209,7 @@ func (s *UserTestSuite) TestDeleteUserInvalidBody() {
 
 	resp, err := s.app.Test(req, 10000)
 	s.Require().NoError(err)
+	defer resp.Body.Close() //nolint: errcheck
 	s.Assert().Equal(fiber.StatusUnauthorized, resp.StatusCode)
 }
 
@@ -215,6 +224,7 @@ func (s *UserTestSuite) TestDeleteUserInvalidPassword() {
 
 	resp, err := s.app.Test(req, 10000)
 	s.Require().NoError(err)
+	defer resp.Body.Close() //nolint: errcheck
 	s.Assert().Equal(fiber.StatusUnauthorized, resp.StatusCode)
 }
 
@@ -232,6 +242,7 @@ func (s *UserTestSuite) TestDeleteUserInternalError() {
 
 	resp, err := s.app.Test(req, 10000)
 	s.Require().NoError(err)
+	defer resp.Body.Close() //nolint: errcheck
 	s.Assert().Equal(fiber.StatusInternalServerError, resp.StatusCode)
 }
 
