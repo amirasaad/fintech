@@ -3,8 +3,8 @@
 // and listing account transactions. All routes are protected by authentication middleware and require a valid user context.
 //
 //	@param app The Fiber application instance to register routes on.
-//	@param uowFactory A function that returns a new repository.UnitOfWork and error.
-//	@param strategy The authentication strategy to use.
+//	@param accountSvc A pointer to the AccountService.
+//	@param authSvc A pointer to the AuthService.
 //
 // Routes:
 //   - POST   /account                   : Create a new account for the authenticated user.
@@ -17,7 +17,6 @@ package webapi
 
 import (
 	"github.com/amirasaad/fintech/pkg/middleware"
-	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/amirasaad/fintech/pkg/service"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/log"
@@ -33,12 +32,12 @@ type WithdrawRequest struct {
 	Amount float64 `json:"amount" xml:"amount" form:"amount"`
 }
 
-func AccountRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, error), strategy service.AuthStrategy) {
-	app.Post("/account", middleware.Protected(), CreateAccount(uowFactory, strategy))
-	app.Post("/account/:id/deposit", middleware.Protected(), Deposit(uowFactory, strategy))
-	app.Post("/account/:id/withdraw", middleware.Protected(), Withdraw(uowFactory, strategy))
-	app.Get("/account/:id/balance", middleware.Protected(), GetBalance(uowFactory, strategy))
-	app.Get("/account/:id/transactions", middleware.Protected(), GetTransactions(uowFactory, strategy))
+func AccountRoutes(app *fiber.App, accountSvc *service.AccountService, authSvc *service.AuthService) {
+	app.Post("/account", middleware.Protected(), CreateAccount(accountSvc, authSvc))
+	app.Post("/account/:id/deposit", middleware.Protected(), Deposit(accountSvc, authSvc))
+	app.Post("/account/:id/withdraw", middleware.Protected(), Withdraw(accountSvc, authSvc))
+	app.Get("/account/:id/balance", middleware.Protected(), GetBalance(accountSvc, authSvc))
+	app.Get("/account/:id/transactions", middleware.Protected(), GetTransactions(accountSvc, authSvc))
 }
 
 // CreateAccount returns a Fiber handler for creating a new account for the current user.
@@ -57,10 +56,9 @@ func AccountRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, err
 // @Failure 500 {object} ProblemDetails
 // @Router /account [post]
 // @Security Bearer
-func CreateAccount(uowFactory func() (repository.UnitOfWork, error), strategy service.AuthStrategy) fiber.Handler {
+func CreateAccount(accountSvc *service.AccountService, authSvc *service.AuthService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		log.Infof("Creating new account")
-		authSvc := service.NewAuthService(uowFactory, strategy)
 		token, ok := c.Locals("user").(*jwt.Token)
 		if !ok {
 			return ErrorResponseJSON(c, fiber.StatusUnauthorized, "unauthorized", "missing user context")
@@ -71,8 +69,7 @@ func CreateAccount(uowFactory func() (repository.UnitOfWork, error), strategy se
 			status := ErrorToStatusCode(err)
 			return ErrorResponseJSON(c, status, "invalid user ID", err.Error())
 		}
-		service := service.NewAccountService(uowFactory)
-		a, err := service.CreateAccount(userID)
+		a, err := accountSvc.CreateAccount(userID)
 		if err != nil {
 			log.Errorf("Failed to create account: %v", err)
 			status := ErrorToStatusCode(err)
@@ -104,9 +101,8 @@ func CreateAccount(uowFactory func() (repository.UnitOfWork, error), strategy se
 // @Failure 500 {object} ProblemDetails
 // @Router /account/{id}/deposit [post]
 // @Security Bearer
-func Deposit(uowFactory func() (repository.UnitOfWork, error), strategy service.AuthStrategy) fiber.Handler {
+func Deposit(accountSvc *service.AccountService, authSvc *service.AuthService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		authSvc := service.NewAuthService(uowFactory, strategy)
 		token, ok := c.Locals("user").(*jwt.Token)
 		if !ok {
 			return ErrorResponseJSON(c, fiber.StatusUnauthorized, "unauthorized", "missing user context")
@@ -129,7 +125,6 @@ func Deposit(uowFactory func() (repository.UnitOfWork, error), strategy service.
 			log.Errorf("Failed to parse deposit request: %v", err)
 			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Failed to parse deposit request", err.Error())
 		}
-		accountSvc := service.NewAccountService(uowFactory)
 
 		tx, err := accountSvc.Deposit(userID, id, request.Amount)
 		if err != nil {
@@ -167,9 +162,8 @@ func Deposit(uowFactory func() (repository.UnitOfWork, error), strategy service.
 // @Failure 500 {object} ProblemDetails
 // @Router /account/{id}/withdraw [post]
 // @Security Bearer
-func Withdraw(uowFactory func() (repository.UnitOfWork, error), strategy service.AuthStrategy) fiber.Handler {
+func Withdraw(accountSvc *service.AccountService, authSvc *service.AuthService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		authSvc := service.NewAuthService(uowFactory, strategy)
 		token, ok := c.Locals("user").(*jwt.Token)
 		if !ok {
 			return ErrorResponseJSON(c, fiber.StatusUnauthorized, "unauthorized", "missing user context")
@@ -191,7 +185,6 @@ func Withdraw(uowFactory func() (repository.UnitOfWork, error), strategy service
 			log.Errorf("Failed to parse withdrawal request: %v", err)
 			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Failed to parse withdrawal request", err.Error())
 		}
-		accountSvc := service.NewAccountService(uowFactory)
 		tx, err := accountSvc.Withdraw(userID, id, request.Amount)
 		if err != nil {
 			log.Errorf("Failed to withdraw: %v", err)
@@ -219,9 +212,8 @@ func Withdraw(uowFactory func() (repository.UnitOfWork, error), strategy service
 // @Failure 500 {object} ProblemDetails
 // @Router /account/{id}/transactions [get]
 // @Security Bearer
-func GetTransactions(uowFactory func() (repository.UnitOfWork, error), strategy service.AuthStrategy) fiber.Handler {
+func GetTransactions(accountSvc *service.AccountService, authSvc *service.AuthService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		authSvc := service.NewAuthService(uowFactory, strategy)
 		token, ok := c.Locals("user").(*jwt.Token)
 		if !ok {
 			return ErrorResponseJSON(c, fiber.StatusUnauthorized, "unauthorized", "missing user context")
@@ -238,8 +230,7 @@ func GetTransactions(uowFactory func() (repository.UnitOfWork, error), strategy 
 			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid account ID", err.Error())
 		}
 
-		service := service.NewAccountService(uowFactory)
-		tx, err := service.GetTransactions(userID, id)
+		tx, err := accountSvc.GetTransactions(userID, id)
 		if err != nil {
 			log.Errorf("Failed to list transactions for account ID %s: %v", id, err)
 			status := ErrorToStatusCode(err)
@@ -266,9 +257,8 @@ func GetTransactions(uowFactory func() (repository.UnitOfWork, error), strategy 
 // @Failure 500 {object} ProblemDetails
 // @Router /account/{id}/balance [get]
 // @Security Bearer
-func GetBalance(uowFactory func() (repository.UnitOfWork, error), strategy service.AuthStrategy) fiber.Handler {
+func GetBalance(accountSvc *service.AccountService, authSvc *service.AuthService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		authSvc := service.NewAuthService(uowFactory, strategy)
 		token, ok := c.Locals("user").(*jwt.Token)
 		if !ok {
 			return ErrorResponseJSON(c, fiber.StatusUnauthorized, "unauthorized", "missing user context")
@@ -284,9 +274,8 @@ func GetBalance(uowFactory func() (repository.UnitOfWork, error), strategy servi
 			log.Errorf("Invalid account ID for balance: %v", err)
 			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid account ID", err.Error())
 		}
-		service := service.NewAccountService(uowFactory)
 
-		balance, err := service.GetBalance(userID, id)
+		balance, err := accountSvc.GetBalance(userID, id)
 		if err != nil {
 			log.Errorf("Failed to fetch balance for account ID %s: %v", id, err)
 			status := ErrorToStatusCode(err)

@@ -2,7 +2,6 @@ package webapi
 
 import (
 	"github.com/amirasaad/fintech/pkg/middleware"
-	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/amirasaad/fintech/pkg/service"
 	"github.com/go-playground/validator"
 	"github.com/gofiber/fiber/v2"
@@ -25,15 +24,11 @@ type PasswordInput struct {
 	Password string `json:"password"`
 }
 
-func UserRoutes(
-	app *fiber.App,
-	uowFactory func() (repository.UnitOfWork, error),
-	strategy service.AuthStrategy,
-) {
-	app.Get("/user/:id", middleware.Protected(), GetUser(uowFactory))
-	app.Post("/user", CreateUser(uowFactory))
-	app.Put("/user/:id", middleware.Protected(), UpdateUser(uowFactory, strategy))
-	app.Delete("/user/:id", middleware.Protected(), DeleteUser(uowFactory, strategy))
+func UserRoutes(app *fiber.App, userSvc *service.UserService, authSvc *service.AuthService) {
+	app.Get("/user/:id", middleware.Protected(), GetUser(userSvc))
+	app.Post("/user", CreateUser(userSvc))
+	app.Put("/user/:id", middleware.Protected(), UpdateUser(userSvc, authSvc))
+	app.Delete("/user/:id", middleware.Protected(), DeleteUser(userSvc, authSvc))
 }
 
 // GetUser retrieves a user by ID.
@@ -48,15 +43,14 @@ func UserRoutes(
 // @Failure 404 {object} Response
 // @Router /user/{id} [get]
 // @Security Bearer
-func GetUser(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
+func GetUser(userSvc *service.UserService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		id, err := uuid.Parse(c.Params("id"))
 		if err != nil {
 			log.Errorf("Invalid account ID for deposit: %v", err)
 			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid user ID", err.Error())
 		}
-		userService := service.NewUserService(uowFactory)
-		user, err := userService.GetUser(id)
+		user, err := userSvc.GetUser(id)
 		if err != nil {
 			return ErrorResponseJSON(c, fiber.StatusNotFound, "No user found with ID", nil)
 		}
@@ -77,9 +71,8 @@ func GetUser(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
 // @Failure 429 {object} ProblemDetails
 // @Failure 500 {object} ProblemDetails
 // @Router /user [post]
-func CreateUser(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler {
+func CreateUser(userSvc *service.UserService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-
 		var newUser NewUser
 		if err := c.BodyParser(&newUser); err != nil {
 			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Review your input", err.Error())
@@ -91,8 +84,7 @@ func CreateUser(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler 
 		if len(newUser.Password) > 72 {
 			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid request body", "Password too long")
 		}
-		service := service.NewUserService(uowFactory)
-		user, err := service.CreateUser(newUser.Username, newUser.Email, newUser.Password)
+		user, err := userSvc.CreateUser(newUser.Username, newUser.Email, newUser.Password)
 		if err != nil {
 			return ErrorResponseJSON(c, fiber.StatusInternalServerError, "Couldn't create user", err.Error())
 		}
@@ -115,7 +107,7 @@ func CreateUser(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler 
 // @Failure 500 {object} ProblemDetails
 // @Router /user/{id} [put]
 // @Security Bearer
-func UpdateUser(uowFactory func() (repository.UnitOfWork, error), strategy service.AuthStrategy) fiber.Handler {
+func UpdateUser(userSvc *service.UserService, authSvc *service.AuthService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		var uui UpdateUserInput
 		if err := c.BodyParser(&uui); err != nil {
@@ -126,7 +118,6 @@ func UpdateUser(uowFactory func() (repository.UnitOfWork, error), strategy servi
 			log.Errorf("Invalid account ID for deposit: %v", err)
 			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid user ID", err.Error())
 		}
-		authSvc := service.NewAuthService(uowFactory, strategy)
 		token, ok := c.Locals("user").(*jwt.Token)
 		if !ok {
 			return ErrorResponseJSON(c, fiber.StatusUnauthorized, "unauthorized", "missing user context")
@@ -140,13 +131,11 @@ func UpdateUser(uowFactory func() (repository.UnitOfWork, error), strategy servi
 		if id != userID {
 			return ErrorResponseJSON(c, fiber.StatusForbidden, "You are not allowed to update this user", nil)
 		}
-
-		userService := service.NewUserService(uowFactory)
-		user, err := userService.GetUser(id)
+		user, err := userSvc.GetUser(id)
 		if err != nil {
 			return ErrorResponseJSON(c, fiber.StatusNotFound, "User not found", nil)
 		}
-		err = userService.UpdateUser(user)
+		err = userSvc.UpdateUser(user)
 		if err != nil {
 			return ErrorResponseJSON(c, fiber.StatusInternalServerError, "Failed to update user", err.Error())
 		}
@@ -169,7 +158,7 @@ func UpdateUser(uowFactory func() (repository.UnitOfWork, error), strategy servi
 // @Failure 500 {object} ProblemDetails
 // @Router /user/{id} [delete]
 // @Security Bearer
-func DeleteUser(uowFactory func() (repository.UnitOfWork, error), strategy service.AuthStrategy) fiber.Handler {
+func DeleteUser(userSvc *service.UserService, authSvc *service.AuthService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		var pi PasswordInput
 		if err := c.BodyParser(&pi); err != nil {
@@ -180,7 +169,6 @@ func DeleteUser(uowFactory func() (repository.UnitOfWork, error), strategy servi
 			log.Errorf("Invalid account ID for deposit: %v", err)
 			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid user ID", err.Error())
 		}
-		authSvc := service.NewAuthService(uowFactory, strategy)
 		token, ok := c.Locals("user").(*jwt.Token)
 		if !ok {
 			return ErrorResponseJSON(c, fiber.StatusUnauthorized, "unauthorized", "missing user context")
@@ -194,12 +182,10 @@ func DeleteUser(uowFactory func() (repository.UnitOfWork, error), strategy servi
 		if id != userID {
 			return ErrorResponseJSON(c, fiber.StatusForbidden, "You are not allowed to update this user", nil)
 		}
-		userService := service.NewUserService(uowFactory)
-		if !userService.ValidUser(id, pi.Password) {
+		if !userSvc.ValidUser(id, pi.Password) {
 			return ErrorResponseJSON(c, fiber.StatusUnauthorized, "Not valid user", nil)
 		}
-
-		err = userService.DeleteUser(id)
+		err = userSvc.DeleteUser(id)
 		if err != nil {
 			return ErrorResponseJSON(c, fiber.StatusInternalServerError, "Failed to delete user", err.Error())
 		}
