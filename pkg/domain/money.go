@@ -14,6 +14,9 @@ func NewMoney(
 	money Money,
 	err error,
 ) {
+	if currency == "" {
+		currency = DefaultCurrency
+	}
 	if !IsValidCurrencyCode(currency) {
 		err = ErrInvalidCurrencyCode
 		return
