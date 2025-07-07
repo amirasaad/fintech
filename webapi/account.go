@@ -56,7 +56,10 @@ func AccountRoutes(app *fiber.App, accountSvc *service.AccountService, authSvc *
 // @Failure 500 {object} ProblemDetails
 // @Router /account [post]
 // @Security Bearer
-func CreateAccount(accountSvc *service.AccountService, authSvc *service.AuthService) fiber.Handler {
+func CreateAccount(
+	accountSvc *service.AccountService,
+	authSvc *service.AuthService,
+) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		log.Infof("Creating new account")
 		token, ok := c.Locals("user").(*jwt.Token)
@@ -101,7 +104,10 @@ func CreateAccount(accountSvc *service.AccountService, authSvc *service.AuthServ
 // @Failure 500 {object} ProblemDetails
 // @Router /account/{id}/deposit [post]
 // @Security Bearer
-func Deposit(accountSvc *service.AccountService, authSvc *service.AuthService) fiber.Handler {
+func Deposit(
+	accountSvc *service.AccountService,
+	authSvc *service.AuthService,
+) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		token, ok := c.Locals("user").(*jwt.Token)
 		if !ok {
@@ -162,7 +168,10 @@ func Deposit(accountSvc *service.AccountService, authSvc *service.AuthService) f
 // @Failure 500 {object} ProblemDetails
 // @Router /account/{id}/withdraw [post]
 // @Security Bearer
-func Withdraw(accountSvc *service.AccountService, authSvc *service.AuthService) fiber.Handler {
+func Withdraw(
+	accountSvc *service.AccountService,
+	authSvc *service.AuthService,
+) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		token, ok := c.Locals("user").(*jwt.Token)
 		if !ok {
@@ -212,7 +221,10 @@ func Withdraw(accountSvc *service.AccountService, authSvc *service.AuthService) 
 // @Failure 500 {object} ProblemDetails
 // @Router /account/{id}/transactions [get]
 // @Security Bearer
-func GetTransactions(accountSvc *service.AccountService, authSvc *service.AuthService) fiber.Handler {
+func GetTransactions(
+	accountSvc *service.AccountService,
+	authSvc *service.AuthService,
+) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		token, ok := c.Locals("user").(*jwt.Token)
 		if !ok {
@@ -257,7 +269,10 @@ func GetTransactions(accountSvc *service.AccountService, authSvc *service.AuthSe
 // @Failure 500 {object} ProblemDetails
 // @Router /account/{id}/balance [get]
 // @Security Bearer
-func GetBalance(accountSvc *service.AccountService, authSvc *service.AuthService) fiber.Handler {
+func GetBalance(
+	accountSvc *service.AccountService,
+	authSvc *service.AuthService,
+) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		token, ok := c.Locals("user").(*jwt.Token)
 		if !ok {

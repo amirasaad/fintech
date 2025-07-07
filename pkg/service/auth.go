@@ -28,7 +28,10 @@ type AuthService struct {
 	strategy   AuthStrategy
 }
 
-func NewAuthService(uowFactory func() (repository.UnitOfWork, error), strategy AuthStrategy) *AuthService {
+func NewAuthService(
+	uowFactory func() (repository.UnitOfWork, error),
+	strategy AuthStrategy,
+) *AuthService {
 	return &AuthService{uowFactory: uowFactory, strategy: strategy}
 }
 
@@ -36,7 +39,9 @@ func NewBasicAuthService(uowFactory func() (repository.UnitOfWork, error)) *Auth
 	return NewAuthService(uowFactory, &BasicAuthStrategy{uowFactory: uowFactory})
 }
 
-func (s *AuthService) CheckPasswordHash(password, hash string) bool {
+func (s *AuthService) CheckPasswordHash(
+	password, hash string,
+) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 	return err == nil
 }
@@ -46,13 +51,18 @@ func (s *AuthService) ValidEmail(email string) bool {
 	return err == nil
 }
 
-func (s *AuthService) GetCurrentUserId(token *jwt.Token) (uuid.UUID, error) {
-
-	return s.strategy.GetCurrentUserID(context.WithValue(context.TODO(), userContextKey, token))
+func (s *AuthService) GetCurrentUserId(
+	token *jwt.Token,
+) (userID uuid.UUID, err error) {
+	userID, err = s.strategy.GetCurrentUserID(context.WithValue(context.TODO(), userContextKey, token))
+	return
 }
 
-func (s *AuthService) Login(identity, password string) (*domain.User, string, error) {
-	return s.strategy.Login(identity, password)
+func (s *AuthService) Login(
+	identity, password string,
+) (user *domain.User, token string, err error) {
+	user, token, err = s.strategy.Login(identity, password)
+	return
 }
 
 // JWTAuthStrategy implements AuthStrategy for JWT-based authentication
@@ -60,16 +70,23 @@ type JWTAuthStrategy struct {
 	uowFactory func() (repository.UnitOfWork, error)
 }
 
-func NewJWTAuthStrategy(uowFactory func() (repository.UnitOfWork, error)) *JWTAuthStrategy {
+func NewJWTAuthStrategy(
+	uowFactory func() (repository.UnitOfWork, error),
+) *JWTAuthStrategy {
 	return &JWTAuthStrategy{uowFactory: uowFactory}
 }
 
-func (s *JWTAuthStrategy) Login(identity, password string) (*domain.User, string, error) {
+func (s *JWTAuthStrategy) Login(
+	identity, password string,
+) (
+	user *domain.User,
+	tokenString string,
+	err error,
+) {
 	uow, err := s.uowFactory()
 	if err != nil {
-		return nil, "", err
+		return
 	}
-	var user *domain.User
 	if isEmail(identity) {
 		user, err = uow.UserRepository().GetByEmail(identity)
 	} else {
@@ -77,18 +94,19 @@ func (s *JWTAuthStrategy) Login(identity, password string) (*domain.User, string
 	}
 	const dummyHash = "$2a$10$7zFqzDbD3RrlkMTczbXG9OWZ0FLOXjIxXzSZ.QZxkVXjXcx7QZQiC"
 	if err != nil {
-		return nil, "", err
+		return
 	}
 	if user == nil {
 		checkPasswordHash(password, dummyHash)
-		return nil, "", nil
+		return
 	}
 	if !checkPasswordHash(password, user.Password) {
-		return nil, "", nil
+		return
 	}
 	secret := os.Getenv("JWT_SECRET_KEY")
 	if secret == "" {
-		return nil, "", errors.New("JWT secret key is not set")
+		err = errors.New("JWT secret key is not set")
+		return
 	}
 	token := jwt.New(jwt.SigningMethodHS256)
 	claims := token.Claims.(jwt.MapClaims)
@@ -96,25 +114,29 @@ func (s *JWTAuthStrategy) Login(identity, password string) (*domain.User, string
 	claims["email"] = user.Email
 	claims["user_id"] = user.ID.String()
 	claims["exp"] = time.Now().Add(time.Hour * 72).Unix()
-	tokenString, err := token.SignedString([]byte(secret))
+	tokenString, err = token.SignedString([]byte(secret))
 	if err != nil {
-		return nil, "", err
+		return
 	}
-	return user, tokenString, nil
+	return
 }
 
-func (s *JWTAuthStrategy) GetCurrentUserID(ctx context.Context) (uuid.UUID, error) {
+func (s *JWTAuthStrategy) GetCurrentUserID(
+	ctx context.Context,
+) (userID uuid.UUID, err error) {
 	token := ctx.Value(userContextKey).(*jwt.Token)
-
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok {
-		return uuid.Nil, domain.ErrUserUnauthorized
+		err = domain.ErrUserUnauthorized
+		return
 	}
 	userIDRaw, ok := claims["user_id"].(string)
 	if !ok {
-		return uuid.Nil, domain.ErrUserUnauthorized
+		err = domain.ErrUserUnauthorized
+		return
 	}
-	return uuid.Parse(userIDRaw)
+	userID, err = uuid.Parse(userIDRaw)
+	return
 }
 
 // BasicAuthStrategy implements AuthStrategy for CLI (no JWT, just password check)
@@ -122,12 +144,17 @@ type BasicAuthStrategy struct {
 	uowFactory func() (repository.UnitOfWork, error)
 }
 
-func (s *BasicAuthStrategy) Login(identity, password string) (*domain.User, string, error) {
+func (s *BasicAuthStrategy) Login(
+	identity, password string,
+) (
+	user *domain.User,
+	tokenString string,
+	err error,
+) {
 	uow, err := s.uowFactory()
 	if err != nil {
-		return nil, "", err
+		return
 	}
-	var user *domain.User
 	if isEmail(identity) {
 		user, err = uow.UserRepository().GetByEmail(identity)
 	} else {
@@ -135,16 +162,16 @@ func (s *BasicAuthStrategy) Login(identity, password string) (*domain.User, stri
 	}
 	const dummyHash = "$2a$10$7zFqzDbD3RrlkMTczbXG9OWZ0FLOXjIxXzSZ.QZxkVXjXcx7QZQiC"
 	if err != nil {
-		return nil, "", err
+		return
 	}
 	if user == nil {
 		checkPasswordHash(password, dummyHash)
-		return nil, "", nil
+		return
 	}
 	if !checkPasswordHash(password, user.Password) {
-		return nil, "", nil
+		return
 	}
-	return user, "", nil // No JWT token for CLI
+	return
 }
 
 func (s *BasicAuthStrategy) GetCurrentUserID(ctx context.Context) (uuid.UUID, error) {
@@ -152,11 +179,16 @@ func (s *BasicAuthStrategy) GetCurrentUserID(ctx context.Context) (uuid.UUID, er
 }
 
 // Helper functions
-func isEmail(email string) bool {
+func isEmail(
+	email string,
+) bool {
 	_, err := mail.ParseAddress(email)
 	return err == nil
 }
 
-func checkPasswordHash(password, hash string) bool {
-	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)) == nil
+func checkPasswordHash(
+	password, hash string,
+) (isValid bool) {
+	isValid = bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)) == nil
+	return
 }

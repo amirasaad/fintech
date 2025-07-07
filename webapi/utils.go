@@ -23,7 +23,12 @@ type ProblemDetails struct {
 }
 
 // ErrorResponseJSON returns a response following RFC 9457 Problem Details
-func ErrorResponseJSON(c *fiber.Ctx, status int, title string, detail any) error {
+func ErrorResponseJSON(
+	c *fiber.Ctx,
+	status int,
+	title string,
+	detail any,
+) error {
 	pd := ProblemDetails{
 		Type:   "about:blank",
 		Title:  title,

@@ -107,7 +107,10 @@ func CreateUser(userSvc *service.UserService) fiber.Handler {
 // @Failure 500 {object} ProblemDetails
 // @Router /user/{id} [put]
 // @Security Bearer
-func UpdateUser(userSvc *service.UserService, authSvc *service.AuthService) fiber.Handler {
+func UpdateUser(
+	userSvc *service.UserService,
+	authSvc *service.AuthService,
+) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		var uui UpdateUserInput
 		if err := c.BodyParser(&uui); err != nil {
@@ -158,7 +161,10 @@ func UpdateUser(userSvc *service.UserService, authSvc *service.AuthService) fibe
 // @Failure 500 {object} ProblemDetails
 // @Router /user/{id} [delete]
 // @Security Bearer
-func DeleteUser(userSvc *service.UserService, authSvc *service.AuthService) fiber.Handler {
+func DeleteUser(
+	userSvc *service.UserService,
+	authSvc *service.AuthService,
+) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		var pi PasswordInput
 		if err := c.BodyParser(&pi); err != nil {
@@ -182,7 +188,11 @@ func DeleteUser(userSvc *service.UserService, authSvc *service.AuthService) fibe
 		if id != userID {
 			return ErrorResponseJSON(c, fiber.StatusForbidden, "You are not allowed to update this user", nil)
 		}
-		if !userSvc.ValidUser(id, pi.Password) {
+		isValid, err := userSvc.ValidUser(id, pi.Password)
+		if err != nil {
+			return ErrorResponseJSON(c, fiber.StatusInternalServerError, "Failed to validate user", err.Error())
+		}
+		if !isValid {
 			return ErrorResponseJSON(c, fiber.StatusUnauthorized, "Not valid user", nil)
 		}
 		err = userSvc.DeleteUser(id)

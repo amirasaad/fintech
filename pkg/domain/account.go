@@ -51,7 +51,11 @@ func NewAccount(userID uuid.UUID) *Account {
 	}
 }
 
-func NewAccountFromData(id, userID uuid.UUID, balance int64, created, updated time.Time) *Account {
+func NewAccountFromData(
+	id, userID uuid.UUID,
+	balance int64,
+	created, updated time.Time,
+) *Account {
 	return &Account{
 		ID:        id,
 		UserID:    userID,
@@ -62,7 +66,11 @@ func NewAccountFromData(id, userID uuid.UUID, balance int64, created, updated ti
 	}
 }
 
-func NewTransactionFromData(id, userID, accountID uuid.UUID, amount, balance int64, created time.Time) *Transaction {
+func NewTransactionFromData(
+	id, userID, accountID uuid.UUID,
+	amount, balance int64,
+	created time.Time,
+) *Transaction {
 	return &Transaction{
 		ID:        id,
 		UserID:    userID,
@@ -76,7 +84,10 @@ func NewTransactionFromData(id, userID, accountID uuid.UUID, amount, balance int
 // Deposit adds funds to the account and returns a transaction record.
 // The amount is expected to be in dollars, and it will be converted to cents for precision.
 // It returns an error if the deposit amount is negative.
-func (a *Account) Deposit(userID uuid.UUID, amount float64) (*Transaction, error) {
+func (a *Account) Deposit(
+	userID uuid.UUID,
+	amount float64,
+) (*Transaction, error) {
 	if a.UserID != userID {
 		return nil, ErrUserUnauthorized
 	}
@@ -136,7 +147,10 @@ func (a *Account) Deposit(userID uuid.UUID, amount float64) (*Transaction, error
 // Withdraw removes funds from the account and returns a transaction record.
 // The amount is expected to be in dollars, and it will be converted to cents for precision.
 // It returns an error if the withdrawal amount is negative or if there are insufficient funds.
-func (a *Account) Withdraw(userID uuid.UUID, amount float64) (*Transaction, error) {
+func (a *Account) Withdraw(
+	userID uuid.UUID,
+	amount float64,
+) (*Transaction, error) {
 	if a.UserID != userID {
 		return nil, ErrUserUnauthorized
 	}

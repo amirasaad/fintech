@@ -6,7 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http/httptest"
+	"os"
 	"testing"
 	"time"
 
@@ -14,6 +16,7 @@ import (
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/service"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/log"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
@@ -31,17 +34,30 @@ type AccountTestSuite struct {
 	authService *service.AuthService
 }
 
-func (s *AccountTestSuite) SetupTest() {
+func (s *AccountTestSuite) BeforeTest(_, _s string) {
+	s.E2ETestSuite.BeforeTest("", _s)
 	s.app, s.userRepo, s.accountRepo, s.transRepo, s.mockUow, s.testUser, s.authService = SetupTestApp(s.T())
-	s.testToken = getTestToken(s.T(), s.authService, s.userRepo, s.mockUow, s.testUser)
+	// Setup mock for login request
+	s.mockUow.EXPECT().UserRepository().Return(s.userRepo).Maybe()
+	s.userRepo.EXPECT().GetByUsername("testuser").Return(s.testUser, nil).Maybe()
+	s.testToken = getTestToken(s.T(), s.app, s.testUser)
+}
+
+// TestMain runs before any tests and applies globally for all tests in the package.
+func TestMain(m *testing.M) {
+	slog.SetDefault(slog.New(slog.NewTextHandler(io.Discard, nil)))
+	log.SetOutput(io.Discard)
+
+	exitVal := m.Run()
+	os.Exit(exitVal)
 }
 
 func (s *AccountTestSuite) TestAccountCreate() {
 	s.mockUow.EXPECT().AccountRepository().Return(s.accountRepo)
-	s.accountRepo.On("Create", mock.Anything).Return(nil)
+	s.accountRepo.EXPECT().Create(mock.Anything).Return(nil)
 
-	s.mockUow.On("Begin").Return(nil)
-	s.mockUow.On("Commit").Return(nil)
+	s.mockUow.EXPECT().Begin().Return(nil)
+	s.mockUow.EXPECT().Commit().Return(nil)
 
 	req := httptest.NewRequest("POST", "/account", nil)
 	req.Header.Set("Content-Type", "application/json")
@@ -59,11 +75,11 @@ func (s *AccountTestSuite) TestAccountDeposit() {
 	s.mockUow.EXPECT().TransactionRepository().Return(s.transRepo)
 
 	testAccount := domain.NewAccount(s.testUser.ID)
-	s.accountRepo.On("Get", mock.Anything).Return(testAccount, nil)
-	s.transRepo.On("Create", mock.Anything).Return(nil)
-	s.accountRepo.On("Update", mock.Anything).Return(nil)
-	s.mockUow.On("Begin").Return(nil)
-	s.mockUow.On("Commit").Return(nil)
+	s.accountRepo.EXPECT().Get(mock.Anything).Return(testAccount, nil)
+	s.transRepo.EXPECT().Create(mock.Anything).Return(nil)
+	s.accountRepo.EXPECT().Update(mock.Anything).Return(nil)
+	s.mockUow.EXPECT().Begin().Return(nil)
+	s.mockUow.EXPECT().Commit().Return(nil)
 
 	depositBody := bytes.NewBuffer([]byte(`{"amount": 100.0}`))
 	req := httptest.NewRequest("POST", fmt.Sprintf("/account/%s/deposit", testAccount.ID), depositBody)
@@ -83,11 +99,11 @@ func (s *AccountTestSuite) TestAccountWithdraw() {
 
 	testAccount := domain.NewAccount(s.testUser.ID)
 	_, _ = testAccount.Deposit(s.testUser.ID, 1000)
-	s.accountRepo.On("Get", mock.Anything).Return(testAccount, nil)
-	s.transRepo.On("Create", mock.Anything).Return(nil)
-	s.accountRepo.On("Update", mock.Anything).Return(nil)
-	s.mockUow.On("Begin").Return(nil)
-	s.mockUow.On("Commit").Return(nil)
+	s.accountRepo.EXPECT().Get(mock.Anything).Return(testAccount, nil)
+	s.transRepo.EXPECT().Create(mock.Anything).Return(nil)
+	s.accountRepo.EXPECT().Update(mock.Anything).Return(nil)
+	s.mockUow.EXPECT().Begin().Return(nil)
+	s.mockUow.EXPECT().Commit().Return(nil)
 
 	withdrawBody := bytes.NewBuffer([]byte(`{"amount": 100.0}`))
 	req := httptest.NewRequest("POST", fmt.Sprintf("/account/%s/withdraw", testAccount.ID), withdrawBody)
@@ -103,9 +119,9 @@ func (s *AccountTestSuite) TestAccountWithdraw() {
 
 func (s *AccountTestSuite) TestAccountRoutesFailureAccountNotFound() {
 	s.mockUow.EXPECT().AccountRepository().Return(s.accountRepo)
-	s.mockUow.On("Begin").Return(nil)
+	s.mockUow.EXPECT().Begin().Return(nil)
 	s.mockUow.EXPECT().Rollback().Return(nil).Once()
-	s.accountRepo.On("Get", mock.Anything).Return(&domain.Account{}, domain.ErrAccountNotFound)
+	s.accountRepo.EXPECT().Get(mock.Anything).Return(&domain.Account{}, domain.ErrAccountNotFound)
 
 	req := httptest.NewRequest("POST", fmt.Sprintf("/account/%s/deposit", uuid.New()), bytes.NewBuffer([]byte(`{"amount": 100.0}`)))
 	req.Header.Set("Content-Type", "application/json")
@@ -121,9 +137,9 @@ func (s *AccountTestSuite) TestAccountRoutesFailureAccountNotFound() {
 
 func (s *AccountTestSuite) TestAccountRoutesFailureTransaction() {
 	s.mockUow.EXPECT().AccountRepository().Return(s.accountRepo)
-	s.mockUow.On("Begin").Return(nil)
-	s.mockUow.On("Rollback").Return(nil)
-	s.accountRepo.On("Get", mock.Anything).Return(&domain.Account{Balance: 100.0, UserID: s.testUser.ID}, nil)
+	s.mockUow.EXPECT().Begin().Return(nil)
+	s.mockUow.EXPECT().Rollback().Return(nil)
+	s.accountRepo.EXPECT().Get(mock.Anything).Return(&domain.Account{Balance: 100.0, UserID: s.testUser.ID}, nil)
 
 	// fixtures deposit negative amount
 	req := httptest.NewRequest("POST", fmt.Sprintf("/account/%s/deposit", uuid.New()), bytes.NewBuffer([]byte(`{"amount": -100.0}`)))
@@ -153,7 +169,7 @@ func (s *AccountTestSuite) TestAccountRoutesTransactionList() {
 	account := domain.NewAccount(s.testUser.ID)
 	created1, _ := time.Parse(time.RFC3339, "2023-10-01T00:00:00Z")
 	created2, _ := time.Parse(time.RFC3339, "2023-10-02T00:00:00Z")
-	s.transRepo.On("List", s.testUser.ID, account.ID).Return([]*domain.Transaction{
+	s.transRepo.EXPECT().List(s.testUser.ID, account.ID).Return([]*domain.Transaction{
 		{ID: uuid.New(), Amount: 100.0, Balance: 100.0, CreatedAt: created1},
 		{ID: uuid.New(), Amount: 50.0, Balance: 150.0, CreatedAt: created2},
 	}, nil)
@@ -181,7 +197,7 @@ func (s *AccountTestSuite) TestAccountRoutesBalance() {
 	s.mockUow.EXPECT().AccountRepository().Return(s.accountRepo)
 	accountID := uuid.New()
 	account := &domain.Account{ID: accountID, UserID: s.testUser.ID, Balance: 100.0}
-	s.accountRepo.On("Get", accountID).Return(account, nil)
+	s.accountRepo.EXPECT().Get(accountID).Return(account, nil)
 
 	req := httptest.NewRequest("GET", fmt.Sprintf("/account/%s/balance", accountID), nil)
 	req.Header.Set("Authorization", "Bearer "+s.testToken)
@@ -209,7 +225,7 @@ func (s *AccountTestSuite) TestAccountRoutesBalance() {
 }
 
 func (s *AccountTestSuite) TestAccountRoutesUoWError() {
-	s.mockUow.On("Begin").Return(errors.New("failed to begin transaction"))
+	s.mockUow.EXPECT().Begin().Return(errors.New("failed to begin transaction"))
 
 	req := httptest.NewRequest("POST", "/account", nil)
 	req.Header.Set("Authorization", "Bearer "+s.testToken)
@@ -237,7 +253,7 @@ func (s *AccountTestSuite) TestGetBalanceAccountNotFound() {
 
 func (s *AccountTestSuite) TestGetTransactions() {
 	s.mockUow.EXPECT().TransactionRepository().Return(s.transRepo)
-	s.transRepo.On("List", s.testUser.ID, mock.Anything).Return([]*domain.Transaction{}, nil)
+	s.transRepo.EXPECT().List(s.testUser.ID, mock.Anything).Return([]*domain.Transaction{}, nil)
 
 	req := httptest.NewRequest("GET", fmt.Sprintf("/account/%s/transactions", uuid.New()), nil)
 	req.Header.Set("Authorization", "Bearer "+s.testToken)
@@ -251,9 +267,9 @@ func (s *AccountTestSuite) TestGetTransactions() {
 
 func (s *AccountTestSuite) TestAccountRoutesRollbackWhenCreateFails() {
 	s.mockUow.EXPECT().AccountRepository().Return(s.accountRepo)
-	s.mockUow.On("Begin").Return(nil)
-	s.mockUow.On("Rollback").Return(nil)
-	s.accountRepo.On("Create", mock.Anything).Return(errors.New("failed to create account"))
+	s.mockUow.EXPECT().Begin().Return(nil)
+	s.mockUow.EXPECT().Rollback().Return(nil)
+	s.accountRepo.EXPECT().Create(mock.Anything).Return(errors.New("failed to create account"))
 
 	req := httptest.NewRequest("POST", "/account", nil)
 	req.Header.Set("Authorization", "Bearer "+s.testToken)
@@ -271,9 +287,9 @@ func (s *AccountTestSuite) TestAccountRoutesRollbackWhenDepositFails() {
 	s.mockUow.EXPECT().Begin().Return(nil)
 	s.mockUow.EXPECT().Rollback().Return(nil)
 	account := domain.NewAccount(s.testUser.ID)
-	s.accountRepo.On("Get", account.ID).Return(account, nil)
-	s.transRepo.On("Create", mock.Anything).Return(errors.New("failed to create transaction"))
-	s.accountRepo.On("Update", mock.Anything).Return(nil)
+	s.accountRepo.EXPECT().Get(account.ID).Return(account, nil)
+	s.transRepo.EXPECT().Create(mock.Anything).Return(errors.New("failed to create transaction"))
+	s.accountRepo.EXPECT().Update(mock.Anything).Return(nil)
 
 	depositBody := bytes.NewBuffer([]byte(`{"amount": 100.0}`))
 	req := httptest.NewRequest("POST", fmt.Sprintf("/account/%s/deposit", account.ID), depositBody)
@@ -409,7 +425,7 @@ func (s *AccountTestSuite) TestGetTransactions_InternalServerError() {
 	s.mockUow.EXPECT().UserRepository().Return(s.userRepo)
 	s.userRepo.EXPECT().GetByUsername("testuser").Return(s.testUser, nil)
 	s.mockUow.EXPECT().TransactionRepository().Return(s.transRepo)
-	s.transRepo.On("List", mock.Anything, mock.Anything).Return(nil, errors.New("db error")).Once()
+	s.transRepo.EXPECT().List(mock.Anything, mock.Anything).Return(nil, errors.New("db error")).Once()
 
 	req := httptest.NewRequest("GET", fmt.Sprintf("/account/%s/transactions", uuid.New()), nil)
 	req.Header.Set("Authorization", "Bearer "+s.testToken)
@@ -445,7 +461,7 @@ func (s *AccountTestSuite) TestGetBalance_InternalServerError() {
 	s.mockUow.EXPECT().UserRepository().Return(s.userRepo)
 	s.userRepo.EXPECT().GetByUsername("testuser").Return(s.testUser, nil)
 	s.mockUow.EXPECT().AccountRepository().Return(s.accountRepo)
-	s.accountRepo.On("Get", mock.Anything).Return(nil, errors.New("db error"))
+	s.accountRepo.EXPECT().Get(mock.Anything).Return(nil, errors.New("db error"))
 
 	req := httptest.NewRequest("GET", fmt.Sprintf("/account/%s/balance", uuid.New()), nil)
 	req.Header.Set("Authorization", "Bearer "+s.testToken)

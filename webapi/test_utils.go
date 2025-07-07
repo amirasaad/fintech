@@ -1,7 +1,10 @@
 package webapi
 
 import (
+	"bytes"
+	"encoding/json"
 	"io"
+	"net/http/httptest"
 	"runtime"
 	"strings"
 	"testing"
@@ -112,6 +115,9 @@ func SetupTestApp(
 	authService *service.AuthService,
 ) {
 	t.Helper()
+	// Set JWT secret key before creating the app
+	t.Setenv("JWT_SECRET_KEY", "secret")
+	
 	userRepo = fixtures.NewMockUserRepository(t)
 	accountRepo = fixtures.NewMockAccountRepository(t)
 	transactionRepo = fixtures.NewMockTransactionRepository(t)
@@ -120,7 +126,7 @@ func SetupTestApp(
 
 	authStrategy := service.NewJWTAuthStrategy(func() (repository.UnitOfWork, error) { return mockUow, nil })
 	authService = service.NewAuthService(func() (repository.UnitOfWork, error) { return mockUow, nil }, authStrategy)
-	
+
 	// Create services with the mock UOW factory
 	accountSvc := service.NewAccountService(func() (repository.UnitOfWork, error) { return mockUow, nil })
 	userSvc := service.NewUserService(func() (repository.UnitOfWork, error) { return mockUow, nil })
@@ -128,19 +134,39 @@ func SetupTestApp(
 	app = NewTestApp(accountSvc, userSvc, authService)
 	testUser, _ = domain.NewUser("testuser", "testuser@example.com", "password123")
 	log.SetOutput(io.Discard)
-	// os.Setenv("JWT_SECRET_KEY", "secret")
 
 	return
 }
 
-func getTestToken(t *testing.T, authService *service.AuthService, userRepo *fixtures.MockUserRepository, mockUow *fixtures.MockUnitOfWork, testUser *domain.User) string {
+func getTestToken(
+	t *testing.T,
+	app *fiber.App,
+	testUser *domain.User,
+) string {
 	t.Helper()
-	mockUow.EXPECT().UserRepository().Return(userRepo).Maybe()
-	userRepo.EXPECT().GetByUsername("testuser").Return(testUser, nil).Maybe()
+	loginBody := &LoginInput{Identity: testUser.Username, Password: "password123"}
+	body, _ := json.Marshal(loginBody)
 
-	_, token, err := authService.Login("testuser", "password123")
+	req := httptest.NewRequest("POST", "/login", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := app.Test(req, 10000)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if resp.StatusCode != fiber.StatusOK {
+		// Read response body for debugging
+		respBody, _ := io.ReadAll(resp.Body)
+		t.Logf("Login failed with status %d, body: %s", resp.StatusCode, string(respBody))
+		t.Fatalf("expected status 200 but got %d", resp.StatusCode)
+	}
+	var response Response
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		t.Fatal(err)
+	}
+	token, ok := response.Data.(map[string]interface{})["token"].(string)
+	if !ok {
+		t.Fatal("unable to extract token from response")
 	}
 	return token
 }
