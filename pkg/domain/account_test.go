@@ -40,7 +40,7 @@ func TestDeposit(t *testing.T) {
 	userID := uuid.New()
 	account := domain.NewAccount(userID)
 	// Simulate a deposit
-	depositTransaction, err := account.Deposit(userID, 100.0)
+	depositTransaction, err := account.Deposit(userID, domain.Money{Amount: 100.0, Currency: "USD"})
 	require.NoError(err, "Deposit should not return an error")
 	assert.NotNil(depositTransaction, "Deposit transaction should not be nil")
 	assert.Equal(account.ID, depositTransaction.AccountID, "Deposit transaction should reference the correct account ID")
@@ -58,7 +58,7 @@ func TestDepositNegativeAmount(t *testing.T) {
 
 	account := domain.NewAccount(userID)
 	// Attempt to deposit a negative amount
-	_, err := account.Deposit(userID, -50.0)
+	_, err := account.Deposit(userID, domain.Money{Amount: -50.0, Currency: "USD"})
 	require.Error(err, "deposit amount must be positive")
 	balance, err := account.GetBalance(userID)
 	require.NoError(err, "GetBalance for same user should not return an error")
@@ -73,7 +73,7 @@ func TestDepositZeroAmount(t *testing.T) {
 
 	account := domain.NewAccount(userID)
 	// Attempt to deposit zero amount
-	_, err := account.Deposit(userID, 0.0)
+	_, err := account.Deposit(userID, domain.Money{Amount: 0.0, Currency: "USD"})
 	require.Error(err, "Deposit with zero amount should return an error")
 	balance, err := account.GetBalance(userID)
 	require.NoError(err, "GetBalance for same user should not return an error")
@@ -87,9 +87,9 @@ func TestDepositMultipleTimes(t *testing.T) {
 	userID := uuid.New()
 	account := domain.NewAccount(userID)
 	// Deposit multiple times
-	_, err1 := account.Deposit(userID, 50.0)
+	_, err1 := account.Deposit(userID, domain.Money{Amount: 50.0, Currency: "USD"})
 	require.NoError(err1, "First deposit should not return an error")
-	_, err2 := account.Deposit(userID, 150.0)
+	_, err2 := account.Deposit(userID, domain.Money{Amount: 150.0, Currency: "USD"})
 	require.NoError(err2, "Second deposit should not return an error")
 
 	expectedBalance := 200.0 // 50 + 150 in cents
@@ -106,7 +106,7 @@ func TestDepositOverflow(t *testing.T) {
 
 	// Use just under the max safe amount with margin
 	safeAmount := float64((math.MaxInt64 - 10000) / 100) // leave margin
-	_, err := a.Deposit(userID, safeAmount)
+	_, err := a.Deposit(userID, domain.Money{Amount: safeAmount, Currency: "USD"})
 	assert.NoError(err, "Deposit amount just under max safe value should not return an error")
 }
 
@@ -117,7 +117,7 @@ func TestDepositOverflowFails(t *testing.T) {
 	a := domain.NewAccount(userID)
 
 	overflowAmount := float64(math.MaxInt64)/100.0 + 1
-	_, err := a.Deposit(userID, overflowAmount)
+	_, err := a.Deposit(userID, domain.Money{Amount: overflowAmount, Currency: "USD"})
 	assert.ErrorIs(err, domain.ErrDepositAmountExceedsMaxSafeInt)
 }
 
@@ -128,11 +128,11 @@ func TestDepositOverflowBoundary(t *testing.T) {
 	userID := uuid.New()
 	account := domain.NewAccount(userID)
 	// Deposit up to just below the max safe int
-	_, err := account.Deposit(userID, float64(math.MaxInt64/200))
+	_, err := account.Deposit(userID, domain.Money{Amount: float64(math.MaxInt64 / 200), Currency: "USD"})
 	require.NoError(err, "Deposit just below overflow boundary should not return an error")
 
 	// This deposit should cause an overflow
-	_, err = account.Deposit(userID, float64(math.MaxInt64/200+1))
+	_, err = account.Deposit(userID, domain.Money{Amount: float64(math.MaxInt64/200 + 1), Currency: "USD"})
 	require.Error(err, "Deposit that causes overflow should return an error")
 	assert.Equal(domain.ErrDepositAmountExceedsMaxSafeInt, err, "Error should be ErrDepositAmountExceedsMaxSafeInt")
 }
@@ -144,7 +144,7 @@ func TestDepositWithPrecision(t *testing.T) {
 	userID := uuid.New()
 	account := domain.NewAccount(userID)
 	// Deposit with precision
-	_, err := account.Deposit(userID, 99.99)
+	_, err := account.Deposit(userID, domain.Money{Amount: 99.99, Currency: "USD"})
 	require.NoError(err, "Deposit with precision should not return an error")
 	expectedBalance := 99.99
 	balance, err := account.GetBalance(userID)
@@ -160,7 +160,7 @@ func TestDepositWithLargeAmount(t *testing.T) {
 	userID := uuid.New()
 	account := domain.NewAccount(userID)
 	// Deposit a large amount
-	_, err := account.Deposit(userID, 1000000.0) // 1 million dollars
+	_, err := account.Deposit(userID, domain.Money{Amount: 1000000.0, Currency: "USD"}) // 1 million dollars
 	require.NoError(err, "Deposit with large amount should not return an error")
 	expectedBalance := 1000000.0 // 1 million in cents
 	balance, err := account.GetBalance(userID)
@@ -175,12 +175,12 @@ func TestWithdraw(t *testing.T) {
 	userID := uuid.New()
 	account := domain.NewAccount(userID)
 	// Deposit some funds first
-	_, err := account.Deposit(userID, 200.0) // 200 dollars
+	_, err := account.Deposit(userID, domain.Money{Amount: 200.0, Currency: "USD"}) // 200 dollars
 	require.NoError(err, "Initial deposit should not return an error")
 
 	// Withdraw funds
 	withdrawalAmount := 100.0 // 100 dollars
-	transaction, err := account.Withdraw(userID, withdrawalAmount)
+	transaction, err := account.Withdraw(userID, domain.Money{Amount: withdrawalAmount, Currency: "USD"})
 	require.NoError(err, "Withdrawal should not return an error")
 	assert.Equal(-int64(withdrawalAmount), transaction.Amount/100, "Withdrawal transaction amount should match expected")
 	balance, err := account.GetBalance(userID)
@@ -196,7 +196,7 @@ func TestWithdrawInsufficientFunds(t *testing.T) {
 
 	account := domain.NewAccount(userID)
 	// Attempt to withdraw more than the balance
-	_, err := account.Withdraw(userID, 100.0) // 100 dollars
+	_, err := account.Withdraw(userID, domain.Money{Amount: 100.0, Currency: "USD"}) // 100 dollars
 	require.Error(err, "Withdrawal with insufficient funds should return an error")
 	assert.ErrorIs(domain.ErrInsufficientFunds, err, "Error message should match expected")
 	balance, err := account.GetBalance(userID)
@@ -211,7 +211,7 @@ func TestWithdrawNegativeAmount(t *testing.T) {
 	userID := uuid.New()
 	account := domain.NewAccount(userID)
 	// Attempt to withdraw a negative amount
-	_, err := account.Withdraw(userID, -50.0)
+	_, err := account.Withdraw(userID, domain.Money{Amount: -50.0, Currency: "USD"})
 	require.Error(err, "Withdrawal with negative amount should return an error")
 	assert.Equal("withdrawal amount must be positive", err.Error(), "Error message should match expected")
 	balance, err := account.GetBalance(userID)
@@ -227,7 +227,7 @@ func TestWithdrawZeroAmount(t *testing.T) {
 
 	account := domain.NewAccount(userID)
 	// Attempt to withdraw zero amount
-	_, err := account.Withdraw(userID, 0.0)
+	_, err := account.Withdraw(userID, domain.Money{Amount: 0.0, Currency: "USD"})
 	require.Error(err, "Withdrawal with zero amount should return an error")
 	balance, err := account.GetBalance(userID)
 	require.NoError(err, "GetBalance for same user should not return an error")
@@ -243,7 +243,7 @@ func TestGetBalance(t *testing.T) {
 
 	account := domain.NewAccount(userID)
 	// Deposit some funds
-	_, err := account.Deposit(userID, 300.0) // 300 dollars
+	_, err := account.Deposit(userID, domain.Money{Amount: 300.0, Currency: "USD"}) // 300 dollars
 	require.NoError(err, "Initial deposit should not return an error")
 
 	// Check balance
@@ -261,7 +261,7 @@ func TestSimultaneous(t *testing.T) {
 
 	account := domain.NewAccount(userID)
 	initialBalance := 1000.0
-	_, err := account.Deposit(userID, initialBalance)
+	_, err := account.Deposit(userID, domain.Money{Amount: initialBalance, Currency: "USD"})
 	require.NoError(err, "Initial deposit should not return an error")
 
 	numOperations := 1000
@@ -274,13 +274,13 @@ func TestSimultaneous(t *testing.T) {
 	for range numOperations {
 		go func() {
 			defer wg.Done()
-			_, depositErr := account.Deposit(userID, depositAmount)
+			_, depositErr := account.Deposit(userID, domain.Money{Amount: depositAmount, Currency: "USD"})
 			assert.NoError(depositErr, "Deposit operation should not return an error")
 		}()
 
 		go func() {
 			defer wg.Done()
-			_, withdrawErr := account.Withdraw(userID, withdrawAmount)
+			_, withdrawErr := account.Withdraw(userID, domain.Money{Amount: withdrawAmount, Currency: "USD"})
 			assert.NoError(withdrawErr, "Withdrawal operation should not return an error")
 		}()
 	}
@@ -297,7 +297,7 @@ func TestAccount_DepositUnauthorized(t *testing.T) {
 	assert := assert.New(t)
 	userID := uuid.New()
 	account := domain.NewAccount(userID)
-	_, err := account.Deposit(uuid.New(), 1000)
+	_, err := account.Deposit(uuid.New(), domain.Money{Amount: 1000.0, Currency: "USD"})
 	assert.Error(err, "Deposit with different user id should return error")
 	assert.ErrorIs(err, domain.ErrUserUnauthorized)
 }
@@ -306,7 +306,7 @@ func TestAccount_WithdrawUnauthorized(t *testing.T) {
 	assert := assert.New(t)
 	userID := uuid.New()
 	account := domain.NewAccount(userID)
-	_, err := account.Withdraw(uuid.New(), 1000)
+	_, err := account.Withdraw(uuid.New(), domain.Money{Amount: 1000.0, Currency: "USD"})
 	assert.Error(err, "Deposit with different user id should return error")
 	assert.ErrorIs(err, domain.ErrUserUnauthorized)
 }

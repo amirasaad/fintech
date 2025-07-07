@@ -35,7 +35,7 @@ func BenchmarkDeposit(b *testing.B) {
 	transactionRepo.EXPECT().Create(mock.Anything).Return(nil).Maybe()
 	b.ResetTimer()
 	for b.Loop() {
-		_, _ = svc.Deposit(userID, account.ID, 100.0)
+		_, _ = svc.Deposit(userID, account.ID, 100.0, "USD")
 	}
 }
 
@@ -53,6 +53,6 @@ func BenchmarkWithdraw(b *testing.B) {
 	transactionRepo.EXPECT().Create(mock.Anything).Return(nil).Maybe()
 	b.ResetTimer()
 	for b.Loop() {
-		_, _ = svc.Withdraw(userID, account.ID, 50.0)
+		_, _ = svc.Withdraw(userID, account.ID, 50.0, "USD")
 	}
 }

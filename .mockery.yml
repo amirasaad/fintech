@@ -19,3 +19,11 @@ packages:
             structname: "Mock{{.InterfaceName}}"
         interfaces:
             AuthStrategy:
+    github.com/amirasaad/fintech/pkg/domain:
+        config:
+            dir: "internal/fixtures"
+            filename: "domain.go"
+            pkgname: "fixtures"
+            structname: "Mock{{.InterfaceName}}"
+        interfaces:
+            CurrencyConverter:

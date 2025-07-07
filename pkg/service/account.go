@@ -4,8 +4,6 @@
 package service
 
 import (
-	"log/slog"
-
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/repository"
 
@@ -95,7 +93,13 @@ func (s *AccountService) CreateAccountWithCurrency(
 func (s *AccountService) Deposit(
 	userID, accountID uuid.UUID,
 	amount float64,
+	currency string,
 ) (tx *domain.Transaction, err error) {
+	money, err := domain.NewMoney(amount, currency)
+	if err != nil {
+		tx = nil
+		return
+	}
 	uow, err := s.uowFactory()
 	if err != nil {
 		tx = nil
@@ -103,7 +107,6 @@ func (s *AccountService) Deposit(
 	}
 	err = uow.Begin()
 	if err != nil {
-		slog.Error("Failed to begin transaction", slog.Any("error", err))
 		tx = nil
 		return
 	}
@@ -115,7 +118,7 @@ func (s *AccountService) Deposit(
 		err = domain.ErrAccountNotFound
 		return
 	}
-	tx, err = a.Deposit(userID, amount)
+	tx, err = a.Deposit(userID, money)
 	if err != nil {
 		_ = uow.Rollback()
 		tx = nil
@@ -151,55 +154,51 @@ func (s *AccountService) Deposit(
 func (s *AccountService) Withdraw(
 	userID, accountID uuid.UUID,
 	amount float64,
+	currency string,
 ) (tx *domain.Transaction, err error) {
+	money, err := domain.NewMoney(amount, currency)
+	if err != nil {
+		return nil, err
+	}
 	uow, err := s.uowFactory()
 	if err != nil {
-		tx = nil
-		return
+		return nil, err
 	}
 	err = uow.Begin()
 	if err != nil {
-		tx = nil
-		return
+		return nil, err
 	}
 
 	a, err := uow.AccountRepository().Get(accountID)
 	if err != nil {
 		_ = uow.Rollback()
-		tx = nil
-		err = domain.ErrAccountNotFound
-		return
+		return nil, domain.ErrAccountNotFound
 	}
-
-	tx, err = a.Withdraw(userID, amount)
+	tx, err = a.Withdraw(userID, money)
 	if err != nil {
 		_ = uow.Rollback()
-		tx = nil
-		return
+		return nil, err
 	}
 
 	err = uow.AccountRepository().Update(a)
 	if err != nil {
 		_ = uow.Rollback()
-		tx = nil
-		return
+		return nil, err
 	}
 
 	err = uow.TransactionRepository().Create(tx)
 	if err != nil {
 		_ = uow.Rollback()
-		tx = nil
-		return
+		return nil, err
 	}
 
 	err = uow.Commit()
 	if err != nil {
 		_ = uow.Rollback()
-		tx = nil
-		return
+		return nil, err
 	}
 
-	return
+	return tx, nil
 }
 
 // GetAccount retrieves an account by its ID.
@@ -261,99 +260,4 @@ func (s *AccountService) GetBalance(
 
 	balance, err = a.GetBalance(userID)
 	return
-}
-
-// DepositWithCurrency adds funds to the account if the currency matches.
-// Returns an error if the currency does not match.
-func (s *AccountService) DepositWithCurrency(userID, accountID uuid.UUID, amount float64, currency string) (*domain.Transaction, error) {
-	uow, err := s.uowFactory()
-	if err != nil {
-		return nil, err
-	}
-	err = uow.Begin()
-	if err != nil {
-		return nil, err
-	}
-
-	account, err := uow.AccountRepository().Get(accountID)
-	if err != nil {
-		_ = uow.Rollback()
-		return nil, err
-	}
-
-	// Delegate to Deposit
-	tx, err := account.DepositWithCurrency(userID, amount, currency)
-	if err != nil {
-		_ = uow.Rollback()
-		return nil, err
-	}
-
-	err = uow.TransactionRepository().Create(tx)
-	if err != nil {
-		_ = uow.Rollback()
-		return nil, err
-	}
-
-	err = uow.AccountRepository().Update(account)
-	if err != nil {
-		_ = uow.Rollback()
-		return nil, err
-	}
-
-	err = uow.Commit()
-	if err != nil {
-		_ = uow.Rollback()
-		return nil, err
-	}
-
-	return tx, nil
-}
-
-// WithdrawWithCurrency withdraws funds from the account if the currency matches.
-// Returns an error if the currency does not match.
-func (s *AccountService) WithdrawWithCurrency(
-	userID, accountID uuid.UUID,
-	amount float64,
-	currency string,
-) (tx *domain.Transaction, err error) {
-	uow, err := s.uowFactory()
-	if err != nil {
-		return nil, err
-	}
-	err = uow.Begin()
-	if err != nil {
-		return nil, err
-	}
-
-	account, err := uow.AccountRepository().Get(accountID)
-	if err != nil {
-		_ = uow.Rollback()
-		return nil, err
-	}
-
-	tx, err = account.WithdrawWithCurrency(userID, amount, currency)
-	if err != nil {
-		_ = uow.Rollback()
-		return nil, err
-	}
-
-	err = uow.AccountRepository().Update(account)
-	if err != nil {
-		_ = uow.Rollback()
-		return nil, err
-	}
-
-	err = uow.TransactionRepository().Create(tx)
-	if err != nil {
-		_ = uow.Rollback()
-		return nil, err
-	}
-
-	err = uow.Commit()
-	if err != nil {
-		_ = uow.Rollback()
-		return nil, err
-	}
-
-	return tx, nil
 }

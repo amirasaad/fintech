@@ -132,25 +132,23 @@ func NewTransactionWithCurrency(id, userID, accountID uuid.UUID, amount, balance
 	}
 }
 
-// Deposit adds funds to the account and returns a transaction record.
-// The amount is expected to be in dollars, and it will be converted to cents for precision.
-// It returns an error if the deposit amount is negative.
-func (a *Account) Deposit(
-	userID uuid.UUID,
-	amount float64,
-) (*Transaction, error) {
+// Deposit adds funds to the account if the currency matches and returns a transaction record.
+// Returns an error if the currency does not match or the deposit amount is invalid.
+func (a *Account) Deposit(userID uuid.UUID, money Money) (*Transaction, error) {
 	if a.UserID != userID {
 		return nil, ErrUserUnauthorized
 	}
-	slog.Info("Balance before deposit", slog.Int64("balance", a.Balance))
+	if a.Currency != money.Currency {
+		return nil, fmt.Errorf("%w: account has %s, operation is %s", ErrCurrencyMismatch, a.Currency, money.Currency)
+	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	if amount <= 0 {
+	if money.Amount <= 0 {
 		return nil, ErrTransactionAmountMustBePositive
 	}
 
-	amountStr := fmt.Sprintf("%.2f", amount)
+	amountStr := fmt.Sprintf("%.2f", money.Amount)
 	amountRat, ok := new(big.Rat).SetString(amountStr)
 	if !ok {
 		return nil, fmt.Errorf("invalid amount format")
@@ -178,9 +176,7 @@ func (a *Account) Deposit(
 	}
 
 	parsedAmount := cents.Int64()
-	slog.Info("Depositing amount", slog.Int64("amount", parsedAmount))
 	a.Balance += parsedAmount
-	slog.Info("Balance after deposit", slog.Int64("balance", a.Balance))
 
 	transaction := Transaction{
 		ID:        uuid.New(),
@@ -188,48 +184,43 @@ func (a *Account) Deposit(
 		AccountID: a.ID,
 		Amount:    parsedAmount,
 		Balance:   a.Balance,
-		Currency:  a.Currency,
 		CreatedAt: time.Now().UTC(),
+		Currency:  money.Currency,
 	}
-	slog.Info("Transaction created", slog.Any("transaction", transaction))
 
 	return &transaction, nil
 }
 
-// Withdraw removes funds from the account and returns a transaction record.
-// The amount is expected to be in dollars, and it will be converted to cents for precision.
-// It returns an error if the withdrawal amount is negative or if there are insufficient funds.
-func (a *Account) Withdraw(
-	userID uuid.UUID,
-	amount float64,
-) (*Transaction, error) {
+// Withdraw removes funds from the account if the currency matches and returns a transaction record.
+// Returns an error if the currency does not match or if there are insufficient funds.
+func (a *Account) Withdraw(userID uuid.UUID, money Money) (*Transaction, error) {
 	if a.UserID != userID {
 		return nil, ErrUserUnauthorized
 	}
-	slog.Info("Balance before withdrawal", slog.Int64("balance", a.Balance))
+	if a.Currency != money.Currency {
+		return nil, fmt.Errorf("%w: account has %s, operation is %s", ErrCurrencyMismatch, a.Currency, money.Currency)
+	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	// Check if the amount is positive before proceeding with the withdrawal
-	if amount <= 0 {
+
+	if money.Amount <= 0 {
 		return nil, ErrWithdrawalAmountMustBePositive
 	}
-	cents := int64(math.Round(amount * 100))
+	cents := int64(math.Round(money.Amount * 100))
 	if cents > a.Balance {
 		return nil, ErrInsufficientFunds
 	}
-	slog.Info("Withdrawing amount", slog.Int64("amount", cents))
 	a.Balance -= cents
-	slog.Info("Balance after withdrawal", slog.Int64("balance", a.Balance))
+
 	transaction := Transaction{
 		ID:        uuid.New(),
 		UserID:    userID,
 		AccountID: a.ID,
 		Amount:    -cents,
 		Balance:   a.Balance,
-		Currency:  a.Currency,
 		CreatedAt: time.Now().UTC(),
+		Currency:  money.Currency,
 	}
-	slog.Info("Transaction created:", slog.Any("transaction", transaction))
 
 	return &transaction, nil
 }
@@ -243,47 +234,5 @@ func (a *Account) GetBalance(userID uuid.UUID) (balance float64, err error) {
 	}
 	slog.Info("Getting balance", slog.Int64("balance", a.Balance))
 	balance = float64(a.Balance) / 100
-	return
-}
-
-// DepositWithCurrency adds funds to the account if the currency matches.
-// Returns an error if the currency does not match.
-func (a *Account) DepositWithCurrency(
-	userID uuid.UUID,
-	amount float64,
-	currency string,
-) (
-	tx *Transaction,
-	err error,
-) {
-	if !IsValidCurrencyCode(currency) {
-		err = ErrInvalidCurrencyCode
-		return
-	}
-	if a.Currency != currency {
-		err = fmt.Errorf("%w: account has %s, operation is %s", ErrCurrencyMismatch, a.Currency, currency)
-		return
-	}
-	tx, err = a.Deposit(userID, amount)
-	return
-}
-
-func (a *Account) WithdrawWithCurrency(
-	userID uuid.UUID,
-	amount float64,
-	currency string,
-) (tx *Transaction,
-	err error,
-) {
-	if !IsValidCurrencyCode(currency) {
-		err = ErrInvalidCurrencyCode
-		return
-	}
-	if a.Currency != currency {
-		err = fmt.Errorf("%w: account has %s, operation is %s", ErrCurrencyMismatch, a.Currency, currency)
-		return
-	}
-	tx, err = a.Withdraw(userID, amount)
-
 	return
 }

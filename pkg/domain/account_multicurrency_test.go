@@ -32,7 +32,7 @@ func TestTransaction_HasCurrencyField(t *testing.T) {
 func TestPreventMixingCurrencies(t *testing.T) {
 	a := domain.NewAccountWithCurrency(uuid.New(), "USD")
 	// Simulate a deposit with mismatched currency
-	_, err := a.DepositWithCurrency(uuid.New(), 100, "EUR")
+	_, err := a.Deposit(uuid.New(), domain.Money{Amount: 100, Currency: "EUR"})
 	assert.Error(t, err, "Should not allow deposit with mismatched currency")
 }
 

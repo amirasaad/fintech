@@ -18,6 +18,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/log"
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
@@ -98,7 +99,9 @@ func (s *AccountTestSuite) TestAccountWithdraw() {
 	s.mockUow.EXPECT().TransactionRepository().Return(s.transRepo)
 
 	testAccount := domain.NewAccount(s.testUser.ID)
-	_, _ = testAccount.Deposit(s.testUser.ID, 1000)
+	money, err := domain.NewMoney(1000.0, "USD")
+	assert.NoError(s.T(), err)
+	_, _ = testAccount.Deposit(s.testUser.ID, money)
 	s.accountRepo.EXPECT().Get(mock.Anything).Return(testAccount, nil)
 	s.transRepo.EXPECT().Create(mock.Anything).Return(nil)
 	s.accountRepo.EXPECT().Update(mock.Anything).Return(nil)

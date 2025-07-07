@@ -119,7 +119,7 @@ func cliApp(scv *service.AccountService, authSvc *service.AuthService) {
 				fmt.Println(errorMsg("Invalid amount:"), err)
 				continue
 			}
-			account, err := scv.Deposit(userID, uuid.MustParse(accountID), amount)
+			account, err := scv.Deposit(userID, uuid.MustParse(accountID), amount, "USD")
 			if err != nil {
 				fmt.Println(errorMsg("Error depositing:"), err)
 				continue
@@ -141,7 +141,7 @@ func cliApp(scv *service.AccountService, authSvc *service.AuthService) {
 				fmt.Println(errorMsg("Invalid amount:"), err)
 				continue
 			}
-			account, err := scv.Withdraw(userID, uuid.MustParse(accountID), amount)
+			account, err := scv.Withdraw(userID, uuid.MustParse(accountID), amount, "USD")
 			if err != nil {
 				fmt.Println(errorMsg("Error withdrawing:"), err)
 				continue

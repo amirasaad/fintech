@@ -85,7 +85,7 @@ func TestDeposit_Success(t *testing.T) {
 	accountRepo.EXPECT().Update(account).Return(nil)
 	transactionRepo.EXPECT().Create(mock.Anything).Return(nil)
 
-	tx, err := svc.Deposit(userID, account.ID, 100.0)
+	tx, err := svc.Deposit(userID, account.ID, 100.0, "USD")
 	assert.NoError(t, err)
 	assert.NotNil(t, tx)
 	balance, _ := account.GetBalance(userID)
@@ -98,9 +98,9 @@ func TestDeposit_AccountNotFound(t *testing.T) {
 	uow.EXPECT().Begin().Return(nil).Once()
 	uow.EXPECT().Rollback().Return(nil).Once()
 	uow.EXPECT().AccountRepository().Return(accountRepo)
-	accountRepo.EXPECT().Get(mock.Anything).Return(&domain.Account{}, domain.ErrAccountNotFound)
+	accountRepo.EXPECT().Get(mock.Anything).Return(nil, domain.ErrAccountNotFound)
 
-	tx, err := svc.Deposit(uuid.New(), uuid.New(), 100.0)
+	tx, err := svc.Deposit(uuid.New(), uuid.New(), 100.0, "USD")
 	assert.Error(t, err)
 	assert.Nil(t, tx)
 	assert.Equal(t, domain.ErrAccountNotFound, err)
@@ -115,8 +115,7 @@ func TestDeposit_NegativeAmount(t *testing.T) {
 	userID := uuid.New()
 	account := domain.NewAccount(userID)
 	accountRepo.EXPECT().Get(account.ID).Return(account, nil)
-
-	tx, err := svc.Deposit(userID, account.ID, -50.0)
+	tx, err := svc.Deposit(userID, account.ID, -50.0, "USD")
 	assert.Error(t, err)
 	assert.Nil(t, tx)
 	assert.Equal(t, domain.ErrTransactionAmountMustBePositive, err)
@@ -125,7 +124,7 @@ func TestDeposit_NegativeAmount(t *testing.T) {
 func TestDeposit_UoWFactoryError(t *testing.T) {
 	t.Parallel()
 	svc := NewAccountService(func() (repository.UnitOfWork, error) { return nil, errors.New("uow error") })
-	tx, err := svc.Deposit(uuid.New(), uuid.New(), 100.0)
+	tx, err := svc.Deposit(uuid.New(), uuid.New(), 100.0, "USD")
 	assert.Error(t, err)
 	assert.Nil(t, tx)
 }
@@ -141,7 +140,7 @@ func TestDeposit_UpdateError(t *testing.T) {
 	accountRepo.EXPECT().Get(account.ID).Return(account, nil)
 	accountRepo.EXPECT().Update(account).Return(errors.New("update error"))
 
-	tx, err := svc.Deposit(userID, account.ID, 100.0)
+	tx, err := svc.Deposit(userID, account.ID, 100.0, "USD")
 	assert.Error(t, err)
 	assert.Nil(t, tx)
 }
@@ -156,12 +155,12 @@ func TestWithdraw_Success(t *testing.T) {
 	userID := uuid.New()
 	account := domain.NewAccount(userID)
 	// Deposit first
-	_, _ = account.Deposit(userID, 100.0)
+	_, _ = account.Deposit(userID, domain.Money{Amount: 100.0, Currency: "USD"})
 	accountRepo.EXPECT().Get(account.ID).Return(account, nil)
 	accountRepo.EXPECT().Update(account).Return(nil)
 	transactionRepo.EXPECT().Create(mock.Anything).Return(nil)
 
-	tx, err := svc.Withdraw(userID, account.ID, 50.0)
+	tx, err := svc.Withdraw(userID, account.ID, 50.0, "USD")
 	assert.NoError(t, err)
 	assert.NotNil(t, tx)
 	balance, _ := account.GetBalance(userID)
@@ -178,7 +177,7 @@ func TestWithdraw_InsufficientFunds(t *testing.T) {
 	account := domain.NewAccount(userID)
 	accountRepo.EXPECT().Get(account.ID).Return(account, nil)
 
-	tx, err := svc.Withdraw(userID, account.ID, 100.0)
+	tx, err := svc.Withdraw(userID, account.ID, 100.0, "USD")
 	assert.Error(t, err)
 	assert.Nil(t, tx)
 	assert.Equal(t, domain.ErrInsufficientFunds, err)
@@ -187,7 +186,7 @@ func TestWithdraw_InsufficientFunds(t *testing.T) {
 func TestWithdraw_UoWFactoryError(t *testing.T) {
 	t.Parallel()
 	svc := NewAccountService(func() (repository.UnitOfWork, error) { return nil, errors.New("uow error") })
-	tx, err := svc.Withdraw(uuid.New(), uuid.New(), 100.0)
+	tx, err := svc.Withdraw(uuid.New(), uuid.New(), 100.0, "USD")
 	assert.Error(t, err)
 	assert.Nil(t, tx)
 }
@@ -200,11 +199,11 @@ func TestWithdraw_UpdateError(t *testing.T) {
 	uow.EXPECT().AccountRepository().Return(accountRepo)
 	userID := uuid.New()
 	account := domain.NewAccount(userID)
-	_, _ = account.Deposit(userID, 100.0)
+	_, _ = account.Deposit(userID, domain.Money{Amount: 100.0, Currency: "USD"})
 	accountRepo.EXPECT().Get(account.ID).Return(account, nil)
 	accountRepo.EXPECT().Update(account).Return(errors.New("update error"))
 
-	tx, err := svc.Withdraw(userID, account.ID, 50.0)
+	tx, err := svc.Withdraw(userID, account.ID, 50.0, "USD")
 	assert.Error(t, err)
 	assert.Nil(t, tx)
 }
@@ -300,7 +299,7 @@ func TestGetBalance_Success(t *testing.T) {
 
 	userID := uuid.New()
 	account := domain.NewAccount(userID)
-	_, _ = account.Deposit(userID, 123.45)
+	_, _ = account.Deposit(userID, domain.Money{Amount: 123.45, Currency: "USD"})
 	accountRepo.EXPECT().Get(account.ID).Return(account, nil)
 
 	balance, err := svc.GetBalance(userID, account.ID)

@@ -25,7 +25,9 @@ func TestDeposit_RejectsMismatchedCurrency(t *testing.T) {
 	repo.EXPECT().Get(account.ID).Return(account, nil)
 
 	// Try to deposit EUR
-	_, err := accountSvc.DepositWithCurrency(account.UserID, account.ID, 100.0, "EUR")
+	money, err := domain.NewMoney(100.0, "EUR")
+	assert.NoError(t, err)
+	_, err = accountSvc.Deposit(account.UserID, account.ID, money.Amount, money.Currency)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "currency mismatch")
 }
@@ -47,7 +49,7 @@ func TestDeposit_AcceptsMatchingCurrency(t *testing.T) {
 	repo.EXPECT().Update(account).Return(nil)
 
 	// Try to deposit EUR
-	tx, err := accountSvc.DepositWithCurrency(account.UserID, account.ID, 100.0, "EUR")
+	tx, err := accountSvc.Deposit(account.UserID, account.ID, 100.0, "EUR")
 	assert.NoError(t, err)
 	assert.NotNil(t, tx)
 	assert.Equal(t, "EUR", tx.Currency)
@@ -62,12 +64,12 @@ func TestWithdraw_RejectsMismatchedCurrency(t *testing.T) {
 
 	// Create an account in USD
 	account := domain.NewAccountWithCurrency(uuid.New(), "USD")
-	_, _ = account.DepositWithCurrency(account.UserID, 100.0, "USD")
+	_, _ = account.Deposit(account.UserID, domain.Money{Amount: 100.0, Currency: "USD"})
 	uow.EXPECT().AccountRepository().Return(accountRepo)
 	accountRepo.EXPECT().Get(account.ID).Return(account, nil)
 
 	// Try to withdraw EUR
-	_, err := accountSvc.WithdrawWithCurrency(account.UserID, account.ID, 50.0, "EUR")
+	_, err := accountSvc.Withdraw(account.UserID, account.ID, 50.0, "EUR")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "currency mismatch")
 }
@@ -84,13 +86,13 @@ func TestWithdraw_AcceptsMatchingCurrency(t *testing.T) {
 
 	// Create an account in EUR and deposit some funds
 	account := domain.NewAccountWithCurrency(uuid.New(), "EUR")
-	_, _ = account.DepositWithCurrency(account.UserID, 100.0, "EUR")
+	_, _ = account.Deposit(account.UserID, domain.Money{Amount: 100.0, Currency: "EUR"})
 	uow.EXPECT().AccountRepository().Return(repo)
 	repo.EXPECT().Get(account.ID).Return(account, nil)
 	repo.EXPECT().Update(account).Return(nil)
 
 	// Try to withdraw EUR
-	tx, err := accountSvc.WithdrawWithCurrency(account.UserID, account.ID, 50.0, "EUR")
+	tx, err := accountSvc.Withdraw(account.UserID, account.ID, 50.0, "EUR")
 	assert.NoError(t, err)
 	assert.NotNil(t, tx)
 	assert.Equal(t, "EUR", tx.Currency)

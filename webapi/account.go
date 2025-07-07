@@ -142,10 +142,7 @@ func Deposit(
 			log.Errorf("Failed to parse deposit request: %v", err)
 			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Failed to parse deposit request", err.Error())
 		}
-		if request.Currency == "" {
-			request.Currency = "USD"
-		}
-		tx, err := accountSvc.DepositWithCurrency(userID, id, request.Amount, request.Currency)
+		tx, err := accountSvc.Deposit(userID, id, request.Amount, request.Currency)
 		if err != nil {
 			log.Errorf("Failed to deposit: %v", err)
 			status := ErrorToStatusCode(err)
@@ -210,7 +207,7 @@ func Withdraw(
 		if request.Currency == "" {
 			request.Currency = "USD"
 		}
-		tx, err := accountSvc.WithdrawWithCurrency(userID, id, request.Amount, request.Currency)
+		tx, err := accountSvc.Withdraw(userID, id, request.Amount, request.Currency)
 		if err != nil {
 			log.Errorf("Failed to withdraw: %v", err)
 			status := ErrorToStatusCode(err)
