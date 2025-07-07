@@ -22,15 +22,18 @@ var (
 	ErrUserUnauthorized                = errors.New("user unauthorized")
 )
 
+// Account represents a user's financial account, supporting multi-currency.
 type Account struct {
 	ID        uuid.UUID
 	UserID    uuid.UUID
-	Balance   int64
-	CreatedAt time.Time
+	Balance   int64 // Account balance snapshot
 	UpdatedAt time.Time
+	CreatedAt time.Time
+	Currency  string // ISO 4217 currency code
 	mu        sync.Mutex
 }
 
+// Transaction represents a financial transaction, supporting multi-currency.
 type Transaction struct {
 	ID        uuid.UUID
 	UserID    uuid.UUID
@@ -38,15 +41,40 @@ type Transaction struct {
 	Amount    int64
 	Balance   int64 // Account balance snapshot
 	CreatedAt time.Time
+	Currency  string // ISO 4217 currency code
 }
 
+// iso4217 is a minimal set of supported ISO 4217 currency codes.
+var iso4217 = map[string]struct{}{
+	"USD": {},
+	"EUR": {},
+	"GBP": {},
+	// Add more as needed
+}
+
+// IsValidCurrencyCode returns true if the code is a supported ISO 4217 currency code.
+func IsValidCurrencyCode(code string) bool {
+	_, ok := iso4217[code]
+	return ok
+}
+
+// NewAccount creates a new account with default currency USD.
 func NewAccount(userID uuid.UUID) *Account {
+	return NewAccountWithCurrency(userID, "USD")
+}
+
+// NewAccountWithCurrency creates a new account with the specified currency.
+// If the currency is invalid or empty, defaults to USD.
+func NewAccountWithCurrency(userID uuid.UUID, currency string) *Account {
+	if !IsValidCurrencyCode(currency) {
+		currency = "USD"
+	}
 	return &Account{
 		ID:        uuid.New(),
 		UserID:    userID,
 		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
 		Balance:   0,
+		Currency:  currency,
 		mu:        sync.Mutex{},
 	}
 }
@@ -78,6 +106,23 @@ func NewTransactionFromData(
 		Amount:    amount,
 		Balance:   balance,
 		CreatedAt: created,
+	}
+}
+
+// NewTransactionWithCurrency creates a new transaction with the specified currency.
+// If the currency is invalid or empty, defaults to USD.
+func NewTransactionWithCurrency(id, userID, accountID uuid.UUID, amount, balance int64, currency string) *Transaction {
+	if !IsValidCurrencyCode(currency) {
+		currency = "USD"
+	}
+	return &Transaction{
+		ID:        id,
+		UserID:    userID,
+		AccountID: accountID,
+		Amount:    amount,
+		Balance:   balance,
+		CreatedAt: time.Now(),
+		Currency:  currency,
 	}
 }
 
@@ -189,4 +234,16 @@ func (a *Account) GetBalance(userID uuid.UUID) (float64, error) {
 	}
 	slog.Info("Getting balance", slog.Int64("balance", a.Balance))
 	return float64(a.Balance) / 100, nil // Convert cents back to dollars
+}
+
+// DepositWithCurrency adds funds to the account if the currency matches.
+// Returns an error if the currency does not match.
+func (a *Account) DepositWithCurrency(userID uuid.UUID, amount float64, currency string) (*Transaction, error) {
+	if !IsValidCurrencyCode(currency) {
+		return nil, fmt.Errorf("invalid currency code: %s", currency)
+	}
+	if a.Currency != currency {
+		return nil, fmt.Errorf("currency mismatch: account has %s, deposit is %s", a.Currency, currency)
+	}
+	return a.Deposit(userID, amount)
 }
