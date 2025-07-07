@@ -125,6 +125,54 @@ Once the CLI is running, you will be prompted to log in. After successful authen
 - `logout`: Logs out the current user. 👋
 - `exit`: Exits the CLI application. 🚪
 
+### Migrations 🗄️
+
+Database migrations are managed using the `golang-migrate` library. This allows for version-controlled, incremental changes to the database schema.
+
+#### Creating a New Migration
+
+To create a new migration file, run the following command from the root of the project:
+
+```bash
+make migrate-create
+```
+
+You will be prompted to enter a name for the migration (e.g., `add_users_table`). This will generate two new SQL files in the `internal/migrations` directory: one for `up` (applying the migration) and one for `down` (reverting the migration).
+
+#### Applying Migrations
+
+To apply all pending migrations, use the following command:
+
+```bash
+make migrate-up
+```
+
+This will apply all `up` migrations that have not yet been run.
+
+#### Reverting Migrations
+
+To revert the last applied migration, use the following command:
+
+```bash
+make migrate-down
+```
+
+#### Applying a Specific Number of Migrations
+
+To apply a specific number of pending migrations, you can use the `migrate` tool directly. For example, to apply the next two migrations, you would run:
+
+```bash
+migrate -database "postgres://postgres:password@localhost:5432/fintech?sslmode=disable" -path internal/migrations up 2
+```
+
+#### Fixing a Dirty Database
+
+If a migration fails, the database may be left in a "dirty" state. To fix this, you will need to manually revert the changes from the failed migration and then force the migration version to the last successful migration. For example, if migration `3` failed, you would force the version to `2`:
+
+```bash
+migrate -database "postgres://postgres:password@localhost:5432/fintech?sslmode=disable" -path internal/migrations force 2
+```
+
 ## Examples 💡
 
 Here are some examples demonstrating how to interact with the Fintech App.
