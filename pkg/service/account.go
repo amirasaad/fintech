@@ -231,3 +231,40 @@ func (s *AccountService) GetBalance(
 	balance, err = a.GetBalance(userID)
 	return
 }
+
+func (s *AccountService) DepositWithCurrency(userID, accountID uuid.UUID, amount float64, currency string) (*domain.Transaction, error) {
+	uow, err := s.uowFactory()
+	if err != nil {
+		return nil, err
+	}
+	err = uow.Begin()
+	if err != nil {
+		return nil, err
+	}
+
+	account, err := uow.AccountRepository().Get(accountID)
+	if err != nil {
+		_ = uow.Rollback()
+		return nil, err
+	}
+
+	tx, err := account.DepositWithCurrency(userID, amount, currency)
+	if err != nil {
+		_ = uow.Rollback()
+		return nil, err
+	}
+
+	err = uow.AccountRepository().Update(account)
+	if err != nil {
+		_ = uow.Rollback()
+		return nil, err
+	}
+
+	err = uow.Commit()
+	if err != nil {
+		_ = uow.Rollback()
+		return nil, err
+	}
+
+	return tx, nil
+}
