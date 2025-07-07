@@ -19,6 +19,7 @@ type Account struct {
 	ID           uuid.UUID `gorm:"type:uuid;primary_key"`
 	UserID       uuid.UUID `gorm:"type:uuid"`
 	Balance      int64
+	Currency     string `gorm:"type:varchar(3);not null;default:'USD'"`
 	Transactions []Transaction
 }
 
