@@ -227,7 +227,6 @@ func (a *Account) Withdraw(
 		Amount:    -cents,
 		Balance:   a.Balance,
 		Currency:  a.Currency,
-		Balance:   a.Balance,
 		CreatedAt: time.Now().UTC(),
 	}
 	slog.Info("Transaction created:", slog.Any("transaction", transaction))
@@ -237,12 +236,14 @@ func (a *Account) Withdraw(
 
 // GetBalance returns the current balance of the account in dollars.
 // It converts the balance from cents to dollars for display purposes.
-func (a *Account) GetBalance(userID uuid.UUID) (float64, error) {
+func (a *Account) GetBalance(userID uuid.UUID) (balance float64, err error) {
 	if a.UserID != userID {
-		return 0, ErrUserUnauthorized
+		err = ErrUserUnauthorized
+		return
 	}
 	slog.Info("Getting balance", slog.Int64("balance", a.Balance))
-	return float64(a.Balance) / 100, nil // Convert cents back to dollars
+	balance = float64(a.Balance) / 100
+	return
 }
 
 // DepositWithCurrency adds funds to the account if the currency matches.
@@ -251,34 +252,37 @@ func (a *Account) DepositWithCurrency(
 	userID uuid.UUID,
 	amount float64,
 	currency string,
-) (*Transaction, error) {
+) (
+	tx *Transaction,
+	err error,
+) {
 	if !IsValidCurrencyCode(currency) {
-		return nil, ErrInvalidCurrencyCode
+		err = ErrInvalidCurrencyCode
+		return
 	}
 	if a.Currency != currency {
-		return nil, fmt.Errorf("%w: account has %s, operation is %s", ErrCurrencyMismatch, a.Currency, currency)
+		err = fmt.Errorf("%w: account has %s, operation is %s", ErrCurrencyMismatch, a.Currency, currency)
+		return
 	}
-	tx, err := a.Deposit(userID, amount)
-	if tx != nil {
-		tx.Currency = currency
-	}
-	return tx, err
+	tx, err = a.Deposit(userID, amount)
+	return
 }
 
 func (a *Account) WithdrawWithCurrency(
 	userID uuid.UUID,
 	amount float64,
 	currency string,
-) (*Transaction, error) {
+) (tx *Transaction,
+	err error,
+) {
 	if !IsValidCurrencyCode(currency) {
-		return nil, ErrInvalidCurrencyCode
+		err = ErrInvalidCurrencyCode
+		return
 	}
 	if a.Currency != currency {
-		return nil, fmt.Errorf("%w: account has %s, operation is %s", ErrCurrencyMismatch, a.Currency, currency)
+		err = fmt.Errorf("%w: account has %s, operation is %s", ErrCurrencyMismatch, a.Currency, currency)
+		return
 	}
-	tx, err := a.Withdraw(userID, amount)
-	if tx != nil {
-		tx.Currency = currency
-	}
-	return tx, err
+	tx, err = a.Withdraw(userID, amount)
+	return
 }
