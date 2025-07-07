@@ -335,7 +335,7 @@ func TestNewTransactionFromData(t *testing.T) {
 	userID := uuid.New()
 	accountID := uuid.New()
 	transactionID := uuid.New()
-	transaction := domain.NewTransactionFromData(transactionID, userID, accountID, 100, 100, "USD", time.Now())
+	transaction := domain.NewTransactionFromData(transactionID, userID, accountID, 100, 100, "USD", time.Now(), nil, nil, nil)
 	assert.Equal(transactionID, transaction.ID)
 	assert.Equal(userID, transaction.UserID)
 	assert.Equal(accountID, transaction.AccountID)
