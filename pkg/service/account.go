@@ -306,7 +306,6 @@ func (s *AccountService) DepositWithCurrency(userID, accountID uuid.UUID, amount
 		return nil, err
 	}
 
-	tx.Currency = currency // Ensure transaction currency is set
 	return tx, nil
 }
 

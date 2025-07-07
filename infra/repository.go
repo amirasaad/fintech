@@ -42,9 +42,10 @@ func (r *accountRepository) Update(a *domain.Account) error {
 			DeletedAt: gorm.DeletedAt{},
 			UpdatedAt: time.Now().UTC(),
 		},
-		ID:      a.ID,
-		UserID:  a.UserID,
-		Balance: a.Balance,
+		ID:       a.ID,
+		UserID:   a.UserID,
+		Balance:  a.Balance,
+		Currency: a.Currency,
 	}
 	result := r.db.Save(&dbModel)
 	if result.Error != nil {

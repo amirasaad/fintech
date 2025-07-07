@@ -188,6 +188,7 @@ func (a *Account) Deposit(
 		AccountID: a.ID,
 		Amount:    parsedAmount,
 		Balance:   a.Balance,
+		Currency:  a.Currency,
 		CreatedAt: time.Now().UTC(),
 	}
 	slog.Info("Transaction created", slog.Any("transaction", transaction))
@@ -224,6 +225,8 @@ func (a *Account) Withdraw(
 		UserID:    userID,
 		AccountID: a.ID,
 		Amount:    -cents,
+		Balance:   a.Balance,
+		Currency:  a.Currency,
 		Balance:   a.Balance,
 		CreatedAt: time.Now().UTC(),
 	}
