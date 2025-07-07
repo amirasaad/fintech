@@ -84,12 +84,14 @@ func NewAccountWithCurrency(userID uuid.UUID, currency string) *Account {
 func NewAccountFromData(
 	id, userID uuid.UUID,
 	balance int64,
+	currency string,
 	created, updated time.Time,
 ) *Account {
 	return &Account{
 		ID:        id,
 		UserID:    userID,
 		Balance:   balance,
+		Currency:  currency,
 		CreatedAt: created,
 		UpdatedAt: updated,
 		mu:        sync.Mutex{},
@@ -99,6 +101,7 @@ func NewAccountFromData(
 func NewTransactionFromData(
 	id, userID, accountID uuid.UUID,
 	amount, balance int64,
+	currency string,
 	created time.Time,
 ) *Transaction {
 	return &Transaction{
@@ -107,6 +110,7 @@ func NewTransactionFromData(
 		AccountID: accountID,
 		Amount:    amount,
 		Balance:   balance,
+		Currency:  currency,
 		CreatedAt: created,
 	}
 }

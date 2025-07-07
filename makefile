@@ -10,14 +10,14 @@ run:
 
 migrate-up:
 	@echo "Applying migrations..."
-	@migrate -database "postgres://postgres:password@localhost:5432/fintech?sslmode=disable" -path migrations up
+	@migrate -database "postgres://postgres:password@localhost:5432/fintech?sslmode=disable" -path internal/migrations up
 
 migrate-down:
 	@echo "Reverting migrations..."
-	@migrate -database "postgres://postgres:password@localhost:5432/fintech?sslmode=disable" -path migrations down
+	@migrate -database "postgres://postgres:password@localhost:5432/fintech?sslmode=disable" -path internal/migrations down
 
 migrate-create:
 	@read -p "Enter migration name: " name; \
-	@migrate create -ext sql -dir migrations -seq $name
+	@migrate create -ext sql -dir internal/migrations -seq $name
 
 .PHONY: test cov cov_report run migrate-up migrate-down migrate-create
