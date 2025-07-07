@@ -141,6 +141,13 @@ func (s *AccountService) Deposit(
 		return
 	}
 
+	// Store conversion info in transaction if conversion occurred
+	if convInfo != nil {
+		tx.OriginalAmount = &convInfo.OriginalAmount
+		tx.OriginalCurrency = &convInfo.OriginalCurrency
+		tx.ConversionRate = &convInfo.ConversionRate
+	}
+
 	err = uow.AccountRepository().Update(a)
 	if err != nil {
 		_ = uow.Rollback()
@@ -213,6 +220,13 @@ func (s *AccountService) Withdraw(
 	if err != nil {
 		_ = uow.Rollback()
 		return nil, nil, err
+	}
+
+	// Store conversion info in transaction if conversion occurred
+	if convInfo != nil {
+		tx.OriginalAmount = &convInfo.OriginalAmount
+		tx.OriginalCurrency = &convInfo.OriginalCurrency
+		tx.ConversionRate = &convInfo.ConversionRate
 	}
 
 	err = uow.AccountRepository().Update(a)

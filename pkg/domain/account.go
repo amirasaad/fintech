@@ -71,6 +71,11 @@ type Transaction struct {
 	Balance   int64 // Account balance snapshot
 	CreatedAt time.Time
 	Currency  string // ISO 4217 currency code
+
+	// Conversion fields (nullable when no conversion occurs)
+	OriginalAmount   *float64 // Amount in original currency
+	OriginalCurrency *string  // Original currency code
+	ConversionRate   *float64 // Rate used for conversion
 }
 
 // iso4217 is a minimal set of supported ISO 4217 currency codes.
@@ -130,15 +135,21 @@ func NewTransactionFromData(
 	amount, balance int64,
 	currency string,
 	created time.Time,
+	originalAmount *float64,
+	originalCurrency *string,
+	conversionRate *float64,
 ) *Transaction {
 	return &Transaction{
-		ID:        id,
-		UserID:    userID,
-		AccountID: accountID,
-		Amount:    amount,
-		Balance:   balance,
-		Currency:  currency,
-		CreatedAt: created,
+		ID:               id,
+		UserID:           userID,
+		AccountID:        accountID,
+		Amount:           amount,
+		Balance:          balance,
+		Currency:         currency,
+		CreatedAt:        created,
+		OriginalAmount:   originalAmount,
+		OriginalCurrency: originalCurrency,
+		ConversionRate:   conversionRate,
 	}
 }
 
@@ -149,13 +160,16 @@ func NewTransactionWithCurrency(id, userID, accountID uuid.UUID, amount, balance
 		currency = DefaultCurrency
 	}
 	return &Transaction{
-		ID:        id,
-		UserID:    userID,
-		AccountID: accountID,
-		Amount:    amount,
-		Balance:   balance,
-		CreatedAt: time.Now(),
-		Currency:  currency,
+		ID:               id,
+		UserID:           userID,
+		AccountID:        accountID,
+		Amount:           amount,
+		Balance:          balance,
+		CreatedAt:        time.Now(),
+		Currency:         currency,
+		OriginalAmount:   nil,
+		OriginalCurrency: nil,
+		ConversionRate:   nil,
 	}
 }
 

@@ -71,8 +71,24 @@ func NewTransactionRepository(db *gorm.DB) repository.TransactionRepository {
 }
 
 func (r *transactionRepository) Create(transaction *domain.Transaction) error {
+	// Convert domain transaction to GORM model
+	dbTransaction := Transaction{
+		Model: gorm.Model{
+			CreatedAt: transaction.CreatedAt,
+			UpdatedAt: transaction.CreatedAt,
+		},
+		ID:               transaction.ID,
+		AccountID:        transaction.AccountID,
+		UserID:           transaction.UserID,
+		Amount:           transaction.Amount,
+		Currency:         transaction.Currency,
+		Balance:          transaction.Balance,
+		OriginalAmount:   transaction.OriginalAmount,
+		OriginalCurrency: transaction.OriginalCurrency,
+		ConversionRate:   transaction.ConversionRate,
+	}
 
-	result := r.db.Create(transaction)
+	result := r.db.Create(&dbTransaction)
 	if result.Error != nil {
 		return result.Error
 	}
@@ -85,7 +101,7 @@ func (r *transactionRepository) Get(id uuid.UUID) (*domain.Transaction, error) {
 	if result.Error != nil {
 		return nil, result.Error
 	}
-	return domain.NewTransactionFromData(t.ID, t.UserID, t.AccountID, t.Amount, t.Balance, t.Currency, t.CreatedAt), nil
+	return domain.NewTransactionFromData(t.ID, t.UserID, t.AccountID, t.Amount, t.Balance, t.Currency, t.CreatedAt, t.OriginalAmount, t.OriginalCurrency, t.ConversionRate), nil
 }
 
 func (r *transactionRepository) List(userID, accountID uuid.UUID) ([]*domain.Transaction, error) {
@@ -96,7 +112,7 @@ func (r *transactionRepository) List(userID, accountID uuid.UUID) ([]*domain.Tra
 	}
 	tx := make([]*domain.Transaction, 0, len(dbTransactions))
 	for _, t := range dbTransactions {
-		tx = append(tx, domain.NewTransactionFromData(t.ID, t.UserID, t.AccountID, t.Amount, t.Balance, t.Currency, t.CreatedAt))
+		tx = append(tx, domain.NewTransactionFromData(t.ID, t.UserID, t.AccountID, t.Amount, t.Balance, t.Currency, t.CreatedAt, t.OriginalAmount, t.OriginalCurrency, t.ConversionRate))
 	}
 	return tx, nil
 }

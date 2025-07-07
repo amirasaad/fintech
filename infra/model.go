@@ -31,4 +31,9 @@ type Transaction struct {
 	Amount    int64
 	Currency  string `gorm:"type:varchar(3);not null;default:'USD'"`
 	Balance   int64
+
+	// Conversion fields (nullable when no conversion occurs)
+	OriginalAmount   *float64 `gorm:"type:decimal(20,8)"`
+	OriginalCurrency *string  `gorm:"type:varchar(3)"`
+	ConversionRate   *float64 `gorm:"type:decimal(20,8)"`
 }
