@@ -1,6 +1,8 @@
 package webapi
 
 import (
+	"errors"
+
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/gofiber/fiber/v2"
 )
@@ -49,18 +51,22 @@ func ErrorResponseJSON(
 
 // ErrorToStatusCode maps domain errors to appropriate HTTP status codes.
 func ErrorToStatusCode(err error) int {
-	switch err {
-	case domain.ErrAccountNotFound:
+	switch {
+	case errors.Is(err, domain.ErrAccountNotFound):
 		return fiber.StatusNotFound
-	case domain.ErrDepositAmountExceedsMaxSafeInt:
-		return fiber.StatusBadRequest
-	case domain.ErrTransactionAmountMustBePositive:
-		return fiber.StatusBadRequest
-	case domain.ErrWithdrawalAmountMustBePositive:
-		return fiber.StatusBadRequest
-	case domain.ErrInsufficientFunds:
+	case errors.Is(err, domain.ErrInvalidCurrencyCode):
 		return fiber.StatusUnprocessableEntity
-	case domain.ErrUserUnauthorized:
+	case errors.Is(err, domain.ErrCurrencyMismatch):
+		return fiber.StatusBadRequest
+	case errors.Is(err, domain.ErrDepositAmountExceedsMaxSafeInt):
+		return fiber.StatusBadRequest
+	case errors.Is(err, domain.ErrTransactionAmountMustBePositive):
+		return fiber.StatusBadRequest
+	case errors.Is(err, domain.ErrWithdrawalAmountMustBePositive):
+		return fiber.StatusBadRequest
+	case errors.Is(err, domain.ErrInsufficientFunds):
+		return fiber.StatusUnprocessableEntity
+	case errors.Is(err, domain.ErrUserUnauthorized):
 		return fiber.StatusUnauthorized
 	default:
 		return fiber.StatusInternalServerError

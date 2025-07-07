@@ -29,7 +29,6 @@ func NewDBConnection() (*gorm.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	
 
 	sqlDB, err := connection.DB()
 	if err != nil {

@@ -5,10 +5,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/amirasaad/fintech/pkg/repository"
+	"github.com/amirasaad/fintech/pkg/service"
 	"github.com/gofiber/fiber/v2"
 	"github.com/stretchr/testify/suite"
-	"github.com/amirasaad/fintech/pkg/service"
-	"github.com/amirasaad/fintech/pkg/repository"
 )
 
 type RateLimitTestSuite struct {

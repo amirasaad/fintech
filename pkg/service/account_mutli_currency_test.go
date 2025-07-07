@@ -57,7 +57,6 @@ func TestWithdraw_RejectsMismatchedCurrency(t *testing.T) {
 	accountRepo := fixtures.NewMockAccountRepository(t)
 	accountSvc := service.NewAccountService(func() (repository.UnitOfWork, error) { return uow, nil })
 
-	
 	// Create an account in USD
 	account := domain.NewAccountWithCurrency(uuid.New(), "USD")
 	_, _ = account.DepositWithCurrency(account.UserID, 100.0, "USD")

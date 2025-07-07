@@ -60,7 +60,7 @@ func (s *AccountService) CreateAccount(
 }
 
 func (s *AccountService) CreateAccountWithCurrency(
-	userID uuid.UUID, 
+	userID uuid.UUID,
 	currency string) (account *domain.Account, err error) {
 	uow, err := s.uowFactory()
 	if err != nil {
@@ -288,6 +288,12 @@ func (s *AccountService) DepositWithCurrency(userID, accountID uuid.UUID, amount
 		return nil, err
 	}
 
+	err = uow.TransactionRepository().Create(tx)
+	if err != nil {
+		_ = uow.Rollback()
+		return nil, err
+	}
+
 	err = uow.AccountRepository().Update(account)
 	if err != nil {
 		_ = uow.Rollback()
@@ -338,13 +344,10 @@ func (s *AccountService) WithdrawWithCurrency(
 		return nil, err
 	}
 
-	// Persist transaction if needed
-	if uow.TransactionRepository() != nil {
-		err = uow.TransactionRepository().Create(tx)
-		if err != nil {
-			_ = uow.Rollback()
-			return nil, err
-		}
+	err = uow.TransactionRepository().Create(tx)
+	if err != nil {
+		_ = uow.Rollback()
+		return nil, err
 	}
 
 	err = uow.Commit()

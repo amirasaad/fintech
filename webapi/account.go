@@ -136,10 +136,14 @@ func Deposit(
 			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid account ID", err.Error())
 		}
 		var request DepositRequest
+
 		err = c.BodyParser(&request)
 		if err != nil {
 			log.Errorf("Failed to parse deposit request: %v", err)
 			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Failed to parse deposit request", err.Error())
+		}
+		if request.Currency == "" {
+			request.Currency = "USD"
 		}
 		tx, err := accountSvc.DepositWithCurrency(userID, id, request.Amount, request.Currency)
 		if err != nil {
@@ -202,6 +206,9 @@ func Withdraw(
 		if err != nil {
 			log.Errorf("Failed to parse withdrawal request: %v", err)
 			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Failed to parse withdrawal request", err.Error())
+		}
+		if request.Currency == "" {
+			request.Currency = "USD"
 		}
 		tx, err := accountSvc.WithdrawWithCurrency(userID, id, request.Amount, request.Currency)
 		if err != nil {

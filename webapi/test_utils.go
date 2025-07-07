@@ -117,7 +117,7 @@ func SetupTestApp(
 	t.Helper()
 	// Set JWT secret key before creating the app
 	t.Setenv("JWT_SECRET_KEY", "secret")
-	
+
 	userRepo = fixtures.NewMockUserRepository(t)
 	accountRepo = fixtures.NewMockAccountRepository(t)
 	transactionRepo = fixtures.NewMockTransactionRepository(t)

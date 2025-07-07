@@ -491,8 +491,8 @@ func (s *AccountTestSuite) TestAccountCreateWithCurrency() {
 	s.Assert().Equal(fiber.StatusCreated, resp.StatusCode)
 	var response Response
 	_ = json.NewDecoder(resp.Body).Decode(&response)
-	accountData, _ := response.Data.(map[string]interface{})
-	s.Assert().Equal("EUR", accountData["currency"])
+	accountData, _ := response.Data.(map[string]any)
+	s.Assert().Equal("EUR", accountData["Currency"])
 }
 
 func (s *AccountTestSuite) TestAccountDepositWithCurrency() {
@@ -517,8 +517,8 @@ func (s *AccountTestSuite) TestAccountDepositWithCurrency() {
 	s.Assert().Equal(fiber.StatusOK, resp.StatusCode)
 	var response Response
 	_ = json.NewDecoder(resp.Body).Decode(&response)
-	txData, _ := response.Data.(map[string]interface{})
-	s.Assert().Equal("EUR", txData["currency"])
+	txData, _ := response.Data.(map[string]any)
+	s.Assert().Equal("EUR", txData["Currency"])
 }
 
 func (s *AccountTestSuite) TestAccountDepositCurrencyMismatch() {
