@@ -284,5 +284,6 @@ func (a *Account) WithdrawWithCurrency(
 		return
 	}
 	tx, err = a.Withdraw(userID, amount)
+
 	return
 }

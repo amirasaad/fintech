@@ -36,6 +36,9 @@ func TestDeposit_AcceptsMatchingCurrency(t *testing.T) {
 	uow.EXPECT().Commit().Return(nil)
 	repo := fixtures.NewMockAccountRepository(t)
 	accountSvc := service.NewAccountService(func() (repository.UnitOfWork, error) { return uow, nil })
+	transactionRepo := fixtures.NewMockTransactionRepository(t)
+	uow.EXPECT().TransactionRepository().Return(transactionRepo)
+	transactionRepo.EXPECT().Create(mock.Anything).Return(nil)
 
 	// Create an account in EUR
 	account := domain.NewAccountWithCurrency(uuid.New(), "EUR")
@@ -81,7 +84,7 @@ func TestWithdraw_AcceptsMatchingCurrency(t *testing.T) {
 
 	// Create an account in EUR and deposit some funds
 	account := domain.NewAccountWithCurrency(uuid.New(), "EUR")
-	account.DepositWithCurrency(account.UserID, 100.0, "EUR")
+	_, _ = account.DepositWithCurrency(account.UserID, 100.0, "EUR")
 	uow.EXPECT().AccountRepository().Return(repo)
 	repo.EXPECT().Get(account.ID).Return(account, nil)
 	repo.EXPECT().Update(account).Return(nil)
