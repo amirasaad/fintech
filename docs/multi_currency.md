@@ -2,7 +2,59 @@
 
 ## Overview
 
-This feature adds support for multiple currencies in accounts and transactions.
+- Each account and transaction has a `currency` field (ISO 4217 code, e.g., "USD", "EUR").
+- All operations (create, deposit, withdraw) must use the account's currency.
+- Currency is validated against a supported list; defaults to "USD" if not specified.
+
+## API Changes
+
+### Account Creation
+
+- **Request:**  
+
+  ```json
+  { "currency": "EUR" }
+  ```
+
+- **Response:**  
+
+  ```json
+  { "id": "...", "currency": "EUR", ... }
+  ```
+
+### Deposit/Withdraw
+
+- **Request:**  
+
+  ```json
+  { "amount": 100.0, "currency": "EUR" }
+  ```
+
+- **Validation:**  
+  - If `currency` does not match the account, return `400 Bad Request` with error:  
+    `"currency mismatch: account has EUR, operation is USD"`
+
+### Supported Currencies
+
+- "USD", "EUR", "GBP", ...
+
+### Error Handling
+
+- `400 Bad Request` for invalid or unsupported currency codes.
+- `400 Bad Request` for currency mismatches.
+
+## Extending Support
+
+- To add a new currency, update the `iso4217` map in the domain layer.
+
+## Security Considerations
+
+- All currency values are validated and sanitized.
+- No currency conversion is performed unless explicitly implemented.
+
+## Examples
+
+...
 
 ## Design
 
