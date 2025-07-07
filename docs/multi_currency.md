@@ -2,10 +2,11 @@
 
 ## Overview
 
-This document outlines the multi-currency support feature in the Fintech application. Currently, multi-currency is implemented at the **account level**.
+This document outlines the multi-currency support feature in the Fintech application. Multi-currency is implemented at both the **account and transaction levels**.
 
 - Each account is assigned a specific currency (e.g., "USD", "EUR") upon creation.
 - All financial operations (deposits, withdrawals) for an account **must** be performed in that account's designated currency.
+- Each transaction records the currency in which it was performed.
 - The currency is specified using the ISO 4217 code. If not provided during account creation, it defaults to "USD".
 
 ## API Changes
@@ -42,14 +43,15 @@ When depositing or withdrawing funds, the request body **must** include the `cur
 
 ## Implementation Summary
 
-- **Account-Level Currency:** The `Account` domain model, database schema, and repositories have been updated to include a `currency` field.
+- **Account and Transaction-Level Currency:** The `Account` and `Transaction` domain models, database schema, and repositories have been updated to include a `currency` field.
 - **Service-Layer Validation:** Application services now enforce currency consistency for all transactions.
 - **API Enforcement:** The web API validates currency codes in requests and ensures they match the account's currency for all operations.
 - **Testing:** Unit and integration tests have been added to cover multi-currency scenarios, including validation and error handling.
 
 ## Future Work
 
-- **Transaction-Level Currency:** The current implementation does not store the currency for each individual transaction. This may be added in the future if requirements for currency conversion or detailed multi-currency financial reporting arise.
+- **Currency Conversion:** The system does not currently support currency conversion. Future work could include integrating with an exchange rate API to allow for cross-currency transactions.
+- **Reporting:** Enhanced financial reporting that leverages the multi-currency data could be developed.
 
 ## Error Handling
 
