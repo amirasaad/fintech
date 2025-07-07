@@ -289,7 +289,6 @@ func (s *AccountTestSuite) TestAccountRoutesRollbackWhenDepositFails() {
 	account := domain.NewAccount(s.testUser.ID)
 	s.accountRepo.EXPECT().Get(account.ID).Return(account, nil)
 	s.transRepo.EXPECT().Create(mock.Anything).Return(errors.New("failed to create transaction"))
-	s.accountRepo.EXPECT().Update(mock.Anything).Return(nil)
 
 	depositBody := bytes.NewBuffer([]byte(`{"amount": 100.0}`))
 	req := httptest.NewRequest("POST", fmt.Sprintf("/account/%s/deposit", account.ID), depositBody)
