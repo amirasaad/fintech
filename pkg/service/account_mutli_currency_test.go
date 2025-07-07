@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/amirasaad/fintech/internal/fixtures"
+	"github.com/amirasaad/fintech/pkg/contracts"
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/amirasaad/fintech/pkg/service"
@@ -69,8 +70,14 @@ func TestDeposit_ConvertsCurrency(t *testing.T) {
 	transactionRepo.EXPECT().Create(mock.Anything).Return(nil)
 
 	// Mock converter: 100 EUR -> 120 USD
-	mockConverter := &fixtures.MockCurrencyConverter{}
-	mockConverter.On("Convert", 100.0, "EUR", "USD").Return(120.0, nil)
+	mockConverter := fixtures.NewMockCurrencyConverter(t)
+	mockConverter.On("Convert", 100.0, "EUR", "USD").Return(&contracts.ConversionInfo{
+		OriginalAmount:    100,
+		OriginalCurrency:  "EUR",
+		ConvertedAmount:   120,
+		ConvertedCurrency: "USD",
+		ConversionRate:    1.2,
+	}, nil)
 
 	accountSvc := service.NewAccountService(func() (repository.UnitOfWork, error) { return uow, nil }, mockConverter)
 
@@ -97,8 +104,14 @@ func TestWithdraw_ConvertsCurrency(t *testing.T) {
 	transactionRepo.EXPECT().Create(mock.Anything).Return(nil)
 
 	// Mock converter: 50 EUR -> 60 USD
-	mockConverter := &fixtures.MockCurrencyConverter{}
-	mockConverter.On("Convert", 50.0, "EUR", "USD").Return(60.0, nil)
+	mockConverter := fixtures.NewMockCurrencyConverter(t)
+	mockConverter.On("Convert", 50.0, "EUR", "USD").Return(&contracts.ConversionInfo{
+		OriginalAmount:    50,
+		OriginalCurrency:  "EUR",
+		ConvertedAmount:   60,
+		ConvertedCurrency: "USD",
+		ConversionRate:    1.2,
+	}, nil)
 
 	accountSvc := service.NewAccountService(func() (repository.UnitOfWork, error) { return uow, nil }, mockConverter)
 

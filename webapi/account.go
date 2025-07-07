@@ -16,6 +16,7 @@
 package webapi
 
 import (
+	"github.com/amirasaad/fintech/pkg/contracts"
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/middleware"
 	"github.com/amirasaad/fintech/pkg/service"
@@ -87,7 +88,7 @@ func ToTransactionDTO(tx *domain.Transaction) *TransactionDTO {
 }
 
 // ToConversionResponseDTO maps a transaction and conversion info to a ConversionResponseDTO.
-func ToConversionResponseDTO(tx *domain.Transaction, convInfo *service.ConversionInfo) *ConversionResponseDTO {
+func ToConversionResponseDTO(tx *domain.Transaction, convInfo *contracts.ConversionInfo) *ConversionResponseDTO {
 	if convInfo == nil {
 		return nil
 	}

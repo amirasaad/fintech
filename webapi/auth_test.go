@@ -16,14 +16,15 @@ import (
 
 type AuthTestSuite struct {
 	E2ETestSuite
-	app      *fiber.App
-	userRepo *fixtures.MockUserRepository
-	mockUow  *fixtures.MockUnitOfWork
-	testUser *domain.User
+	app           *fiber.App
+	userRepo      *fixtures.MockUserRepository
+	mockUow       *fixtures.MockUnitOfWork
+	mockConverter *fixtures.MockCurrencyConverter
+	testUser      *domain.User
 }
 
 func (s *AuthTestSuite) SetupTest() {
-	s.app, s.userRepo, _, _, s.mockUow, s.testUser, _ = SetupTestApp(s.T())
+	s.app, s.userRepo, _, _, s.mockUow, s.testUser, _, s.mockConverter = SetupTestApp(s.T())
 }
 
 func (s *AuthTestSuite) TestLoginRoute_BadRequest() {

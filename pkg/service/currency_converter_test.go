@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/amirasaad/fintech/internal/fixtures"
+	"github.com/amirasaad/fintech/pkg/contracts"
 )
 
 func TestCurrencyConversion(t *testing.T) {
@@ -13,13 +14,24 @@ func TestCurrencyConversion(t *testing.T) {
 		amount  float64
 		from    string
 		to      string
-		rate    float64
-		want    float64
+		want    *contracts.ConversionInfo
 		wantErr bool
 	}{
-		{"USD to EUR", 100, "USD", "EUR", 0.9, 90, false},
-		{"EUR to GBP", 100, "EUR", "GBP", 0.8, 80, false},
-		{"Unsupported currency", 100, "USD", "XXX", 0, 0, true},
+		{"USD to EUR", 100, "USD", "EUR", &contracts.ConversionInfo{
+			OriginalAmount:    100,
+			OriginalCurrency:  "USD",
+			ConvertedAmount:   90,
+			ConvertedCurrency: "EUR",
+			ConversionRate:    0.9,
+		}, false},
+		{"EUR to GBP", 100, "EUR", "GBP", &contracts.ConversionInfo{
+			OriginalAmount:    100,
+			OriginalCurrency:  "EUR",
+			ConvertedAmount:   80,
+			ConvertedCurrency: "GBP",
+			ConversionRate:    0.8,
+		}, false},
+		{"Unsupported currency", 100, "USD", "XXX", nil, true},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -34,8 +46,10 @@ func TestCurrencyConversion(t *testing.T) {
 			if (err != nil) != test.wantErr {
 				t.Errorf("Convert() error = %v, wantErr %v", err, test.wantErr)
 			}
-			if converted != test.want {
-				t.Errorf("Convert() = %v, want %v", converted, test.want)
+			if converted != nil {
+				if converted.ConvertedAmount != test.want.ConvertedAmount {
+					t.Errorf("Convert() = %v, want %v", converted, test.want)
+				}
 			}
 		})
 	}

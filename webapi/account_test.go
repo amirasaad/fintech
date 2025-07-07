@@ -25,19 +25,20 @@ import (
 
 type AccountTestSuite struct {
 	E2ETestSuite
-	app         *fiber.App
-	userRepo    *fixtures.MockUserRepository
-	accountRepo *fixtures.MockAccountRepository
-	transRepo   *fixtures.MockTransactionRepository
-	mockUow     *fixtures.MockUnitOfWork
-	testUser    *domain.User
-	testToken   string
-	authService *service.AuthService
+	app           *fiber.App
+	userRepo      *fixtures.MockUserRepository
+	accountRepo   *fixtures.MockAccountRepository
+	transRepo     *fixtures.MockTransactionRepository
+	mockUow       *fixtures.MockUnitOfWork
+	testUser      *domain.User
+	testToken     string
+	authService   *service.AuthService
+	mockConverter *fixtures.MockCurrencyConverter
 }
 
 func (s *AccountTestSuite) BeforeTest(_, _s string) {
 	s.E2ETestSuite.BeforeTest("", _s)
-	s.app, s.userRepo, s.accountRepo, s.transRepo, s.mockUow, s.testUser, s.authService = SetupTestApp(s.T())
+	s.app, s.userRepo, s.accountRepo, s.transRepo, s.mockUow, s.testUser, s.authService, s.mockConverter = SetupTestApp(s.T())
 	// Setup mock for login request
 	s.mockUow.EXPECT().UserRepository().Return(s.userRepo).Maybe()
 	s.userRepo.EXPECT().GetByUsername("testuser").Return(s.testUser, nil).Maybe()
@@ -521,6 +522,40 @@ func (s *AccountTestSuite) TestAccountDepositWithCurrency() {
 	_ = json.NewDecoder(resp.Body).Decode(&response)
 	txData, _ := response.Data.(map[string]any)
 	s.Assert().Equal("EUR", txData["Currency"])
+}
+
+func (s *AccountTestSuite) TestDepositWithConversion_Integration() {
+	// Setup: create account in USD
+	account := domain.NewAccountWithCurrency(s.testUser.ID, "USD")
+	s.accountRepo.EXPECT().Get(account.ID).Return(account, nil)
+	s.accountRepo.EXPECT().Update(account).Return(nil)
+	s.transRepo.EXPECT().Create(mock.Anything).Return(nil)
+	s.mockUow.EXPECT().AccountRepository().Return(s.accountRepo)
+	s.mockUow.EXPECT().TransactionRepository().Return(s.transRepo)
+	s.mockUow.EXPECT().Begin().Return(nil)
+	s.mockUow.EXPECT().Commit().Return(nil)
+
+	// Use a mock converter that returns a known conversion
+	s.mockConverter.On("Convert", 100.0, "EUR", "USD").Return(120.0, nil)
+
+	depositBody := bytes.NewBuffer([]byte(`{"amount": 100.0, "currency": "EUR"}`))
+	req := httptest.NewRequest("POST", fmt.Sprintf("/account/%s/deposit", account.ID), depositBody)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+s.testToken)
+
+	resp, err := s.app.Test(req, 10000)
+	s.Require().NoError(err)
+	defer resp.Body.Close()
+
+	s.Assert().Equal(fiber.StatusOK, resp.StatusCode)
+	var response Response
+	_ = json.NewDecoder(resp.Body).Decode(&response)
+	data := response.Data.(map[string]interface{})
+	s.Assert().Equal(100.0, data["original_amount"])
+	s.Assert().Equal("EUR", data["original_currency"])
+	s.Assert().Equal(120.0, data["converted_amount"])
+	s.Assert().Equal("USD", data["converted_currency"])
+	s.Assert().Equal(1.2, data["conversion_rate"])
 }
 
 func TestAccountTestSuite(t *testing.T) {

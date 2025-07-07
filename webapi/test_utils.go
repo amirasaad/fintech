@@ -113,6 +113,7 @@ func SetupTestApp(
 	mockUow *fixtures.MockUnitOfWork,
 	testUser *domain.User,
 	authService *service.AuthService,
+	mockConverter *fixtures.MockCurrencyConverter,
 ) {
 	t.Helper()
 	// Set JWT secret key before creating the app
@@ -126,9 +127,9 @@ func SetupTestApp(
 
 	authStrategy := service.NewJWTAuthStrategy(func() (repository.UnitOfWork, error) { return mockUow, nil })
 	authService = service.NewAuthService(func() (repository.UnitOfWork, error) { return mockUow, nil }, authStrategy)
-
+	mockConverter = fixtures.NewMockCurrencyConverter(t)
 	// Create services with the mock UOW factory
-	accountSvc := service.NewAccountService(func() (repository.UnitOfWork, error) { return mockUow, nil }, service.NewStubCurrencyConverter())
+	accountSvc := service.NewAccountService(func() (repository.UnitOfWork, error) { return mockUow, nil }, mockConverter)
 	userSvc := service.NewUserService(func() (repository.UnitOfWork, error) { return mockUow, nil })
 
 	app = NewTestApp(accountSvc, userSvc, authService)

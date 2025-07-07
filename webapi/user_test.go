@@ -29,7 +29,7 @@ type UserTestSuite struct {
 }
 
 func (s *UserTestSuite) SetupTest() {
-	s.app, s.userRepo, _, _, s.mockUow, s.testUser, s.authService = SetupTestApp(s.T())
+	s.app, s.userRepo, _, _, s.mockUow, s.testUser, s.authService, _ = SetupTestApp(s.T())
 	// Setup mock for login request
 	s.mockUow.EXPECT().UserRepository().Return(s.userRepo).Maybe()
 	s.userRepo.EXPECT().GetByUsername("testuser").Return(s.testUser, nil).Maybe()

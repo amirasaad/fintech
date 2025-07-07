@@ -4,20 +4,12 @@
 package service
 
 import (
+	"github.com/amirasaad/fintech/pkg/contracts"
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/repository"
 
 	"github.com/google/uuid"
 )
-
-// ConversionInfo holds details about a currency conversion performed during a transaction.
-type ConversionInfo struct {
-	OriginalAmount    float64
-	OriginalCurrency  string
-	ConvertedAmount   float64
-	ConvertedCurrency string
-	ConversionRate    float64 // For now, always 1.0 with the stub
-}
 
 // AccountService provides methods to interact with accounts and transactions using a unit of work pattern.
 type AccountService struct {
@@ -98,12 +90,12 @@ func (s *AccountService) CreateAccountWithCurrency(
 }
 
 // Deposit adds funds to the specified account and creates a transaction record.
-// Returns the transaction, conversion info (if any), and error if the operation fails.
+// Returns the transaction or an error if the operation fails.
 func (s *AccountService) Deposit(
 	userID, accountID uuid.UUID,
 	amount float64,
 	currency string,
-) (tx *domain.Transaction, convInfo *ConversionInfo, err error) {
+) (tx *domain.Transaction, convInfo *contracts.ConversionInfo, err error) {
 	money, err := domain.NewMoney(amount, currency)
 	if err != nil {
 		tx = nil
@@ -129,21 +121,13 @@ func (s *AccountService) Deposit(
 	}
 
 	if money.Currency != a.Currency {
-		convertedAmount, convErr := s.converter.Convert(money.Amount, money.Currency, a.Currency)
-		if convErr != nil {
+		convInfo, err = s.converter.Convert(money.Amount, money.Currency, a.Currency)
+		if err != nil {
 			_ = uow.Rollback()
 			tx = nil
-			err = convErr
 			return
 		}
-		convInfo = &ConversionInfo{
-			OriginalAmount:    money.Amount,
-			OriginalCurrency:  money.Currency,
-			ConvertedAmount:   convertedAmount,
-			ConvertedCurrency: a.Currency,
-			ConversionRate:    1.0, // Stub
-		}
-		money, err = domain.NewMoney(convertedAmount, a.Currency)
+		money, err = domain.NewMoney(convInfo.ConvertedAmount, a.Currency)
 		if err != nil {
 			_ = uow.Rollback()
 			tx = nil
@@ -188,7 +172,11 @@ func (s *AccountService) Withdraw(
 	userID, accountID uuid.UUID,
 	amount float64,
 	currency string,
-) (tx *domain.Transaction, convInfo *ConversionInfo, err error) {
+) (
+	tx *domain.Transaction,
+	convInfo *contracts.ConversionInfo,
+	err error,
+) {
 	money, err := domain.NewMoney(amount, currency)
 	if err != nil {
 		return nil, nil, err
@@ -209,19 +197,13 @@ func (s *AccountService) Withdraw(
 	}
 
 	if money.Currency != a.Currency {
-		convertedAmount, convErr := s.converter.Convert(money.Amount, money.Currency, a.Currency)
-		if convErr != nil {
+		convInfo, err = s.converter.Convert(money.Amount, money.Currency, a.Currency)
+		if err != nil {
 			_ = uow.Rollback()
-			return nil, nil, convErr
+			return
 		}
-		convInfo = &ConversionInfo{
-			OriginalAmount:    money.Amount,
-			OriginalCurrency:  money.Currency,
-			ConvertedAmount:   convertedAmount,
-			ConvertedCurrency: a.Currency,
-			ConversionRate:    1.0, // Stub
-		}
-		money, err = domain.NewMoney(convertedAmount, a.Currency)
+
+		money, err = domain.NewMoney(convInfo.ConvertedAmount, a.Currency)
 		if err != nil {
 			_ = uow.Rollback()
 			return nil, nil, err
@@ -253,14 +235,6 @@ func (s *AccountService) Withdraw(
 	}
 
 	return tx, convInfo, nil
-}
-
-// For backward compatibility, alias the WithConversionInfo methods to the new Deposit/Withdraw signatures.
-func (s *AccountService) DepositWithConversionInfo(userID, accountID uuid.UUID, amount float64, currency string) (*domain.Transaction, *ConversionInfo, error) {
-	return s.Deposit(userID, accountID, amount, currency)
-}
-func (s *AccountService) WithdrawWithConversionInfo(userID, accountID uuid.UUID, amount float64, currency string) (*domain.Transaction, *ConversionInfo, error) {
-	return s.Withdraw(userID, accountID, amount, currency)
 }
 
 // GetAccount retrieves an account by its ID.
