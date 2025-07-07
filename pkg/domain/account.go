@@ -20,6 +20,8 @@ var (
 	ErrInsufficientFunds               = errors.New("insufficient funds for withdrawal")
 	ErrAccountNotFound                 = errors.New("account not found")
 	ErrUserUnauthorized                = errors.New("user unauthorized")
+	ErrInvalidCurrencyCode             = errors.New("invalid currency code")
+	ErrCurrencyMismatch                = errors.New("currency mismatch")
 )
 
 // Account represents a user's financial account, supporting multi-currency.
@@ -238,12 +240,38 @@ func (a *Account) GetBalance(userID uuid.UUID) (float64, error) {
 
 // DepositWithCurrency adds funds to the account if the currency matches.
 // Returns an error if the currency does not match.
-func (a *Account) DepositWithCurrency(userID uuid.UUID, amount float64, currency string) (*Transaction, error) {
+func (a *Account) DepositWithCurrency(
+	userID uuid.UUID,
+	amount float64,
+	currency string,
+) (*Transaction, error) {
 	if !IsValidCurrencyCode(currency) {
-		return nil, fmt.Errorf("invalid currency code: %s", currency)
+		return nil, ErrInvalidCurrencyCode
 	}
 	if a.Currency != currency {
-		return nil, fmt.Errorf("currency mismatch: account has %s, deposit is %s", a.Currency, currency)
+		return nil, fmt.Errorf("%w: account has %s, operation is %s", ErrCurrencyMismatch, a.Currency, currency)
 	}
-	return a.Deposit(userID, amount)
+	tx, err := a.Deposit(userID, amount)
+	if tx != nil {
+		tx.Currency = currency
+	}
+	return tx, err
+}
+
+func (a *Account) WithdrawWithCurrency(
+	userID uuid.UUID,
+	amount float64,
+	currency string,
+) (*Transaction, error) {
+	if !IsValidCurrencyCode(currency) {
+		return nil, ErrInvalidCurrencyCode
+	}
+	if a.Currency != currency {
+		return nil, fmt.Errorf("%w: account has %s, operation is %s", ErrCurrencyMismatch, a.Currency, currency)
+	}
+	tx, err := a.Withdraw(userID, amount)
+	if tx != nil {
+		tx.Currency = currency
+	}
+	return tx, err
 }

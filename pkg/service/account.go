@@ -232,6 +232,8 @@ func (s *AccountService) GetBalance(
 	return
 }
 
+// DepositWithCurrency adds funds to the account if the currency matches.
+// Returns an error if the currency does not match.
 func (s *AccountService) DepositWithCurrency(userID, accountID uuid.UUID, amount float64, currency string) (*domain.Transaction, error) {
 	uow, err := s.uowFactory()
 	if err != nil {
@@ -248,6 +250,7 @@ func (s *AccountService) DepositWithCurrency(userID, accountID uuid.UUID, amount
 		return nil, err
 	}
 
+	// Delegate to Deposit
 	tx, err := account.DepositWithCurrency(userID, amount, currency)
 	if err != nil {
 		_ = uow.Rollback()
@@ -258,6 +261,59 @@ func (s *AccountService) DepositWithCurrency(userID, accountID uuid.UUID, amount
 	if err != nil {
 		_ = uow.Rollback()
 		return nil, err
+	}
+
+	err = uow.Commit()
+	if err != nil {
+		_ = uow.Rollback()
+		return nil, err
+	}
+
+	tx.Currency = currency // Ensure transaction currency is set
+	return tx, nil
+}
+
+// WithdrawWithCurrency withdraws funds from the account if the currency matches.
+// Returns an error if the currency does not match.
+func (s *AccountService) WithdrawWithCurrency(
+	userID, accountID uuid.UUID,
+	amount float64,
+	currency string,
+) (tx *domain.Transaction, err error) {
+	uow, err := s.uowFactory()
+	if err != nil {
+		return nil, err
+	}
+	err = uow.Begin()
+	if err != nil {
+		return nil, err
+	}
+
+	account, err := uow.AccountRepository().Get(accountID)
+	if err != nil {
+		_ = uow.Rollback()
+		return nil, err
+	}
+
+	tx, err = account.WithdrawWithCurrency(userID, amount, currency)
+	if err != nil {
+		_ = uow.Rollback()
+		return nil, err
+	}
+
+	err = uow.AccountRepository().Update(account)
+	if err != nil {
+		_ = uow.Rollback()
+		return nil, err
+	}
+
+	// Persist transaction if needed
+	if uow.TransactionRepository() != nil {
+		err = uow.TransactionRepository().Create(tx)
+		if err != nil {
+			_ = uow.Rollback()
+			return nil, err
+		}
 	}
 
 	err = uow.Commit()
