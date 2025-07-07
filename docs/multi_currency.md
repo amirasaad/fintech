@@ -5,8 +5,7 @@
 This document outlines the multi-currency support feature in the Fintech application. Multi-currency is implemented at both the **account and transaction levels**.
 
 - Each account is assigned a specific currency (e.g., "USD", "EUR") upon creation.
-- All financial operations (deposits, withdrawals) for an account **must** be performed in that account's designated currency.
-- Each transaction records the currency in which it was performed.
+- All financial operations (deposits, withdrawals) for an account can be performed in any supported currency. If the currency does not match the account's currency, conversion will be performed (or is planned for future support).
 - The currency is specified using the ISO 4217 code. If not provided during account creation, it defaults to "USD".
 
 ## API Changes
@@ -44,7 +43,7 @@ if err != nil {
 ```
 
 - All validation (currency code, amount positivity) is performed in the domain layer via `NewMoney`.
-- This approach ensures all operations are currency-aware and future-proofs the system for features like currency conversion.
+- This approach ensures all operations are currency-aware and supports future features like currency conversion. Mismatched currencies are no longer rejected; instead, conversion logic will be applied.
 
 ## Implementation Summary
 

@@ -1,5 +1,5 @@
 .DS_Store
-cover.out
+*.out
 .vercel
 **/__debug_*
 tmp

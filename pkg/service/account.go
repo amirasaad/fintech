@@ -10,17 +10,26 @@ import (
 	"github.com/google/uuid"
 )
 
+// ConversionInfo holds details about a currency conversion performed during a transaction.
+type ConversionInfo struct {
+	OriginalAmount    float64
+	OriginalCurrency  string
+	ConvertedAmount   float64
+	ConvertedCurrency string
+	ConversionRate    float64 // For now, always 1.0 with the stub
+}
+
 // AccountService provides methods to interact with accounts and transactions using a unit of work pattern.
 type AccountService struct {
 	uowFactory func() (repository.UnitOfWork, error)
+	converter  CurrencyConverter
 }
 
-// NewAccountService creates a new instance of AccountService with the provided unit of work factory.
-func NewAccountService(
-	uowFactory func() (repository.UnitOfWork, error),
-) *AccountService {
+// NewAccountService creates a new AccountService with the given UnitOfWork factory and CurrencyConverter.
+func NewAccountService(uowFactory func() (repository.UnitOfWork, error), converter CurrencyConverter) *AccountService {
 	return &AccountService{
 		uowFactory: uowFactory,
+		converter:  converter,
 	}
 }
 
@@ -89,12 +98,12 @@ func (s *AccountService) CreateAccountWithCurrency(
 }
 
 // Deposit adds funds to the specified account and creates a transaction record.
-// Returns the transaction or an error if the operation fails.
+// Returns the transaction, conversion info (if any), and error if the operation fails.
 func (s *AccountService) Deposit(
 	userID, accountID uuid.UUID,
 	amount float64,
 	currency string,
-) (tx *domain.Transaction, err error) {
+) (tx *domain.Transaction, convInfo *ConversionInfo, err error) {
 	money, err := domain.NewMoney(amount, currency)
 	if err != nil {
 		tx = nil
@@ -118,6 +127,30 @@ func (s *AccountService) Deposit(
 		err = domain.ErrAccountNotFound
 		return
 	}
+
+	if money.Currency != a.Currency {
+		convertedAmount, convErr := s.converter.Convert(money.Amount, money.Currency, a.Currency)
+		if convErr != nil {
+			_ = uow.Rollback()
+			tx = nil
+			err = convErr
+			return
+		}
+		convInfo = &ConversionInfo{
+			OriginalAmount:    money.Amount,
+			OriginalCurrency:  money.Currency,
+			ConvertedAmount:   convertedAmount,
+			ConvertedCurrency: a.Currency,
+			ConversionRate:    1.0, // Stub
+		}
+		money, err = domain.NewMoney(convertedAmount, a.Currency)
+		if err != nil {
+			_ = uow.Rollback()
+			tx = nil
+			return
+		}
+	}
+
 	tx, err = a.Deposit(userID, money)
 	if err != nil {
 		_ = uow.Rollback()
@@ -150,55 +183,84 @@ func (s *AccountService) Deposit(
 }
 
 // Withdraw removes funds from the specified account and creates a transaction record.
-// Returns the transaction or an error if the operation fails.
+// Returns the transaction, conversion info (if any), and error if the operation fails.
 func (s *AccountService) Withdraw(
 	userID, accountID uuid.UUID,
 	amount float64,
 	currency string,
-) (tx *domain.Transaction, err error) {
+) (tx *domain.Transaction, convInfo *ConversionInfo, err error) {
 	money, err := domain.NewMoney(amount, currency)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	uow, err := s.uowFactory()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	err = uow.Begin()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	a, err := uow.AccountRepository().Get(accountID)
 	if err != nil {
 		_ = uow.Rollback()
-		return nil, domain.ErrAccountNotFound
+		return nil, nil, domain.ErrAccountNotFound
 	}
+
+	if money.Currency != a.Currency {
+		convertedAmount, convErr := s.converter.Convert(money.Amount, money.Currency, a.Currency)
+		if convErr != nil {
+			_ = uow.Rollback()
+			return nil, nil, convErr
+		}
+		convInfo = &ConversionInfo{
+			OriginalAmount:    money.Amount,
+			OriginalCurrency:  money.Currency,
+			ConvertedAmount:   convertedAmount,
+			ConvertedCurrency: a.Currency,
+			ConversionRate:    1.0, // Stub
+		}
+		money, err = domain.NewMoney(convertedAmount, a.Currency)
+		if err != nil {
+			_ = uow.Rollback()
+			return nil, nil, err
+		}
+	}
+
 	tx, err = a.Withdraw(userID, money)
 	if err != nil {
 		_ = uow.Rollback()
-		return nil, err
+		return nil, nil, err
 	}
 
 	err = uow.AccountRepository().Update(a)
 	if err != nil {
 		_ = uow.Rollback()
-		return nil, err
+		return nil, nil, err
 	}
 
 	err = uow.TransactionRepository().Create(tx)
 	if err != nil {
 		_ = uow.Rollback()
-		return nil, err
+		return nil, nil, err
 	}
 
 	err = uow.Commit()
 	if err != nil {
 		_ = uow.Rollback()
-		return nil, err
+		return nil, nil, err
 	}
 
-	return tx, nil
+	return tx, convInfo, nil
+}
+
+// For backward compatibility, alias the WithConversionInfo methods to the new Deposit/Withdraw signatures.
+func (s *AccountService) DepositWithConversionInfo(userID, accountID uuid.UUID, amount float64, currency string) (*domain.Transaction, *ConversionInfo, error) {
+	return s.Deposit(userID, accountID, amount, currency)
+}
+func (s *AccountService) WithdrawWithConversionInfo(userID, accountID uuid.UUID, amount float64, currency string) (*domain.Transaction, *ConversionInfo, error) {
+	return s.Withdraw(userID, accountID, amount, currency)
 }
 
 // GetAccount retrieves an account by its ID.

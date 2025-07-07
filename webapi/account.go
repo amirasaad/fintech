@@ -16,6 +16,7 @@
 package webapi
 
 import (
+	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/middleware"
 	"github.com/amirasaad/fintech/pkg/service"
 	"github.com/gofiber/fiber/v2"
@@ -36,6 +37,68 @@ type DepositRequest struct {
 type WithdrawRequest struct {
 	Amount   float64 `json:"amount" xml:"amount" form:"amount"`
 	Currency string  `json:"currency"`
+}
+
+// ConversionResponse wraps a transaction and conversion details if a currency conversion occurred.
+type ConversionResponse struct {
+	Transaction       *domain.Transaction `json:"transaction"`
+	OriginalAmount    float64             `json:"original_amount,omitempty"`
+	OriginalCurrency  string              `json:"original_currency,omitempty"`
+	ConvertedAmount   float64             `json:"converted_amount,omitempty"`
+	ConvertedCurrency string              `json:"converted_currency,omitempty"`
+	ConversionRate    float64             `json:"conversion_rate,omitempty"`
+}
+
+// TransactionDTO is the API response representation of a transaction.
+type TransactionDTO struct {
+	ID        string  `json:"id"`
+	UserID    string  `json:"user_id"`
+	AccountID string  `json:"account_id"`
+	Amount    float64 `json:"amount"`
+	Balance   float64 `json:"balance"`
+	CreatedAt string  `json:"created_at"`
+	Currency  string  `json:"currency"`
+}
+
+// ConversionResponseDTO wraps a transaction and conversion details for API responses.
+type ConversionResponseDTO struct {
+	Transaction       *TransactionDTO `json:"transaction"`
+	OriginalAmount    float64         `json:"original_amount,omitempty"`
+	OriginalCurrency  string          `json:"original_currency,omitempty"`
+	ConvertedAmount   float64         `json:"converted_amount,omitempty"`
+	ConvertedCurrency string          `json:"converted_currency,omitempty"`
+	ConversionRate    float64         `json:"conversion_rate,omitempty"`
+}
+
+// ToTransactionDTO maps a domain.Transaction to a TransactionDTO.
+func ToTransactionDTO(tx *domain.Transaction) *TransactionDTO {
+	if tx == nil {
+		return nil
+	}
+	return &TransactionDTO{
+		ID:        tx.ID.String(),
+		UserID:    tx.UserID.String(),
+		AccountID: tx.AccountID.String(),
+		Amount:    float64(tx.Amount) / 100.0, // assuming cents
+		Balance:   float64(tx.Balance) / 100.0,
+		CreatedAt: tx.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		Currency:  tx.Currency,
+	}
+}
+
+// ToConversionResponseDTO maps a transaction and conversion info to a ConversionResponseDTO.
+func ToConversionResponseDTO(tx *domain.Transaction, convInfo *service.ConversionInfo) *ConversionResponseDTO {
+	if convInfo == nil {
+		return nil
+	}
+	return &ConversionResponseDTO{
+		Transaction:       ToTransactionDTO(tx),
+		OriginalAmount:    convInfo.OriginalAmount,
+		OriginalCurrency:  convInfo.OriginalCurrency,
+		ConvertedAmount:   convInfo.ConvertedAmount,
+		ConvertedCurrency: convInfo.ConvertedCurrency,
+		ConversionRate:    convInfo.ConversionRate,
+	}
 }
 
 func AccountRoutes(app *fiber.App, accountSvc *service.AccountService, authSvc *service.AuthService) {
@@ -142,13 +205,20 @@ func Deposit(
 			log.Errorf("Failed to parse deposit request: %v", err)
 			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Failed to parse deposit request", err.Error())
 		}
-		tx, err := accountSvc.Deposit(userID, id, request.Amount, request.Currency)
+
+		// Call service and get conversion info
+		tx, convInfo, err := accountSvc.Deposit(userID, id, request.Amount, request.Currency)
 		if err != nil {
 			log.Errorf("Failed to deposit: %v", err)
 			status := ErrorToStatusCode(err)
 			return ErrorResponseJSON(c, status, "Failed to deposit", err.Error())
 		}
-		return c.JSON(Response{Status: fiber.StatusOK, Message: "Deposit successful", Data: tx})
+
+		if convInfo != nil {
+			resp := ToConversionResponseDTO(tx, convInfo)
+			return c.JSON(Response{Status: fiber.StatusOK, Message: "Deposit successful (converted)", Data: resp})
+		}
+		return c.JSON(Response{Status: fiber.StatusOK, Message: "Deposit successful", Data: ToTransactionDTO(tx)})
 	}
 }
 
@@ -207,13 +277,20 @@ func Withdraw(
 		if request.Currency == "" {
 			request.Currency = "USD"
 		}
-		tx, err := accountSvc.Withdraw(userID, id, request.Amount, request.Currency)
+
+		// Call service and get conversion info
+		tx, convInfo, err := accountSvc.Withdraw(userID, id, request.Amount, request.Currency)
 		if err != nil {
 			log.Errorf("Failed to withdraw: %v", err)
 			status := ErrorToStatusCode(err)
 			return ErrorResponseJSON(c, status, "Failed to withdraw", err.Error())
 		}
-		return c.JSON(Response{Status: fiber.StatusOK, Message: "Withdrawal successful", Data: tx})
+
+		if convInfo != nil {
+			resp := ToConversionResponseDTO(tx, convInfo)
+			return c.JSON(Response{Status: fiber.StatusOK, Message: "Withdrawal successful (converted)", Data: resp})
+		}
+		return c.JSON(Response{Status: fiber.StatusOK, Message: "Withdrawal successful", Data: ToTransactionDTO(tx)})
 	}
 }
 

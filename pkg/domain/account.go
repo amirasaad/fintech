@@ -19,7 +19,6 @@ var (
 	ErrAccountNotFound                 = errors.New("account not found")
 	ErrUserUnauthorized                = errors.New("user unauthorized")
 	ErrInvalidCurrencyCode             = errors.New("invalid currency code")
-	ErrCurrencyMismatch                = errors.New("currency mismatch")
 )
 
 // CurrencyMeta holds metadata for a currency, such as decimals and symbol.
@@ -157,9 +156,6 @@ func (a *Account) Deposit(userID uuid.UUID, money Money) (*Transaction, error) {
 	if a.UserID != userID {
 		return nil, ErrUserUnauthorized
 	}
-	if a.Currency != money.Currency {
-		return nil, fmt.Errorf("%w: account has %s, operation is %s", ErrCurrencyMismatch, a.Currency, money.Currency)
-	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
@@ -219,9 +215,6 @@ func (a *Account) Deposit(userID uuid.UUID, money Money) (*Transaction, error) {
 func (a *Account) Withdraw(userID uuid.UUID, money Money) (*Transaction, error) {
 	if a.UserID != userID {
 		return nil, ErrUserUnauthorized
-	}
-	if a.Currency != money.Currency {
-		return nil, fmt.Errorf("%w: account has %s, operation is %s", ErrCurrencyMismatch, a.Currency, money.Currency)
 	}
 	a.mu.Lock()
 	defer a.mu.Unlock()

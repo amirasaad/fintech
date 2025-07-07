@@ -31,7 +31,7 @@ func main() {
 	}
 
 	// Create services
-	accountSvc := service.NewAccountService(uowFactory)
+	accountSvc := service.NewAccountService(uowFactory, service.NewStubCurrencyConverter())
 	userSvc := service.NewUserService(uowFactory)
 	authSvc := service.NewAuthService(uowFactory, service.NewJWTAuthStrategy(uowFactory))
 

@@ -29,13 +29,6 @@ func TestTransaction_HasCurrencyField(t *testing.T) {
 	assert.Equal(t, "EUR", tx.Currency, "Transaction should have a Currency field")
 }
 
-func TestPreventMixingCurrencies(t *testing.T) {
-	a := domain.NewAccountWithCurrency(uuid.New(), "USD")
-	// Simulate a deposit with mismatched currency
-	_, err := a.Deposit(uuid.New(), domain.Money{Amount: 100, Currency: "EUR"})
-	assert.Error(t, err, "Should not allow deposit with mismatched currency")
-}
-
 func TestValidateISOCurrencyCode(t *testing.T) {
 	valid := domain.IsValidCurrencyCode("USD")
 	invalid := domain.IsValidCurrencyCode("ZZZ")

@@ -56,8 +56,6 @@ func ErrorToStatusCode(err error) int {
 		return fiber.StatusNotFound
 	case errors.Is(err, domain.ErrInvalidCurrencyCode):
 		return fiber.StatusUnprocessableEntity
-	case errors.Is(err, domain.ErrCurrencyMismatch):
-		return fiber.StatusBadRequest
 	case errors.Is(err, domain.ErrDepositAmountExceedsMaxSafeInt):
 		return fiber.StatusBadRequest
 	case errors.Is(err, domain.ErrTransactionAmountMustBePositive):

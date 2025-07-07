@@ -128,7 +128,7 @@ func SetupTestApp(
 	authService = service.NewAuthService(func() (repository.UnitOfWork, error) { return mockUow, nil }, authStrategy)
 
 	// Create services with the mock UOW factory
-	accountSvc := service.NewAccountService(func() (repository.UnitOfWork, error) { return mockUow, nil })
+	accountSvc := service.NewAccountService(func() (repository.UnitOfWork, error) { return mockUow, nil }, service.NewStubCurrencyConverter())
 	userSvc := service.NewUserService(func() (repository.UnitOfWork, error) { return mockUow, nil })
 
 	app = NewTestApp(accountSvc, userSvc, authService)
