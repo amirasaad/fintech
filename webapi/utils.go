@@ -1,6 +1,8 @@
 package webapi
 
 import (
+	"errors"
+
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/gofiber/fiber/v2"
 )
@@ -23,7 +25,12 @@ type ProblemDetails struct {
 }
 
 // ErrorResponseJSON returns a response following RFC 9457 Problem Details
-func ErrorResponseJSON(c *fiber.Ctx, status int, title string, detail any) error {
+func ErrorResponseJSON(
+	c *fiber.Ctx,
+	status int,
+	title string,
+	detail any,
+) error {
 	pd := ProblemDetails{
 		Type:   "about:blank",
 		Title:  title,
@@ -44,18 +51,22 @@ func ErrorResponseJSON(c *fiber.Ctx, status int, title string, detail any) error
 
 // ErrorToStatusCode maps domain errors to appropriate HTTP status codes.
 func ErrorToStatusCode(err error) int {
-	switch err {
-	case domain.ErrAccountNotFound:
+	switch {
+	case errors.Is(err, domain.ErrAccountNotFound):
 		return fiber.StatusNotFound
-	case domain.ErrDepositAmountExceedsMaxSafeInt:
-		return fiber.StatusBadRequest
-	case domain.ErrTransactionAmountMustBePositive:
-		return fiber.StatusBadRequest
-	case domain.ErrWithdrawalAmountMustBePositive:
-		return fiber.StatusBadRequest
-	case domain.ErrInsufficientFunds:
+	case errors.Is(err, domain.ErrInvalidCurrencyCode):
 		return fiber.StatusUnprocessableEntity
-	case domain.ErrUserUnauthorized:
+	case errors.Is(err, domain.ErrCurrencyMismatch):
+		return fiber.StatusBadRequest
+	case errors.Is(err, domain.ErrDepositAmountExceedsMaxSafeInt):
+		return fiber.StatusBadRequest
+	case errors.Is(err, domain.ErrTransactionAmountMustBePositive):
+		return fiber.StatusBadRequest
+	case errors.Is(err, domain.ErrWithdrawalAmountMustBePositive):
+		return fiber.StatusBadRequest
+	case errors.Is(err, domain.ErrInsufficientFunds):
+		return fiber.StatusUnprocessableEntity
+	case errors.Is(err, domain.ErrUserUnauthorized):
 		return fiber.StatusUnauthorized
 	default:
 		return fiber.StatusInternalServerError

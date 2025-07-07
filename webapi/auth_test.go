@@ -88,7 +88,7 @@ func (s *AuthTestSuite) TestLoginRoute_InternalServerError() {
 }
 
 func (s *AuthTestSuite) TestLoginRoute_ServiceError() {
-	s.mockUow.On("UserRepository").Return(nil).Once() // Simulate UoW error
+	s.mockUow.EXPECT().UserRepository().Return(nil).Once() // Simulate UoW error
 	req := httptest.NewRequest("POST", "/login", bytes.NewBuffer([]byte(`{"identity":"testuser","password":"password123"}`)))
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := s.app.Test(req, 10000)

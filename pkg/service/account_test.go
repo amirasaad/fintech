@@ -64,7 +64,7 @@ func TestCreateAccount_CommitError(t *testing.T) {
 	uow.EXPECT().Commit().Return(errors.New("commit error")).Once()
 	uow.EXPECT().Rollback().Return(nil).Once()
 	uow.EXPECT().AccountRepository().Return(accountRepo)
-	accountRepo.On("Create", mock.Anything).Return(nil)
+	accountRepo.EXPECT().Create(mock.Anything).Return(nil)
 
 	userID := uuid.New()
 	account, err := svc.CreateAccount(userID)
@@ -114,7 +114,7 @@ func TestDeposit_NegativeAmount(t *testing.T) {
 	uow.EXPECT().AccountRepository().Return(accountRepo)
 	userID := uuid.New()
 	account := domain.NewAccount(userID)
-	accountRepo.On("Get", account.ID).Return(account, nil)
+	accountRepo.EXPECT().Get(account.ID).Return(account, nil)
 
 	tx, err := svc.Deposit(userID, account.ID, -50.0)
 	assert.Error(t, err)

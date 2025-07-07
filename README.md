@@ -26,6 +26,10 @@ This project's vision is to build a foundational backend service for financial o
 - **Fund Operations:** 💰
   - **Deposits:** Safely add funds to an account with real-time balance updates. ⬆️
   - **Withdrawals:** Securely remove funds from an account, with checks for insufficient funds. ⬇️
+- **Multi-Currency Support:** 💸
+  - Accounts and transactions support multiple currencies (e.g., USD, EUR, GBP).
+  - All operations are currency-aware, ensuring consistency.
+  - For more details, see the [Multi-Currency Documentation](./docs/multi_currency.md).
 - **Real-time Balances:** Instantly query and display the current balance of any account, crucial for immediate financial oversight. ⏱️
 - **Transaction History:** Access a detailed, chronological record of all financial movements associated with an account, providing transparency and auditability. 📜
 - **User Authentication & Authorization:** 🤝
@@ -34,6 +38,12 @@ This project's vision is to build a foundational backend service for financial o
   - Role-based access control ensures that users can only perform operations relevant to their accounts. 🛡️
 - **Concurrency Safety:** Implemented using Go's native concurrency primitives (`sync.Mutex`) to prevent race conditions and ensure atomic operations during simultaneous deposits and withdrawals, guaranteeing data integrity. 🚦
 - **Unit of Work Pattern:** A core design pattern that ensures all operations within a single business transaction are treated as a single, atomic unit. This guarantees data consistency and integrity, especially during complex sequences of database operations. 📦
+
+### Breaking Changes ⚠️
+
+With the introduction of multi-currency support, the following changes may affect existing API clients:
+
+- **Deposit and Withdrawal Operations:** The `POST /account/:id/deposit` and `POST /account/:id/withdraw` endpoints now require a `currency` field in the request body. The provided currency must match the account's currency. Requests without a `currency` field may fail if the account's currency is not the default ("USD").
 
 ## Getting Started 🚀
 
@@ -124,6 +134,54 @@ Once the CLI is running, you will be prompted to log in. After successful authen
 - `balance <account_id>`: Retrieves and displays the current balance of the specified `account_id`. 💲
 - `logout`: Logs out the current user. 👋
 - `exit`: Exits the CLI application. 🚪
+
+### Migrations 🗄️
+
+Database migrations are managed using the `golang-migrate` library. This allows for version-controlled, incremental changes to the database schema.
+
+#### Creating a New Migration
+
+To create a new migration file, run the following command from the root of the project:
+
+```bash
+make migrate-create
+```
+
+You will be prompted to enter a name for the migration (e.g., `add_users_table`). This will generate two new SQL files in the `internal/migrations` directory: one for `up` (applying the migration) and one for `down` (reverting the migration).
+
+#### Applying Migrations
+
+To apply all pending migrations, use the following command:
+
+```bash
+make migrate-up
+```
+
+This will apply all `up` migrations that have not yet been run.
+
+#### Reverting Migrations
+
+To revert the last applied migration, use the following command:
+
+```bash
+make migrate-down
+```
+
+#### Applying a Specific Number of Migrations
+
+To apply a specific number of pending migrations, you can use the `migrate` tool directly. For example, to apply the next two migrations, you would run:
+
+```bash
+migrate -database "postgres://postgres:password@localhost:5432/fintech?sslmode=disable" -path internal/migrations up 2
+```
+
+#### Fixing a Dirty Database
+
+If a migration fails, the database may be left in a "dirty" state. To fix this, you will need to manually revert the changes from the failed migration and then force the migration version to the last successful migration. For example, if migration `3` failed, you would force the version to `2`:
+
+```bash
+migrate -database "postgres://postgres:password@localhost:5432/fintech?sslmode=disable" -path internal/migrations force 2
+```
 
 ## Examples 💡
 

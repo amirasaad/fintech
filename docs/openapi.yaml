@@ -10,6 +10,24 @@ paths:
   /account:
     post:
       summary: Create a new account
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                currency:
+                  type: string
+                  description: ISO 4217 currency code (e.g., 'USD')
+                  example: USD
+            examples:
+              withCurrency:
+                summary: Create account with currency
+                value: { "currency": "EUR" }
+              default:
+                summary: Create account with default currency
+                value: { }
       responses:
         201:
           description: Account created
@@ -26,6 +44,7 @@ paths:
                     data:
                       id: "123e4567-e89b-12d3-a456-426614174000"
                       balance: 0.0
+                      currency: EUR
                       created: "2023-10-27T10:00:00Z"
                       updated: "2023-10-27T10:00:00Z"
         500:
@@ -470,6 +489,10 @@ components:
           type: string
           format: date-time
           description: Account update date
+        currency:
+          type: string
+          description: ISO 4217 currency code (e.g., 'USD')
+          example: USD
     DepositRequest:
       type: object
       properties:

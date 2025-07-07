@@ -4,6 +4,8 @@ definitions:
     properties:
       amount:
         type: number
+      currency:
+        type: string
     type: object
   webapi.LoginInput:
     properties:
@@ -73,6 +75,8 @@ definitions:
     properties:
       amount:
         type: number
+      currency:
+        type: string
     type: object
 host: fintech-beryl-beta.vercel.app
 info:

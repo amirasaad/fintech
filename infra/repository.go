@@ -23,7 +23,7 @@ func (r *accountRepository) Get(id uuid.UUID) (*domain.Account, error) {
 	if result.Error != nil {
 		return nil, result.Error
 	}
-	return domain.NewAccountFromData(a.ID, a.UserID, a.Balance, a.CreatedAt, a.UpdatedAt), nil
+	return domain.NewAccountFromData(a.ID, a.UserID, a.Balance, a.Currency, a.CreatedAt, a.UpdatedAt), nil
 }
 
 func (r *accountRepository) Create(a *domain.Account) error {
@@ -42,9 +42,10 @@ func (r *accountRepository) Update(a *domain.Account) error {
 			DeletedAt: gorm.DeletedAt{},
 			UpdatedAt: time.Now().UTC(),
 		},
-		ID:      a.ID,
-		UserID:  a.UserID,
-		Balance: a.Balance,
+		ID:       a.ID,
+		UserID:   a.UserID,
+		Balance:  a.Balance,
+		Currency: a.Currency,
 	}
 	result := r.db.Save(&dbModel)
 	if result.Error != nil {
@@ -84,7 +85,7 @@ func (r *transactionRepository) Get(id uuid.UUID) (*domain.Transaction, error) {
 	if result.Error != nil {
 		return nil, result.Error
 	}
-	return domain.NewTransactionFromData(t.ID, t.UserID, t.AccountID, t.Amount, t.Balance, t.CreatedAt), nil
+	return domain.NewTransactionFromData(t.ID, t.UserID, t.AccountID, t.Amount, t.Balance, t.Currency, t.CreatedAt), nil
 }
 
 func (r *transactionRepository) List(userID, accountID uuid.UUID) ([]*domain.Transaction, error) {
@@ -95,7 +96,7 @@ func (r *transactionRepository) List(userID, accountID uuid.UUID) ([]*domain.Tra
 	}
 	tx := make([]*domain.Transaction, 0, len(dbTransactions))
 	for _, t := range dbTransactions {
-		tx = append(tx, domain.NewTransactionFromData(t.ID, t.UserID, t.AccountID, t.Amount, t.Balance, t.CreatedAt))
+		tx = append(tx, domain.NewTransactionFromData(t.ID, t.UserID, t.AccountID, t.Amount, t.Balance, t.Currency, t.CreatedAt))
 	}
 	return tx, nil
 }

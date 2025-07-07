@@ -29,7 +29,7 @@ func TestTransactionRepository_Create(t *testing.T) {
 	transRepo := transactionRepository{db: db}
 	userID := uuid.New()
 	accountID := uuid.New()
-	transaction := domain.NewTransactionFromData(uuid.New(), userID, accountID, 100, 100, time.Now())
+	transaction := domain.NewTransactionFromData(uuid.New(), userID, accountID, 100, 100, "USD", time.Now())
 
 	mock.ExpectBegin()
 	mock.ExpectExec(`INSERT INTO "transactions" (.+) VALUES (.+)`).

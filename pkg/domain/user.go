@@ -23,7 +23,9 @@ func hashPassword(password string) (string, error) {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
 	return string(bytes), err
 }
-func NewUser(username, email, password string) (*User, error) {
+func NewUser(
+	username, email, password string,
+) (*User, error) {
 	hashedPassword, err := hashPassword(password)
 	if err != nil {
 		return nil, err
@@ -38,7 +40,11 @@ func NewUser(username, email, password string) (*User, error) {
 	}, nil
 }
 
-func NewUserFromData(id uuid.UUID, username, email, password string, created, updated time.Time) *User {
+func NewUserFromData(
+	id uuid.UUID,
+	username, email, password string,
+	created, updated time.Time,
+) *User {
 	return &User{
 		ID:        id,
 		Username:  username,

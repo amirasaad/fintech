@@ -645,6 +645,9 @@ const docTemplate = `{
             "properties": {
                 "amount": {
                     "type": "number"
+                },
+                "currency": {
+                    "type": "string"
                 }
             }
         },
@@ -746,6 +749,9 @@ const docTemplate = `{
             "properties": {
                 "amount": {
                     "type": "number"
+                },
+                "currency": {
+                    "type": "string"
                 }
             }
         }

@@ -30,14 +30,17 @@ type UserTestSuite struct {
 
 func (s *UserTestSuite) SetupTest() {
 	s.app, s.userRepo, _, _, s.mockUow, s.testUser, s.authService = SetupTestApp(s.T())
-	s.testToken = getTestToken(s.T(), s.authService, s.userRepo, s.mockUow, s.testUser)
+	// Setup mock for login request
+	s.mockUow.EXPECT().UserRepository().Return(s.userRepo).Maybe()
+	s.userRepo.EXPECT().GetByUsername("testuser").Return(s.testUser, nil).Maybe()
+	s.testToken = getTestToken(s.T(), s.app, s.testUser)
 }
 
 func (s *UserTestSuite) TestCreateUser() {
 	s.mockUow.EXPECT().UserRepository().Return(s.userRepo)
-	s.userRepo.On("Create", mock.Anything).Return(nil)
-	s.mockUow.On("Begin").Return(nil)
-	s.mockUow.On("Commit").Return(nil)
+	s.userRepo.EXPECT().Create(mock.Anything).Return(nil)
+	s.mockUow.EXPECT().Begin().Return(nil)
+	s.mockUow.EXPECT().Commit().Return(nil)
 
 	body := bytes.NewBuffer([]byte(`{"username":"testuser","email":"fixtures@example.com","password":"password123"}`))
 	req := httptest.NewRequest("POST", "/user", body)

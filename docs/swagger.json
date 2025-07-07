@@ -639,6 +639,9 @@
             "properties": {
                 "amount": {
                     "type": "number"
+                },
+                "currency": {
+                    "type": "string"
                 }
             }
         },
@@ -740,6 +743,9 @@
             "properties": {
                 "amount": {
                     "type": "number"
+                },
+                "currency": {
+                    "type": "string"
                 }
             }
         }
