@@ -59,6 +59,37 @@ func (s *AccountService) CreateAccount(
 	return
 }
 
+func (s *AccountService) CreateAccountWithCurrency(
+	userID uuid.UUID, 
+	currency string) (account *domain.Account, err error) {
+	uow, err := s.uowFactory()
+	if err != nil {
+		account = nil
+		return
+	}
+	err = uow.Begin()
+	if err != nil {
+		account = nil
+		return
+	}
+
+	account = domain.NewAccountWithCurrency(userID, currency)
+	err = uow.AccountRepository().Create(account)
+	if err != nil {
+		_ = uow.Rollback()
+		account = nil
+		return
+	}
+
+	err = uow.Commit()
+	if err != nil {
+		_ = uow.Rollback()
+		account = nil
+		return
+	}
+	return
+}
+
 // Deposit adds funds to the specified account and creates a transaction record.
 // Returns the transaction or an error if the operation fails.
 func (s *AccountService) Deposit(

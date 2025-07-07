@@ -24,12 +24,18 @@ import (
 	"github.com/google/uuid"
 )
 
+type CreateAccountRequest struct {
+	Currency string `json:"currency"`
+}
+
 type DepositRequest struct {
-	Amount float64 `json:"amount" xml:"amount" form:"amount"`
+	Amount   float64 `json:"amount" xml:"amount" form:"amount"`
+	Currency string  `json:"currency"`
 }
 
 type WithdrawRequest struct {
-	Amount float64 `json:"amount" xml:"amount" form:"amount"`
+	Amount   float64 `json:"amount" xml:"amount" form:"amount"`
+	Currency string  `json:"currency"`
 }
 
 func AccountRoutes(app *fiber.App, accountSvc *service.AccountService, authSvc *service.AuthService) {
@@ -72,13 +78,18 @@ func CreateAccount(
 			status := ErrorToStatusCode(err)
 			return ErrorResponseJSON(c, status, "invalid user ID", err.Error())
 		}
-		a, err := accountSvc.CreateAccount(userID)
+		var req CreateAccountRequest
+		_ = c.BodyParser(&req)
+		currency := req.Currency
+		if currency == "" {
+			currency = "USD"
+		}
+		a, err := accountSvc.CreateAccountWithCurrency(userID, currency)
 		if err != nil {
 			log.Errorf("Failed to create account: %v", err)
 			status := ErrorToStatusCode(err)
 			return ErrorResponseJSON(c, status, "Failed to create account", err.Error())
 		}
-
 		log.Infof("Account created: %+v", a)
 		return c.Status(fiber.StatusCreated).JSON(Response{Status: fiber.StatusCreated, Message: "Account created", Data: a})
 	}
@@ -124,15 +135,13 @@ func Deposit(
 			log.Errorf("Invalid account ID for deposit: %v", err)
 			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid account ID", err.Error())
 		}
-
 		var request DepositRequest
 		err = c.BodyParser(&request)
 		if err != nil {
 			log.Errorf("Failed to parse deposit request: %v", err)
 			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Failed to parse deposit request", err.Error())
 		}
-
-		tx, err := accountSvc.Deposit(userID, id, request.Amount)
+		tx, err := accountSvc.DepositWithCurrency(userID, id, request.Amount, request.Currency)
 		if err != nil {
 			log.Errorf("Failed to deposit: %v", err)
 			status := ErrorToStatusCode(err)
@@ -194,7 +203,7 @@ func Withdraw(
 			log.Errorf("Failed to parse withdrawal request: %v", err)
 			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Failed to parse withdrawal request", err.Error())
 		}
-		tx, err := accountSvc.Withdraw(userID, id, request.Amount)
+		tx, err := accountSvc.WithdrawWithCurrency(userID, id, request.Amount, request.Currency)
 		if err != nil {
 			log.Errorf("Failed to withdraw: %v", err)
 			status := ErrorToStatusCode(err)

@@ -472,6 +472,74 @@ func (s *AccountTestSuite) TestGetBalance_InternalServerError() {
 	s.Assert().Equal(fiber.StatusInternalServerError, resp.StatusCode)
 }
 
+func (s *AccountTestSuite) TestAccountCreateWithCurrency() {
+	s.mockUow.EXPECT().AccountRepository().Return(s.accountRepo)
+	s.accountRepo.EXPECT().Create(mock.Anything).Return(nil)
+
+	s.mockUow.EXPECT().Begin().Return(nil)
+	s.mockUow.EXPECT().Commit().Return(nil)
+
+	body := bytes.NewBuffer([]byte(`{"currency": "EUR"}`))
+	req := httptest.NewRequest("POST", "/account", body)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+s.testToken)
+
+	resp, err := s.app.Test(req, 10000)
+	s.Require().NoError(err)
+	defer resp.Body.Close() //nolint: errcheck
+
+	s.Assert().Equal(fiber.StatusCreated, resp.StatusCode)
+	var response Response
+	_ = json.NewDecoder(resp.Body).Decode(&response)
+	accountData, _ := response.Data.(map[string]interface{})
+	s.Assert().Equal("EUR", accountData["currency"])
+}
+
+func (s *AccountTestSuite) TestAccountDepositWithCurrency() {
+	s.mockUow.EXPECT().AccountRepository().Return(s.accountRepo)
+	s.mockUow.EXPECT().TransactionRepository().Return(s.transRepo)
+	testAccount := domain.NewAccountWithCurrency(s.testUser.ID, "EUR")
+	s.accountRepo.EXPECT().Get(mock.Anything).Return(testAccount, nil)
+	s.transRepo.EXPECT().Create(mock.Anything).Return(nil)
+	s.accountRepo.EXPECT().Update(mock.Anything).Return(nil)
+	s.mockUow.EXPECT().Begin().Return(nil)
+	s.mockUow.EXPECT().Commit().Return(nil)
+
+	depositBody := bytes.NewBuffer([]byte(`{"amount": 100.0, "currency": "EUR"}`))
+	req := httptest.NewRequest("POST", fmt.Sprintf("/account/%s/deposit", testAccount.ID), depositBody)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+s.testToken)
+
+	resp, err := s.app.Test(req, 10000)
+	s.Require().NoError(err)
+	defer resp.Body.Close() //nolint: errcheck
+
+	s.Assert().Equal(fiber.StatusOK, resp.StatusCode)
+	var response Response
+	_ = json.NewDecoder(resp.Body).Decode(&response)
+	txData, _ := response.Data.(map[string]interface{})
+	s.Assert().Equal("EUR", txData["currency"])
+}
+
+func (s *AccountTestSuite) TestAccountDepositCurrencyMismatch() {
+	s.mockUow.EXPECT().AccountRepository().Return(s.accountRepo)
+	testAccount := domain.NewAccountWithCurrency(s.testUser.ID, "USD")
+	s.accountRepo.EXPECT().Get(mock.Anything).Return(testAccount, nil)
+	s.mockUow.EXPECT().Begin().Return(nil)
+	s.mockUow.EXPECT().Rollback().Return(nil)
+
+	depositBody := bytes.NewBuffer([]byte(`{"amount": 100.0, "currency": "EUR"}`))
+	req := httptest.NewRequest("POST", fmt.Sprintf("/account/%s/deposit", testAccount.ID), depositBody)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+s.testToken)
+
+	resp, err := s.app.Test(req, 10000)
+	s.Require().NoError(err)
+	defer resp.Body.Close() //nolint: errcheck
+
+	s.Assert().Equal(fiber.StatusBadRequest, resp.StatusCode)
+}
+
 func TestAccountTestSuite(t *testing.T) {
 	suite.Run(t, new(AccountTestSuite))
 }
