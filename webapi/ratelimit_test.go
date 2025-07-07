@@ -1,6 +1,7 @@
 package webapi
 
 import (
+	"github.com/amirasaad/fintech/pkg/domain"
 	"net/http/httptest"
 	"testing"
 	"time"
@@ -19,7 +20,7 @@ type RateLimitTestSuite struct {
 func (s *RateLimitTestSuite) SetupTest() {
 	// Provide dummy services for required arguments
 	dummyUow := func() (repository.UnitOfWork, error) { return nil, nil }
-	accountSvc := service.NewAccountService(dummyUow, service.NewStubCurrencyConverter())
+	accountSvc := service.NewAccountService(dummyUow, domain.NewStubCurrencyConverter())
 	userSvc := service.NewUserService(dummyUow)
 	authSvc := &service.AuthService{} // Use zero value or a mock if available
 

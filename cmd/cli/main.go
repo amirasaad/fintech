@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"github.com/amirasaad/fintech/pkg/domain"
 	"io"
 	"log"
 	"os"
@@ -34,7 +35,7 @@ func main() {
 	uowFactory := func() (repository.UnitOfWork, error) {
 		return infra.NewGormUoW(db)
 	}
-	scv := service.NewAccountService(uowFactory, service.NewStubCurrencyConverter())
+	scv := service.NewAccountService(uowFactory, domain.NewStubCurrencyConverter())
 	authSvc := service.NewBasicAuthService(uowFactory)
 
 	cliApp(scv, authSvc)

@@ -143,7 +143,7 @@ func (s *AccountTestSuite) TestAccountRoutesFailureTransaction() {
 	s.mockUow.EXPECT().AccountRepository().Return(s.accountRepo)
 	s.mockUow.EXPECT().Begin().Return(nil)
 	s.mockUow.EXPECT().Rollback().Return(nil)
-	s.accountRepo.EXPECT().Get(mock.Anything).Return(&domain.Account{Balance: 100.0, UserID: s.testUser.ID}, nil)
+	s.accountRepo.EXPECT().Get(mock.Anything).Return(&domain.Account{Balance: 100.0, UserID: s.testUser.ID, Currency: "USD"}, nil)
 
 	// fixtures deposit negative amount
 	req := httptest.NewRequest("POST", fmt.Sprintf("/account/%s/deposit", uuid.New()), bytes.NewBuffer([]byte(`{"amount": -100.0}`)))
@@ -292,6 +292,7 @@ func (s *AccountTestSuite) TestAccountRoutesRollbackWhenDepositFails() {
 	s.mockUow.EXPECT().Rollback().Return(nil)
 	account := domain.NewAccount(s.testUser.ID)
 	s.accountRepo.EXPECT().Get(account.ID).Return(account, nil)
+	s.accountRepo.EXPECT().Update(account).Return(nil)
 	s.transRepo.EXPECT().Create(mock.Anything).Return(errors.New("failed to create transaction"))
 
 	depositBody := bytes.NewBuffer([]byte(`{"amount": 100.0}`))
@@ -521,7 +522,7 @@ func (s *AccountTestSuite) TestAccountDepositWithCurrency() {
 	var response Response
 	_ = json.NewDecoder(resp.Body).Decode(&response)
 	txData, _ := response.Data.(map[string]any)
-	s.Assert().Equal("EUR", txData["Currency"])
+	s.Assert().Equal("EUR", txData["currency"])
 }
 
 func (s *AccountTestSuite) TestDepositWithConversion_Integration() {
@@ -536,7 +537,13 @@ func (s *AccountTestSuite) TestDepositWithConversion_Integration() {
 	s.mockUow.EXPECT().Commit().Return(nil)
 
 	// Use a mock converter that returns a known conversion
-	s.mockConverter.On("Convert", 100.0, "EUR", "USD").Return(120.0, nil)
+	s.mockConverter.On("Convert", 100.0, "EUR", "USD").Return(&domain.ConversionInfo{
+		OriginalAmount:    100,
+		OriginalCurrency:  "EUR",
+		ConvertedAmount:   120,
+		ConvertedCurrency: "USD",
+		ConversionRate:    1.2,
+	}, nil)
 
 	depositBody := bytes.NewBuffer([]byte(`{"amount": 100.0, "currency": "EUR"}`))
 	req := httptest.NewRequest("POST", fmt.Sprintf("/account/%s/deposit", account.ID), depositBody)

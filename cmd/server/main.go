@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/amirasaad/fintech/pkg/domain"
 	"log"
 
 	"github.com/amirasaad/fintech/infra"
@@ -31,7 +32,7 @@ func main() {
 	}
 
 	// Create services
-	accountSvc := service.NewAccountService(uowFactory, service.NewStubCurrencyConverter())
+	accountSvc := service.NewAccountService(uowFactory, domain.NewStubCurrencyConverter())
 	userSvc := service.NewUserService(uowFactory)
 	authSvc := service.NewAuthService(uowFactory, service.NewJWTAuthStrategy(uowFactory))
 

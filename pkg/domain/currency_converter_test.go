@@ -1,11 +1,11 @@
-package service_test
+package domain_test
 
 import (
 	"errors"
+	"github.com/amirasaad/fintech/pkg/domain"
 	"testing"
 
 	"github.com/amirasaad/fintech/internal/fixtures"
-	"github.com/amirasaad/fintech/pkg/contracts"
 )
 
 func TestCurrencyConversion(t *testing.T) {
@@ -14,17 +14,17 @@ func TestCurrencyConversion(t *testing.T) {
 		amount  float64
 		from    string
 		to      string
-		want    *contracts.ConversionInfo
+		want    *domain.ConversionInfo
 		wantErr bool
 	}{
-		{"USD to EUR", 100, "USD", "EUR", &contracts.ConversionInfo{
+		{"USD to EUR", 100, "USD", "EUR", &domain.ConversionInfo{
 			OriginalAmount:    100,
 			OriginalCurrency:  "USD",
 			ConvertedAmount:   90,
 			ConvertedCurrency: "EUR",
 			ConversionRate:    0.9,
 		}, false},
-		{"EUR to GBP", 100, "EUR", "GBP", &contracts.ConversionInfo{
+		{"EUR to GBP", 100, "EUR", "GBP", &domain.ConversionInfo{
 			OriginalAmount:    100,
 			OriginalCurrency:  "EUR",
 			ConvertedAmount:   80,

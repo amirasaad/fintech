@@ -3,7 +3,7 @@
 <html>
 	<head>
 		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-		<title>cli: Go Coverage Report</title>
+		<title>docs: Go Coverage Report</title>
 		<style>
 			body {
 				background: black;
@@ -55,41 +55,41 @@
 			<div id="nav">
 				<select id="files">
 				
-				<option value="file0">github.com/amirasaad/fintech/cmd/cli/main.go (0.0%)</option>
+				<option value="file0">github.com/amirasaad/fintech/docs/docs.go (0.0%)</option>
 				
-				<option value="file1">github.com/amirasaad/fintech/cmd/server/main.go (0.0%)</option>
+				<option value="file1">github.com/amirasaad/fintech/infra/database.go (17.6%)</option>
 				
-				<option value="file2">github.com/amirasaad/fintech/docs/docs.go (0.0%)</option>
+				<option value="file2">github.com/amirasaad/fintech/infra/repository.go (22.1%)</option>
 				
-				<option value="file3">github.com/amirasaad/fintech/infra/database.go (30.0%)</option>
+				<option value="file3">github.com/amirasaad/fintech/infra/uow.go (80.8%)</option>
 				
-				<option value="file4">github.com/amirasaad/fintech/infra/repository.go (22.1%)</option>
+				<option value="file4">github.com/amirasaad/fintech/pkg/domain/account.go (86.2%)</option>
 				
-				<option value="file5">github.com/amirasaad/fintech/infra/uow.go (80.8%)</option>
+				<option value="file5">github.com/amirasaad/fintech/pkg/domain/currency_converter.go (0.0%)</option>
 				
-				<option value="file6">github.com/amirasaad/fintech/pkg/domain/account.go (92.5%)</option>
+				<option value="file6">github.com/amirasaad/fintech/pkg/domain/money.go (0.0%)</option>
 				
 				<option value="file7">github.com/amirasaad/fintech/pkg/domain/user.go (14.3%)</option>
 				
 				<option value="file8">github.com/amirasaad/fintech/pkg/middleware/auth.go (100.0%)</option>
 				
-				<option value="file9">github.com/amirasaad/fintech/pkg/service/account.go (85.3%)</option>
+				<option value="file9">github.com/amirasaad/fintech/pkg/service/account.go (68.9%)</option>
 				
-				<option value="file10">github.com/amirasaad/fintech/pkg/service/auth.go (21.5%)</option>
+				<option value="file10">github.com/amirasaad/fintech/pkg/service/auth.go (25.7%)</option>
 				
-				<option value="file11">github.com/amirasaad/fintech/pkg/service/user.go (89.2%)</option>
+				<option value="file11">github.com/amirasaad/fintech/pkg/service/user.go (88.4%)</option>
 				
-				<option value="file12">github.com/amirasaad/fintech/webapi/account.go (83.1%)</option>
+				<option value="file12">github.com/amirasaad/fintech/webapi/account.go (81.1%)</option>
 				
-				<option value="file13">github.com/amirasaad/fintech/webapi/app.go (93.8%)</option>
+				<option value="file13">github.com/amirasaad/fintech/webapi/app.go (75.0%)</option>
 				
 				<option value="file14">github.com/amirasaad/fintech/webapi/auth.go (100.0%)</option>
 				
-				<option value="file15">github.com/amirasaad/fintech/webapi/testutils.go (91.2%)</option>
+				<option value="file15">github.com/amirasaad/fintech/webapi/test_utils.go (86.6%)</option>
 				
-				<option value="file16">github.com/amirasaad/fintech/webapi/user.go (75.3%)</option>
+				<option value="file16">github.com/amirasaad/fintech/webapi/user.go (73.1%)</option>
 				
-				<option value="file17">github.com/amirasaad/fintech/webapi/utils.go (75.0%)</option>
+				<option value="file17">github.com/amirasaad/fintech/webapi/utils.go (70.6%)</option>
 				
 				</select>
 			</div>
@@ -103,216 +103,7 @@
 		</div>
 		<div id="content">
 		
-		<pre class="file" id="file0" style="display: none">package main
-
-import (
-        "bufio"
-        "flag"
-        "fmt"
-        "io"
-        "log"
-        "os"
-        "strconv"
-        "strings"
-
-        "github.com/amirasaad/fintech/infra"
-        "github.com/amirasaad/fintech/pkg/repository"
-        "github.com/amirasaad/fintech/pkg/service"
-        "github.com/fatih/color"
-        "github.com/google/uuid"
-        "golang.org/x/term"
-)
-
-var userID uuid.UUID
-
-func main() <span class="cov0" title="0">{
-        verbose := flag.Bool("v", false, "enable verbose output")
-        flag.Parse()
-        if !*verbose </span><span class="cov0" title="0">{
-                log.SetOutput(io.Discard)
-        }</span>
-        <span class="cov0" title="0">db, err := infra.NewDBConnection()
-        if err != nil </span><span class="cov0" title="0">{
-                _, _ = color.New(color.FgRed).Fprintln(os.Stderr, "Failed to connect to database:", err)
-                return
-        }</span>
-        <span class="cov0" title="0">uowFactory := func() (repository.UnitOfWork, error) </span><span class="cov0" title="0">{
-                return infra.NewGormUoW(db)
-        }</span>
-        <span class="cov0" title="0">scv := service.NewAccountService(uowFactory)
-        authSvc := service.NewBasicAuthService(uowFactory)
-
-        cliApp(scv, authSvc)</span>
-}
-
-func cliApp(scv *service.AccountService, authSvc *service.AuthService) <span class="cov0" title="0">{
-        reader := bufio.NewReader(os.Stdin)
-        banner := color.New(color.FgCyan, color.Bold).SprintFunc()
-        prompt := color.New(color.FgGreen, color.Bold).SprintFunc()
-        errorMsg := color.New(color.FgRed, color.Bold).SprintFunc()
-        successMsg := color.New(color.FgHiBlue, color.Bold).SprintFunc()
-        fmt.Println(banner(`
-        ███████╗██╗███╗   ██╗████████╗███████╗ ██████╗██╗  ██╗     ██████╗██╗     ██╗
-        ██╔════╝██║████╗  ██║╚══██╔══╝██╔════╝██╔════╝██║  ██║    ██╔════╝██║     ██║
-        █████╗  ██║██╔██╗ ██║   ██║   █████╗  ██║     ███████║    ██║     ██║     ██║
-        ██╔══╝  ██║██║╚██╗██║   ██║   ██╔══╝  ██║     ██╔══██║    ██║     ██║     ██║
-        ██║     ██║██║ ╚████║   ██║   ███████╗╚██████╗██║  ██║    ╚██████╗███████╗██║
-        ╚═╝     ╚═╝╚═╝  ╚═══╝   ╚═╝   ╚══════╝ ╚═════╝╚═╝  ╚═╝     ╚═════╝╚══════╝╚═╝
-                                                                        Version (v1.0.0)
-        `))
-        for </span><span class="cov0" title="0">{
-                if userID == uuid.Nil </span><span class="cov0" title="0">{
-                        fmt.Println(prompt("Please login to continue."))
-                        fmt.Print(prompt("Username or Email: "))
-                        identity, _ := reader.ReadString('\n')
-                        identity = strings.TrimSpace(identity)
-                        fmt.Print(prompt("Password: "))
-                        bytePassword, _ := term.ReadPassword(int(os.Stdin.Fd()))
-                        fmt.Println()
-                        password := string(bytePassword)
-                        user, _, err := authSvc.Login(identity, password)
-                        if err != nil </span><span class="cov0" title="0">{
-                                fmt.Println(errorMsg("Login error:"), err)
-                                continue</span>
-                        }
-                        <span class="cov0" title="0">if user == nil </span><span class="cov0" title="0">{
-                                fmt.Println(errorMsg("Invalid credentials."))
-                                continue</span>
-                        }
-                        <span class="cov0" title="0">userID = user.ID
-                        fmt.Println(successMsg("Login successful!"))</span>
-                }
-                <span class="cov0" title="0">fmt.Println(banner("\nAvailable commands: create, deposit &lt;account_id&gt; &lt;amount&gt;, withdraw &lt;account_id&gt; &lt;amount&gt;, balance &lt;account_id&gt;, logout, exit"))
-                fmt.Print(prompt("&gt; "))
-                input, _ := reader.ReadString('\n')
-                input = strings.TrimSpace(input)
-                if input == "exit" </span><span class="cov0" title="0">{
-                        fmt.Println(successMsg("Goodbye!"))
-                        return
-                }</span>
-                <span class="cov0" title="0">if input == "logout" </span><span class="cov0" title="0">{
-                        userID = uuid.Nil
-                        fmt.Println(successMsg("Logged out."))
-                        continue</span>
-                }
-                <span class="cov0" title="0">args := strings.Fields(input)
-                if len(args) == 0 </span><span class="cov0" title="0">{
-                        continue</span>
-                }
-                <span class="cov0" title="0">cmd := args[0]
-                switch cmd </span>{
-                case "create":<span class="cov0" title="0">
-                        account, err := scv.CreateAccount(userID)
-                        if err != nil </span><span class="cov0" title="0">{
-                                fmt.Println(errorMsg("Error creating account:"), err)
-                                continue</span>
-                        }
-                        <span class="cov0" title="0">balance, err := scv.GetBalance(userID, account.ID)
-                        if err != nil </span><span class="cov0" title="0">{
-                                fmt.Println(errorMsg("Error fetching account balance:"), err)
-                                continue</span>
-                        }
-                        <span class="cov0" title="0">fmt.Println(successMsg(fmt.Sprintf("Account created: ID=%s, Balance=%.2f", account.ID, balance)))</span>
-                case "deposit":<span class="cov0" title="0">
-                        if len(args) &lt; 3 </span><span class="cov0" title="0">{
-                                fmt.Println(errorMsg("Usage: deposit &lt;account_id&gt; &lt;amount&gt;"))
-                                continue</span>
-                        }
-                        <span class="cov0" title="0">accountID := args[1]
-                        amount, err := strconv.ParseFloat(args[2], 64)
-                        if err != nil </span><span class="cov0" title="0">{
-                                fmt.Println(errorMsg("Invalid amount:"), err)
-                                continue</span>
-                        }
-                        <span class="cov0" title="0">account, err := scv.Deposit(userID, uuid.MustParse(accountID), amount)
-                        if err != nil </span><span class="cov0" title="0">{
-                                fmt.Println(errorMsg("Error depositing:"), err)
-                                continue</span>
-                        }
-                        <span class="cov0" title="0">balance, err := scv.GetBalance(userID, uuid.MustParse(accountID))
-                        if err != nil </span><span class="cov0" title="0">{
-                                fmt.Println(errorMsg("Error fetching account balance:"), err)
-                                continue</span>
-                        }
-                        <span class="cov0" title="0">fmt.Println(successMsg(fmt.Sprintf("Deposited %.2f to account %s. New balance: %.2f", amount, account.ID, balance)))</span>
-                case "withdraw":<span class="cov0" title="0">
-                        if len(args) &lt; 3 </span><span class="cov0" title="0">{
-                                fmt.Println(errorMsg("Usage: withdraw &lt;account_id&gt; &lt;amount&gt;"))
-                                continue</span>
-                        }
-                        <span class="cov0" title="0">accountID := args[1]
-                        amount, err := strconv.ParseFloat(args[2], 64)
-                        if err != nil </span><span class="cov0" title="0">{
-                                fmt.Println(errorMsg("Invalid amount:"), err)
-                                continue</span>
-                        }
-                        <span class="cov0" title="0">account, err := scv.Withdraw(userID, uuid.MustParse(accountID), amount)
-                        if err != nil </span><span class="cov0" title="0">{
-                                fmt.Println(errorMsg("Error withdrawing:"), err)
-                                continue</span>
-                        }
-                        <span class="cov0" title="0">balance, err := scv.GetBalance(userID, account.ID)
-                        if err != nil </span><span class="cov0" title="0">{
-                                fmt.Println(errorMsg("Error fetching account balance:"), err)
-                                continue</span>
-                        }
-                        <span class="cov0" title="0">fmt.Println(successMsg(fmt.Sprintf("Withdrew %.2f from account %s. New balance: %.2f", amount, account.ID, balance)))</span>
-                case "balance":<span class="cov0" title="0">
-                        if len(args) &lt; 2 </span><span class="cov0" title="0">{
-                                fmt.Println(errorMsg("Usage: balance &lt;account_id&gt;"))
-                                continue</span>
-                        }
-                        <span class="cov0" title="0">accountID := args[1]
-                        balance, err := scv.GetBalance(userID, uuid.MustParse(accountID))
-                        if err != nil </span><span class="cov0" title="0">{
-                                fmt.Println(errorMsg("Error fetching balance:"), err)
-                                continue</span>
-                        }
-                        <span class="cov0" title="0">fmt.Println(successMsg(fmt.Sprintf("Account %s balance: %.2f", accountID, balance)))</span>
-                default:<span class="cov0" title="0">
-                        fmt.Println(errorMsg("Unknown command:"), cmd)</span>
-                }
-        }
-}
-</pre>
-		
-		<pre class="file" id="file1" style="display: none">package main
-
-import (
-        "log"
-
-        "github.com/amirasaad/fintech/infra"
-
-        "github.com/amirasaad/fintech/pkg/repository"
-        "github.com/amirasaad/fintech/pkg/service"
-        "github.com/amirasaad/fintech/webapi"
-)
-
-// @title Fintech API
-// @version 1.0.0
-// @description Fintech API documentation
-// @termsOfService http://swagger.io/terms/
-// @contact.name API Support
-// @contact.email fiber@swagger.io
-// @license.name Apache 2.0
-// @license.url http://www.apache.org/licenses/MIT
-// @host localhost:3000
-// @BasePath /
-func main() <span class="cov0" title="0">{
-        db, err := infra.NewDBConnection()
-        if err != nil </span><span class="cov0" title="0">{
-                log.Fatal(err)
-        }</span>
-        <span class="cov0" title="0">log.Fatal(webapi.NewApp(func() (repository.UnitOfWork, error) </span><span class="cov0" title="0">{
-                return infra.NewGormUoW(db)
-        }</span>, service.NewJWTAuthStrategy(func() (repository.UnitOfWork, error) <span class="cov0" title="0">{
-                return infra.NewGormUoW(db)
-        }</span>)).Listen(":3000"))
-
-}
-</pre>
-		
-		<pre class="file" id="file2" style="display: none">// Package docs Code generated by swaggo/swag. DO NOT EDIT
+		<pre class="file" id="file0" style="display: none">// Package docs Code generated by swaggo/swag. DO NOT EDIT
 package docs
 
 import "github.com/swaggo/swag"
@@ -959,6 +750,9 @@ const docTemplate = `{
             "properties": {
                 "amount": {
                     "type": "number"
+                },
+                "currency": {
+                    "type": "string"
                 }
             }
         },
@@ -1060,6 +854,9 @@ const docTemplate = `{
             "properties": {
                 "amount": {
                     "type": "number"
+                },
+                "currency": {
+                    "type": "string"
                 }
             }
         }
@@ -1069,7 +866,7 @@ const docTemplate = `{
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &amp;swag.Spec{
         Version:          "1.0.0",
-        Host:             "localhost:3000",
+        Host:             "fintech-beryl-beta.vercel.app",
         BasePath:         "/",
         Schemes:          []string{},
         Title:            "Fintech API",
@@ -1085,11 +882,12 @@ func init() <span class="cov0" title="0">{
 }</span>
 </pre>
 		
-		<pre class="file" id="file3" style="display: none">package infra
+		<pre class="file" id="file1" style="display: none">package infra
 
 import (
         "errors"
         "os"
+        "time"
 
         "gorm.io/driver/postgres"
         "gorm.io/gorm"
@@ -1101,21 +899,34 @@ func NewDBConnection() (*gorm.DB, error) <span class="cov8" title="1">{
         if databaseUrl == "" </span><span class="cov8" title="1">{
                 return nil, errors.New("DATABASE_URL is not set")
         }</span>
+
+        <span class="cov0" title="0">var logMode logger.LogLevel
+        if os.Getenv("APP_ENV") == "development" </span><span class="cov0" title="0">{
+                logMode = logger.Info
+        }</span> else<span class="cov0" title="0"> {
+                logMode = logger.Silent
+        }</span>
+
         <span class="cov0" title="0">connection, err := gorm.Open(postgres.Open(databaseUrl), &amp;gorm.Config{
-                Logger:                 logger.Default.LogMode(logger.Silent),
+                Logger:                 logger.Default.LogMode(logMode),
                 SkipDefaultTransaction: true})
         if err != nil </span><span class="cov0" title="0">{
                 return nil, err
         }</span>
-        <span class="cov0" title="0">err = connection.AutoMigrate(&amp;Account{}, &amp;Transaction{}, &amp;User{})
+
+        <span class="cov0" title="0">sqlDB, err := connection.DB()
         if err != nil </span><span class="cov0" title="0">{
                 return nil, err
         }</span>
-        <span class="cov0" title="0">return connection, nil</span>
+        <span class="cov0" title="0">sqlDB.SetMaxOpenConns(25)
+        sqlDB.SetMaxIdleConns(25)
+        sqlDB.SetConnMaxLifetime(1 * time.Hour)
+
+        return connection, nil</span>
 }
 </pre>
 		
-		<pre class="file" id="file4" style="display: none">package infra
+		<pre class="file" id="file2" style="display: none">package infra
 
 import (
         "time"
@@ -1140,7 +951,7 @@ func (r *accountRepository) Get(id uuid.UUID) (*domain.Account, error) <span cla
         if result.Error != nil </span><span class="cov8" title="1">{
                 return nil, result.Error
         }</span>
-        <span class="cov8" title="1">return domain.NewAccountFromData(a.ID, a.UserID, a.Balance, a.CreatedAt, a.UpdatedAt), nil</span>
+        <span class="cov8" title="1">return domain.NewAccountFromData(a.ID, a.UserID, a.Balance, a.Currency, a.CreatedAt, a.UpdatedAt), nil</span>
 }
 
 func (r *accountRepository) Create(a *domain.Account) error <span class="cov0" title="0">{
@@ -1159,9 +970,10 @@ func (r *accountRepository) Update(a *domain.Account) error <span class="cov0" t
                         DeletedAt: gorm.DeletedAt{},
                         UpdatedAt: time.Now().UTC(),
                 },
-                ID:      a.ID,
-                UserID:  a.UserID,
-                Balance: a.Balance,
+                ID:       a.ID,
+                UserID:   a.UserID,
+                Balance:  a.Balance,
+                Currency: a.Currency,
         }
         result := r.db.Save(&amp;dbModel)
         if result.Error != nil </span><span class="cov0" title="0">{
@@ -1201,7 +1013,7 @@ func (r *transactionRepository) Get(id uuid.UUID) (*domain.Transaction, error) <
         if result.Error != nil </span><span class="cov0" title="0">{
                 return nil, result.Error
         }</span>
-        <span class="cov0" title="0">return domain.NewTransactionFromData(t.ID, t.UserID, t.AccountID, t.Amount, t.Balance, t.CreatedAt), nil</span>
+        <span class="cov0" title="0">return domain.NewTransactionFromData(t.ID, t.UserID, t.AccountID, t.Amount, t.Balance, t.Currency, t.CreatedAt), nil</span>
 }
 
 func (r *transactionRepository) List(userID, accountID uuid.UUID) ([]*domain.Transaction, error) <span class="cov0" title="0">{
@@ -1212,7 +1024,7 @@ func (r *transactionRepository) List(userID, accountID uuid.UUID) ([]*domain.Tra
         }</span>
         <span class="cov0" title="0">tx := make([]*domain.Transaction, 0, len(dbTransactions))
         for _, t := range dbTransactions </span><span class="cov0" title="0">{
-                tx = append(tx, domain.NewTransactionFromData(t.ID, t.UserID, t.AccountID, t.Amount, t.Balance, t.CreatedAt))
+                tx = append(tx, domain.NewTransactionFromData(t.ID, t.UserID, t.AccountID, t.Amount, t.Balance, t.Currency, t.CreatedAt))
         }</span>
         <span class="cov0" title="0">return tx, nil</span>
 }
@@ -1290,7 +1102,7 @@ func NewUserRepository(db *gorm.DB) repository.UserRepository <span class="cov0"
 }</span>
 </pre>
 		
-		<pre class="file" id="file5" style="display: none">package infra
+		<pre class="file" id="file3" style="display: none">package infra
 
 import (
         "fmt"
@@ -1393,7 +1205,7 @@ func (u *UoW) UserRepository() repository.UserRepository <span class="cov0" titl
 }
 </pre>
 		
-		<pre class="file" id="file6" style="display: none">package domain
+		<pre class="file" id="file4" style="display: none">package domain
 
 import (
         "errors"
@@ -1402,8 +1214,6 @@ import (
         "math/big"
         "sync"
         "time"
-
-        "log/slog"
 
         "github.com/google/uuid"
 )
@@ -1415,17 +1225,51 @@ var (
         ErrInsufficientFunds               = errors.New("insufficient funds for withdrawal")
         ErrAccountNotFound                 = errors.New("account not found")
         ErrUserUnauthorized                = errors.New("user unauthorized")
+        ErrInvalidCurrencyCode             = errors.New("invalid currency code")
 )
 
+// CurrencyMeta holds metadata for a currency, such as decimals and symbol.
+type CurrencyMeta struct {
+        Decimals int
+        Symbol   string
+}
+
+const (
+        DefaultCurrency = "USD"
+        DefaultDecimals = 2
+)
+
+// CurrencyInfo maps ISO 4217 currency codes to their metadata.
+var CurrencyInfo = map[string]CurrencyMeta{
+        "USD": {Decimals: DefaultDecimals, Symbol: "$"},
+        "EUR": {Decimals: DefaultDecimals, Symbol: "€"},
+        "JPY": {Decimals: 0, Symbol: "¥"},
+        "KWD": {Decimals: 3, Symbol: "د.ك"},
+        "EGP": {Decimals: DefaultDecimals, Symbol: "£"},
+        // Add more as needed
+}
+
+// ConversionInfo holds details about a currency conversion performed during a transaction.
+type ConversionInfo struct {
+        OriginalAmount    float64
+        OriginalCurrency  string
+        ConvertedAmount   float64
+        ConvertedCurrency string
+        ConversionRate    float64
+}
+
+// Account represents a user's financial account, supporting multi-currency.
 type Account struct {
         ID        uuid.UUID
         UserID    uuid.UUID
-        Balance   int64
-        CreatedAt time.Time
+        Balance   int64 // Account balance snapshot
         UpdatedAt time.Time
+        CreatedAt time.Time
+        Currency  string // ISO 4217 currency code
         mu        sync.Mutex
 }
 
+// Transaction represents a financial transaction, supporting multi-currency.
 type Transaction struct {
         ID        uuid.UUID
         UserID    uuid.UUID
@@ -1433,67 +1277,123 @@ type Transaction struct {
         Amount    int64
         Balance   int64 // Account balance snapshot
         CreatedAt time.Time
+        Currency  string // ISO 4217 currency code
 }
 
+// iso4217 is a minimal set of supported ISO 4217 currency codes.
+var iso4217 = map[string]struct{}{
+        "USD": {},
+        "EUR": {},
+        "GBP": {},
+        // Add more as needed
+}
+
+// IsValidCurrencyCode returns true if the code is a supported ISO 4217 currency code.
+func IsValidCurrencyCode(code string) bool <span class="cov8" title="1">{
+        _, ok := iso4217[code]
+        return ok
+}</span>
+
+// NewAccount creates a new account with default currency USD.
 func NewAccount(userID uuid.UUID) *Account <span class="cov8" title="1">{
-        return &amp;Account{
+        return NewAccountWithCurrency(userID, "USD")
+}</span>
+
+// NewAccountWithCurrency creates a new account with the specified currency.
+// If the currency is invalid or empty, defaults to USD.
+func NewAccountWithCurrency(userID uuid.UUID, currency string) *Account <span class="cov8" title="1">{
+        if !IsValidCurrencyCode(currency) </span><span class="cov0" title="0">{
+                currency = DefaultCurrency
+        }</span>
+        <span class="cov8" title="1">return &amp;Account{
                 ID:        uuid.New(),
                 UserID:    userID,
                 CreatedAt: time.Now(),
-                UpdatedAt: time.Now(),
                 Balance:   0,
+                Currency:  currency,
                 mu:        sync.Mutex{},
-        }
-}</span>
+        }</span>
+}
 
-func NewAccountFromData(id, userID uuid.UUID, balance int64, created, updated time.Time) *Account <span class="cov0" title="0">{
+func NewAccountFromData(
+        id, userID uuid.UUID,
+        balance int64,
+        currency string,
+        created, updated time.Time,
+) *Account <span class="cov0" title="0">{
         return &amp;Account{
                 ID:        id,
                 UserID:    userID,
                 Balance:   balance,
+                Currency:  currency,
                 CreatedAt: created,
                 UpdatedAt: updated,
                 mu:        sync.Mutex{},
         }
 }</span>
 
-func NewTransactionFromData(id, userID, accountID uuid.UUID, amount, balance int64, created time.Time) *Transaction <span class="cov8" title="1">{
+func NewTransactionFromData(
+        id, userID, accountID uuid.UUID,
+        amount, balance int64,
+        currency string,
+        created time.Time,
+) *Transaction <span class="cov8" title="1">{
         return &amp;Transaction{
                 ID:        id,
                 UserID:    userID,
                 AccountID: accountID,
                 Amount:    amount,
                 Balance:   balance,
+                Currency:  currency,
                 CreatedAt: created,
         }
 }</span>
 
-// Deposit adds funds to the account and returns a transaction record.
-// The amount is expected to be in dollars, and it will be converted to cents for precision.
-// It returns an error if the deposit amount is negative.
-func (a *Account) Deposit(userID uuid.UUID, amount float64) (*Transaction, error) <span class="cov8" title="1">{
+// NewTransactionWithCurrency creates a new transaction with the specified currency.
+// If the currency is invalid or empty, defaults to USD.
+func NewTransactionWithCurrency(id, userID, accountID uuid.UUID, amount, balance int64, currency string) *Transaction <span class="cov8" title="1">{
+        if !IsValidCurrencyCode(currency) </span><span class="cov0" title="0">{
+                currency = DefaultCurrency
+        }</span>
+        <span class="cov8" title="1">return &amp;Transaction{
+                ID:        id,
+                UserID:    userID,
+                AccountID: accountID,
+                Amount:    amount,
+                Balance:   balance,
+                CreatedAt: time.Now(),
+                Currency:  currency,
+        }</span>
+}
+
+// Deposit adds funds to the account if the currency matches and returns a transaction record.
+// Returns an error if the currency does not match or the deposit amount is invalid.
+func (a *Account) Deposit(userID uuid.UUID, money Money) (*Transaction, error) <span class="cov8" title="1">{
         if a.UserID != userID </span><span class="cov8" title="1">{
                 return nil, ErrUserUnauthorized
         }</span>
-        <span class="cov8" title="1">slog.Info("Balance before deposit", slog.Int64("balance", a.Balance))
-        a.mu.Lock()
+        <span class="cov8" title="1">a.mu.Lock()
         defer a.mu.Unlock()
 
-        if amount &lt;= 0 </span><span class="cov8" title="1">{
+        if money.Amount &lt;= 0 </span><span class="cov8" title="1">{
                 return nil, ErrTransactionAmountMustBePositive
         }</span>
 
-        <span class="cov8" title="1">amountStr := fmt.Sprintf("%.2f", amount)
+        <span class="cov8" title="1">amountStr := fmt.Sprintf("%.2f", money.Amount)
         amountRat, ok := new(big.Rat).SetString(amountStr)
         if !ok </span><span class="cov0" title="0">{
                 return nil, fmt.Errorf("invalid amount format")
         }</span>
 
-        <span class="cov8" title="1">multiplier := big.NewRat(100, 1)
-        centsRat := new(big.Rat).Mul(amountRat, multiplier)
+        <span class="cov8" title="1">meta, ok := CurrencyInfo[money.Currency]
+        if !ok </span><span class="cov0" title="0">{
+                meta.Decimals = 2 // default
+        }</span>
+        <span class="cov8" title="1">multiplier := math.Pow10(meta.Decimals)
+        centsRat := new(big.Rat).Mul(amountRat, big.NewRat(int64(multiplier), 1))
 
         if !centsRat.IsInt() </span><span class="cov0" title="0">{
-                return nil, fmt.Errorf("amount has more than 2 decimal places")
+                return nil, fmt.Errorf("amount has more than %d decimal places", meta.Decimals)
         }</span>
 
         <span class="cov8" title="1">cents := centsRat.Num()
@@ -1511,9 +1411,7 @@ func (a *Account) Deposit(userID uuid.UUID, amount float64) (*Transaction, error
         }</span>
 
         <span class="cov8" title="1">parsedAmount := cents.Int64()
-        slog.Info("Depositing amount", slog.Int64("amount", parsedAmount))
         a.Balance += parsedAmount
-        slog.Info("Balance after deposit", slog.Int64("balance", a.Balance))
 
         transaction := Transaction{
                 ID:        uuid.New(),
@@ -1522,33 +1420,37 @@ func (a *Account) Deposit(userID uuid.UUID, amount float64) (*Transaction, error
                 Amount:    parsedAmount,
                 Balance:   a.Balance,
                 CreatedAt: time.Now().UTC(),
+                Currency:  money.Currency,
         }
-        slog.Info("Transaction created", slog.Any("transaction", transaction))
 
         return &amp;transaction, nil</span>
 }
 
-// Withdraw removes funds from the account and returns a transaction record.
-// The amount is expected to be in dollars, and it will be converted to cents for precision.
-// It returns an error if the withdrawal amount is negative or if there are insufficient funds.
-func (a *Account) Withdraw(userID uuid.UUID, amount float64) (*Transaction, error) <span class="cov8" title="1">{
+// Withdraw removes funds from the account if the currency matches and returns a transaction record.
+// Returns an error if the currency does not match or if there are insufficient funds.
+func (a *Account) Withdraw(userID uuid.UUID, money Money) (*Transaction, error) <span class="cov8" title="1">{
         if a.UserID != userID </span><span class="cov8" title="1">{
                 return nil, ErrUserUnauthorized
         }</span>
-        <span class="cov8" title="1">slog.Info("Balance before withdrawal", slog.Int64("balance", a.Balance))
-        a.mu.Lock()
+        <span class="cov8" title="1">a.mu.Lock()
         defer a.mu.Unlock()
-        // Check if the amount is positive before proceeding with the withdrawal
-        if amount &lt;= 0 </span><span class="cov8" title="1">{
+
+        if money.Amount &lt;= 0 </span><span class="cov8" title="1">{
                 return nil, ErrWithdrawalAmountMustBePositive
         }</span>
-        <span class="cov8" title="1">cents := int64(math.Round(amount * 100))
+
+        <span class="cov8" title="1">meta, ok := CurrencyInfo[money.Currency]
+        if !ok </span><span class="cov0" title="0">{
+                meta.Decimals = DefaultDecimals
+        }</span>
+        <span class="cov8" title="1">multiplier := math.Pow10(meta.Decimals)
+        cents := int64(math.Round(money.Amount * multiplier))
+
         if cents &gt; a.Balance </span><span class="cov8" title="1">{
                 return nil, ErrInsufficientFunds
         }</span>
-        <span class="cov8" title="1">slog.Info("Withdrawing amount", slog.Int64("amount", cents))
-        a.Balance -= cents
-        slog.Info("Balance after withdrawal", slog.Int64("balance", a.Balance))
+        <span class="cov8" title="1">a.Balance -= cents
+
         transaction := Transaction{
                 ID:        uuid.New(),
                 UserID:    userID,
@@ -1556,20 +1458,106 @@ func (a *Account) Withdraw(userID uuid.UUID, amount float64) (*Transaction, erro
                 Amount:    -cents,
                 Balance:   a.Balance,
                 CreatedAt: time.Now().UTC(),
+                Currency:  money.Currency,
         }
-        slog.Info("Transaction created:", slog.Any("transaction", transaction))
 
         return &amp;transaction, nil</span>
 }
 
 // GetBalance returns the current balance of the account in dollars.
 // It converts the balance from cents to dollars for display purposes.
-func (a *Account) GetBalance(userID uuid.UUID) (float64, error) <span class="cov8" title="1">{
+func (a *Account) GetBalance(userID uuid.UUID) (balance float64, err error) <span class="cov8" title="1">{
         if a.UserID != userID </span><span class="cov8" title="1">{
-                return 0, ErrUserUnauthorized
+                err = ErrUserUnauthorized
+                return
         }</span>
-        <span class="cov8" title="1">slog.Info("Getting balance", slog.Int64("balance", a.Balance))
-        return float64(a.Balance) / 100, nil</span> // Convert cents back to dollars
+        <span class="cov8" title="1">meta, ok := CurrencyInfo[a.Currency]
+        if !ok </span><span class="cov0" title="0">{
+                meta.Decimals = DefaultDecimals
+        }</span>
+        <span class="cov8" title="1">divisor := math.Pow10(meta.Decimals)
+        balance = float64(a.Balance) / divisor
+        return</span>
+}
+</pre>
+		
+		<pre class="file" id="file5" style="display: none">package domain
+
+// CurrencyConverter defines the interface for converting amounts between currencies.
+type CurrencyConverter interface {
+        // Convert converts an amount from one currency to another.
+        // Returns the converted amount and the rate used, or an error if conversion is not possible.
+        Convert(amount float64, from, to string) (*ConversionInfo, error)
+}
+
+// StubCurrencyConverter is a simple implementation that returns the same amount (1:1 conversion).
+type StubCurrencyConverter struct {
+        rates map[string]map[string]float64
+}
+
+// NewStubCurrencyConverter creates a new StubCurrencyConverter with an empty rates map.
+func NewStubCurrencyConverter() *StubCurrencyConverter <span class="cov0" title="0">{
+        return &amp;StubCurrencyConverter{rates: map[string]map[string]float64{
+                "USD": {
+                        "EUR": 0.84,
+                        "GBP": 0.76,
+                        "JPY": 0.0027,
+                },
+                "EUR": {
+                        "USD": 1.19,
+                        "GBP": 0.90,
+                        "JPY": 0.0024,
+                },
+                "GBP": {
+                        "USD": 1.32,
+                        "EUR": 1.11,
+                        "JPY": 0.0024,
+                },
+                "JPY": {
+                        "USD": 0.0027,
+                        "EUR": 0.0024,
+                        "GBP": 0.0024,
+                },
+        }}
+}</span>
+
+func (s *StubCurrencyConverter) Convert(amount float64, from, to string) (*ConversionInfo, error) <span class="cov0" title="0">{
+        rate := s.rates[from][to]
+        return &amp;ConversionInfo{
+                OriginalAmount:    amount,
+                OriginalCurrency:  from,
+                ConvertedAmount:   amount * rate,
+                ConvertedCurrency: to,
+                ConversionRate:    rate,
+        }, nil
+}</span>
+</pre>
+		
+		<pre class="file" id="file6" style="display: none">package domain
+
+// Money represents a monetary amount with a currency.
+type Money struct {
+        Amount   float64
+        Currency string
+}
+
+// NewMoney creates a new Money value object, validating the currency and amount.
+func NewMoney(
+        amount float64,
+        currency string,
+) (
+        money Money,
+        err error,
+) <span class="cov0" title="0">{
+        if currency == "" </span><span class="cov0" title="0">{
+                currency = DefaultCurrency
+        }</span>
+        <span class="cov0" title="0">if !IsValidCurrencyCode(currency) </span><span class="cov0" title="0">{
+                err = ErrInvalidCurrencyCode
+                return
+        }</span>
+        <span class="cov0" title="0">money = Money{Amount: amount, Currency: currency}
+        return</span>
 }
 </pre>
 		
@@ -1598,7 +1586,9 @@ func hashPassword(password string) (string, error) <span class="cov0" title="0">
         bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
         return string(bytes), err
 }</span>
-func NewUser(username, email, password string) (*User, error) <span class="cov0" title="0">{
+func NewUser(
+        username, email, password string,
+) (*User, error) <span class="cov0" title="0">{
         hashedPassword, err := hashPassword(password)
         if err != nil </span><span class="cov0" title="0">{
                 return nil, err
@@ -1613,7 +1603,11 @@ func NewUser(username, email, password string) (*User, error) <span class="cov0"
         }, nil</span>
 }
 
-func NewUserFromData(id uuid.UUID, username, email, password string, created, updated time.Time) *User <span class="cov8" title="1">{
+func NewUserFromData(
+        id uuid.UUID,
+        username, email, password string,
+        created, updated time.Time,
+) *User <span class="cov8" title="1">{
         return &amp;User{
                 ID:        id,
                 Username:  username,
@@ -1658,8 +1652,6 @@ func jwtError(c *fiber.Ctx, err error) error <span class="cov8" title="1">{
 package service
 
 import (
-        "log/slog"
-
         "github.com/amirasaad/fintech/pkg/domain"
         "github.com/amirasaad/fintech/pkg/repository"
 
@@ -1669,177 +1661,288 @@ import (
 // AccountService provides methods to interact with accounts and transactions using a unit of work pattern.
 type AccountService struct {
         uowFactory func() (repository.UnitOfWork, error)
+        converter  domain.CurrencyConverter
 }
 
-// NewAccountService creates a new instance of AccountService with the provided unit of work factory.
-func NewAccountService(uowFactory func() (repository.UnitOfWork, error)) *AccountService <span class="cov8" title="1">{
+// NewAccountService creates a new AccountService with the given UnitOfWork factory and CurrencyConverter.
+func NewAccountService(uowFactory func() (repository.UnitOfWork, error), converter domain.CurrencyConverter) *AccountService <span class="cov8" title="1">{
         return &amp;AccountService{
                 uowFactory: uowFactory,
+                converter:  converter,
         }
 }</span>
 
 // CreateAccount creates a new account and persists it using the repository.
 // Returns the created account or an error if the operation fails.
-func (s *AccountService) CreateAccount(userID uuid.UUID) (*domain.Account, error) <span class="cov8" title="1">{
+func (s *AccountService) CreateAccount(
+        userID uuid.UUID,
+) (a *domain.Account, err error) <span class="cov8" title="1">{
         uow, err := s.uowFactory()
         if err != nil </span><span class="cov8" title="1">{
-                return nil, err
+                a = nil
+                return
         }</span>
         <span class="cov8" title="1">err = uow.Begin()
         if err != nil </span><span class="cov0" title="0">{
-                return nil, err
+                a = nil
+                return
         }</span>
 
-        <span class="cov8" title="1">a := domain.NewAccount(userID)
+        <span class="cov8" title="1">a = domain.NewAccount(userID)
         err = uow.AccountRepository().Create(a)
         if err != nil </span><span class="cov8" title="1">{
                 _ = uow.Rollback()
-                return nil, err
+                a = nil
+                return
         }</span>
 
         <span class="cov8" title="1">err = uow.Commit()
         if err != nil </span><span class="cov8" title="1">{
                 _ = uow.Rollback()
-                return nil, err
+                a = nil
+                return
         }</span>
-        <span class="cov8" title="1">return a, nil</span>
+        <span class="cov8" title="1">return</span>
+}
+
+func (s *AccountService) CreateAccountWithCurrency(
+        userID uuid.UUID,
+        currency string) (account *domain.Account, err error) <span class="cov0" title="0">{
+        uow, err := s.uowFactory()
+        if err != nil </span><span class="cov0" title="0">{
+                account = nil
+                return
+        }</span>
+        <span class="cov0" title="0">err = uow.Begin()
+        if err != nil </span><span class="cov0" title="0">{
+                account = nil
+                return
+        }</span>
+
+        <span class="cov0" title="0">account = domain.NewAccountWithCurrency(userID, currency)
+        err = uow.AccountRepository().Create(account)
+        if err != nil </span><span class="cov0" title="0">{
+                _ = uow.Rollback()
+                account = nil
+                return
+        }</span>
+
+        <span class="cov0" title="0">err = uow.Commit()
+        if err != nil </span><span class="cov0" title="0">{
+                _ = uow.Rollback()
+                account = nil
+                return
+        }</span>
+        <span class="cov0" title="0">return</span>
 }
 
 // Deposit adds funds to the specified account and creates a transaction record.
 // Returns the transaction or an error if the operation fails.
-func (s *AccountService) Deposit(userID, accountID uuid.UUID, amount float64) (*domain.Transaction, error) <span class="cov8" title="1">{
-        uow, err := s.uowFactory()
+func (s *AccountService) Deposit(
+        userID, accountID uuid.UUID,
+        amount float64,
+        currency string,
+) (tx *domain.Transaction, convInfo *domain.ConversionInfo, err error) <span class="cov8" title="1">{
+        money, err := domain.NewMoney(amount, currency)
+        if err != nil </span><span class="cov0" title="0">{
+                tx = nil
+                return
+        }</span>
+        <span class="cov8" title="1">uow, err := s.uowFactory()
         if err != nil </span><span class="cov8" title="1">{
-                return nil, err
+                tx = nil
+                return
         }</span>
         <span class="cov8" title="1">err = uow.Begin()
         if err != nil </span><span class="cov0" title="0">{
-                slog.Error("Failed to begin transaction", slog.Any("error", err))
-                return nil, err
+                tx = nil
+                return
         }</span>
 
         <span class="cov8" title="1">a, err := uow.AccountRepository().Get(accountID)
         if err != nil </span><span class="cov8" title="1">{
                 _ = uow.Rollback()
-                return nil, domain.ErrAccountNotFound
+                tx = nil
+                err = domain.ErrAccountNotFound
+                return
         }</span>
-        <span class="cov8" title="1">tx, err := a.Deposit(userID, amount)
+
+        <span class="cov8" title="1">if money.Currency != a.Currency </span><span class="cov8" title="1">{
+                convInfo, err = s.converter.Convert(money.Amount, money.Currency, a.Currency)
+                if err != nil </span><span class="cov0" title="0">{
+                        _ = uow.Rollback()
+                        tx = nil
+                        return
+                }</span>
+                <span class="cov8" title="1">money, err = domain.NewMoney(convInfo.ConvertedAmount, a.Currency)
+                if err != nil </span><span class="cov0" title="0">{
+                        _ = uow.Rollback()
+                        tx = nil
+                        return
+                }</span>
+        }
+
+        <span class="cov8" title="1">tx, err = a.Deposit(userID, money)
         if err != nil </span><span class="cov8" title="1">{
                 _ = uow.Rollback()
-                return nil, err
+                tx = nil
+                return
         }</span>
 
         <span class="cov8" title="1">err = uow.AccountRepository().Update(a)
         if err != nil </span><span class="cov8" title="1">{
                 _ = uow.Rollback()
-                return nil, err
+                tx = nil
+                return
         }</span>
 
         <span class="cov8" title="1">err = uow.TransactionRepository().Create(tx)
         if err != nil </span><span class="cov0" title="0">{
                 _ = uow.Rollback()
-                return nil, err
+                tx = nil
+                return
         }</span>
 
         <span class="cov8" title="1">err = uow.Commit()
         if err != nil </span><span class="cov0" title="0">{
                 _ = uow.Rollback()
-                return nil, err
+                tx = nil
+                return
         }</span>
 
-        <span class="cov8" title="1">return tx, nil</span>
+        <span class="cov8" title="1">return</span>
 }
 
 // Withdraw removes funds from the specified account and creates a transaction record.
-// Returns the transaction or an error if the operation fails.
-func (s *AccountService) Withdraw(userID, accountID uuid.UUID, amount float64) (*domain.Transaction, error) <span class="cov8" title="1">{
-        uow, err := s.uowFactory()
+// Returns the transaction, conversion info (if any), and error if the operation fails.
+func (s *AccountService) Withdraw(
+        userID, accountID uuid.UUID,
+        amount float64,
+        currency string,
+) (
+        tx *domain.Transaction,
+        convInfo *domain.ConversionInfo,
+        err error,
+) <span class="cov8" title="1">{
+        money, err := domain.NewMoney(amount, currency)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, nil, err
+        }</span>
+        <span class="cov8" title="1">uow, err := s.uowFactory()
         if err != nil </span><span class="cov8" title="1">{
-                return nil, err
+                return nil, nil, err
         }</span>
         <span class="cov8" title="1">err = uow.Begin()
         if err != nil </span><span class="cov0" title="0">{
-                return nil, err
+                return nil, nil, err
         }</span>
 
         <span class="cov8" title="1">a, err := uow.AccountRepository().Get(accountID)
         if err != nil </span><span class="cov0" title="0">{
                 _ = uow.Rollback()
-                return nil, domain.ErrAccountNotFound
+                return nil, nil, domain.ErrAccountNotFound
         }</span>
 
-        <span class="cov8" title="1">tx, err := a.Withdraw(userID, amount)
+        <span class="cov8" title="1">if money.Currency != a.Currency </span><span class="cov8" title="1">{
+                convInfo, err = s.converter.Convert(money.Amount, money.Currency, a.Currency)
+                if err != nil </span><span class="cov0" title="0">{
+                        _ = uow.Rollback()
+                        return
+                }</span>
+
+                <span class="cov8" title="1">money, err = domain.NewMoney(convInfo.ConvertedAmount, a.Currency)
+                if err != nil </span><span class="cov0" title="0">{
+                        _ = uow.Rollback()
+                        return nil, nil, err
+                }</span>
+        }
+
+        <span class="cov8" title="1">tx, err = a.Withdraw(userID, money)
         if err != nil </span><span class="cov8" title="1">{
                 _ = uow.Rollback()
-                return nil, err
+                return nil, nil, err
         }</span>
 
         <span class="cov8" title="1">err = uow.AccountRepository().Update(a)
         if err != nil </span><span class="cov8" title="1">{
                 _ = uow.Rollback()
-                return nil, err
+                return nil, nil, err
         }</span>
 
         <span class="cov8" title="1">err = uow.TransactionRepository().Create(tx)
         if err != nil </span><span class="cov0" title="0">{
                 _ = uow.Rollback()
-                return nil, err
+                return nil, nil, err
         }</span>
 
         <span class="cov8" title="1">err = uow.Commit()
         if err != nil </span><span class="cov0" title="0">{
                 _ = uow.Rollback()
-                return nil, err
+                return nil, nil, err
         }</span>
 
-        <span class="cov8" title="1">return tx, nil</span>
+        <span class="cov8" title="1">return tx, convInfo, nil</span>
 }
 
 // GetAccount retrieves an account by its ID.
 // Returns the account or an error if not found.
-func (s *AccountService) GetAccount(userID, accountID uuid.UUID) (*domain.Account, error) <span class="cov8" title="1">{
+func (s *AccountService) GetAccount(
+        userID, accountID uuid.UUID,
+) (a *domain.Account, err error) <span class="cov8" title="1">{
         uow, err := s.uowFactory()
         if err != nil </span><span class="cov8" title="1">{
-                return nil, err
+                a = nil
+                return
         }</span>
-        <span class="cov8" title="1">a, err := uow.AccountRepository().Get(accountID)
+        <span class="cov8" title="1">a, err = uow.AccountRepository().Get(accountID)
         if err != nil </span><span class="cov8" title="1">{
-                return nil, domain.ErrAccountNotFound
+                a = nil
+                err = domain.ErrAccountNotFound
+                return
         }</span>
         <span class="cov8" title="1">if a.UserID != userID </span><span class="cov8" title="1">{
-                return nil, domain.ErrUserUnauthorized
+                a = nil
+                err = domain.ErrUserUnauthorized
+                return
         }</span>
-        <span class="cov8" title="1">return a, nil</span>
+        <span class="cov8" title="1">return</span>
 }
 
 // GetTransactions retrieves all transactions for a given account ID.
 // Returns a slice of transactions or an error if the operation fails.
-func (s *AccountService) GetTransactions(userID, accountID uuid.UUID) ([]*domain.Transaction, error) <span class="cov8" title="1">{
+func (s *AccountService) GetTransactions(
+        userID, accountID uuid.UUID,
+) (txs []*domain.Transaction, err error) <span class="cov8" title="1">{
         uow, err := s.uowFactory()
         if err != nil </span><span class="cov8" title="1">{
-                return nil, err
+                txs = nil
+                return
         }</span>
-        <span class="cov8" title="1">txs, err := uow.TransactionRepository().List(userID, accountID)
+        <span class="cov8" title="1">txs, err = uow.TransactionRepository().List(userID, accountID)
         if err != nil </span><span class="cov8" title="1">{
-                return nil, err
+                txs = nil
+                return
         }</span>
 
-        <span class="cov8" title="1">return txs, nil</span>
+        <span class="cov8" title="1">return</span>
 }
 
 // GetBalance retrieves the current balance of the specified account.
 // Returns the balance as a float64 or an error if the operation fails.
-func (s *AccountService) GetBalance(userID, accountID uuid.UUID) (float64, error) <span class="cov8" title="1">{
+func (s *AccountService) GetBalance(
+        userID, accountID uuid.UUID,
+) (balance float64, err error) <span class="cov8" title="1">{
         uow, err := s.uowFactory()
         if err != nil </span><span class="cov8" title="1">{
-                return 0, err
+                return
         }</span>
         <span class="cov8" title="1">a, err := uow.AccountRepository().Get(accountID)
         if err != nil </span><span class="cov8" title="1">{
-                return 0, err
+                return
         }</span>
 
-        <span class="cov8" title="1">return a.GetBalance(userID)</span>
+        <span class="cov8" title="1">balance, err = a.GetBalance(userID)
+        return</span>
 }
 </pre>
 		
@@ -1873,7 +1976,10 @@ type AuthService struct {
         strategy   AuthStrategy
 }
 
-func NewAuthService(uowFactory func() (repository.UnitOfWork, error), strategy AuthStrategy) *AuthService <span class="cov8" title="1">{
+func NewAuthService(
+        uowFactory func() (repository.UnitOfWork, error),
+        strategy AuthStrategy,
+) *AuthService <span class="cov8" title="1">{
         return &amp;AuthService{uowFactory: uowFactory, strategy: strategy}
 }</span>
 
@@ -1881,7 +1987,9 @@ func NewBasicAuthService(uowFactory func() (repository.UnitOfWork, error)) *Auth
         return NewAuthService(uowFactory, &amp;BasicAuthStrategy{uowFactory: uowFactory})
 }</span>
 
-func (s *AuthService) CheckPasswordHash(password, hash string) bool <span class="cov8" title="1">{
+func (s *AuthService) CheckPasswordHash(
+        password, hash string,
+) bool <span class="cov8" title="1">{
         err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
         return err == nil
 }</span>
@@ -1891,13 +1999,18 @@ func (s *AuthService) ValidEmail(email string) bool <span class="cov8" title="1"
         return err == nil
 }</span>
 
-func (s *AuthService) GetCurrentUserId(token *jwt.Token) (uuid.UUID, error) <span class="cov8" title="1">{
-
-        return s.strategy.GetCurrentUserID(context.WithValue(context.TODO(), userContextKey, token))
+func (s *AuthService) GetCurrentUserId(
+        token *jwt.Token,
+) (userID uuid.UUID, err error) <span class="cov8" title="1">{
+        userID, err = s.strategy.GetCurrentUserID(context.WithValue(context.TODO(), userContextKey, token))
+        return
 }</span>
 
-func (s *AuthService) Login(identity, password string) (*domain.User, string, error) <span class="cov8" title="1">{
-        return s.strategy.Login(identity, password)
+func (s *AuthService) Login(
+        identity, password string,
+) (user *domain.User, token string, err error) <span class="cov8" title="1">{
+        user, token, err = s.strategy.Login(identity, password)
+        return
 }</span>
 
 // JWTAuthStrategy implements AuthStrategy for JWT-based authentication
@@ -1905,35 +2018,43 @@ type JWTAuthStrategy struct {
         uowFactory func() (repository.UnitOfWork, error)
 }
 
-func NewJWTAuthStrategy(uowFactory func() (repository.UnitOfWork, error)) *JWTAuthStrategy <span class="cov0" title="0">{
+func NewJWTAuthStrategy(
+        uowFactory func() (repository.UnitOfWork, error),
+) *JWTAuthStrategy <span class="cov0" title="0">{
         return &amp;JWTAuthStrategy{uowFactory: uowFactory}
 }</span>
 
-func (s *JWTAuthStrategy) Login(identity, password string) (*domain.User, string, error) <span class="cov0" title="0">{
+func (s *JWTAuthStrategy) Login(
+        identity, password string,
+) (
+        user *domain.User,
+        tokenString string,
+        err error,
+) <span class="cov0" title="0">{
         uow, err := s.uowFactory()
         if err != nil </span><span class="cov0" title="0">{
-                return nil, "", err
+                return
         }</span>
-        <span class="cov0" title="0">var user *domain.User
-        if isEmail(identity) </span><span class="cov0" title="0">{
+        <span class="cov0" title="0">if isEmail(identity) </span><span class="cov0" title="0">{
                 user, err = uow.UserRepository().GetByEmail(identity)
         }</span> else<span class="cov0" title="0"> {
                 user, err = uow.UserRepository().GetByUsername(identity)
         }</span>
         <span class="cov0" title="0">const dummyHash = "$2a$10$7zFqzDbD3RrlkMTczbXG9OWZ0FLOXjIxXzSZ.QZxkVXjXcx7QZQiC"
         if err != nil </span><span class="cov0" title="0">{
-                return nil, "", err
+                return
         }</span>
         <span class="cov0" title="0">if user == nil </span><span class="cov0" title="0">{
                 checkPasswordHash(password, dummyHash)
-                return nil, "", nil
+                return
         }</span>
         <span class="cov0" title="0">if !checkPasswordHash(password, user.Password) </span><span class="cov0" title="0">{
-                return nil, "", nil
+                return
         }</span>
         <span class="cov0" title="0">secret := os.Getenv("JWT_SECRET_KEY")
         if secret == "" </span><span class="cov0" title="0">{
-                return nil, "", errors.New("JWT secret key is not set")
+                err = errors.New("JWT secret key is not set")
+                return
         }</span>
         <span class="cov0" title="0">token := jwt.New(jwt.SigningMethodHS256)
         claims := token.Claims.(jwt.MapClaims)
@@ -1941,25 +2062,29 @@ func (s *JWTAuthStrategy) Login(identity, password string) (*domain.User, string
         claims["email"] = user.Email
         claims["user_id"] = user.ID.String()
         claims["exp"] = time.Now().Add(time.Hour * 72).Unix()
-        tokenString, err := token.SignedString([]byte(secret))
+        tokenString, err = token.SignedString([]byte(secret))
         if err != nil </span><span class="cov0" title="0">{
-                return nil, "", err
+                return
         }</span>
-        <span class="cov0" title="0">return user, tokenString, nil</span>
+        <span class="cov0" title="0">return</span>
 }
 
-func (s *JWTAuthStrategy) GetCurrentUserID(ctx context.Context) (uuid.UUID, error) <span class="cov8" title="1">{
+func (s *JWTAuthStrategy) GetCurrentUserID(
+        ctx context.Context,
+) (userID uuid.UUID, err error) <span class="cov8" title="1">{
         token := ctx.Value(userContextKey).(*jwt.Token)
-
         claims, ok := token.Claims.(jwt.MapClaims)
         if !ok </span><span class="cov8" title="1">{
-                return uuid.Nil, domain.ErrUserUnauthorized
+                err = domain.ErrUserUnauthorized
+                return
         }</span>
         <span class="cov8" title="1">userIDRaw, ok := claims["user_id"].(string)
         if !ok </span><span class="cov8" title="1">{
-                return uuid.Nil, domain.ErrUserUnauthorized
+                err = domain.ErrUserUnauthorized
+                return
         }</span>
-        <span class="cov0" title="0">return uuid.Parse(userIDRaw)</span>
+        <span class="cov0" title="0">userID, err = uuid.Parse(userIDRaw)
+        return</span>
 }
 
 // BasicAuthStrategy implements AuthStrategy for CLI (no JWT, just password check)
@@ -1967,29 +2092,34 @@ type BasicAuthStrategy struct {
         uowFactory func() (repository.UnitOfWork, error)
 }
 
-func (s *BasicAuthStrategy) Login(identity, password string) (*domain.User, string, error) <span class="cov0" title="0">{
+func (s *BasicAuthStrategy) Login(
+        identity, password string,
+) (
+        user *domain.User,
+        tokenString string,
+        err error,
+) <span class="cov0" title="0">{
         uow, err := s.uowFactory()
         if err != nil </span><span class="cov0" title="0">{
-                return nil, "", err
+                return
         }</span>
-        <span class="cov0" title="0">var user *domain.User
-        if isEmail(identity) </span><span class="cov0" title="0">{
+        <span class="cov0" title="0">if isEmail(identity) </span><span class="cov0" title="0">{
                 user, err = uow.UserRepository().GetByEmail(identity)
         }</span> else<span class="cov0" title="0"> {
                 user, err = uow.UserRepository().GetByUsername(identity)
         }</span>
         <span class="cov0" title="0">const dummyHash = "$2a$10$7zFqzDbD3RrlkMTczbXG9OWZ0FLOXjIxXzSZ.QZxkVXjXcx7QZQiC"
         if err != nil </span><span class="cov0" title="0">{
-                return nil, "", err
+                return
         }</span>
         <span class="cov0" title="0">if user == nil </span><span class="cov0" title="0">{
                 checkPasswordHash(password, dummyHash)
-                return nil, "", nil
+                return
         }</span>
         <span class="cov0" title="0">if !checkPasswordHash(password, user.Password) </span><span class="cov0" title="0">{
-                return nil, "", nil
+                return
         }</span>
-        <span class="cov0" title="0">return user, "", nil</span> // No JWT token for CLI
+        <span class="cov0" title="0">return</span>
 }
 
 func (s *BasicAuthStrategy) GetCurrentUserID(ctx context.Context) (uuid.UUID, error) <span class="cov0" title="0">{
@@ -1997,13 +2127,18 @@ func (s *BasicAuthStrategy) GetCurrentUserID(ctx context.Context) (uuid.UUID, er
 }</span>
 
 // Helper functions
-func isEmail(email string) bool <span class="cov0" title="0">{
+func isEmail(
+        email string,
+) bool <span class="cov0" title="0">{
         _, err := mail.ParseAddress(email)
         return err == nil
 }</span>
 
-func checkPasswordHash(password, hash string) bool <span class="cov0" title="0">{
-        return bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)) == nil
+func checkPasswordHash(
+        password, hash string,
+) (isValid bool) <span class="cov0" title="0">{
+        isValid = bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)) == nil
+        return
 }</span>
 </pre>
 		
@@ -2020,135 +2155,154 @@ type UserService struct {
         uowFactory func() (repository.UnitOfWork, error)
 }
 
-func NewUserService(uowFactory func() (repository.UnitOfWork, error)) *UserService <span class="cov8" title="1">{
+func NewUserService(
+        uowFactory func() (repository.UnitOfWork, error),
+) *UserService <span class="cov8" title="1">{
         return &amp;UserService{
                 uowFactory: uowFactory,
         }
 }</span>
 
-func (s *UserService) CreateUser(username, email, password string) (*domain.User, error) <span class="cov8" title="1">{
+func (s *UserService) CreateUser(
+        username, email, password string,
+) (u *domain.User, err error) <span class="cov8" title="1">{
         uow, err := s.uowFactory()
         if err != nil </span><span class="cov8" title="1">{
-                return nil, err
+                u = nil
+                return
         }</span>
         <span class="cov8" title="1">err = uow.Begin()
         if err != nil </span><span class="cov0" title="0">{
-                return nil, err
+                u = nil
+                return
         }</span>
 
-        <span class="cov8" title="1">u, err := domain.NewUser(username, email, password)
+        <span class="cov8" title="1">u, err = domain.NewUser(username, email, password)
         if err != nil </span><span class="cov0" title="0">{
-                return nil, err
+                u = nil
+                return
         }</span>
         <span class="cov8" title="1">err = uow.UserRepository().Create(u)
         if err != nil </span><span class="cov8" title="1">{
                 _ = uow.Rollback()
-                return nil, err
+                u = nil
+                return
         }</span>
 
         <span class="cov8" title="1">err = uow.Commit()
         if err != nil </span><span class="cov8" title="1">{
                 _ = uow.Rollback()
-                return nil, err
+                u = nil
+                return
         }</span>
-        <span class="cov8" title="1">return u, nil</span>
+        <span class="cov8" title="1">return</span>
 }
 
-func (s *UserService) GetUser(id uuid.UUID) (*domain.User, error) <span class="cov8" title="1">{
+func (s *UserService) GetUser(id uuid.UUID) (u *domain.User, err error) <span class="cov8" title="1">{
         uow, err := s.uowFactory()
         if err != nil </span><span class="cov8" title="1">{
-                return nil, err
+                u = nil
+                return
         }</span>
 
-        <span class="cov8" title="1">u, err := uow.UserRepository().Get(id)
+        <span class="cov8" title="1">u, err = uow.UserRepository().Get(id)
         if err != nil </span><span class="cov8" title="1">{
-                return nil, err
+                u = nil
+                return
         }</span>
 
-        <span class="cov8" title="1">return u, nil</span>
+        <span class="cov8" title="1">return</span>
 }
 
-func (s *UserService) GetUserByEmail(email string) (*domain.User, error) <span class="cov8" title="1">{
+func (s *UserService) GetUserByEmail(email string) (u *domain.User, err error) <span class="cov8" title="1">{
         uow, err := s.uowFactory()
         if err != nil </span><span class="cov8" title="1">{
-                return nil, err
+                u = nil
+                return
         }</span>
 
-        <span class="cov8" title="1">u, err := uow.UserRepository().GetByEmail(email)
+        <span class="cov8" title="1">u, err = uow.UserRepository().GetByEmail(email)
         if err != nil </span><span class="cov8" title="1">{
-                return nil, err
+                u = nil
+                return
         }</span>
-        <span class="cov8" title="1">return u, nil</span>
+        <span class="cov8" title="1">return</span>
 }
 
-func (s *UserService) GetUserByUsername(username string) (*domain.User, error) <span class="cov8" title="1">{
+func (s *UserService) GetUserByUsername(username string) (u *domain.User, err error) <span class="cov8" title="1">{
         uow, err := s.uowFactory()
         if err != nil </span><span class="cov8" title="1">{
-                return nil, err
+                u = nil
+                return
         }</span>
 
-        <span class="cov8" title="1">u, err := uow.UserRepository().GetByUsername(username)
+        <span class="cov8" title="1">u, err = uow.UserRepository().GetByUsername(username)
         if err != nil </span><span class="cov8" title="1">{
-                return nil, err
+                u = nil
+                return
         }</span>
-        <span class="cov8" title="1">return u, nil</span>
+        <span class="cov8" title="1">return</span>
 }
 
-func (s *UserService) UpdateUser(u *domain.User) error <span class="cov8" title="1">{
+func (s *UserService) UpdateUser(u *domain.User) (err error) <span class="cov8" title="1">{
         uow, err := s.uowFactory()
         if err != nil </span><span class="cov8" title="1">{
-                return err
+                return
         }</span>
         <span class="cov8" title="1">err = uow.Begin()
         if err != nil </span><span class="cov0" title="0">{
-                return err
+                return
         }</span>
 
         <span class="cov8" title="1">err = uow.UserRepository().Update(u)
         if err != nil </span><span class="cov8" title="1">{
                 _ = uow.Rollback()
-                return err
+                return
         }</span>
 
         <span class="cov8" title="1">err = uow.Commit()
         if err != nil </span><span class="cov0" title="0">{
                 _ = uow.Rollback()
-                return err
+                return
         }</span>
-        <span class="cov8" title="1">return nil</span>
+        <span class="cov8" title="1">return</span>
 }
 
-func (s *UserService) DeleteUser(id uuid.UUID) error <span class="cov8" title="1">{
+func (s *UserService) DeleteUser(id uuid.UUID) (err error) <span class="cov8" title="1">{
         uow, err := s.uowFactory()
         if err != nil </span><span class="cov8" title="1">{
-                return err
+                return
         }</span>
         <span class="cov8" title="1">err = uow.Begin()
         if err != nil </span><span class="cov0" title="0">{
-                return err
+                return
         }</span>
 
         <span class="cov8" title="1">err = uow.UserRepository().Delete(id)
         if err != nil </span><span class="cov8" title="1">{
                 _ = uow.Rollback()
-                return err
+                return
         }</span>
 
         <span class="cov8" title="1">err = uow.Commit()
         if err != nil </span><span class="cov0" title="0">{
                 _ = uow.Rollback()
-                return err
+                return
         }</span>
-        <span class="cov8" title="1">return nil</span>
+        <span class="cov8" title="1">return</span>
 }
 
-func (s *UserService) ValidUser(id uuid.UUID, password string) bool <span class="cov8" title="1">{
+func (s *UserService) ValidUser(
+        id uuid.UUID,
+        password string,
+) (isValid bool, err error) <span class="cov8" title="1">{
         uow, err := s.uowFactory()
         if err != nil </span><span class="cov8" title="1">{
-                return false
+                return
         }</span>
 
-        <span class="cov8" title="1">return uow.UserRepository().Valid(id, password)</span>
+        <span class="cov8" title="1">isValid = uow.UserRepository().Valid(id, password)
+        return</span>
 }
 </pre>
 		
@@ -2157,8 +2311,8 @@ func (s *UserService) ValidUser(id uuid.UUID, password string) bool <span class=
 // and listing account transactions. All routes are protected by authentication middleware and require a valid user context.
 //
 //        @param app The Fiber application instance to register routes on.
-//        @param uowFactory A function that returns a new repository.UnitOfWork and error.
-//        @param strategy The authentication strategy to use.
+//        @param accountSvc A pointer to the AccountService.
+//        @param authSvc A pointer to the AuthService.
 //
 // Routes:
 //   - POST   /account                   : Create a new account for the authenticated user.
@@ -2170,8 +2324,8 @@ func (s *UserService) ValidUser(id uuid.UUID, password string) bool <span class=
 package webapi
 
 import (
+        "github.com/amirasaad/fintech/pkg/domain"
         "github.com/amirasaad/fintech/pkg/middleware"
-        "github.com/amirasaad/fintech/pkg/repository"
         "github.com/amirasaad/fintech/pkg/service"
         "github.com/gofiber/fiber/v2"
         "github.com/gofiber/fiber/v2/log"
@@ -2179,20 +2333,88 @@ import (
         "github.com/google/uuid"
 )
 
+type CreateAccountRequest struct {
+        Currency string `json:"currency"`
+}
+
 type DepositRequest struct {
-        Amount float64 `json:"amount" xml:"amount" form:"amount"`
+        Amount   float64 `json:"amount" xml:"amount" form:"amount"`
+        Currency string  `json:"currency"`
 }
 
 type WithdrawRequest struct {
-        Amount float64 `json:"amount" xml:"amount" form:"amount"`
+        Amount   float64 `json:"amount" xml:"amount" form:"amount"`
+        Currency string  `json:"currency"`
 }
 
-func AccountRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, error), strategy service.AuthStrategy) <span class="cov8" title="1">{
-        app.Post("/account", middleware.Protected(), CreateAccount(uowFactory, strategy))
-        app.Post("/account/:id/deposit", middleware.Protected(), Deposit(uowFactory, strategy))
-        app.Post("/account/:id/withdraw", middleware.Protected(), Withdraw(uowFactory, strategy))
-        app.Get("/account/:id/balance", middleware.Protected(), GetBalance(uowFactory, strategy))
-        app.Get("/account/:id/transactions", middleware.Protected(), GetTransactions(uowFactory, strategy))
+// ConversionResponse wraps a transaction and conversion details if a currency conversion occurred.
+type ConversionResponse struct {
+        Transaction       *domain.Transaction `json:"transaction"`
+        OriginalAmount    float64             `json:"original_amount,omitempty"`
+        OriginalCurrency  string              `json:"original_currency,omitempty"`
+        ConvertedAmount   float64             `json:"converted_amount,omitempty"`
+        ConvertedCurrency string              `json:"converted_currency,omitempty"`
+        ConversionRate    float64             `json:"conversion_rate,omitempty"`
+}
+
+// TransactionDTO is the API response representation of a transaction.
+type TransactionDTO struct {
+        ID        string  `json:"id"`
+        UserID    string  `json:"user_id"`
+        AccountID string  `json:"account_id"`
+        Amount    float64 `json:"amount"`
+        Balance   float64 `json:"balance"`
+        CreatedAt string  `json:"created_at"`
+        Currency  string  `json:"currency"`
+}
+
+// ConversionResponseDTO wraps a transaction and conversion details for API responses.
+type ConversionResponseDTO struct {
+        Transaction       *TransactionDTO `json:"transaction"`
+        OriginalAmount    float64         `json:"original_amount,omitempty"`
+        OriginalCurrency  string          `json:"original_currency,omitempty"`
+        ConvertedAmount   float64         `json:"converted_amount,omitempty"`
+        ConvertedCurrency string          `json:"converted_currency,omitempty"`
+        ConversionRate    float64         `json:"conversion_rate,omitempty"`
+}
+
+// ToTransactionDTO maps a domain.Transaction to a TransactionDTO.
+func ToTransactionDTO(tx *domain.Transaction) *TransactionDTO <span class="cov8" title="1">{
+        if tx == nil </span><span class="cov0" title="0">{
+                return nil
+        }</span>
+        <span class="cov8" title="1">return &amp;TransactionDTO{
+                ID:        tx.ID.String(),
+                UserID:    tx.UserID.String(),
+                AccountID: tx.AccountID.String(),
+                Amount:    float64(tx.Amount) / 100.0, // assuming cents
+                Balance:   float64(tx.Balance) / 100.0,
+                CreatedAt: tx.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+                Currency:  tx.Currency,
+        }</span>
+}
+
+// ToConversionResponseDTO maps a transaction and conversion info to a ConversionResponseDTO.
+func ToConversionResponseDTO(tx *domain.Transaction, convInfo *domain.ConversionInfo) *ConversionResponseDTO <span class="cov8" title="1">{
+        if convInfo == nil </span><span class="cov0" title="0">{
+                return nil
+        }</span>
+        <span class="cov8" title="1">return &amp;ConversionResponseDTO{
+                Transaction:       ToTransactionDTO(tx),
+                OriginalAmount:    convInfo.OriginalAmount,
+                OriginalCurrency:  convInfo.OriginalCurrency,
+                ConvertedAmount:   convInfo.ConvertedAmount,
+                ConvertedCurrency: convInfo.ConvertedCurrency,
+                ConversionRate:    convInfo.ConversionRate,
+        }</span>
+}
+
+func AccountRoutes(app *fiber.App, accountSvc *service.AccountService, authSvc *service.AuthService) <span class="cov8" title="1">{
+        app.Post("/account", middleware.Protected(), CreateAccount(accountSvc, authSvc))
+        app.Post("/account/:id/deposit", middleware.Protected(), Deposit(accountSvc, authSvc))
+        app.Post("/account/:id/withdraw", middleware.Protected(), Withdraw(accountSvc, authSvc))
+        app.Get("/account/:id/balance", middleware.Protected(), GetBalance(accountSvc, authSvc))
+        app.Get("/account/:id/transactions", middleware.Protected(), GetTransactions(accountSvc, authSvc))
 }</span>
 
 // CreateAccount returns a Fiber handler for creating a new account for the current user.
@@ -2211,10 +2433,12 @@ func AccountRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, err
 // @Failure 500 {object} ProblemDetails
 // @Router /account [post]
 // @Security Bearer
-func CreateAccount(uowFactory func() (repository.UnitOfWork, error), strategy service.AuthStrategy) fiber.Handler <span class="cov8" title="1">{
+func CreateAccount(
+        accountSvc *service.AccountService,
+        authSvc *service.AuthService,
+) fiber.Handler <span class="cov8" title="1">{
         return func(c *fiber.Ctx) error </span><span class="cov8" title="1">{
                 log.Infof("Creating new account")
-                authSvc := service.NewAuthService(uowFactory, strategy)
                 token, ok := c.Locals("user").(*jwt.Token)
                 if !ok </span><span class="cov0" title="0">{
                         return ErrorResponseJSON(c, fiber.StatusUnauthorized, "unauthorized", "missing user context")
@@ -2225,14 +2449,18 @@ func CreateAccount(uowFactory func() (repository.UnitOfWork, error), strategy se
                         status := ErrorToStatusCode(err)
                         return ErrorResponseJSON(c, status, "invalid user ID", err.Error())
                 }</span>
-                <span class="cov8" title="1">service := service.NewAccountService(uowFactory)
-                a, err := service.CreateAccount(userID)
+                <span class="cov8" title="1">var req CreateAccountRequest
+                _ = c.BodyParser(&amp;req)
+                currency := req.Currency
+                if currency == "" </span><span class="cov8" title="1">{
+                        currency = "USD"
+                }</span>
+                <span class="cov8" title="1">a, err := accountSvc.CreateAccountWithCurrency(userID, currency)
                 if err != nil </span><span class="cov8" title="1">{
                         log.Errorf("Failed to create account: %v", err)
                         status := ErrorToStatusCode(err)
                         return ErrorResponseJSON(c, status, "Failed to create account", err.Error())
                 }</span>
-
                 <span class="cov8" title="1">log.Infof("Account created: %+v", a)
                 return c.Status(fiber.StatusCreated).JSON(Response{Status: fiber.StatusCreated, Message: "Account created", Data: a})</span>
         }
@@ -2258,9 +2486,11 @@ func CreateAccount(uowFactory func() (repository.UnitOfWork, error), strategy se
 // @Failure 500 {object} ProblemDetails
 // @Router /account/{id}/deposit [post]
 // @Security Bearer
-func Deposit(uowFactory func() (repository.UnitOfWork, error), strategy service.AuthStrategy) fiber.Handler <span class="cov8" title="1">{
+func Deposit(
+        accountSvc *service.AccountService,
+        authSvc *service.AuthService,
+) fiber.Handler <span class="cov8" title="1">{
         return func(c *fiber.Ctx) error </span><span class="cov8" title="1">{
-                authSvc := service.NewAuthService(uowFactory, strategy)
                 token, ok := c.Locals("user").(*jwt.Token)
                 if !ok </span><span class="cov0" title="0">{
                         return ErrorResponseJSON(c, fiber.StatusUnauthorized, "unauthorized", "missing user context")
@@ -2276,22 +2506,27 @@ func Deposit(uowFactory func() (repository.UnitOfWork, error), strategy service.
                         log.Errorf("Invalid account ID for deposit: %v", err)
                         return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid account ID", err.Error())
                 }</span>
-
                 <span class="cov8" title="1">var request DepositRequest
+
                 err = c.BodyParser(&amp;request)
                 if err != nil </span><span class="cov8" title="1">{
                         log.Errorf("Failed to parse deposit request: %v", err)
                         return ErrorResponseJSON(c, fiber.StatusBadRequest, "Failed to parse deposit request", err.Error())
                 }</span>
-                <span class="cov8" title="1">accountSvc := service.NewAccountService(uowFactory)
 
-                tx, err := accountSvc.Deposit(userID, id, request.Amount)
+                // Call service and get conversion info
+                <span class="cov8" title="1">tx, convInfo, err := accountSvc.Deposit(userID, id, request.Amount, request.Currency)
                 if err != nil </span><span class="cov8" title="1">{
                         log.Errorf("Failed to deposit: %v", err)
                         status := ErrorToStatusCode(err)
                         return ErrorResponseJSON(c, status, "Failed to deposit", err.Error())
                 }</span>
-                <span class="cov8" title="1">return c.JSON(Response{Status: fiber.StatusOK, Message: "Deposit successful", Data: tx})</span>
+
+                <span class="cov8" title="1">if convInfo != nil </span><span class="cov8" title="1">{
+                        resp := ToConversionResponseDTO(tx, convInfo)
+                        return c.JSON(Response{Status: fiber.StatusOK, Message: "Deposit successful (converted)", Data: resp})
+                }</span>
+                <span class="cov8" title="1">return c.JSON(Response{Status: fiber.StatusOK, Message: "Deposit successful", Data: ToTransactionDTO(tx)})</span>
         }
 }
 
@@ -2321,9 +2556,11 @@ func Deposit(uowFactory func() (repository.UnitOfWork, error), strategy service.
 // @Failure 500 {object} ProblemDetails
 // @Router /account/{id}/withdraw [post]
 // @Security Bearer
-func Withdraw(uowFactory func() (repository.UnitOfWork, error), strategy service.AuthStrategy) fiber.Handler <span class="cov8" title="1">{
+func Withdraw(
+        accountSvc *service.AccountService,
+        authSvc *service.AuthService,
+) fiber.Handler <span class="cov8" title="1">{
         return func(c *fiber.Ctx) error </span><span class="cov8" title="1">{
-                authSvc := service.NewAuthService(uowFactory, strategy)
                 token, ok := c.Locals("user").(*jwt.Token)
                 if !ok </span><span class="cov0" title="0">{
                         return ErrorResponseJSON(c, fiber.StatusUnauthorized, "unauthorized", "missing user context")
@@ -2345,14 +2582,23 @@ func Withdraw(uowFactory func() (repository.UnitOfWork, error), strategy service
                         log.Errorf("Failed to parse withdrawal request: %v", err)
                         return ErrorResponseJSON(c, fiber.StatusBadRequest, "Failed to parse withdrawal request", err.Error())
                 }</span>
-                <span class="cov8" title="1">accountSvc := service.NewAccountService(uowFactory)
-                tx, err := accountSvc.Withdraw(userID, id, request.Amount)
+                <span class="cov8" title="1">if request.Currency == "" </span><span class="cov8" title="1">{
+                        request.Currency = "USD"
+                }</span>
+
+                // Call service and get conversion info
+                <span class="cov8" title="1">tx, convInfo, err := accountSvc.Withdraw(userID, id, request.Amount, request.Currency)
                 if err != nil </span><span class="cov8" title="1">{
                         log.Errorf("Failed to withdraw: %v", err)
                         status := ErrorToStatusCode(err)
                         return ErrorResponseJSON(c, status, "Failed to withdraw", err.Error())
                 }</span>
-                <span class="cov8" title="1">return c.JSON(Response{Status: fiber.StatusOK, Message: "Withdrawal successful", Data: tx})</span>
+
+                <span class="cov8" title="1">if convInfo != nil </span><span class="cov0" title="0">{
+                        resp := ToConversionResponseDTO(tx, convInfo)
+                        return c.JSON(Response{Status: fiber.StatusOK, Message: "Withdrawal successful (converted)", Data: resp})
+                }</span>
+                <span class="cov8" title="1">return c.JSON(Response{Status: fiber.StatusOK, Message: "Withdrawal successful", Data: ToTransactionDTO(tx)})</span>
         }
 }
 
@@ -2373,9 +2619,11 @@ func Withdraw(uowFactory func() (repository.UnitOfWork, error), strategy service
 // @Failure 500 {object} ProblemDetails
 // @Router /account/{id}/transactions [get]
 // @Security Bearer
-func GetTransactions(uowFactory func() (repository.UnitOfWork, error), strategy service.AuthStrategy) fiber.Handler <span class="cov8" title="1">{
+func GetTransactions(
+        accountSvc *service.AccountService,
+        authSvc *service.AuthService,
+) fiber.Handler <span class="cov8" title="1">{
         return func(c *fiber.Ctx) error </span><span class="cov8" title="1">{
-                authSvc := service.NewAuthService(uowFactory, strategy)
                 token, ok := c.Locals("user").(*jwt.Token)
                 if !ok </span><span class="cov0" title="0">{
                         return ErrorResponseJSON(c, fiber.StatusUnauthorized, "unauthorized", "missing user context")
@@ -2392,8 +2640,7 @@ func GetTransactions(uowFactory func() (repository.UnitOfWork, error), strategy 
                         return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid account ID", err.Error())
                 }</span>
 
-                <span class="cov8" title="1">service := service.NewAccountService(uowFactory)
-                tx, err := service.GetTransactions(userID, id)
+                <span class="cov8" title="1">tx, err := accountSvc.GetTransactions(userID, id)
                 if err != nil </span><span class="cov8" title="1">{
                         log.Errorf("Failed to list transactions for account ID %s: %v", id, err)
                         status := ErrorToStatusCode(err)
@@ -2420,9 +2667,11 @@ func GetTransactions(uowFactory func() (repository.UnitOfWork, error), strategy 
 // @Failure 500 {object} ProblemDetails
 // @Router /account/{id}/balance [get]
 // @Security Bearer
-func GetBalance(uowFactory func() (repository.UnitOfWork, error), strategy service.AuthStrategy) fiber.Handler <span class="cov8" title="1">{
+func GetBalance(
+        accountSvc *service.AccountService,
+        authSvc *service.AuthService,
+) fiber.Handler <span class="cov8" title="1">{
         return func(c *fiber.Ctx) error </span><span class="cov8" title="1">{
-                authSvc := service.NewAuthService(uowFactory, strategy)
                 token, ok := c.Locals("user").(*jwt.Token)
                 if !ok </span><span class="cov0" title="0">{
                         return ErrorResponseJSON(c, fiber.StatusUnauthorized, "unauthorized", "missing user context")
@@ -2438,9 +2687,8 @@ func GetBalance(uowFactory func() (repository.UnitOfWork, error), strategy servi
                         log.Errorf("Invalid account ID for balance: %v", err)
                         return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid account ID", err.Error())
                 }</span>
-                <span class="cov8" title="1">service := service.NewAccountService(uowFactory)
 
-                balance, err := service.GetBalance(userID, id)
+                <span class="cov8" title="1">balance, err := accountSvc.GetBalance(userID, id)
                 if err != nil </span><span class="cov8" title="1">{
                         log.Errorf("Failed to fetch balance for account ID %s: %v", id, err)
                         status := ErrorToStatusCode(err)
@@ -2456,7 +2704,6 @@ func GetBalance(uowFactory func() (repository.UnitOfWork, error), strategy servi
 import (
         "time"
 
-        "github.com/amirasaad/fintech/pkg/repository"
         "github.com/amirasaad/fintech/pkg/service"
         "github.com/gofiber/fiber/v2"
         "github.com/gofiber/fiber/v2/middleware/limiter"
@@ -2467,15 +2714,19 @@ import (
         _ "github.com/amirasaad/fintech/docs"
 )
 
-func NewApp(uowFactory func() (repository.UnitOfWork, error), strategy service.AuthStrategy) *fiber.App <span class="cov8" title="1">{
+func NewApp(
+        accountSvc *service.AccountService,
+        userSvc *service.UserService,
+        authSvc *service.AuthService,
+) *fiber.App <span class="cov8" title="1">{
         app := fiber.New(fiber.Config{
-                ErrorHandler: func(c *fiber.Ctx, err error) error </span><span class="cov8" title="1">{
+                ErrorHandler: func(c *fiber.Ctx, err error) error </span><span class="cov0" title="0">{
                         // Default to 500 if status code cannot be determined
                         status := fiber.StatusInternalServerError
                         if e, ok := err.(*fiber.Error); ok </span><span class="cov0" title="0">{
                                 status = e.Code
                         }</span>
-                        <span class="cov8" title="1">return ErrorResponseJSON(c, status, "Internal Server Error", err.Error())</span>
+                        <span class="cov0" title="0">return ErrorResponseJSON(c, status, "Internal Server Error", err.Error())</span>
                 },
         })
         <span class="cov8" title="1">app.Get("/swagger/*", swagger.New(swagger.Config{
@@ -2500,9 +2751,9 @@ func NewApp(uowFactory func() (repository.UnitOfWork, error), strategy service.A
                 return c.SendString("App is working! 🚀")
         }</span>)
 
-        <span class="cov8" title="1">AccountRoutes(app, uowFactory, strategy)
-        UserRoutes(app, uowFactory, strategy)
-        AuthRoutes(app, uowFactory, strategy)
+        <span class="cov8" title="1">AccountRoutes(app, accountSvc, authSvc)
+        UserRoutes(app, userSvc, authSvc)
+        AuthRoutes(app, authSvc)
 
         return app</span>
 }
@@ -2511,7 +2762,6 @@ func NewApp(uowFactory func() (repository.UnitOfWork, error), strategy service.A
 		<pre class="file" id="file14" style="display: none">package webapi
 
 import (
-        "github.com/amirasaad/fintech/pkg/repository"
         "github.com/amirasaad/fintech/pkg/service"
         "github.com/gofiber/fiber/v2"
 )
@@ -2521,8 +2771,8 @@ type LoginInput struct {
         Password string `json:"password"`
 }
 
-func AuthRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, error), strategy service.AuthStrategy) <span class="cov8" title="1">{
-        app.Post("/login", Login(uowFactory, strategy))
+func AuthRoutes(app *fiber.App, authSvc *service.AuthService) <span class="cov8" title="1">{
+        app.Post("/login", Login(authSvc))
 }</span>
 
 // Login handles user authentication and returns a JWT token.
@@ -2538,17 +2788,13 @@ func AuthRoutes(app *fiber.App, uowFactory func() (repository.UnitOfWork, error)
 // @Failure 429 {object} ProblemDetails
 // @Failure 500 {object} ProblemDetails
 // @Router /login [post]
-func Login(uowFactory func() (repository.UnitOfWork, error), strategy service.AuthStrategy) fiber.Handler <span class="cov8" title="1">{
+func Login(authSvc *service.AuthService) fiber.Handler <span class="cov8" title="1">{
         return func(c *fiber.Ctx) error </span><span class="cov8" title="1">{
-
                 input := new(LoginInput)
-
                 if err := c.BodyParser(input); err != nil </span><span class="cov8" title="1">{
                         return ErrorResponseJSON(c, fiber.StatusBadRequest, "Error on login request", err.Error())
                 }</span>
-
-                <span class="cov8" title="1">authService := service.NewAuthService(uowFactory, strategy)
-                user, token, err := authService.Login(input.Identity, input.Password)
+                <span class="cov8" title="1">user, token, err := authSvc.Login(input.Identity, input.Password)
                 if err != nil </span><span class="cov8" title="1">{
                         return ErrorResponseJSON(c, fiber.StatusInternalServerError, "Internal Server Error", err.Error())
                 }</span>
@@ -2567,17 +2813,103 @@ import (
         "encoding/json"
         "io"
         "net/http/httptest"
+        "runtime"
+        "strings"
         "testing"
 
         "github.com/amirasaad/fintech/internal/fixtures"
         "github.com/stretchr/testify/mock"
+        "github.com/stretchr/testify/suite"
 
         "github.com/amirasaad/fintech/pkg/domain"
         "github.com/amirasaad/fintech/pkg/repository"
         "github.com/amirasaad/fintech/pkg/service"
         "github.com/gofiber/fiber/v2"
         "github.com/gofiber/fiber/v2/log"
+        "github.com/gofiber/fiber/v2/middleware/recover"
 )
+
+type E2ETestSuite struct {
+        suite.Suite
+        ts map[string]*testing.T // Map of test names &gt; *testing.T
+}
+
+func (suite *E2ETestSuite) BeforeTest(_, testName string) <span class="cov8" title="1">{
+        t := suite.T()
+        if suite.ts == nil </span><span class="cov8" title="1">{
+                suite.ts = make(map[string]*testing.T, 1)
+        }</span>
+        <span class="cov8" title="1">suite.ts[testName] = t
+        suite.T().Cleanup(func() </span><span class="cov8" title="1">{
+                mock.AssertExpectationsForObjects(suite.T())
+        }</span>)
+        // Removed t.Parallel() to avoid concurrency issues with mocks
+}
+
+// T() overrides suite.Suite.T() with a way to find the proper *testing.T
+// for the current test.
+// This relies on `BeforeTest` storing the *testing.T pointers in a map
+// before marking them parallel.
+// This is a huge hack to make parallel testing work until
+// https://github.com/stretchr/testify/issues/187 is fixed.
+// There is still a small race:
+// 1. test 1 calls SetT()
+// 2. test 1 calls BeforeTest() with its own T
+// 3. test 1 is marked as parallel and starts executing
+// 4. test 2 calls SetT()
+// 5. test 1 completes and calls SetT() to reset to the parent T
+// 6. test 2 calls BeforeTest() with its parent T instead of its own
+// The time between 4. &amp; 6. is extremely low, enough that this should be really rare on our e2e tests.
+func (suite *E2ETestSuite) T() *testing.T <span class="cov8" title="1">{
+        // Try to find in the call stack a method name that is stored in `ts` (the test method).
+        for i := 1; ; i++ </span><span class="cov8" title="1">{
+                pc, _, _, ok := runtime.Caller(i)
+                if !ok </span><span class="cov8" title="1">{
+                        break</span>
+                }
+                // Example rawFuncName:
+                // github.com/foo/bar/tests/e2e.(*E2ETestSuite).MyTest
+                <span class="cov8" title="1">rawFuncName := runtime.FuncForPC(pc).Name()
+                splittedFuncName := strings.Split(rawFuncName, ".")
+                funcName := splittedFuncName[len(splittedFuncName)-1]
+                t := suite.ts[funcName]
+                if t != nil </span><span class="cov8" title="1">{
+                        return t
+                }</span>
+        }
+        // Fallback to the globally stored Suite.T()
+        <span class="cov8" title="1">return suite.Suite.T()</span>
+}
+
+// NewTestApp creates a new Fiber app for testing without rate limiting
+func NewTestApp(
+        accountSvc *service.AccountService,
+        userSvc *service.UserService,
+        authSvc *service.AuthService,
+) *fiber.App <span class="cov8" title="1">{
+        app := fiber.New(fiber.Config{
+                ErrorHandler: func(c *fiber.Ctx, err error) error </span><span class="cov8" title="1">{
+                        // Default to 500 if status code cannot be determined
+                        status := fiber.StatusInternalServerError
+                        if e, ok := err.(*fiber.Error); ok </span><span class="cov0" title="0">{
+                                status = e.Code
+                        }</span>
+                        <span class="cov8" title="1">return ErrorResponseJSON(c, status, "Internal Server Error", err.Error())</span>
+                },
+        })
+        // No rate limiting for tests
+        <span class="cov8" title="1">app.Use(recover.New())
+
+        app.Get("/", func(c *fiber.Ctx) error </span><span class="cov0" title="0">{
+                return c.SendString("App is working! 🚀")
+        }</span>)
+
+        <span class="cov8" title="1">AccountRoutes(app, accountSvc, authSvc)
+        UserRoutes(app, userSvc, authSvc)
+        AuthRoutes(app, authSvc)
+
+        return app</span>
+}
 
 func SetupTestApp(
         t *testing.T,
@@ -2588,8 +2920,11 @@ func SetupTestApp(
         transactionRepo *fixtures.MockTransactionRepository,
         mockUow *fixtures.MockUnitOfWork,
         testUser *domain.User,
+        authService *service.AuthService,
+        mockConverter *fixtures.MockCurrencyConverter,
 ) <span class="cov8" title="1">{
         t.Helper()
+        // Set JWT secret key before creating the app
         t.Setenv("JWT_SECRET_KEY", "secret")
 
         userRepo = fixtures.NewMockUserRepository(t)
@@ -2598,46 +2933,51 @@ func SetupTestApp(
 
         mockUow = fixtures.NewMockUnitOfWork(t)
 
-        app = NewApp(func() (repository.UnitOfWork, error) </span><span class="cov8" title="1">{ return mockUow, nil }</span>,
-                service.NewJWTAuthStrategy(func() (repository.UnitOfWork, error) <span class="cov8" title="1">{ return mockUow, nil }</span>))
-        <span class="cov8" title="1">testUser, _ = domain.NewUser("testuser", "testuser@example.com", "password123")
+        authStrategy := service.NewJWTAuthStrategy(func() (repository.UnitOfWork, error) </span><span class="cov8" title="1">{ return mockUow, nil }</span>)
+        <span class="cov8" title="1">authService = service.NewAuthService(func() (repository.UnitOfWork, error) </span><span class="cov0" title="0">{ return mockUow, nil }</span>, authStrategy)
+        <span class="cov8" title="1">mockConverter = fixtures.NewMockCurrencyConverter(t)
+        // Create services with the mock UOW factory
+        accountSvc := service.NewAccountService(func() (repository.UnitOfWork, error) </span><span class="cov8" title="1">{ return mockUow, nil }</span>, mockConverter)
+        <span class="cov8" title="1">userSvc := service.NewUserService(func() (repository.UnitOfWork, error) </span><span class="cov8" title="1">{ return mockUow, nil }</span>)
+
+        <span class="cov8" title="1">app = NewTestApp(accountSvc, userSvc, authService)
+        testUser, _ = domain.NewUser("testuser", "testuser@example.com", "password123")
         log.SetOutput(io.Discard)
-        defer userRepo.AssertExpectations(t)
-        defer accountRepo.AssertExpectations(t)
-        defer transactionRepo.AssertExpectations(t)
-        defer mockUow.AssertExpectations(t)
+
         return</span>
 }
 
-func getTestToken(t *testing.T, app *fiber.App, userRepo *fixtures.MockUserRepository, mockUow *fixtures.MockUnitOfWork, testUser *domain.User) string <span class="cov8" title="1">{
+func getTestToken(
+        t *testing.T,
+        app *fiber.App,
+        testUser *domain.User,
+) string <span class="cov8" title="1">{
         t.Helper()
-        mockUow.EXPECT().UserRepository().Return(userRepo).Maybe()
-        userRepo.EXPECT().GetByUsername("testuser").Return(testUser, nil).Maybe()
-        userRepo.EXPECT().Valid(mock.Anything, mock.Anything).Return(true).Maybe()
-        req := httptest.NewRequest("POST", "/login",
-                bytes.NewBuffer([]byte(`{"identity":"testuser","password":"password123"}`)))
+        loginBody := &amp;LoginInput{Identity: testUser.Username, Password: "password123"}
+        body, _ := json.Marshal(loginBody)
+
+        req := httptest.NewRequest("POST", "/login", bytes.NewReader(body))
         req.Header.Set("Content-Type", "application/json")
 
-        resp, err := app.Test(req)
+        resp, err := app.Test(req, 10000)
         if err != nil </span><span class="cov0" title="0">{
                 t.Fatal(err)
         }</span>
-        <span class="cov8" title="1">defer resp.Body.Close() //nolint:errcheck
-
-        var result struct {
-                Data struct {
-                        Token string `json:"token"`
-                } `json:"data"`
-        }
-        bodyBytes, err := io.ReadAll(resp.Body)
-        if err != nil </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">if resp.StatusCode != fiber.StatusOK </span><span class="cov0" title="0">{
+                // Read response body for debugging
+                respBody, _ := io.ReadAll(resp.Body)
+                t.Logf("Login failed with status %d, body: %s", resp.StatusCode, string(respBody))
+                t.Fatalf("expected status 200 but got %d", resp.StatusCode)
+        }</span>
+        <span class="cov8" title="1">var response Response
+        if err := json.NewDecoder(resp.Body).Decode(&amp;response); err != nil </span><span class="cov0" title="0">{
                 t.Fatal(err)
         }</span>
-        <span class="cov8" title="1">if err := json.Unmarshal(bodyBytes, &amp;result); err != nil </span><span class="cov0" title="0">{
-                t.Fatal(err)
+        <span class="cov8" title="1">token, ok := response.Data.(map[string]interface{})["token"].(string)
+        if !ok </span><span class="cov0" title="0">{
+                t.Fatal("unable to extract token from response")
         }</span>
-        <span class="cov8" title="1">token := result.Data.Token
-        return token</span>
+        <span class="cov8" title="1">return token</span>
 }
 </pre>
 		
@@ -2645,7 +2985,6 @@ func getTestToken(t *testing.T, app *fiber.App, userRepo *fixtures.MockUserRepos
 
 import (
         "github.com/amirasaad/fintech/pkg/middleware"
-        "github.com/amirasaad/fintech/pkg/repository"
         "github.com/amirasaad/fintech/pkg/service"
         "github.com/go-playground/validator"
         "github.com/gofiber/fiber/v2"
@@ -2668,15 +3007,11 @@ type PasswordInput struct {
         Password string `json:"password"`
 }
 
-func UserRoutes(
-        app *fiber.App,
-        uowFactory func() (repository.UnitOfWork, error),
-        strategy service.AuthStrategy,
-) <span class="cov8" title="1">{
-        app.Get("/user/:id", middleware.Protected(), GetUser(uowFactory))
-        app.Post("/user", CreateUser(uowFactory))
-        app.Put("/user/:id", middleware.Protected(), UpdateUser(uowFactory, strategy))
-        app.Delete("/user/:id", middleware.Protected(), DeleteUser(uowFactory, strategy))
+func UserRoutes(app *fiber.App, userSvc *service.UserService, authSvc *service.AuthService) <span class="cov8" title="1">{
+        app.Get("/user/:id", middleware.Protected(), GetUser(userSvc))
+        app.Post("/user", CreateUser(userSvc))
+        app.Put("/user/:id", middleware.Protected(), UpdateUser(userSvc, authSvc))
+        app.Delete("/user/:id", middleware.Protected(), DeleteUser(userSvc, authSvc))
 }</span>
 
 // GetUser retrieves a user by ID.
@@ -2691,15 +3026,14 @@ func UserRoutes(
 // @Failure 404 {object} Response
 // @Router /user/{id} [get]
 // @Security Bearer
-func GetUser(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler <span class="cov8" title="1">{
+func GetUser(userSvc *service.UserService) fiber.Handler <span class="cov8" title="1">{
         return func(c *fiber.Ctx) error </span><span class="cov8" title="1">{
                 id, err := uuid.Parse(c.Params("id"))
                 if err != nil </span><span class="cov0" title="0">{
                         log.Errorf("Invalid account ID for deposit: %v", err)
                         return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid user ID", err.Error())
                 }</span>
-                <span class="cov8" title="1">userService := service.NewUserService(uowFactory)
-                user, err := userService.GetUser(id)
+                <span class="cov8" title="1">user, err := userSvc.GetUser(id)
                 if err != nil </span><span class="cov8" title="1">{
                         return ErrorResponseJSON(c, fiber.StatusNotFound, "No user found with ID", nil)
                 }</span>
@@ -2720,9 +3054,8 @@ func GetUser(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler <sp
 // @Failure 429 {object} ProblemDetails
 // @Failure 500 {object} ProblemDetails
 // @Router /user [post]
-func CreateUser(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler <span class="cov8" title="1">{
+func CreateUser(userSvc *service.UserService) fiber.Handler <span class="cov8" title="1">{
         return func(c *fiber.Ctx) error </span><span class="cov8" title="1">{
-
                 var newUser NewUser
                 if err := c.BodyParser(&amp;newUser); err != nil </span><span class="cov0" title="0">{
                         return ErrorResponseJSON(c, fiber.StatusBadRequest, "Review your input", err.Error())
@@ -2734,8 +3067,7 @@ func CreateUser(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler 
                 <span class="cov8" title="1">if len(newUser.Password) &gt; 72 </span><span class="cov0" title="0">{
                         return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid request body", "Password too long")
                 }</span>
-                <span class="cov8" title="1">service := service.NewUserService(uowFactory)
-                user, err := service.CreateUser(newUser.Username, newUser.Email, newUser.Password)
+                <span class="cov8" title="1">user, err := userSvc.CreateUser(newUser.Username, newUser.Email, newUser.Password)
                 if err != nil </span><span class="cov0" title="0">{
                         return ErrorResponseJSON(c, fiber.StatusInternalServerError, "Couldn't create user", err.Error())
                 }</span>
@@ -2758,7 +3090,10 @@ func CreateUser(uowFactory func() (repository.UnitOfWork, error)) fiber.Handler 
 // @Failure 500 {object} ProblemDetails
 // @Router /user/{id} [put]
 // @Security Bearer
-func UpdateUser(uowFactory func() (repository.UnitOfWork, error), strategy service.AuthStrategy) fiber.Handler <span class="cov8" title="1">{
+func UpdateUser(
+        userSvc *service.UserService,
+        authSvc *service.AuthService,
+) fiber.Handler <span class="cov8" title="1">{
         return func(c *fiber.Ctx) error </span><span class="cov8" title="1">{
                 var uui UpdateUserInput
                 if err := c.BodyParser(&amp;uui); err != nil </span><span class="cov8" title="1">{
@@ -2769,8 +3104,7 @@ func UpdateUser(uowFactory func() (repository.UnitOfWork, error), strategy servi
                         log.Errorf("Invalid account ID for deposit: %v", err)
                         return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid user ID", err.Error())
                 }</span>
-                <span class="cov8" title="1">authSvc := service.NewAuthService(uowFactory, strategy)
-                token, ok := c.Locals("user").(*jwt.Token)
+                <span class="cov8" title="1">token, ok := c.Locals("user").(*jwt.Token)
                 if !ok </span><span class="cov0" title="0">{
                         return ErrorResponseJSON(c, fiber.StatusUnauthorized, "unauthorized", "missing user context")
                 }</span>
@@ -2783,13 +3117,11 @@ func UpdateUser(uowFactory func() (repository.UnitOfWork, error), strategy servi
                 <span class="cov8" title="1">if id != userID </span><span class="cov0" title="0">{
                         return ErrorResponseJSON(c, fiber.StatusForbidden, "You are not allowed to update this user", nil)
                 }</span>
-
-                <span class="cov8" title="1">userService := service.NewUserService(uowFactory)
-                user, err := userService.GetUser(id)
+                <span class="cov8" title="1">user, err := userSvc.GetUser(id)
                 if err != nil </span><span class="cov8" title="1">{
                         return ErrorResponseJSON(c, fiber.StatusNotFound, "User not found", nil)
                 }</span>
-                <span class="cov8" title="1">err = userService.UpdateUser(user)
+                <span class="cov8" title="1">err = userSvc.UpdateUser(user)
                 if err != nil </span><span class="cov8" title="1">{
                         return ErrorResponseJSON(c, fiber.StatusInternalServerError, "Failed to update user", err.Error())
                 }</span>
@@ -2812,7 +3144,10 @@ func UpdateUser(uowFactory func() (repository.UnitOfWork, error), strategy servi
 // @Failure 500 {object} ProblemDetails
 // @Router /user/{id} [delete]
 // @Security Bearer
-func DeleteUser(uowFactory func() (repository.UnitOfWork, error), strategy service.AuthStrategy) fiber.Handler <span class="cov8" title="1">{
+func DeleteUser(
+        userSvc *service.UserService,
+        authSvc *service.AuthService,
+) fiber.Handler <span class="cov8" title="1">{
         return func(c *fiber.Ctx) error </span><span class="cov8" title="1">{
                 var pi PasswordInput
                 if err := c.BodyParser(&amp;pi); err != nil </span><span class="cov0" title="0">{
@@ -2823,8 +3158,7 @@ func DeleteUser(uowFactory func() (repository.UnitOfWork, error), strategy servi
                         log.Errorf("Invalid account ID for deposit: %v", err)
                         return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid user ID", err.Error())
                 }</span>
-                <span class="cov8" title="1">authSvc := service.NewAuthService(uowFactory, strategy)
-                token, ok := c.Locals("user").(*jwt.Token)
+                <span class="cov8" title="1">token, ok := c.Locals("user").(*jwt.Token)
                 if !ok </span><span class="cov0" title="0">{
                         return ErrorResponseJSON(c, fiber.StatusUnauthorized, "unauthorized", "missing user context")
                 }</span>
@@ -2837,12 +3171,14 @@ func DeleteUser(uowFactory func() (repository.UnitOfWork, error), strategy servi
                 <span class="cov8" title="1">if id != userID </span><span class="cov0" title="0">{
                         return ErrorResponseJSON(c, fiber.StatusForbidden, "You are not allowed to update this user", nil)
                 }</span>
-                <span class="cov8" title="1">userService := service.NewUserService(uowFactory)
-                if !userService.ValidUser(id, pi.Password) </span><span class="cov8" title="1">{
+                <span class="cov8" title="1">isValid, err := userSvc.ValidUser(id, pi.Password)
+                if err != nil </span><span class="cov0" title="0">{
+                        return ErrorResponseJSON(c, fiber.StatusInternalServerError, "Failed to validate user", err.Error())
+                }</span>
+                <span class="cov8" title="1">if !isValid </span><span class="cov8" title="1">{
                         return ErrorResponseJSON(c, fiber.StatusUnauthorized, "Not valid user", nil)
                 }</span>
-
-                <span class="cov8" title="1">err = userService.DeleteUser(id)
+                <span class="cov8" title="1">err = userSvc.DeleteUser(id)
                 if err != nil </span><span class="cov8" title="1">{
                         return ErrorResponseJSON(c, fiber.StatusInternalServerError, "Failed to delete user", err.Error())
                 }</span>
@@ -2854,6 +3190,8 @@ func DeleteUser(uowFactory func() (repository.UnitOfWork, error), strategy servi
 		<pre class="file" id="file17" style="display: none">package webapi
 
 import (
+        "errors"
+
         "github.com/amirasaad/fintech/pkg/domain"
         "github.com/gofiber/fiber/v2"
 )
@@ -2876,7 +3214,12 @@ type ProblemDetails struct {
 }
 
 // ErrorResponseJSON returns a response following RFC 9457 Problem Details
-func ErrorResponseJSON(c *fiber.Ctx, status int, title string, detail any) error <span class="cov8" title="1">{
+func ErrorResponseJSON(
+        c *fiber.Ctx,
+        status int,
+        title string,
+        detail any,
+) error <span class="cov8" title="1">{
         pd := ProblemDetails{
                 Type:   "about:blank",
                 Title:  title,
@@ -2897,18 +3240,20 @@ func ErrorResponseJSON(c *fiber.Ctx, status int, title string, detail any) error
 
 // ErrorToStatusCode maps domain errors to appropriate HTTP status codes.
 func ErrorToStatusCode(err error) int <span class="cov8" title="1">{
-        switch err </span>{
-        case domain.ErrAccountNotFound:<span class="cov8" title="1">
+        switch </span>{
+        case errors.Is(err, domain.ErrAccountNotFound):<span class="cov8" title="1">
                 return fiber.StatusNotFound</span>
-        case domain.ErrDepositAmountExceedsMaxSafeInt:<span class="cov0" title="0">
-                return fiber.StatusBadRequest</span>
-        case domain.ErrTransactionAmountMustBePositive:<span class="cov8" title="1">
-                return fiber.StatusBadRequest</span>
-        case domain.ErrWithdrawalAmountMustBePositive:<span class="cov8" title="1">
-                return fiber.StatusBadRequest</span>
-        case domain.ErrInsufficientFunds:<span class="cov0" title="0">
+        case errors.Is(err, domain.ErrInvalidCurrencyCode):<span class="cov0" title="0">
                 return fiber.StatusUnprocessableEntity</span>
-        case domain.ErrUserUnauthorized:<span class="cov0" title="0">
+        case errors.Is(err, domain.ErrDepositAmountExceedsMaxSafeInt):<span class="cov0" title="0">
+                return fiber.StatusBadRequest</span>
+        case errors.Is(err, domain.ErrTransactionAmountMustBePositive):<span class="cov8" title="1">
+                return fiber.StatusBadRequest</span>
+        case errors.Is(err, domain.ErrWithdrawalAmountMustBePositive):<span class="cov8" title="1">
+                return fiber.StatusBadRequest</span>
+        case errors.Is(err, domain.ErrInsufficientFunds):<span class="cov0" title="0">
+                return fiber.StatusUnprocessableEntity</span>
+        case errors.Is(err, domain.ErrUserUnauthorized):<span class="cov0" title="0">
                 return fiber.StatusUnauthorized</span>
         default:<span class="cov8" title="1">
                 return fiber.StatusInternalServerError</span>

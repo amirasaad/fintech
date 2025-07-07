@@ -4,7 +4,6 @@
 package service
 
 import (
-	"github.com/amirasaad/fintech/pkg/contracts"
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/repository"
 
@@ -14,11 +13,11 @@ import (
 // AccountService provides methods to interact with accounts and transactions using a unit of work pattern.
 type AccountService struct {
 	uowFactory func() (repository.UnitOfWork, error)
-	converter  CurrencyConverter
+	converter  domain.CurrencyConverter
 }
 
 // NewAccountService creates a new AccountService with the given UnitOfWork factory and CurrencyConverter.
-func NewAccountService(uowFactory func() (repository.UnitOfWork, error), converter CurrencyConverter) *AccountService {
+func NewAccountService(uowFactory func() (repository.UnitOfWork, error), converter domain.CurrencyConverter) *AccountService {
 	return &AccountService{
 		uowFactory: uowFactory,
 		converter:  converter,
@@ -95,7 +94,7 @@ func (s *AccountService) Deposit(
 	userID, accountID uuid.UUID,
 	amount float64,
 	currency string,
-) (tx *domain.Transaction, convInfo *contracts.ConversionInfo, err error) {
+) (tx *domain.Transaction, convInfo *domain.ConversionInfo, err error) {
 	money, err := domain.NewMoney(amount, currency)
 	if err != nil {
 		tx = nil
@@ -174,7 +173,7 @@ func (s *AccountService) Withdraw(
 	currency string,
 ) (
 	tx *domain.Transaction,
-	convInfo *contracts.ConversionInfo,
+	convInfo *domain.ConversionInfo,
 	err error,
 ) {
 	money, err := domain.NewMoney(amount, currency)

@@ -42,6 +42,15 @@ var CurrencyInfo = map[string]CurrencyMeta{
 	// Add more as needed
 }
 
+// ConversionInfo holds details about a currency conversion performed during a transaction.
+type ConversionInfo struct {
+	OriginalAmount    float64
+	OriginalCurrency  string
+	ConvertedAmount   float64
+	ConvertedCurrency string
+	ConversionRate    float64
+}
+
 // Account represents a user's financial account, supporting multi-currency.
 type Account struct {
 	ID        uuid.UUID

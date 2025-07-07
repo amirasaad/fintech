@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/amirasaad/fintech/internal/fixtures"
-	"github.com/amirasaad/fintech/pkg/contracts"
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/amirasaad/fintech/pkg/service"
@@ -71,7 +70,7 @@ func TestDeposit_ConvertsCurrency(t *testing.T) {
 
 	// Mock converter: 100 EUR -> 120 USD
 	mockConverter := fixtures.NewMockCurrencyConverter(t)
-	mockConverter.On("Convert", 100.0, "EUR", "USD").Return(&contracts.ConversionInfo{
+	mockConverter.On("Convert", 100.0, "EUR", "USD").Return(&domain.ConversionInfo{
 		OriginalAmount:    100,
 		OriginalCurrency:  "EUR",
 		ConvertedAmount:   120,
@@ -105,7 +104,7 @@ func TestWithdraw_ConvertsCurrency(t *testing.T) {
 
 	// Mock converter: 50 EUR -> 60 USD
 	mockConverter := fixtures.NewMockCurrencyConverter(t)
-	mockConverter.On("Convert", 50.0, "EUR", "USD").Return(&contracts.ConversionInfo{
+	mockConverter.On("Convert", 50.0, "EUR", "USD").Return(&domain.ConversionInfo{
 		OriginalAmount:    50,
 		OriginalCurrency:  "EUR",
 		ConvertedAmount:   60,

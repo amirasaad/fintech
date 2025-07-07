@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"github.com/amirasaad/fintech/pkg/domain"
 	"net/http"
 
 	"github.com/amirasaad/fintech/infra"
@@ -28,7 +29,7 @@ func handler() http.HandlerFunc {
 	app := webapi.NewApp(
 		service.NewAccountService(func() (repository.UnitOfWork, error) {
 			return infra.NewGormUoW(db)
-		}, service.NewStubCurrencyConverter()),
+		}, domain.NewStubCurrencyConverter()),
 		service.NewUserService(func() (repository.UnitOfWork, error) {
 			return infra.NewGormUoW(db)
 		}),
