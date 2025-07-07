@@ -26,6 +26,10 @@ This project's vision is to build a foundational backend service for financial o
 - **Fund Operations:** 💰
   - **Deposits:** Safely add funds to an account with real-time balance updates. ⬆️
   - **Withdrawals:** Securely remove funds from an account, with checks for insufficient funds. ⬇️
+- **Multi-Currency Support:** 💸
+  - Accounts and transactions support multiple currencies (e.g., USD, EUR, GBP).
+  - All operations are currency-aware, ensuring consistency.
+  - For more details, see the [Multi-Currency Documentation](./docs/multi_currency.md).
 - **Real-time Balances:** Instantly query and display the current balance of any account, crucial for immediate financial oversight. ⏱️
 - **Transaction History:** Access a detailed, chronological record of all financial movements associated with an account, providing transparency and auditability. 📜
 - **User Authentication & Authorization:** 🤝
@@ -34,6 +38,12 @@ This project's vision is to build a foundational backend service for financial o
   - Role-based access control ensures that users can only perform operations relevant to their accounts. 🛡️
 - **Concurrency Safety:** Implemented using Go's native concurrency primitives (`sync.Mutex`) to prevent race conditions and ensure atomic operations during simultaneous deposits and withdrawals, guaranteeing data integrity. 🚦
 - **Unit of Work Pattern:** A core design pattern that ensures all operations within a single business transaction are treated as a single, atomic unit. This guarantees data consistency and integrity, especially during complex sequences of database operations. 📦
+
+### Breaking Changes ⚠️
+
+With the introduction of multi-currency support, the following changes may affect existing API clients:
+
+- **Deposit and Withdrawal Operations:** The `POST /account/:id/deposit` and `POST /account/:id/withdraw` endpoints now require a `currency` field in the request body. The provided currency must match the account's currency. Requests without a `currency` field may fail if the account's currency is not the default ("USD").
 
 ## Getting Started 🚀
 
