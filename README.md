@@ -356,6 +356,25 @@ The Fintech App exposes a comprehensive RESTful API for all its functionalities.
 - `GET /account/:id/balance`: Fetches the current balance of the specified account. **(Protected)** 💲
 - `GET /account/:id/transactions`: Retrieves a list of all transactions associated with the specified account. **(Protected)** 📜
 
+## Multi-Currency & Money Value Object
+
+- All monetary operations (deposit, withdraw) are now currency-aware and validated using the `Money` value object in the domain layer.
+- The service layer (`AccountService`) exposes methods that accept `amount` and `currency` as primitives, and constructs/validates `Money` internally.
+- This eliminates the need for separate `DepositWithCurrency`/`WithdrawWithCurrency` methods and reduces code duplication.
+
+### Example Usage
+
+```go
+// In your handler or service consumer:
+tx, err := accountService.Deposit(userID, accountID, 100.0, "EUR")
+if err != nil {
+    // handle error (e.g., invalid currency, amount, or business rule)
+}
+```
+
+- All validation (currency code, amount positivity) is performed in the domain layer via `NewMoney`.
+- This pattern ensures consistency, security, and extensibility for future features like currency conversion.
+
 ## Project Structure 📁
 
 The project is meticulously organized to promote modularity, maintainability, and adherence to Domain-Driven Design (DDD) principles. This structure facilitates clear separation of concerns and simplifies development and testing.

@@ -27,19 +27,24 @@ To create an account with a specific currency, provide the `currency` code in th
   { "id": "...", "currency": "EUR", ... }
   ```
 
-### Deposit & Withdraw Operations
+## Money Value Object & Service API
 
-When depositing or withdrawing funds, the request body **must** include the `currency`, which must match the account's currency.
+- All monetary operations (deposit, withdraw) use the `Money` value object for currency and amount validation.
+- The service layer exposes methods that accept `amount` and `currency` as primitives, constructing and validating `Money` internally.
+- This eliminates the need for separate `DepositWithCurrency`/`WithdrawWithCurrency` methods.
 
-- **Request:**
+### Example Usage
 
-  ```json
-  { "amount": 100.0, "currency": "EUR" }
-  ```
+```go
+// Service layer usage:
+tx, err := accountService.Deposit(userID, accountID, 100.0, "EUR")
+if err != nil {
+    // handle error (e.g., invalid currency, amount, or business rule)
+}
+```
 
-- **Validation:**
-  - If the `currency` in the request does not match the account's currency, the API will return a `400 Bad Request` error.
-  - **Error Message:** `"currency mismatch: account has EUR, operation is USD"`
+- All validation (currency code, amount positivity) is performed in the domain layer via `NewMoney`.
+- This approach ensures all operations are currency-aware and future-proofs the system for features like currency conversion.
 
 ## Implementation Summary
 

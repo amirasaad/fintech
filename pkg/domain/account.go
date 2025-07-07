@@ -8,8 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"log/slog"
-
 	"github.com/google/uuid"
 )
 
@@ -23,6 +21,27 @@ var (
 	ErrInvalidCurrencyCode             = errors.New("invalid currency code")
 	ErrCurrencyMismatch                = errors.New("currency mismatch")
 )
+
+// CurrencyMeta holds metadata for a currency, such as decimals and symbol.
+type CurrencyMeta struct {
+	Decimals int
+	Symbol   string
+}
+
+const (
+	DefaultCurrency = "USD"
+	DefaultDecimals = 2
+)
+
+// CurrencyInfo maps ISO 4217 currency codes to their metadata.
+var CurrencyInfo = map[string]CurrencyMeta{
+	"USD": {Decimals: DefaultDecimals, Symbol: "$"},
+	"EUR": {Decimals: DefaultDecimals, Symbol: "€"},
+	"JPY": {Decimals: 0, Symbol: "¥"},
+	"KWD": {Decimals: 3, Symbol: "د.ك"},
+	"EGP": {Decimals: DefaultDecimals, Symbol: "£"},
+	// Add more as needed
+}
 
 // Account represents a user's financial account, supporting multi-currency.
 type Account struct {
@@ -69,7 +88,7 @@ func NewAccount(userID uuid.UUID) *Account {
 // If the currency is invalid or empty, defaults to USD.
 func NewAccountWithCurrency(userID uuid.UUID, currency string) *Account {
 	if !IsValidCurrencyCode(currency) {
-		currency = "USD"
+		currency = DefaultCurrency
 	}
 	return &Account{
 		ID:        uuid.New(),
@@ -119,7 +138,7 @@ func NewTransactionFromData(
 // If the currency is invalid or empty, defaults to USD.
 func NewTransactionWithCurrency(id, userID, accountID uuid.UUID, amount, balance int64, currency string) *Transaction {
 	if !IsValidCurrencyCode(currency) {
-		currency = "USD"
+		currency = DefaultCurrency
 	}
 	return &Transaction{
 		ID:        id,
@@ -154,11 +173,15 @@ func (a *Account) Deposit(userID uuid.UUID, money Money) (*Transaction, error) {
 		return nil, fmt.Errorf("invalid amount format")
 	}
 
-	multiplier := big.NewRat(100, 1)
-	centsRat := new(big.Rat).Mul(amountRat, multiplier)
+	meta, ok := CurrencyInfo[money.Currency]
+	if !ok {
+		meta.Decimals = 2 // default
+	}
+	multiplier := math.Pow10(meta.Decimals)
+	centsRat := new(big.Rat).Mul(amountRat, big.NewRat(int64(multiplier), 1))
 
 	if !centsRat.IsInt() {
-		return nil, fmt.Errorf("amount has more than 2 decimal places")
+		return nil, fmt.Errorf("amount has more than %d decimal places", meta.Decimals)
 	}
 
 	cents := centsRat.Num()
@@ -206,7 +229,14 @@ func (a *Account) Withdraw(userID uuid.UUID, money Money) (*Transaction, error) 
 	if money.Amount <= 0 {
 		return nil, ErrWithdrawalAmountMustBePositive
 	}
-	cents := int64(math.Round(money.Amount * 100))
+
+	meta, ok := CurrencyInfo[money.Currency]
+	if !ok {
+		meta.Decimals = DefaultDecimals
+	}
+	multiplier := math.Pow10(meta.Decimals)
+	cents := int64(math.Round(money.Amount * multiplier))
+
 	if cents > a.Balance {
 		return nil, ErrInsufficientFunds
 	}
@@ -232,7 +262,11 @@ func (a *Account) GetBalance(userID uuid.UUID) (balance float64, err error) {
 		err = ErrUserUnauthorized
 		return
 	}
-	slog.Info("Getting balance", slog.Int64("balance", a.Balance))
-	balance = float64(a.Balance) / 100
+	meta, ok := CurrencyInfo[a.Currency]
+	if !ok {
+		meta.Decimals = DefaultDecimals
+	}
+	divisor := math.Pow10(meta.Decimals)
+	balance = float64(a.Balance) / divisor
 	return
 }
