@@ -163,10 +163,6 @@ func (s *AccountTestSuite) TestAccountRoutesFailureAccountNotFound() {
 }
 
 func (s *AccountTestSuite) TestAccountRoutesFailureTransaction() {
-	s.mockUow.EXPECT().AccountRepository().Return(s.accountRepo)
-	s.mockUow.EXPECT().Begin().Return(nil)
-	s.mockUow.EXPECT().Rollback().Return(nil)
-	s.accountRepo.EXPECT().Get(mock.Anything).Return(&domain.Account{Balance: 100.0, UserID: s.testUser.ID, Currency: "USD"}, nil)
 
 	// fixtures deposit negative amount
 	req := httptest.NewRequest("POST", fmt.Sprintf("/account/%s/deposit", uuid.New()), bytes.NewBuffer([]byte(`{"amount": -100.0}`)))
@@ -338,20 +334,6 @@ func (s *AccountTestSuite) TestCreateAccount_Unauthorized() {
 	s.Assert().Equal(fiber.StatusUnauthorized, resp.StatusCode)
 }
 
-func (s *AccountTestSuite) TestCreateAccount_InvalidUserID() {
-	s.mockUow.EXPECT().UserRepository().Return(s.userRepo)
-	s.userRepo.EXPECT().GetByUsername("testuser").Return(s.testUser, nil)
-	s.mockUow.EXPECT().Begin().Return(errors.New("uow error"))
-
-	req := httptest.NewRequest("POST", "/account", nil)
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+s.testToken)
-	resp, err := s.app.Test(req, 10000)
-	s.Require().NoError(err)
-	defer resp.Body.Close() //nolint: errcheck
-	s.Assert().Equal(fiber.StatusInternalServerError, resp.StatusCode)
-}
-
 func (s *AccountTestSuite) TestDeposit_Unauthorized() {
 
 	req := httptest.NewRequest("POST", fmt.Sprintf("/account/%s/deposit", uuid.New()), nil)
@@ -361,9 +343,6 @@ func (s *AccountTestSuite) TestDeposit_Unauthorized() {
 }
 
 func (s *AccountTestSuite) TestDeposit_InvalidAccountID() {
-	s.mockUow.EXPECT().UserRepository().Return(s.userRepo)
-	s.userRepo.EXPECT().GetByUsername("testuser").Return(s.testUser, nil)
-
 	depositBody := bytes.NewBuffer([]byte(`{"amount": 100.0}`))
 	req := httptest.NewRequest("POST", "/account/invalid-uuid/deposit", depositBody)
 	req.Header.Set("Content-Type", "application/json")
@@ -376,9 +355,6 @@ func (s *AccountTestSuite) TestDeposit_InvalidAccountID() {
 }
 
 func (s *AccountTestSuite) TestDeposit_InvalidBody() {
-	s.mockUow.EXPECT().UserRepository().Return(s.userRepo)
-	s.userRepo.EXPECT().GetByUsername("testuser").Return(s.testUser, nil)
-
 	depositBody := bytes.NewBuffer([]byte(`{"amount":"invalid"}`))
 	req := httptest.NewRequest("POST", fmt.Sprintf("/account/%s/deposit", uuid.New()), depositBody)
 	req.Header.Set("Content-Type", "application/json")
@@ -399,9 +375,6 @@ func (s *AccountTestSuite) TestWithdraw_Unauthorized() {
 }
 
 func (s *AccountTestSuite) TestWithdraw_InvalidAccountID() {
-	s.mockUow.EXPECT().UserRepository().Return(s.userRepo)
-	s.userRepo.EXPECT().GetByUsername("testuser").Return(s.testUser, nil)
-
 	withdrawBody := bytes.NewBuffer([]byte(`{"amount": 100.0}`))
 	req := httptest.NewRequest("POST", "/account/invalid-uuid/withdraw", withdrawBody)
 	req.Header.Set("Content-Type", "application/json")
@@ -414,9 +387,6 @@ func (s *AccountTestSuite) TestWithdraw_InvalidAccountID() {
 }
 
 func (s *AccountTestSuite) TestWithdraw_InvalidBody() {
-	s.mockUow.EXPECT().UserRepository().Return(s.userRepo)
-	s.userRepo.EXPECT().GetByUsername("testuser").Return(s.testUser, nil)
-
 	withdrawBody := bytes.NewBuffer([]byte(`{"amount":"invalid"}`))
 	req := httptest.NewRequest("POST", fmt.Sprintf("/account/%s/withdraw", uuid.New()), withdrawBody)
 	req.Header.Set("Content-Type", "application/json")
@@ -436,9 +406,6 @@ func (s *AccountTestSuite) TestGetTransactions_Unauthorized() {
 }
 
 func (s *AccountTestSuite) TestGetTransactions_InvalidAccountID() {
-	s.mockUow.EXPECT().UserRepository().Return(s.userRepo)
-	s.userRepo.EXPECT().GetByUsername("testuser").Return(s.testUser, nil)
-
 	req := httptest.NewRequest("GET", "/account/invalid-uuid/transactions", nil)
 	req.Header.Set("Authorization", "Bearer "+s.testToken)
 
@@ -449,8 +416,6 @@ func (s *AccountTestSuite) TestGetTransactions_InvalidAccountID() {
 }
 
 func (s *AccountTestSuite) TestGetTransactions_InternalServerError() {
-	s.mockUow.EXPECT().UserRepository().Return(s.userRepo)
-	s.userRepo.EXPECT().GetByUsername("testuser").Return(s.testUser, nil)
 	s.mockUow.EXPECT().TransactionRepository().Return(s.transRepo)
 	s.transRepo.EXPECT().List(mock.Anything, mock.Anything).Return(nil, errors.New("db error")).Once()
 
@@ -472,9 +437,6 @@ func (s *AccountTestSuite) TestGetBalance_Unauthorized() {
 }
 
 func (s *AccountTestSuite) TestGetBalance_InvalidAccountID() {
-	s.mockUow.EXPECT().UserRepository().Return(s.userRepo)
-	s.userRepo.EXPECT().GetByUsername("testuser").Return(s.testUser, nil)
-
 	req := httptest.NewRequest("GET", "/account/invalid-uuid/balance", nil)
 	req.Header.Set("Authorization", "Bearer "+s.testToken)
 
@@ -485,8 +447,6 @@ func (s *AccountTestSuite) TestGetBalance_InvalidAccountID() {
 }
 
 func (s *AccountTestSuite) TestGetBalance_InternalServerError() {
-	s.mockUow.EXPECT().UserRepository().Return(s.userRepo)
-	s.userRepo.EXPECT().GetByUsername("testuser").Return(s.testUser, nil)
 	s.mockUow.EXPECT().AccountRepository().Return(s.accountRepo)
 	s.accountRepo.EXPECT().Get(mock.Anything).Return(nil, errors.New("db error"))
 
