@@ -45,6 +45,7 @@ func LoadAppConfig(logger *slog.Logger) (*AppConfig, error) {
 	if err := envconfig.Process("", &cfg); err != nil {
 		return nil, err
 	}
+	logger.Info("Loaded JWT secret", "jwt_secret", cfg.Auth.JwtSecret)
 	logger.Info("App config loaded", "db", cfg.DB.Url, "jwt_expiry", cfg.Auth.JwtExpiry, "exchange_cache_ttl", cfg.Exchange.CacheTTL)
 	return &cfg, nil
 }

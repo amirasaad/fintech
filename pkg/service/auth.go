@@ -2,11 +2,10 @@ package service
 
 import (
 	"context"
-	"errors"
 	"net/mail"
-	"os"
 	"time"
 
+	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/golang-jwt/jwt/v5"
@@ -68,12 +67,14 @@ func (s *AuthService) Login(
 // JWTAuthStrategy implements AuthStrategy for JWT-based authentication
 type JWTAuthStrategy struct {
 	uowFactory func() (repository.UnitOfWork, error)
+	cfg        config.AuthConfig
 }
 
 func NewJWTAuthStrategy(
 	uowFactory func() (repository.UnitOfWork, error),
+	cfg config.AuthConfig,
 ) *JWTAuthStrategy {
-	return &JWTAuthStrategy{uowFactory: uowFactory}
+	return &JWTAuthStrategy{uowFactory: uowFactory, cfg: cfg}
 }
 
 func (s *JWTAuthStrategy) Login(
@@ -103,18 +104,14 @@ func (s *JWTAuthStrategy) Login(
 	if !checkPasswordHash(password, user.Password) {
 		return
 	}
-	secret := os.Getenv("JWT_SECRET_KEY")
-	if secret == "" {
-		err = errors.New("JWT secret key is not set")
-		return
-	}
+
 	token := jwt.New(jwt.SigningMethodHS256)
 	claims := token.Claims.(jwt.MapClaims)
 	claims["username"] = user.Username
 	claims["email"] = user.Email
 	claims["user_id"] = user.ID.String()
-	claims["exp"] = time.Now().Add(time.Hour * 72).Unix()
-	tokenString, err = token.SignedString([]byte(secret))
+	claims["exp"] = time.Now().Add(s.cfg.JwtExpiry).Unix()
+	tokenString, err = token.SignedString([]byte(s.cfg.JwtSecret))
 	if err != nil {
 		return
 	}

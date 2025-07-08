@@ -53,8 +53,8 @@ func main() {
 	// Create services
 	accountSvc := service.NewAccountService(uowFactory, currencyConverter)
 	userSvc := service.NewUserService(uowFactory)
-	authSvc := service.NewAuthService(uowFactory, service.NewJWTAuthStrategy(uowFactory))
+	authSvc := service.NewAuthService(uowFactory, service.NewJWTAuthStrategy(uowFactory, cfg.Auth))
 
 	logger.Info("Starting fintech server", "port", ":3000")
-	log.Fatal(webapi.NewApp(accountSvc, userSvc, authSvc).Listen(":3000"))
+	log.Fatal(webapi.NewApp(accountSvc, userSvc, authSvc, *cfg).Listen(":3000"))
 }

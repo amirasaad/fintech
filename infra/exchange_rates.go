@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
-	"sync"
 	"time"
 
 	"github.com/amirasaad/fintech/pkg/domain"
@@ -15,7 +14,7 @@ type ExchangeRateService struct {
 	providers []domain.ExchangeRateProvider
 	cache     ExchangeRateCache
 	logger    *slog.Logger
-	mu        sync.RWMutex
+	// mu        sync.RWMutex
 }
 
 // ExchangeRateCache defines the interface for caching exchange rates.

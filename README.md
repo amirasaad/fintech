@@ -90,44 +90,19 @@ Before you begin, ensure you have the following software installed:
     ```
 
 2. **Set up Environment Variables:**
-    The application automatically loads environment variables from a `.env` file in the root directory. Copy the example file and configure it:
+    The application automatically loads environment variables from a `.env` file in the root directory. Copy the sample file and configure it:
 
     ```bash
-    cp .env.example .env
+    cp .env_sample .env
     ```
 
-    Then edit the `.env` file with your configuration:
+    Then edit the `.env` file with your configuration. At a minimum, you **must** set a strong value for `AUTH_JWT_SECRET`:
 
     ```dotenv
-    DATABASE_URL=postgres://postgres:password@localhost:5432/fintech?sslmode=disable
-    JWT_SECRET_KEY=your_super_secret_jwt_key_replace_this_in_production
-    
-    # Exchange Rate API Configuration (Optional)
-    # Get your free API key from: https://exchangerate-api.com/
-    EXCHANGE_RATE_API_KEY=your_exchange_rate_api_key_here
-    
-    # Optional: Custom API URL (default: https://api.exchangerate-api.com/v4/latest)
-    # EXCHANGE_RATE_API_URL=https://api.exchangerate-api.com/v4/latest
-    
-    # Cache Configuration (default: 15 minutes)
-    # EXCHANGE_RATE_CACHE_TTL=15m
-    
-    # HTTP Configuration (default: 10 seconds timeout, 3 retries)
-    # EXCHANGE_RATE_HTTP_TIMEOUT=10s
-    # EXCHANGE_RATE_MAX_RETRIES=3
-    
-    # Rate Limiting (default: 60 requests per minute, burst of 10)
-    # EXCHANGE_RATE_REQUESTS_PER_MINUTE=60
-    # EXCHANGE_RATE_BURST_SIZE=10
-    
-    # Fallback Configuration (default: enabled with 1 hour TTL)
-    # EXCHANGE_RATE_ENABLE_FALLBACK=true
-    # EXCHANGE_RATE_FALLBACK_TTL=1h
+    AUTH_JWT_SECRET=your_super_secret_jwt_key
     ```
 
-    - `DATABASE_URL`: Specifies the connection string for your PostgreSQL database. The provided value is suitable for local development using Docker Compose. 🗄️
-    - `JWT_SECRET_KEY`: A secret key used for signing and verifying JWTs. **For production environments, it is critical to use a strong, randomly generated key and manage it securely (e.g., via Kubernetes secrets, AWS Secrets Manager, or similar services). Never hardcode sensitive keys.** ⚠️
-    - `EXCHANGE_RATE_API_KEY`: API key for real-time exchange rates. **Get a free API key from [exchangerate-api.com](https://exchangerate-api.com/). If not provided, the system will use fallback rates.** 💱
+    See `.env_sample` for all available configuration options and their defaults. Other variables (such as database URL, API keys, etc.) can be left as defaults or customized as needed.
 
     **Note:** The application uses the `godotenv` package to automatically load environment variables from a `.env` file. If no `.env` file is found, the application will use system environment variables. 🔧
 

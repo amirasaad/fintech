@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/amirasaad/fintech/pkg/service"
@@ -96,8 +97,8 @@ func NewTestApp(
 		return c.SendString("App is working! 🚀")
 	})
 
-	AccountRoutes(app, accountSvc, authSvc)
-	UserRoutes(app, userSvc, authSvc)
+	AccountRoutes(app, accountSvc, authSvc, config.AppConfig{})
+	UserRoutes(app, userSvc, authSvc, config.AppConfig{Auth: config.AuthConfig{JwtSecret: "secret"}})
 	AuthRoutes(app, authSvc)
 
 	return app
@@ -125,7 +126,7 @@ func SetupTestApp(
 
 	mockUow = fixtures.NewMockUnitOfWork(t)
 
-	authStrategy := service.NewJWTAuthStrategy(func() (repository.UnitOfWork, error) { return mockUow, nil })
+	authStrategy := service.NewJWTAuthStrategy(func() (repository.UnitOfWork, error) { return mockUow, nil }, config.AuthConfig{JwtSecret: "secret"})
 	authService = service.NewAuthService(func() (repository.UnitOfWork, error) { return mockUow, nil }, authStrategy)
 	mockConverter = fixtures.NewMockCurrencyConverter(t)
 	// Create services with the mock UOW factory

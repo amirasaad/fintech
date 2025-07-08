@@ -57,7 +57,7 @@ func (p *ExchangeRateAPIProvider) GetRate(from, to string) (*domain.ExchangeRate
 	if err != nil {
 		return nil, fmt.Errorf("failed to make request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
@@ -65,7 +65,7 @@ func (p *ExchangeRateAPIProvider) GetRate(from, to string) (*domain.ExchangeRate
 	}
 
 	var apiResp ExchangeRateAPIResponse
-	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
+	if err = json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
@@ -115,7 +115,7 @@ func (p *ExchangeRateAPIProvider) GetRates(from string, to []string) (map[string
 	if err != nil {
 		return nil, fmt.Errorf("failed to make request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
@@ -123,7 +123,7 @@ func (p *ExchangeRateAPIProvider) GetRates(from string, to []string) (map[string
 	}
 
 	var apiResp ExchangeRateAPIResponse
-	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
+	if err = json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
@@ -176,7 +176,7 @@ func (p *ExchangeRateAPIProvider) IsHealthy() bool {
 	if err != nil {
 		return false
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	return resp.StatusCode == http.StatusOK
 }

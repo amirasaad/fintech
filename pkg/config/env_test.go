@@ -11,8 +11,8 @@ import (
 
 func TestGetEnv(t *testing.T) {
 	// Test with environment variable set
-	os.Setenv("TEST_VAR", "test_value")
-	defer os.Unsetenv("TEST_VAR")
+	os.Setenv("TEST_VAR", "test_value") //no
+	defer os.Unsetenv("TEST_VAR") //nolint:errcheck
 
 	value := GetEnv("TEST_VAR", "default")
 	assert.Equal(t, "test_value", value)
@@ -24,8 +24,8 @@ func TestGetEnv(t *testing.T) {
 
 func TestIsEnvSet(t *testing.T) {
 	// Test with environment variable set
-	os.Setenv("TEST_VAR", "test_value")
-	defer os.Unsetenv("TEST_VAR")
+	os.Setenv("TEST_VAR", "test_value") //nolint:errcheck
+	defer os.Unsetenv("TEST_VAR") //nolint:errcheck
 
 	assert.True(t, IsEnvSet("TEST_VAR"))
 	assert.False(t, IsEnvSet("NONEXISTENT_VAR"))
@@ -33,15 +33,15 @@ func TestIsEnvSet(t *testing.T) {
 
 func TestGetEnvRequired(t *testing.T) {
 	// Test with environment variable set
-	os.Setenv("TEST_VAR", "test_value")
-	defer os.Unsetenv("TEST_VAR")
+	os.Setenv("TEST_VAR", "test_value") //nolint:errcheck
+	defer os.Unsetenv("TEST_VAR") //nolint:errcheck
 
 	value := GetEnvRequired("TEST_VAR")
 	assert.Equal(t, "test_value", value)
 
 	// Test with environment variable not set (should panic)
 	assert.Panics(t, func() {
-		GetEnvRequired("NONEXISTENT_VAR")
+		GetEnvRequired("NONEXISTENT_VAR") //nolint:errcheck
 	})
 }
 

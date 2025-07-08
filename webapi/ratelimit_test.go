@@ -1,10 +1,12 @@
 package webapi
 
 import (
-	"github.com/amirasaad/fintech/pkg/domain"
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/amirasaad/fintech/pkg/config"
+	"github.com/amirasaad/fintech/pkg/domain"
 
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/amirasaad/fintech/pkg/service"
@@ -24,7 +26,7 @@ func (s *RateLimitTestSuite) SetupTest() {
 	userSvc := service.NewUserService(dummyUow)
 	authSvc := &service.AuthService{} // Use zero value or a mock if available
 
-	s.app = NewApp(accountSvc, userSvc, authSvc)
+	s.app = NewApp(accountSvc, userSvc, authSvc, config.AppConfig{})
 }
 
 func (s *RateLimitTestSuite) TestRateLimit() {

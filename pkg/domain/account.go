@@ -83,6 +83,9 @@ var iso4217 = map[string]struct{}{
 	"USD": {},
 	"EUR": {},
 	"GBP": {},
+	"JPY": {},
+	"KWD": {},
+	"EGP": {},
 	// Add more as needed
 }
 

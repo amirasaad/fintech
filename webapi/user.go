@@ -1,6 +1,7 @@
 package webapi
 
 import (
+	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/middleware"
 	"github.com/amirasaad/fintech/pkg/service"
 	"github.com/go-playground/validator"
@@ -24,11 +25,11 @@ type PasswordInput struct {
 	Password string `json:"password"`
 }
 
-func UserRoutes(app *fiber.App, userSvc *service.UserService, authSvc *service.AuthService) {
-	app.Get("/user/:id", middleware.Protected(), GetUser(userSvc))
+func UserRoutes(app *fiber.App, userSvc *service.UserService, authSvc *service.AuthService, cfg config.AppConfig) {
+	app.Get("/user/:id", middleware.Protected(cfg.Auth), GetUser(userSvc))
 	app.Post("/user", CreateUser(userSvc))
-	app.Put("/user/:id", middleware.Protected(), UpdateUser(userSvc, authSvc))
-	app.Delete("/user/:id", middleware.Protected(), DeleteUser(userSvc, authSvc))
+	app.Put("/user/:id", middleware.Protected(cfg.Auth), UpdateUser(userSvc, authSvc))
+	app.Delete("/user/:id", middleware.Protected(cfg.Auth), DeleteUser(userSvc, authSvc))
 }
 
 // GetUser retrieves a user by ID.

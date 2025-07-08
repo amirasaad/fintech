@@ -3,6 +3,7 @@ package webapi
 import (
 	"time"
 
+	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/service"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/limiter"
@@ -17,6 +18,7 @@ func NewApp(
 	accountSvc *service.AccountService,
 	userSvc *service.UserService,
 	authSvc *service.AuthService,
+	cfg config.AppConfig,
 ) *fiber.App {
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
@@ -50,8 +52,8 @@ func NewApp(
 		return c.SendString("App is working! 🚀")
 	})
 
-	AccountRoutes(app, accountSvc, authSvc)
-	UserRoutes(app, userSvc, authSvc)
+	AccountRoutes(app, accountSvc, authSvc, cfg)
+	UserRoutes(app, userSvc, authSvc, cfg)
 	AuthRoutes(app, authSvc)
 
 	return app

@@ -47,7 +47,8 @@ func handler() http.HandlerFunc {
 			return infra.NewGormUoW(cfg.DB)
 		}, service.NewJWTAuthStrategy(func() (repository.UnitOfWork, error) {
 			return infra.NewGormUoW(cfg.DB)
-		})),
+		}, cfg.Auth)),
+		*cfg,
 	)
 	return adaptor.FiberApp(app)
 }

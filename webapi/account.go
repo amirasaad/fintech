@@ -16,6 +16,7 @@
 package webapi
 
 import (
+	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/middleware"
 	"github.com/amirasaad/fintech/pkg/service"
@@ -134,12 +135,12 @@ func ToConversionResponseDTO(tx *domain.Transaction, convInfo *domain.Conversion
 	return nil
 }
 
-func AccountRoutes(app *fiber.App, accountSvc *service.AccountService, authSvc *service.AuthService) {
-	app.Post("/account", middleware.Protected(), CreateAccount(accountSvc, authSvc))
-	app.Post("/account/:id/deposit", middleware.Protected(), Deposit(accountSvc, authSvc))
-	app.Post("/account/:id/withdraw", middleware.Protected(), Withdraw(accountSvc, authSvc))
-	app.Get("/account/:id/balance", middleware.Protected(), GetBalance(accountSvc, authSvc))
-	app.Get("/account/:id/transactions", middleware.Protected(), GetTransactions(accountSvc, authSvc))
+func AccountRoutes(app *fiber.App, accountSvc *service.AccountService, authSvc *service.AuthService, cfg config.AppConfig) {
+	app.Post("/account", middleware.Protected(cfg.Auth), CreateAccount(accountSvc, authSvc))
+	app.Post("/account/:id/deposit", middleware.Protected(cfg.Auth), Deposit(accountSvc, authSvc))
+	app.Post("/account/:id/withdraw", middleware.Protected(cfg.Auth), Withdraw(accountSvc, authSvc))
+	app.Get("/account/:id/balance", middleware.Protected(cfg.Auth), GetBalance(accountSvc, authSvc))
+	app.Get("/account/:id/transactions", middleware.Protected(cfg.Auth), GetTransactions(accountSvc, authSvc))
 }
 
 // CreateAccount returns a Fiber handler for creating a new account for the current user.

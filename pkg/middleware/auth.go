@@ -1,16 +1,15 @@
 package middleware
 
 import (
-	"os"
-
+	"github.com/amirasaad/fintech/pkg/config"
 	jwtware "github.com/gofiber/contrib/jwt"
 	"github.com/gofiber/fiber/v2"
 )
 
 // Protected protect routes
-func Protected() fiber.Handler {
+func Protected(cfg config.AuthConfig) fiber.Handler {
 	return jwtware.New(jwtware.Config{
-		SigningKey:   jwtware.SigningKey{Key: []byte(os.Getenv("JWT_SECRET_KEY"))},
+		SigningKey:   jwtware.SigningKey{Key: []byte(cfg.JwtSecret)},
 		ErrorHandler: jwtError,
 	})
 }
