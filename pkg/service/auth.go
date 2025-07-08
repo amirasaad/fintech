@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"net/mail"
 	"time"
 
@@ -167,9 +168,11 @@ func (s *BasicAuthStrategy) Login(
 	}
 	if user == nil {
 		checkPasswordHash(password, dummyHash)
+		err = errors.New("invalid credentials")
 		return
 	}
 	if !checkPasswordHash(password, user.Password) {
+		err = errors.New("invalid credentials")
 		return
 	}
 	return

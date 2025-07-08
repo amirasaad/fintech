@@ -9,10 +9,8 @@ import (
 	"time"
 
 	"github.com/amirasaad/fintech/internal/fixtures"
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
-	"golang.org/x/crypto/bcrypt"
 
 	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/domain"
@@ -20,7 +18,6 @@ import (
 	"github.com/amirasaad/fintech/pkg/service"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/log"
-	"github.com/gofiber/fiber/v2/middleware/recover"
 )
 
 type E2ETestSuite struct {
@@ -75,37 +72,6 @@ func (suite *E2ETestSuite) T() *testing.T {
 	return suite.Suite.T()
 }
 
-// NewTestApp creates a new Fiber app for testing without rate limiting
-func NewTestApp(
-	accountSvc *service.AccountService,
-	userSvc *service.UserService,
-	authSvc *service.AuthService,
-	cfg *config.AppConfig,
-) *fiber.App {
-	app := fiber.New(fiber.Config{
-		ErrorHandler: func(c *fiber.Ctx, err error) error {
-			// Default to 500 if status code cannot be determined
-			status := fiber.StatusInternalServerError
-			if e, ok := err.(*fiber.Error); ok {
-				status = e.Code
-			}
-			return ErrorResponseJSON(c, status, "Internal Server Error", err.Error())
-		},
-	})
-	// No rate limiting for tests
-	app.Use(recover.New())
-
-	app.Get("/", func(c *fiber.Ctx) error {
-		return c.SendString("App is working! 🚀")
-	})
-
-	AccountRoutes(app, accountSvc, authSvc, cfg)
-	UserRoutes(app, userSvc, authSvc, cfg)
-	AuthRoutes(app, authSvc)
-
-	return app
-}
-
 func SetupTestApp(
 	t *testing.T,
 ) (
@@ -134,17 +100,10 @@ func SetupTestApp(
 
 	mockUow = fixtures.NewMockUnitOfWork(t)
 
-	hashed, _ := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.DefaultCost)
-	testUser = &domain.User{
-		ID:       uuid.New(),
-		Username: "testuser",
-		Email:    "testuser@example.com",
-		Password: string(hashed),
+	testUser, err = domain.NewUser("test", "test@example.com", "password123")
+	if err != nil {
+		t.Fatalf("Failed to create test user: %v", err)
 	}
-	mockUow.EXPECT().UserRepository().Return(userRepo)
-	userRepo.EXPECT().GetByUsername(testUser.Username).Return(testUser, nil)
-	userRepo.EXPECT().Get(testUser.ID).Return(testUser, nil)
-
 	authStrategy := service.NewJWTAuthStrategy(func() (repository.UnitOfWork, error) { return mockUow, nil }, config.JwtConfig{Secret: "secret", Expiry: 24 * time.Hour})
 	authService = service.NewAuthService(func() (repository.UnitOfWork, error) { return mockUow, nil }, authStrategy)
 	mockConverter = fixtures.NewMockCurrencyConverter(t)
@@ -152,7 +111,7 @@ func SetupTestApp(
 	accountSvc := service.NewAccountService(func() (repository.UnitOfWork, error) { return mockUow, nil }, mockConverter)
 	userSvc := service.NewUserService(func() (repository.UnitOfWork, error) { return mockUow, nil })
 
-	app = NewTestApp(accountSvc, userSvc, authService, cfg)
+	app = NewApp(accountSvc, userSvc, authService, cfg)
 	log.SetOutput(io.Discard)
 
 	return

@@ -47,6 +47,7 @@ func (s *AuthTestSuite) TestLoginRoute_BadRequest() {
 }
 
 func (s *AuthTestSuite) TestLoginRoute_Unauthorized() {
+	s.mockUow.EXPECT().UserRepository().Return(s.userRepo).Once()
 	s.userRepo.EXPECT().GetByUsername(mock.Anything).Return(nil, nil).Once()
 	req := httptest.NewRequest("POST", "/login", bytes.NewBuffer([]byte(`{"identity":"nonexistent","password":"password"}`)))
 	req.Header.Set("Content-Type", "application/json")
@@ -57,14 +58,10 @@ func (s *AuthTestSuite) TestLoginRoute_Unauthorized() {
 
 	buf := new(bytes.Buffer)
 	_, _ = buf.ReadFrom(resp.Body)
-	s.T().Logf("Response body: %s", buf.String())
-
 	s.Assert().Equal(fiber.StatusUnauthorized, resp.StatusCode)
 }
 
 func (s *AuthTestSuite) TestLoginRoute_InvalidPassword() {
-	hash, _ := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.DefaultCost)
-	s.testUser.Password = string(hash)
 	s.mockUow.EXPECT().UserRepository().Return(s.userRepo).Once()
 	s.userRepo.EXPECT().GetByUsername("testuser").Return(s.testUser, nil).Once()
 
