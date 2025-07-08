@@ -74,7 +74,6 @@ func (s *UserTestSuite) TestCreateUserInvalidBody() {
 
 func (s *UserTestSuite) TestGetUserNotFound() {
 	s.mockUow.EXPECT().UserRepository().Return(s.userRepo)
-	s.userRepo.EXPECT().Get(s.testUser.ID).Return(s.testUser, nil)
 
 	id := uuid.New()
 	s.userRepo.EXPECT().Get(id).Return(&domain.User{}, domain.ErrUserNotFound)
@@ -139,9 +138,6 @@ func (s *UserTestSuite) TestUpdateUserSuccess() {
 }
 
 func (s *UserTestSuite) TestUpdateUserInvalidBody() {
-	s.mockUow.EXPECT().UserRepository().Return(s.userRepo)
-	s.userRepo.EXPECT().Get(s.testUser.ID).Return(s.testUser, nil)
-
 	body := bytes.NewBuffer([]byte(`{"names":123}`)) // Invalid body
 	req := httptest.NewRequest("PUT", fmt.Sprintf("/user/%s", s.testUser.ID), body)
 	req.Header.Set("Content-Type", "application/json")
@@ -215,9 +211,6 @@ func (s *UserTestSuite) TestDeleteUserSuccess() {
 }
 
 func (s *UserTestSuite) TestDeleteUserInvalidBody() {
-	s.mockUow.EXPECT().UserRepository().Return(s.userRepo)
-	s.userRepo.EXPECT().Valid(s.testUser.ID, "").Return(false)
-
 	body := bytes.NewBuffer([]byte(`{"pass":123}`)) // Invalid body
 	req := httptest.NewRequest("DELETE", fmt.Sprintf("/user/%s", s.testUser.ID), body)
 	req.Header.Set("Content-Type", "application/json")
@@ -226,7 +219,7 @@ func (s *UserTestSuite) TestDeleteUserInvalidBody() {
 	resp, err := s.app.Test(req, 10000)
 	s.Require().NoError(err)
 	defer resp.Body.Close() //nolint: errcheck
-	s.Assert().Equal(fiber.StatusUnauthorized, resp.StatusCode)
+	s.Assert().Equal(fiber.StatusBadRequest, resp.StatusCode)
 }
 
 func (s *UserTestSuite) TestDeleteUserInvalidPassword() {

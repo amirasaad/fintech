@@ -68,9 +68,12 @@ func (s *AuthTestSuite) TestLoginRoute_InvalidPassword() {
 	body := bytes.NewBuffer([]byte(`{"identity":"testuser","password":"wrongpassword"}`)) // Invalid password
 	req := httptest.NewRequest("POST", "/login", body)
 	req.Header.Set("Content-Type", "application/json")
-	resp, err := s.app.Test(req, 10000)
+	resp, err := s.app.Test(req)
 	s.Require().NoError(err)
 	defer resp.Body.Close() //nolint: errcheck
+	buf := new(bytes.Buffer)
+	_, _ = buf.ReadFrom(resp.Body)
+	s.T().Logf("Response body: %s", buf.String())
 	s.Assert().Equal(fiber.StatusUnauthorized, resp.StatusCode)
 }
 

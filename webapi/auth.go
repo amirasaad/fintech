@@ -1,6 +1,9 @@
 package webapi
 
 import (
+	"errors"
+
+	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/service"
 	"github.com/gofiber/fiber/v2"
 )
@@ -35,7 +38,11 @@ func Login(authSvc *service.AuthService) fiber.Handler {
 		}
 		user, err := authSvc.Login(input.Identity, input.Password)
 		if err != nil {
-			return ErrorResponseJSON(c, fiber.StatusInternalServerError, "Internal Server Error", err.Error())
+			status := fiber.StatusInternalServerError
+			if errors.Is(err, domain.ErrUserUnauthorized) {
+				status = fiber.StatusUnauthorized
+			}
+			return ErrorResponseJSON(c, status, "Internal Server Error", err.Error())
 		}
 		if user == nil {
 			return ErrorResponseJSON(c, fiber.StatusUnauthorized, "Invalid identity or password", nil)

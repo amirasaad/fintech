@@ -115,10 +115,12 @@ func (s *JWTAuthStrategy) Login(
 		return
 	}
 	if user == nil {
+		err = domain.ErrUserUnauthorized
 		checkPasswordHash(password, dummyHash)
 		return
 	}
 	if !checkPasswordHash(password, user.Password) {
+		err = domain.ErrUserUnauthorized
 		return
 	}
 	return
