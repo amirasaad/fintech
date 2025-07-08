@@ -17,17 +17,27 @@ func TestUnitOfWork(t *testing.T) {
 		Conn:       mockDb,
 		DriverName: "postgres",
 	})
-	_, _ = gorm.Open(dialector, &gorm.Config{})
-	uow, err := NewGormUoW(config.DBConfig{Url: "postgres:"}, "test")
+	db, err := gorm.Open(dialector, &gorm.Config{})
+	assert.NoError(t, err)
+
+	uow := &UoW{
+		baseDB:  db,
+		session: db,
+		started: false,
+		cfg:     config.DBConfig{Url: "postgres://mock"},
+		appEnv:  "test",
+	}
 
 	assert.NoError(t, err)
 
 	// Test Accounts
-	accounts := uow.AccountRepository()
+	accounts, err := uow.AccountRepository()
+	assert.NoError(t, err)
 	assert.IsType(t, &accountRepository{}, accounts)
 
 	// Test Transactions
-	transactions := uow.TransactionRepository()
+	transactions, err := uow.TransactionRepository()
+	assert.NoError(t, err)
 	assert.IsType(t, &transactionRepository{}, transactions)
 }
 

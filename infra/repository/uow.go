@@ -11,21 +11,27 @@ import (
 )
 
 type UoW struct {
-	session *gorm.DB
+	baseDB  *gorm.DB // shared, non-transactional connection
+	session *gorm.DB // transactional session
 	started bool
 	cfg     config.DBConfig
 	appEnv  string
 }
 
 func NewGormUoW(cfg config.DBConfig, appEnv string) (*UoW, error) {
-	db, _ := infra.NewDBConnection(cfg, appEnv)
+	db, err := infra.NewDBConnection(cfg, appEnv)
+	if err != nil {
+		return nil, err
+	}
 	return &UoW{
+		baseDB:  db,
 		session: db,
 		started: false,
 		cfg:     cfg,
 		appEnv:  appEnv,
 	}, nil
 }
+
 func (u *UoW) Begin() error {
 	slog.Info("UoW Begin()")
 	if u.session == nil {
@@ -47,6 +53,7 @@ func (u *UoW) Begin() error {
 	u.started = true
 	return nil
 }
+
 func (u *UoW) Commit() error {
 	slog.Info("UoW Commit()")
 	if !u.started {
@@ -60,8 +67,11 @@ func (u *UoW) Commit() error {
 		slog.Info("Transaction committed successfully")
 	}
 	u.started = false
+	// After commit, reset session to baseDB
+	u.session = u.baseDB
 	return err
 }
+
 func (u *UoW) Rollback() error {
 	slog.Info("UoW Rollback()")
 	if !u.started {
@@ -75,28 +85,46 @@ func (u *UoW) Rollback() error {
 		slog.Info("Transaction rolled back successfully")
 	}
 	u.started = false // Always reset the flag, regardless of success/failure
+	// After rollback, reset session to baseDB
+	u.session = u.baseDB
 	return err
 }
 
-func (u *UoW) AccountRepository() repository.AccountRepository {
-	if !u.started {
-		db, _ := infra.NewDBConnection(u.cfg, u.appEnv)
-		return NewAccountRepository(db)
+func (u *UoW) AccountRepository() (repository.AccountRepository, error) {
+	if u.started {
+		if u.session == nil {
+			return nil, fmt.Errorf("transactional session is nil")
+		}
+		return NewAccountRepository(u.session), nil
 	}
-	return NewAccountRepository(u.session)
-}
-func (u *UoW) TransactionRepository() repository.TransactionRepository {
-	if !u.started {
-		db, _ := infra.NewDBConnection(u.cfg, u.appEnv)
-		return NewTransactionRepository(db)
+	if u.baseDB == nil {
+		return nil, fmt.Errorf("baseDB is nil")
 	}
-	return NewTransactionRepository(u.session)
+	return NewAccountRepository(u.baseDB), nil
 }
 
-func (u *UoW) UserRepository() repository.UserRepository {
-	if !u.started {
-		db, _ := infra.NewDBConnection(u.cfg, u.appEnv)
-		return NewUserRepository(db)
+func (u *UoW) TransactionRepository() (repository.TransactionRepository, error) {
+	if u.started {
+		if u.session == nil {
+			return nil, fmt.Errorf("transactional session is nil")
+		}
+		return NewTransactionRepository(u.session), nil
 	}
-	return NewUserRepository(u.session)
+	if u.baseDB == nil {
+		return nil, fmt.Errorf("baseDB is nil")
+	}
+	return NewTransactionRepository(u.baseDB), nil
+}
+
+func (u *UoW) UserRepository() (repository.UserRepository, error) {
+	if u.started {
+		if u.session == nil {
+			return nil, fmt.Errorf("transactional session is nil")
+		}
+		return NewUserRepository(u.session), nil
+	}
+	if u.baseDB == nil {
+		return nil, fmt.Errorf("baseDB is nil")
+	}
+	return NewUserRepository(u.baseDB), nil
 }

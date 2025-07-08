@@ -47,7 +47,7 @@ func (s *AuthTestSuite) TestLoginRoute_BadRequest() {
 }
 
 func (s *AuthTestSuite) TestLoginRoute_Unauthorized() {
-	s.mockUow.EXPECT().UserRepository().Return(s.userRepo).Once()
+	s.mockUow.EXPECT().UserRepository().Return(s.userRepo, nil).Once()
 	s.userRepo.EXPECT().GetByUsername(mock.Anything).Return(nil, nil).Once()
 	req := httptest.NewRequest("POST", "/login", bytes.NewBuffer([]byte(`{"identity":"nonexistent","password":"password"}`)))
 	req.Header.Set("Content-Type", "application/json")
@@ -62,7 +62,7 @@ func (s *AuthTestSuite) TestLoginRoute_Unauthorized() {
 }
 
 func (s *AuthTestSuite) TestLoginRoute_InvalidPassword() {
-	s.mockUow.EXPECT().UserRepository().Return(s.userRepo).Once()
+	s.mockUow.EXPECT().UserRepository().Return(s.userRepo, nil).Once()
 	s.userRepo.EXPECT().GetByUsername("testuser").Return(s.testUser, nil).Once()
 
 	body := bytes.NewBuffer([]byte(`{"identity":"testuser","password":"wrongpassword"}`)) // Invalid password
@@ -80,7 +80,7 @@ func (s *AuthTestSuite) TestLoginRoute_InvalidPassword() {
 func (s *AuthTestSuite) TestLoginRoute_Success() {
 	hash, _ := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.DefaultCost)
 	s.testUser.Password = string(hash)
-	s.mockUow.EXPECT().UserRepository().Return(s.userRepo).Once()
+	s.mockUow.EXPECT().UserRepository().Return(s.userRepo, nil).Once()
 	s.userRepo.EXPECT().GetByUsername("testuser").Return(s.testUser, nil).Once()
 	req := httptest.NewRequest("POST", "/login", bytes.NewBuffer([]byte(`{"identity":"testuser","password":"password123"}`)))
 	req.Header.Set("Content-Type", "application/json")
@@ -91,7 +91,7 @@ func (s *AuthTestSuite) TestLoginRoute_Success() {
 }
 
 func (s *AuthTestSuite) TestLoginRoute_InternalServerError() {
-	s.mockUow.EXPECT().UserRepository().Return(s.userRepo).Once()
+	s.mockUow.EXPECT().UserRepository().Return(s.userRepo, nil).Once()
 	s.userRepo.EXPECT().GetByUsername(mock.Anything).Return(nil, errors.New("db error")).Once() // Simulate DB error
 	req := httptest.NewRequest("POST", "/login", bytes.NewBuffer([]byte(`{"identity":"testuser","password":"password123"}`)))
 	req.Header.Set("Content-Type", "application/json")
@@ -102,7 +102,7 @@ func (s *AuthTestSuite) TestLoginRoute_InternalServerError() {
 }
 
 func (s *AuthTestSuite) TestLoginRoute_ServiceError() {
-	s.mockUow.EXPECT().UserRepository().Return(nil).Once() // Simulate UoW error
+	s.mockUow.EXPECT().UserRepository().Return(nil, errors.New("some error")).Once() // For error simulation
 	req := httptest.NewRequest("POST", "/login", bytes.NewBuffer([]byte(`{"identity":"testuser","password":"password123"}`)))
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := s.app.Test(req, 10000)

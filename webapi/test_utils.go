@@ -6,7 +6,6 @@ import (
 	"runtime"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/amirasaad/fintech/internal/fixtures"
 	"github.com/stretchr/testify/mock"
@@ -87,6 +86,7 @@ func SetupTestApp(
 	cfg *config.AppConfig,
 ) {
 	t.Helper()
+	// find .env.test at app base dir
 
 	// Load test configuration
 	cfg, err := config.LoadAppConfig(slog.Default(), "../.env.test")
@@ -104,12 +104,13 @@ func SetupTestApp(
 	if err != nil {
 		t.Fatalf("Failed to create test user: %v", err)
 	}
-	authStrategy := service.NewJWTAuthStrategy(func() (repository.UnitOfWork, error) { return mockUow, nil }, config.JwtConfig{Secret: "secret", Expiry: 24 * time.Hour})
-	authService = service.NewAuthService(func() (repository.UnitOfWork, error) { return mockUow, nil }, authStrategy)
+	uow := func() (repository.UnitOfWork, error) { return mockUow, nil }
+	authStrategy := service.NewJWTAuthStrategy(uow, cfg.Jwt)
+	authService = service.NewAuthService(uow, authStrategy)
 	mockConverter = fixtures.NewMockCurrencyConverter(t)
 	// Create services with the mock UOW factory
-	accountSvc := service.NewAccountService(func() (repository.UnitOfWork, error) { return mockUow, nil }, mockConverter)
-	userSvc := service.NewUserService(func() (repository.UnitOfWork, error) { return mockUow, nil })
+	accountSvc := service.NewAccountService(uow, mockConverter)
+	userSvc := service.NewUserService(uow)
 
 	app = NewApp(accountSvc, userSvc, authService, cfg)
 	log.SetOutput(io.Discard)

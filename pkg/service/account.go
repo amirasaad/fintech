@@ -41,7 +41,13 @@ func (s *AccountService) CreateAccount(
 	}
 
 	a = domain.NewAccount(userID)
-	err = uow.AccountRepository().Create(a)
+	repo, err := uow.AccountRepository()
+	if err != nil {
+		_ = uow.Rollback()
+		a = nil
+		return
+	}
+	err = repo.Create(a)
 	if err != nil {
 		_ = uow.Rollback()
 		a = nil
@@ -72,7 +78,13 @@ func (s *AccountService) CreateAccountWithCurrency(
 	}
 
 	account = domain.NewAccountWithCurrency(userID, currency)
-	err = uow.AccountRepository().Create(account)
+	repo, err := uow.AccountRepository()
+	if err != nil {
+		_ = uow.Rollback()
+		account = nil
+		return
+	}
+	err = repo.Create(account)
 	if err != nil {
 		_ = uow.Rollback()
 		account = nil
@@ -111,7 +123,13 @@ func (s *AccountService) Deposit(
 		return
 	}
 
-	a, err := uow.AccountRepository().Get(accountID)
+	repo, err := uow.AccountRepository()
+	if err != nil {
+		_ = uow.Rollback()
+		tx = nil
+		return
+	}
+	a, err := repo.Get(accountID)
 	if err != nil {
 		_ = uow.Rollback()
 		tx = nil
@@ -148,14 +166,20 @@ func (s *AccountService) Deposit(
 		tx.ConversionRate = &convInfo.ConversionRate
 	}
 
-	err = uow.AccountRepository().Update(a)
+	err = repo.Update(a)
 	if err != nil {
 		_ = uow.Rollback()
 		tx = nil
 		return
 	}
 
-	err = uow.TransactionRepository().Create(tx)
+	txRepo, err := uow.TransactionRepository()
+	if err != nil {
+		_ = uow.Rollback()
+		tx = nil
+		return
+	}
+	err = txRepo.Create(tx)
 	if err != nil {
 		_ = uow.Rollback()
 		tx = nil
@@ -196,7 +220,12 @@ func (s *AccountService) Withdraw(
 		return nil, nil, err
 	}
 
-	a, err := uow.AccountRepository().Get(accountID)
+	repo, err := uow.AccountRepository()
+	if err != nil {
+		_ = uow.Rollback()
+		return nil, nil, err
+	}
+	a, err := repo.Get(accountID)
 	if err != nil {
 		_ = uow.Rollback()
 		return nil, nil, domain.ErrAccountNotFound
@@ -229,13 +258,18 @@ func (s *AccountService) Withdraw(
 		tx.ConversionRate = &convInfo.ConversionRate
 	}
 
-	err = uow.AccountRepository().Update(a)
+	err = repo.Update(a)
 	if err != nil {
 		_ = uow.Rollback()
 		return nil, nil, err
 	}
 
-	err = uow.TransactionRepository().Create(tx)
+	txRepo, err := uow.TransactionRepository()
+	if err != nil {
+		_ = uow.Rollback()
+		return nil, nil, err
+	}
+	err = txRepo.Create(tx)
 	if err != nil {
 		_ = uow.Rollback()
 		return nil, nil, err
@@ -260,7 +294,13 @@ func (s *AccountService) GetAccount(
 		a = nil
 		return
 	}
-	a, err = uow.AccountRepository().Get(accountID)
+
+	repo, err := uow.AccountRepository()
+	if err != nil {
+		a = nil
+		return
+	}
+	a, err = repo.Get(accountID)
 	if err != nil {
 		a = nil
 		err = domain.ErrAccountNotFound
@@ -284,7 +324,13 @@ func (s *AccountService) GetTransactions(
 		txs = nil
 		return
 	}
-	txs, err = uow.TransactionRepository().List(userID, accountID)
+
+	txRepo, err := uow.TransactionRepository()
+	if err != nil {
+		txs = nil
+		return
+	}
+	txs, err = txRepo.List(userID, accountID)
 	if err != nil {
 		txs = nil
 		return
@@ -302,7 +348,12 @@ func (s *AccountService) GetBalance(
 	if err != nil {
 		return
 	}
-	a, err := uow.AccountRepository().Get(accountID)
+
+	repo, err := uow.AccountRepository()
+	if err != nil {
+		return
+	}
+	a, err := repo.Get(accountID)
 	if err != nil {
 		return
 	}

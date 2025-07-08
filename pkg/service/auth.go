@@ -105,10 +105,16 @@ func (s *JWTAuthStrategy) Login(
 	if err != nil {
 		return
 	}
+
+	userRepo, err := uow.UserRepository()
+	if err != nil {
+		return
+	}
+
 	if isEmail(identity) {
-		user, err = uow.UserRepository().GetByEmail(identity)
+		user, err = userRepo.GetByEmail(identity)
 	} else {
-		user, err = uow.UserRepository().GetByUsername(identity)
+		user, err = userRepo.GetByUsername(identity)
 	}
 	const dummyHash = "$2a$10$7zFqzDbD3RrlkMTczbXG9OWZ0FLOXjIxXzSZ.QZxkVXjXcx7QZQiC"
 	if err != nil {
@@ -159,10 +165,14 @@ func (s *BasicAuthStrategy) Login(
 	if err != nil {
 		return
 	}
+	userRepo, err := uow.UserRepository()
+	if err != nil {
+		return
+	}
 	if isEmail(identity) {
-		user, err = uow.UserRepository().GetByEmail(identity)
+		user, err = userRepo.GetByEmail(identity)
 	} else {
-		user, err = uow.UserRepository().GetByUsername(identity)
+		user, err = userRepo.GetByUsername(identity)
 	}
 	const dummyHash = "$2a$10$7zFqzDbD3RrlkMTczbXG9OWZ0FLOXjIxXzSZ.QZxkVXjXcx7QZQiC"
 	if err != nil {

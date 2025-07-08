@@ -19,7 +19,7 @@ func newUserServiceWithMocks(t interface {
 }) (*UserService, *fixtures.MockUserRepository, *fixtures.MockUnitOfWork) {
 	userRepo := fixtures.NewMockUserRepository(t)
 	uow := fixtures.NewMockUnitOfWork(t)
-	uow.EXPECT().UserRepository().Return(userRepo)
+	uow.EXPECT().UserRepository().Return(userRepo, nil)
 	svc := NewUserService(func() (repository.UnitOfWork, error) { return uow, nil })
 	return svc, userRepo, uow
 }
@@ -161,7 +161,7 @@ func TestUpdateUser_Success(t *testing.T) {
 	svc, userRepo, uow := newUserServiceWithMocks(t)
 	uow.EXPECT().Begin().Return(nil).Once()
 	uow.EXPECT().Commit().Return(nil).Once()
-	uow.EXPECT().UserRepository().Return(userRepo)
+	uow.EXPECT().UserRepository().Return(userRepo, nil)
 	user := &domain.User{ID: uuid.New(), Username: "alice"}
 	userRepo.EXPECT().Update(user).Return(nil)
 
@@ -174,7 +174,7 @@ func TestUpdateUser_RepoError(t *testing.T) {
 	svc, userRepo, uow := newUserServiceWithMocks(t)
 	uow.EXPECT().Begin().Return(nil).Once()
 	uow.EXPECT().Rollback().Return(nil).Once()
-	uow.EXPECT().UserRepository().Return(userRepo)
+	uow.EXPECT().UserRepository().Return(userRepo, nil)
 	user := &domain.User{ID: uuid.New(), Username: "alice"}
 	userRepo.EXPECT().Update(user).Return(errors.New("db error"))
 
@@ -194,7 +194,7 @@ func TestDeleteUser_Success(t *testing.T) {
 	svc, userRepo, uow := newUserServiceWithMocks(t)
 	uow.EXPECT().Begin().Return(nil).Once()
 	uow.EXPECT().Commit().Return(nil).Once()
-	uow.EXPECT().UserRepository().Return(userRepo)
+	uow.EXPECT().UserRepository().Return(userRepo, nil)
 	id := uuid.New()
 	userRepo.EXPECT().Delete(id).Return(nil)
 
@@ -207,7 +207,7 @@ func TestDeleteUser_RepoError(t *testing.T) {
 	svc, userRepo, uow := newUserServiceWithMocks(t)
 	uow.EXPECT().Begin().Return(nil).Once()
 	uow.EXPECT().Rollback().Return(nil).Once()
-	uow.EXPECT().UserRepository().Return(userRepo)
+	uow.EXPECT().UserRepository().Return(userRepo, nil)
 	id := uuid.New()
 	userRepo.EXPECT().Delete(id).Return(errors.New("db error")).Once()
 

@@ -912,7 +912,7 @@ func (_m *MockUnitOfWork) EXPECT() *MockUnitOfWork_Expecter {
 }
 
 // AccountRepository provides a mock function for the type MockUnitOfWork
-func (_mock *MockUnitOfWork) AccountRepository() repository.AccountRepository {
+func (_mock *MockUnitOfWork) AccountRepository() (repository.AccountRepository, error) {
 	ret := _mock.Called()
 
 	if len(ret) == 0 {
@@ -920,6 +920,10 @@ func (_mock *MockUnitOfWork) AccountRepository() repository.AccountRepository {
 	}
 
 	var r0 repository.AccountRepository
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func() (repository.AccountRepository, error)); ok {
+		return returnFunc()
+	}
 	if returnFunc, ok := ret.Get(0).(func() repository.AccountRepository); ok {
 		r0 = returnFunc()
 	} else {
@@ -927,7 +931,12 @@ func (_mock *MockUnitOfWork) AccountRepository() repository.AccountRepository {
 			r0 = ret.Get(0).(repository.AccountRepository)
 		}
 	}
-	return r0
+	if returnFunc, ok := ret.Get(1).(func() error); ok {
+		r1 = returnFunc()
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
 }
 
 // MockUnitOfWork_AccountRepository_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AccountRepository'
@@ -947,12 +956,12 @@ func (_c *MockUnitOfWork_AccountRepository_Call) Run(run func()) *MockUnitOfWork
 	return _c
 }
 
-func (_c *MockUnitOfWork_AccountRepository_Call) Return(accountRepository repository.AccountRepository) *MockUnitOfWork_AccountRepository_Call {
-	_c.Call.Return(accountRepository)
+func (_c *MockUnitOfWork_AccountRepository_Call) Return(accountRepository repository.AccountRepository, err error) *MockUnitOfWork_AccountRepository_Call {
+	_c.Call.Return(accountRepository, err)
 	return _c
 }
 
-func (_c *MockUnitOfWork_AccountRepository_Call) RunAndReturn(run func() repository.AccountRepository) *MockUnitOfWork_AccountRepository_Call {
+func (_c *MockUnitOfWork_AccountRepository_Call) RunAndReturn(run func() (repository.AccountRepository, error)) *MockUnitOfWork_AccountRepository_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1090,7 +1099,7 @@ func (_c *MockUnitOfWork_Rollback_Call) RunAndReturn(run func() error) *MockUnit
 }
 
 // TransactionRepository provides a mock function for the type MockUnitOfWork
-func (_mock *MockUnitOfWork) TransactionRepository() repository.TransactionRepository {
+func (_mock *MockUnitOfWork) TransactionRepository() (repository.TransactionRepository, error) {
 	ret := _mock.Called()
 
 	if len(ret) == 0 {
@@ -1098,6 +1107,10 @@ func (_mock *MockUnitOfWork) TransactionRepository() repository.TransactionRepos
 	}
 
 	var r0 repository.TransactionRepository
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func() (repository.TransactionRepository, error)); ok {
+		return returnFunc()
+	}
 	if returnFunc, ok := ret.Get(0).(func() repository.TransactionRepository); ok {
 		r0 = returnFunc()
 	} else {
@@ -1105,7 +1118,12 @@ func (_mock *MockUnitOfWork) TransactionRepository() repository.TransactionRepos
 			r0 = ret.Get(0).(repository.TransactionRepository)
 		}
 	}
-	return r0
+	if returnFunc, ok := ret.Get(1).(func() error); ok {
+		r1 = returnFunc()
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
 }
 
 // MockUnitOfWork_TransactionRepository_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'TransactionRepository'
@@ -1125,18 +1143,18 @@ func (_c *MockUnitOfWork_TransactionRepository_Call) Run(run func()) *MockUnitOf
 	return _c
 }
 
-func (_c *MockUnitOfWork_TransactionRepository_Call) Return(transactionRepository repository.TransactionRepository) *MockUnitOfWork_TransactionRepository_Call {
-	_c.Call.Return(transactionRepository)
+func (_c *MockUnitOfWork_TransactionRepository_Call) Return(transactionRepository repository.TransactionRepository, err error) *MockUnitOfWork_TransactionRepository_Call {
+	_c.Call.Return(transactionRepository, err)
 	return _c
 }
 
-func (_c *MockUnitOfWork_TransactionRepository_Call) RunAndReturn(run func() repository.TransactionRepository) *MockUnitOfWork_TransactionRepository_Call {
+func (_c *MockUnitOfWork_TransactionRepository_Call) RunAndReturn(run func() (repository.TransactionRepository, error)) *MockUnitOfWork_TransactionRepository_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UserRepository provides a mock function for the type MockUnitOfWork
-func (_mock *MockUnitOfWork) UserRepository() repository.UserRepository {
+func (_mock *MockUnitOfWork) UserRepository() (repository.UserRepository, error) {
 	ret := _mock.Called()
 
 	if len(ret) == 0 {
@@ -1144,6 +1162,10 @@ func (_mock *MockUnitOfWork) UserRepository() repository.UserRepository {
 	}
 
 	var r0 repository.UserRepository
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func() (repository.UserRepository, error)); ok {
+		return returnFunc()
+	}
 	if returnFunc, ok := ret.Get(0).(func() repository.UserRepository); ok {
 		r0 = returnFunc()
 	} else {
@@ -1151,7 +1173,12 @@ func (_mock *MockUnitOfWork) UserRepository() repository.UserRepository {
 			r0 = ret.Get(0).(repository.UserRepository)
 		}
 	}
-	return r0
+	if returnFunc, ok := ret.Get(1).(func() error); ok {
+		r1 = returnFunc()
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
 }
 
 // MockUnitOfWork_UserRepository_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UserRepository'
@@ -1171,12 +1198,12 @@ func (_c *MockUnitOfWork_UserRepository_Call) Run(run func()) *MockUnitOfWork_Us
 	return _c
 }
 
-func (_c *MockUnitOfWork_UserRepository_Call) Return(userRepository repository.UserRepository) *MockUnitOfWork_UserRepository_Call {
-	_c.Call.Return(userRepository)
+func (_c *MockUnitOfWork_UserRepository_Call) Return(userRepository repository.UserRepository, err error) *MockUnitOfWork_UserRepository_Call {
+	_c.Call.Return(userRepository, err)
 	return _c
 }
 
-func (_c *MockUnitOfWork_UserRepository_Call) RunAndReturn(run func() repository.UserRepository) *MockUnitOfWork_UserRepository_Call {
+func (_c *MockUnitOfWork_UserRepository_Call) RunAndReturn(run func() (repository.UserRepository, error)) *MockUnitOfWork_UserRepository_Call {
 	_c.Call.Return(run)
 	return _c
 }

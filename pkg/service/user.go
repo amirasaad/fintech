@@ -38,7 +38,15 @@ func (s *UserService) CreateUser(
 		u = nil
 		return
 	}
-	err = uow.UserRepository().Create(u)
+
+	repo, err := uow.UserRepository()
+	if err != nil {
+		_ = uow.Rollback()
+		u = nil
+		return
+	}
+
+	err = repo.Create(u)
 	if err != nil {
 		_ = uow.Rollback()
 		u = nil
@@ -61,7 +69,13 @@ func (s *UserService) GetUser(id uuid.UUID) (u *domain.User, err error) {
 		return
 	}
 
-	u, err = uow.UserRepository().Get(id)
+	repo, err := uow.UserRepository()
+	if err != nil {
+		u = nil
+		return
+	}
+
+	u, err = repo.Get(id)
 	if err != nil {
 		u = nil
 		return
@@ -77,7 +91,13 @@ func (s *UserService) GetUserByEmail(email string) (u *domain.User, err error) {
 		return
 	}
 
-	u, err = uow.UserRepository().GetByEmail(email)
+	repo, err := uow.UserRepository()
+	if err != nil {
+		u = nil
+		return
+	}
+
+	u, err = repo.GetByEmail(email)
 	if err != nil {
 		u = nil
 		return
@@ -92,7 +112,13 @@ func (s *UserService) GetUserByUsername(username string) (u *domain.User, err er
 		return
 	}
 
-	u, err = uow.UserRepository().GetByUsername(username)
+	repo, err := uow.UserRepository()
+	if err != nil {
+		u = nil
+		return
+	}
+
+	u, err = repo.GetByUsername(username)
 	if err != nil {
 		u = nil
 		return
@@ -110,7 +136,13 @@ func (s *UserService) UpdateUser(u *domain.User) (err error) {
 		return
 	}
 
-	err = uow.UserRepository().Update(u)
+	repo, err := uow.UserRepository()
+	if err != nil {
+		_ = uow.Rollback()
+		return
+	}
+
+	err = repo.Update(u)
 	if err != nil {
 		_ = uow.Rollback()
 		return
@@ -134,7 +166,13 @@ func (s *UserService) DeleteUser(id uuid.UUID) (err error) {
 		return
 	}
 
-	err = uow.UserRepository().Delete(id)
+	repo, err := uow.UserRepository()
+	if err != nil {
+		_ = uow.Rollback()
+		return
+	}
+
+	err = repo.Delete(id)
 	if err != nil {
 		_ = uow.Rollback()
 		return
@@ -157,6 +195,11 @@ func (s *UserService) ValidUser(
 		return
 	}
 
-	isValid = uow.UserRepository().Valid(id, password)
+	repo, err := uow.UserRepository()
+	if err != nil {
+		return
+	}
+
+	isValid = repo.Valid(id, password)
 	return
 }
