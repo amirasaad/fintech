@@ -4,7 +4,6 @@ import (
 	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/middleware"
 	"github.com/amirasaad/fintech/pkg/service"
-	"github.com/go-playground/validator"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/log"
 	"github.com/golang-jwt/jwt/v5"
@@ -74,18 +73,14 @@ func GetUser(userSvc *service.UserService) fiber.Handler {
 // @Router /user [post]
 func CreateUser(userSvc *service.UserService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		var newUser NewUser
-		if err := c.BodyParser(&newUser); err != nil {
-			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Review your input", err.Error())
+		input, err := BindAndValidate[NewUser](c)
+		if err != nil {
+			return nil // Error already written by helper
 		}
-		validate := validator.New()
-		if err := validate.Struct(newUser); err != nil {
-			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid request body", err.Error())
-		}
-		if len(newUser.Password) > 72 {
+		if len(input.Password) > 72 {
 			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid request body", "Password too long")
 		}
-		user, err := userSvc.CreateUser(newUser.Username, newUser.Email, newUser.Password)
+		user, err := userSvc.CreateUser(input.Username, input.Email, input.Password)
 		if err != nil {
 			return ErrorResponseJSON(c, fiber.StatusInternalServerError, "Couldn't create user", err.Error())
 		}
@@ -113,9 +108,9 @@ func UpdateUser(
 	authSvc *service.AuthService,
 ) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		var uui UpdateUserInput
-		if err := c.BodyParser(&uui); err != nil {
-			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Review your input", err.Error())
+		input, err := BindAndValidate[UpdateUserInput](c)
+		if err != nil {
+			return nil // Error already written by helper
 		}
 		id, err := uuid.Parse(c.Params("id"))
 		if err != nil {
@@ -139,6 +134,7 @@ func UpdateUser(
 		if err != nil {
 			return ErrorResponseJSON(c, fiber.StatusNotFound, "User not found", nil)
 		}
+		user.Names = input.Names // Use the validated input
 		err = userSvc.UpdateUser(user)
 		if err != nil {
 			return ErrorResponseJSON(c, fiber.StatusInternalServerError, "Failed to update user", err.Error())
@@ -167,9 +163,9 @@ func DeleteUser(
 	authSvc *service.AuthService,
 ) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		var pi PasswordInput
-		if err := c.BodyParser(&pi); err != nil {
-			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Review your input", err.Error())
+		input, err := BindAndValidate[PasswordInput](c)
+		if err != nil {
+			return nil // Error already written by helper
 		}
 		id, err := uuid.Parse(c.Params("id"))
 		if err != nil {
@@ -189,7 +185,7 @@ func DeleteUser(
 		if id != userID {
 			return ErrorResponseJSON(c, fiber.StatusForbidden, "You are not allowed to update this user", nil)
 		}
-		isValid, err := userSvc.ValidUser(id, pi.Password)
+		isValid, err := userSvc.ValidUser(id, input.Password)
 		if err != nil {
 			return ErrorResponseJSON(c, fiber.StatusInternalServerError, "Failed to validate user", err.Error())
 		}

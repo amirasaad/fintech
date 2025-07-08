@@ -29,9 +29,9 @@ func AuthRoutes(app *fiber.App, authSvc *service.AuthService) {
 // @Router /login [post]
 func Login(authSvc *service.AuthService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		input := new(LoginInput)
-		if err := c.BodyParser(input); err != nil {
-			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Error on login request", err.Error())
+		input, err := BindAndValidate[LoginInput](c)
+		if err != nil {
+			return nil // Error already written by helper
 		}
 		user, err := authSvc.Login(input.Identity, input.Password)
 		if err != nil {

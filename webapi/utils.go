@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/amirasaad/fintech/pkg/domain"
+	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -69,4 +70,20 @@ func ErrorToStatusCode(err error) int {
 	default:
 		return fiber.StatusInternalServerError
 	}
+}
+
+// BindAndValidate parses the request body and validates it using go-playground/validator.
+// Returns a pointer to the struct (populated), or writes an error response and returns nil.
+func BindAndValidate[T any](c *fiber.Ctx) (*T, error) {
+	var input T
+	if err := c.BodyParser(&input); err != nil {
+		ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid request body", err.Error())
+		return nil, err
+	}
+	validate := validator.New()
+	if err := validate.Struct(input); err != nil {
+		ErrorResponseJSON(c, fiber.StatusBadRequest, "Validation failed", err.Error())
+		return nil, err
+	}
+	return &input, nil
 }
