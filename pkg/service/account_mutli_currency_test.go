@@ -23,7 +23,8 @@ func TestDeposit_AcceptsMatchingCurrency(t *testing.T) {
 	transactionRepo.EXPECT().Create(mock.Anything).Return(nil)
 
 	// Create an account in EUR
-	account := domain.NewAccountWithCurrency(uuid.New(), "EUR")
+	account, err := domain.NewAccountWithCurrency(uuid.New(), "EUR")
+	assert.NoError(t, err)
 	uow.EXPECT().AccountRepository().Return(repo, nil)
 	repo.EXPECT().Get(account.ID).Return(account, nil)
 	repo.EXPECT().Update(account).Return(nil)
@@ -46,7 +47,7 @@ func TestWithdraw_AcceptsMatchingCurrency(t *testing.T) {
 	transactionRepo.EXPECT().Create(mock.Anything).Return(nil)
 
 	// Create an account in EUR and deposit some funds
-	account := domain.NewAccountWithCurrency(uuid.New(), "EUR")
+	account, _ := domain.NewAccountWithCurrency(uuid.New(), "EUR")
 	_, _ = account.Deposit(account.UserID, domain.Money{Amount: 100.0, Currency: "EUR"})
 	uow.EXPECT().AccountRepository().Return(repo, nil)
 	repo.EXPECT().Get(account.ID).Return(account, nil)
@@ -81,7 +82,7 @@ func TestDeposit_ConvertsCurrency(t *testing.T) {
 	accountSvc := service.NewAccountService(func() (repository.UnitOfWork, error) { return uow, nil }, mockConverter)
 
 	// Create an account in USD
-	account := domain.NewAccountWithCurrency(uuid.New(), "USD")
+	account, _ := domain.NewAccountWithCurrency(uuid.New(), "USD")
 	uow.EXPECT().AccountRepository().Return(repo, nil)
 	repo.EXPECT().Get(account.ID).Return(account, nil)
 	repo.EXPECT().Update(account).Return(nil)
@@ -115,7 +116,7 @@ func TestWithdraw_ConvertsCurrency(t *testing.T) {
 	accountSvc := service.NewAccountService(func() (repository.UnitOfWork, error) { return uow, nil }, mockConverter)
 
 	// Create an account in USD and deposit some funds
-	account := domain.NewAccountWithCurrency(uuid.New(), "USD")
+	account, _ := domain.NewAccountWithCurrency(uuid.New(), "USD")
 	_, _ = account.Deposit(account.UserID, domain.Money{Amount: 100.0, Currency: "USD"})
 	uow.EXPECT().AccountRepository().Return(repo, nil)
 	repo.EXPECT().Get(account.ID).Return(account, nil)

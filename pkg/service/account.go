@@ -77,7 +77,11 @@ func (s *AccountService) CreateAccountWithCurrency(
 		return
 	}
 
-	account = domain.NewAccountWithCurrency(userID, currency)
+	account, err = domain.NewAccountWithCurrency(userID, currency)
+	if err != nil {
+		return
+	}
+
 	repo, err := uow.AccountRepository()
 	if err != nil {
 		_ = uow.Rollback()

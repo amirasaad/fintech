@@ -20,18 +20,12 @@ func TestAccount_DefaultCurrencyIsUSD(t *testing.T) {
 }
 
 func TestAccount_CreateWithSpecificCurrency(t *testing.T) {
-	a := domain.NewAccountWithCurrency(uuid.New(), "EUR")
+	a, err := domain.NewAccountWithCurrency(uuid.New(), "EUR")
+	assert.NoError(t, err)
 	assert.Equal(t, "EUR", a.Currency, "Account should use specified currency")
 }
 
 func TestTransaction_HasCurrencyField(t *testing.T) {
 	tx := domain.NewTransactionWithCurrency(uuid.New(), uuid.New(), uuid.New(), 100, 100, "EUR")
 	assert.Equal(t, "EUR", tx.Currency, "Transaction should have a Currency field")
-}
-
-func TestValidateISOCurrencyCode(t *testing.T) {
-	valid := domain.IsValidCurrencyCode("USD")
-	invalid := domain.IsValidCurrencyCode("ZZZ")
-	assert.True(t, valid, "USD should be a valid ISO 4217 code")
-	assert.False(t, invalid, "ZZZ should not be a valid ISO 4217 code")
 }

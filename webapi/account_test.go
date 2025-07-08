@@ -485,7 +485,7 @@ func (s *AccountTestSuite) TestAccountCreateWithCurrency() {
 func (s *AccountTestSuite) TestAccountDepositWithCurrency() {
 	s.mockUow.EXPECT().AccountRepository().Return(s.accountRepo, nil)
 	s.mockUow.EXPECT().TransactionRepository().Return(s.transRepo, nil)
-	testAccount := domain.NewAccountWithCurrency(s.testUser.ID, "EUR")
+	testAccount, _ := domain.NewAccountWithCurrency(s.testUser.ID, "EUR")
 	s.accountRepo.EXPECT().Get(mock.Anything).Return(testAccount, nil)
 	s.transRepo.EXPECT().Create(mock.Anything).Return(nil)
 	s.accountRepo.EXPECT().Update(mock.Anything).Return(nil)
@@ -510,7 +510,7 @@ func (s *AccountTestSuite) TestAccountDepositWithCurrency() {
 
 func (s *AccountTestSuite) TestDepositWithConversion_Integration() {
 	// Setup: create account in USD
-	account := domain.NewAccountWithCurrency(s.testUser.ID, "USD")
+	account, _ := domain.NewAccountWithCurrency(s.testUser.ID, "USD")
 	s.accountRepo.EXPECT().Get(account.ID).Return(account, nil)
 	s.accountRepo.EXPECT().Update(account).Return(nil)
 	s.transRepo.EXPECT().Create(mock.Anything).Return(nil)

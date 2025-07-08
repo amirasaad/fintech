@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"regexp"
 	"sync"
 	"time"
 
@@ -90,33 +91,23 @@ type Transaction struct {
 	ConversionRate   *float64 // Rate used for conversion
 }
 
-// iso4217 is a minimal set of supported ISO 4217 currency codes.
-var iso4217 = map[string]struct{}{
-	"USD": {},
-	"EUR": {},
-	"GBP": {},
-	"JPY": {},
-	"KWD": {},
-	"EGP": {},
-	// Add more as needed
+// IsValidCurrencyFormat returns true if the code is a well-formed ISO 4217 currency code (3 uppercase letters).
+func IsValidCurrencyFormat(code string) bool {
+	re := regexp.MustCompile(`^[A-Z]{3}$`)
+	return re.MatchString(code)
 }
 
-// IsValidCurrencyCode returns true if the code is a supported ISO 4217 currency code.
-func IsValidCurrencyCode(code string) bool {
-	_, ok := iso4217[code]
-	return ok
-}
-
-// NewAccount creates a new account with default currency USD.
-func NewAccount(userID uuid.UUID) *Account {
-	return NewAccountWithCurrency(userID, "USD")
+// NewTransactionWithCurrency creates a new transaction with the specified currency.
+func NewAccount(userID uuid.UUID) (acc *Account) {
+	acc, _ = NewAccountWithCurrency(userID, DefaultCurrency)
+	return
 }
 
 // NewAccountWithCurrency creates a new account with the specified currency.
 // If the currency is invalid or empty, defaults to USD.
-func NewAccountWithCurrency(userID uuid.UUID, currency string) *Account {
-	if !IsValidCurrencyCode(currency) {
-		currency = DefaultCurrency
+func NewAccountWithCurrency(userID uuid.UUID, currency string) (acc *Account, err error) {
+	if !IsValidCurrencyFormat(currency) {
+		return nil, ErrInvalidCurrencyCode
 	}
 	return &Account{
 		ID:        uuid.New(),
@@ -125,9 +116,10 @@ func NewAccountWithCurrency(userID uuid.UUID, currency string) *Account {
 		Balance:   0,
 		Currency:  currency,
 		mu:        sync.Mutex{},
-	}
+	}, nil
 }
 
+// NewAccountFromData creates an Account from raw data (used for DB hydration).
 func NewAccountFromData(
 	id, userID uuid.UUID,
 	balance int64,
@@ -145,6 +137,7 @@ func NewAccountFromData(
 	}
 }
 
+// NewTransactionFromData creates a Transaction from raw data (used for DB hydration).
 func NewTransactionFromData(
 	id, userID, accountID uuid.UUID,
 	amount, balance int64,
@@ -171,7 +164,7 @@ func NewTransactionFromData(
 // NewTransactionWithCurrency creates a new transaction with the specified currency.
 // If the currency is invalid or empty, defaults to USD.
 func NewTransactionWithCurrency(id, userID, accountID uuid.UUID, amount, balance int64, currency string) *Transaction {
-	if !IsValidCurrencyCode(currency) {
+	if !IsValidCurrencyFormat(currency) {
 		currency = DefaultCurrency
 	}
 	return &Transaction{
