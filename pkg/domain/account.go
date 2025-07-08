@@ -2,9 +2,7 @@ package domain
 
 import (
 	"errors"
-	"fmt"
 	"math"
-	"math/big"
 	"regexp"
 	"sync"
 	"time"
@@ -137,7 +135,9 @@ func NewAccountFromData(
 	}
 }
 
-// NewTransactionFromData creates a Transaction from raw data (used for DB hydration).
+// NewTransactionFromData creates a Transaction from raw data (used for DB hydration or test fixtures).
+// This constructor should NOT be used in service, API, or domain logic outside of repository hydration or tests.
+// All business transaction creation must go through Account aggregate methods (Deposit, Withdraw, etc.).
 func NewTransactionFromData(
 	id, userID, accountID uuid.UUID,
 	amount, balance int64,
@@ -162,7 +162,8 @@ func NewTransactionFromData(
 }
 
 // NewTransactionWithCurrency creates a new transaction with the specified currency.
-// If the currency is invalid or empty, defaults to USD.
+// This is intended for internal use by the Account aggregate, or for test setup.
+// Do NOT use this directly in services, API, or other domain logic—use Account methods instead.
 func NewTransactionWithCurrency(id, userID, accountID uuid.UUID, amount, balance int64, currency string) *Transaction {
 	if !IsValidCurrencyFormat(currency) {
 		currency = DefaultCurrency
@@ -181,104 +182,6 @@ func NewTransactionWithCurrency(id, userID, accountID uuid.UUID, amount, balance
 	}
 }
 
-// Deposit adds funds to the account if the currency matches and returns a transaction record.
-// Returns an error if the currency does not match or the deposit amount is invalid.
-func (a *Account) Deposit(userID uuid.UUID, money Money) (*Transaction, error) {
-	if a.UserID != userID {
-		return nil, ErrUserUnauthorized
-	}
-	a.mu.Lock()
-	defer a.mu.Unlock()
-
-	if money.Amount <= 0 {
-		return nil, ErrTransactionAmountMustBePositive
-	}
-
-	amountStr := fmt.Sprintf("%.2f", money.Amount)
-	amountRat, ok := new(big.Rat).SetString(amountStr)
-	if !ok {
-		return nil, fmt.Errorf("invalid amount format")
-	}
-
-	meta, ok := CurrencyInfo[money.Currency]
-	if !ok {
-		meta.Decimals = 2 // default
-	}
-	multiplier := math.Pow10(meta.Decimals)
-	centsRat := new(big.Rat).Mul(amountRat, big.NewRat(int64(multiplier), 1))
-
-	if !centsRat.IsInt() {
-		return nil, fmt.Errorf("amount has more than %d decimal places", meta.Decimals)
-	}
-
-	cents := centsRat.Num()
-
-	if cents.Sign() <= 0 {
-		return nil, ErrTransactionAmountMustBePositive
-	}
-
-	max := big.NewInt(math.MaxInt64)
-	balanceBig := big.NewInt(a.Balance)
-	newBalance := new(big.Int).Add(balanceBig, cents)
-
-	if newBalance.Cmp(max) > 0 {
-		return nil, ErrDepositAmountExceedsMaxSafeInt
-	}
-
-	parsedAmount := cents.Int64()
-	a.Balance += parsedAmount
-
-	transaction := Transaction{
-		ID:        uuid.New(),
-		UserID:    userID,
-		AccountID: a.ID,
-		Amount:    parsedAmount,
-		Balance:   a.Balance,
-		CreatedAt: time.Now().UTC(),
-		Currency:  money.Currency,
-	}
-
-	return &transaction, nil
-}
-
-// Withdraw removes funds from the account if the currency matches and returns a transaction record.
-// Returns an error if the currency does not match or if there are insufficient funds.
-func (a *Account) Withdraw(userID uuid.UUID, money Money) (*Transaction, error) {
-	if a.UserID != userID {
-		return nil, ErrUserUnauthorized
-	}
-	a.mu.Lock()
-	defer a.mu.Unlock()
-
-	if money.Amount <= 0 {
-		return nil, ErrWithdrawalAmountMustBePositive
-	}
-
-	meta, ok := CurrencyInfo[money.Currency]
-	if !ok {
-		meta.Decimals = DefaultDecimals
-	}
-	multiplier := math.Pow10(meta.Decimals)
-	cents := int64(math.Round(money.Amount * multiplier))
-
-	if cents > a.Balance {
-		return nil, ErrInsufficientFunds
-	}
-	a.Balance -= cents
-
-	transaction := Transaction{
-		ID:        uuid.New(),
-		UserID:    userID,
-		AccountID: a.ID,
-		Amount:    -cents,
-		Balance:   a.Balance,
-		CreatedAt: time.Now().UTC(),
-		Currency:  money.Currency,
-	}
-
-	return &transaction, nil
-}
-
 // GetBalance returns the current balance of the account in dollars.
 // It converts the balance from cents to dollars for display purposes.
 func (a *Account) GetBalance(userID uuid.UUID) (balance float64, err error) {
@@ -293,4 +196,111 @@ func (a *Account) GetBalance(userID uuid.UUID) (balance float64, err error) {
 	divisor := math.Pow10(meta.Decimals)
 	balance = float64(a.Balance) / divisor
 	return
+}
+
+// GetBalanceAsMoney returns the current balance as a Money value object.
+func (a *Account) GetBalanceAsMoney(userID uuid.UUID) (money Money, err error) {
+	if a.UserID != userID {
+		err = ErrUserUnauthorized
+		return
+	}
+	money, err = NewMoneyFromSmallestUnit(a.Balance, a.Currency)
+	return
+}
+
+// Deposit adds funds to the account if the currency matches and returns a transaction record.
+// Returns an error if the currency does not match or the deposit amount is invalid.
+func (a *Account) Deposit(userID uuid.UUID, money Money) (*Transaction, error) {
+	if a.UserID != userID {
+		return nil, ErrUserUnauthorized
+	}
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	if !money.IsPositive() {
+		return nil, ErrTransactionAmountMustBePositive
+	}
+
+	// Check for overflow before performing the addition
+	depositAmount := int64(money.Amount())
+	if depositAmount > 0 && a.Balance > math.MaxInt64-depositAmount {
+		return nil, ErrDepositAmountExceedsMaxSafeInt
+	}
+
+	// Get current balance as Money
+	currentBalance, err := a.GetBalanceAsMoney(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Add the deposit amount to current balance
+	newBalance, err := currentBalance.Add(money)
+	if err != nil {
+		return nil, err
+	}
+
+	// Update account balance
+	a.Balance = int64(newBalance.Amount())
+
+	transaction := Transaction{
+		ID:        uuid.New(),
+		UserID:    userID,
+		AccountID: a.ID,
+		Amount:    depositAmount,
+		Balance:   a.Balance,
+		CreatedAt: time.Now().UTC(),
+		Currency:  string(money.Currency()),
+	}
+
+	return &transaction, nil
+}
+
+// Withdraw removes funds from the account if the currency matches and returns a transaction record.
+// Returns an error if the currency does not match or if there are insufficient funds.
+func (a *Account) Withdraw(userID uuid.UUID, money Money) (*Transaction, error) {
+	if a.UserID != userID {
+		return nil, ErrUserUnauthorized
+	}
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	if !money.IsPositive() {
+		return nil, ErrWithdrawalAmountMustBePositive
+	}
+
+	// Get current balance as Money
+	currentBalance, err := a.GetBalanceAsMoney(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check if we have sufficient funds
+	hasEnough, err := currentBalance.GreaterThan(money)
+	if err != nil {
+		return nil, err
+	}
+	if !hasEnough && !currentBalance.Equals(money) {
+		return nil, ErrInsufficientFunds
+	}
+
+	// Subtract the withdrawal amount from current balance
+	newBalance, err := currentBalance.Subtract(money)
+	if err != nil {
+		return nil, err
+	}
+
+	// Update account balance
+	a.Balance = int64(newBalance.Amount())
+
+	transaction := Transaction{
+		ID:        uuid.New(),
+		UserID:    userID,
+		AccountID: a.ID,
+		Amount:    -int64(money.Amount()),
+		Balance:   a.Balance,
+		CreatedAt: time.Now().UTC(),
+		Currency:  string(money.Currency()),
+	}
+
+	return &transaction, nil
 }

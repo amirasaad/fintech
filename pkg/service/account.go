@@ -141,8 +141,8 @@ func (s *AccountService) Deposit(
 		return
 	}
 
-	if money.Currency != a.Currency {
-		convInfo, err = s.converter.Convert(money.Amount, money.Currency, a.Currency)
+	if string(money.Currency()) != a.Currency {
+		convInfo, err = s.converter.Convert(money.AmountFloat(), string(money.Currency()), a.Currency)
 		if err != nil {
 			_ = uow.Rollback()
 			tx = nil
@@ -235,8 +235,8 @@ func (s *AccountService) Withdraw(
 		return nil, nil, domain.ErrAccountNotFound
 	}
 
-	if money.Currency != a.Currency {
-		convInfo, err = s.converter.Convert(money.Amount, money.Currency, a.Currency)
+	if string(money.Currency()) != a.Currency {
+		convInfo, err = s.converter.Convert(money.AmountFloat(), string(money.Currency()), a.Currency)
 		if err != nil {
 			_ = uow.Rollback()
 			return

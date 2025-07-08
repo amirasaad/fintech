@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDeposit_AcceptsMatchingCurrency(t *testing.T) {
@@ -48,7 +49,9 @@ func TestWithdraw_AcceptsMatchingCurrency(t *testing.T) {
 
 	// Create an account in EUR and deposit some funds
 	account, _ := domain.NewAccountWithCurrency(uuid.New(), "EUR")
-	_, _ = account.Deposit(account.UserID, domain.Money{Amount: 100.0, Currency: "EUR"})
+	eurMoney, err := domain.NewMoney(100.0, "EUR")
+	require.NoError(t, err)
+	_, _ = account.Deposit(account.UserID, eurMoney)
 	uow.EXPECT().AccountRepository().Return(repo, nil)
 	repo.EXPECT().Get(account.ID).Return(account, nil)
 	repo.EXPECT().Update(account).Return(nil)
@@ -117,7 +120,9 @@ func TestWithdraw_ConvertsCurrency(t *testing.T) {
 
 	// Create an account in USD and deposit some funds
 	account, _ := domain.NewAccountWithCurrency(uuid.New(), "USD")
-	_, _ = account.Deposit(account.UserID, domain.Money{Amount: 100.0, Currency: "USD"})
+	usdMoney, err := domain.NewMoney(100.0, "USD")
+	require.NoError(t, err)
+	_, _ = account.Deposit(account.UserID, usdMoney)
 	uow.EXPECT().AccountRepository().Return(repo, nil)
 	repo.EXPECT().Get(account.ID).Return(account, nil)
 	repo.EXPECT().Update(account).Return(nil)
