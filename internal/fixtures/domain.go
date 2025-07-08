@@ -109,3 +109,126 @@ func (_c *MockCurrencyConverter_Convert_Call) RunAndReturn(run func(amount float
 	_c.Call.Return(run)
 	return _c
 }
+
+// GetRate provides a mock function for the type MockCurrencyConverter
+func (_mock *MockCurrencyConverter) GetRate(from string, to string) (float64, error) {
+	ret := _mock.Called(from, to)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetRate")
+	}
+
+	var r0 float64
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(string, string) (float64, error)); ok {
+		return returnFunc(from, to)
+	}
+	if returnFunc, ok := ret.Get(0).(func(string, string) float64); ok {
+		r0 = returnFunc(from, to)
+	} else {
+		r0 = ret.Get(0).(float64)
+	}
+	if returnFunc, ok := ret.Get(1).(func(string, string) error); ok {
+		r1 = returnFunc(from, to)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockCurrencyConverter_GetRate_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetRate'
+type MockCurrencyConverter_GetRate_Call struct {
+	*mock.Call
+}
+
+// GetRate is a helper method to define mock.On call
+//   - from string
+//   - to string
+func (_e *MockCurrencyConverter_Expecter) GetRate(from interface{}, to interface{}) *MockCurrencyConverter_GetRate_Call {
+	return &MockCurrencyConverter_GetRate_Call{Call: _e.mock.On("GetRate", from, to)}
+}
+
+func (_c *MockCurrencyConverter_GetRate_Call) Run(run func(from string, to string)) *MockCurrencyConverter_GetRate_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockCurrencyConverter_GetRate_Call) Return(f float64, err error) *MockCurrencyConverter_GetRate_Call {
+	_c.Call.Return(f, err)
+	return _c
+}
+
+func (_c *MockCurrencyConverter_GetRate_Call) RunAndReturn(run func(from string, to string) (float64, error)) *MockCurrencyConverter_GetRate_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// IsSupported provides a mock function for the type MockCurrencyConverter
+func (_mock *MockCurrencyConverter) IsSupported(from string, to string) bool {
+	ret := _mock.Called(from, to)
+
+	if len(ret) == 0 {
+		panic("no return value specified for IsSupported")
+	}
+
+	var r0 bool
+	if returnFunc, ok := ret.Get(0).(func(string, string) bool); ok {
+		r0 = returnFunc(from, to)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	return r0
+}
+
+// MockCurrencyConverter_IsSupported_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IsSupported'
+type MockCurrencyConverter_IsSupported_Call struct {
+	*mock.Call
+}
+
+// IsSupported is a helper method to define mock.On call
+//   - from string
+//   - to string
+func (_e *MockCurrencyConverter_Expecter) IsSupported(from interface{}, to interface{}) *MockCurrencyConverter_IsSupported_Call {
+	return &MockCurrencyConverter_IsSupported_Call{Call: _e.mock.On("IsSupported", from, to)}
+}
+
+func (_c *MockCurrencyConverter_IsSupported_Call) Run(run func(from string, to string)) *MockCurrencyConverter_IsSupported_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockCurrencyConverter_IsSupported_Call) Return(b bool) *MockCurrencyConverter_IsSupported_Call {
+	_c.Call.Return(b)
+	return _c
+}
+
+func (_c *MockCurrencyConverter_IsSupported_Call) RunAndReturn(run func(from string, to string) bool) *MockCurrencyConverter_IsSupported_Call {
+	_c.Call.Return(run)
+	return _c
+}

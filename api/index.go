@@ -1,8 +1,14 @@
 package handler
 
 import (
-	"github.com/amirasaad/fintech/pkg/domain"
+	"log"
+	"log/slog"
 	"net/http"
+	"os"
+
+	"github.com/amirasaad/fintech/pkg/config"
+	"github.com/amirasaad/fintech/pkg/domain"
+	"github.com/fatih/color"
 
 	"github.com/amirasaad/fintech/infra"
 
@@ -22,21 +28,25 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 
 // building the fiber application
 func handler() http.HandlerFunc {
-	db, err := infra.NewDBConnection()
+	logger := slog.New(slog.NewTextHandler(log.Writer(), nil))
+	slog.SetDefault(logger)
+	cfg, err := config.LoadAppConfig(logger)
 	if err != nil {
-		panic(err)
+		_, _ = color.New(color.FgRed).Fprintln(os.Stderr, "Failed to load application configuration:", err)
+		panic("Failed to load application configuration")
 	}
+
 	app := webapi.NewApp(
 		service.NewAccountService(func() (repository.UnitOfWork, error) {
-			return infra.NewGormUoW(db)
+			return infra.NewGormUoW(cfg.DB)
 		}, domain.NewStubCurrencyConverter()),
 		service.NewUserService(func() (repository.UnitOfWork, error) {
-			return infra.NewGormUoW(db)
+			return infra.NewGormUoW(cfg.DB)
 		}),
 		service.NewAuthService(func() (repository.UnitOfWork, error) {
-			return infra.NewGormUoW(db)
+			return infra.NewGormUoW(cfg.DB)
 		}, service.NewJWTAuthStrategy(func() (repository.UnitOfWork, error) {
-			return infra.NewGormUoW(db)
+			return infra.NewGormUoW(cfg.DB)
 		})),
 	)
 	return adaptor.FiberApp(app)

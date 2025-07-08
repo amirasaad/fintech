@@ -4,14 +4,15 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
-	"github.com/amirasaad/fintech/pkg/domain"
 	"io"
 	"log"
+	"log/slog"
 	"os"
 	"strconv"
 	"strings"
 
 	"github.com/amirasaad/fintech/infra"
+	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/amirasaad/fintech/pkg/service"
 	"github.com/fatih/color"
@@ -24,18 +25,42 @@ var userID uuid.UUID
 func main() {
 	verbose := flag.Bool("v", false, "enable verbose output")
 	flag.Parse()
+
+	// Setup logging
+	var logger *slog.Logger
 	if !*verbose {
 		log.SetOutput(io.Discard)
+		logger = slog.New(slog.NewTextHandler(io.Discard, nil))
+	} else {
+		logger = slog.New(slog.NewTextHandler(os.Stdout, nil))
 	}
-	db, err := infra.NewDBConnection()
+
+	// Load application configuration
+	cfg, err := config.LoadAppConfig(logger)
 	if err != nil {
-		_, _ = color.New(color.FgRed).Fprintln(os.Stderr, "Failed to connect to database:", err)
+		_, _ = color.New(color.FgRed).Fprintln(os.Stderr, "Failed to load application configuration:", err)
 		return
 	}
-	uowFactory := func() (repository.UnitOfWork, error) {
-		return infra.NewGormUoW(db)
+
+	// Log configuration details if verbose
+	if *verbose {
+		logger.Info("Configuration loaded successfully",
+			"database_url", cfg.DB.Url,
+			"jwt_expiry", cfg.Auth.JwtExpiry,
+			"exchange_rate_api_configured", cfg.Exchange.ApiKey != "")
 	}
-	scv := service.NewAccountService(uowFactory, domain.NewStubCurrencyConverter())
+
+	uowFactory := func() (repository.UnitOfWork, error) {
+		return infra.NewGormUoW(cfg.DB)
+	}
+	// Create exchange rate system
+	currencyConverter, err := infra.NewExchangeRateSystem(logger, cfg.Exchange)
+	if err != nil {
+		_, _ = color.New(color.FgRed).Fprintln(os.Stderr, "Failed to initialize exchange rate system:", err)
+		return
+	}
+
+	scv := service.NewAccountService(uowFactory, currencyConverter)
 	authSvc := service.NewBasicAuthService(uowFactory)
 
 	cliApp(scv, authSvc)

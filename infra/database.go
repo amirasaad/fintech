@@ -5,13 +5,14 @@ import (
 	"os"
 	"time"
 
+	"github.com/amirasaad/fintech/pkg/config"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
 
-func NewDBConnection() (*gorm.DB, error) {
-	databaseUrl := os.Getenv("DATABASE_URL")
+func NewDBConnection(cnf config.DBConfig) (*gorm.DB, error) {
+	databaseUrl := cnf.Url
 	if databaseUrl == "" {
 		return nil, errors.New("DATABASE_URL is not set")
 	}

@@ -29,7 +29,10 @@ This project's vision is to build a foundational backend service for financial o
 - **Multi-Currency Support:** 💸
   - Accounts and transactions support multiple currencies (e.g., USD, EUR, GBP).
   - All operations are currency-aware, ensuring consistency.
-  - For more details, see the [Multi-Currency Documentation](./docs/multi_currency.md).
+  - **Real Exchange Rates:** Integration with external APIs for accurate currency conversion.
+  - **Intelligent Caching:** Performance optimization with TTL-based caching.
+  - **Fallback Strategy:** Graceful degradation when external services are unavailable.
+  - For more details, see the [Multi-Currency Documentation](./docs/multi_currency.md) and [Real Exchange Rates Documentation](./docs/real_exchange_rates.md).
 - **Real-time Balances:** Instantly query and display the current balance of any account, crucial for immediate financial oversight. ⏱️
 - **Transaction History:** Access a detailed, chronological record of all financial movements associated with an account, providing transparency and auditability. 📜
 - **User Authentication & Authorization:** 🤝
@@ -38,6 +41,25 @@ This project's vision is to build a foundational backend service for financial o
   - Role-based access control ensures that users can only perform operations relevant to their accounts. 🛡️
 - **Concurrency Safety:** Implemented using Go's native concurrency primitives (`sync.Mutex`) to prevent race conditions and ensure atomic operations during simultaneous deposits and withdrawals, guaranteeing data integrity. 🚦
 - **Unit of Work Pattern:** A core design pattern that ensures all operations within a single business transaction are treated as a single, atomic unit. This guarantees data consistency and integrity, especially during complex sequences of database operations. 📦
+
+### Exchange Rate System 💱
+
+The application includes a robust real-time exchange rate system with the following features:
+
+- **Real-time Rates:** Integration with external APIs for accurate currency conversion
+- **Intelligent Caching:** Performance optimization with TTL-based caching (default: 15 minutes)
+- **Fallback Strategy:** Graceful degradation when external services are unavailable
+- **Rate Limiting:** Built-in protection against API rate limits
+- **Health Checks:** Automatic monitoring of provider health
+- **Multiple Providers:** Support for multiple exchange rate providers
+
+**Getting Started with Exchange Rates:**
+
+1. Get a free API key from [exchangerate-api.com](https://exchangerate-api.com/)
+2. Add the API key to your `.env` file: `EXCHANGE_RATE_API_KEY=your_key_here`
+3. The system will automatically use real rates when available, with fallback to stub rates
+
+For detailed configuration options, see the [Real Exchange Rates Documentation](./docs/real_exchange_rates.md).
 
 ### Breaking Changes ⚠️
 
@@ -68,15 +90,46 @@ Before you begin, ensure you have the following software installed:
     ```
 
 2. **Set up Environment Variables:**
-    The application relies on environment variables for configuration, particularly for database connection and JWT secrets. Create a file named `.env` in the root directory of the project and populate it with the following:
+    The application automatically loads environment variables from a `.env` file in the root directory. Copy the example file and configure it:
+
+    ```bash
+    cp .env.example .env
+    ```
+
+    Then edit the `.env` file with your configuration:
 
     ```dotenv
     DATABASE_URL=postgres://postgres:password@localhost:5432/fintech?sslmode=disable
     JWT_SECRET_KEY=your_super_secret_jwt_key_replace_this_in_production
+    
+    # Exchange Rate API Configuration (Optional)
+    # Get your free API key from: https://exchangerate-api.com/
+    EXCHANGE_RATE_API_KEY=your_exchange_rate_api_key_here
+    
+    # Optional: Custom API URL (default: https://api.exchangerate-api.com/v4/latest)
+    # EXCHANGE_RATE_API_URL=https://api.exchangerate-api.com/v4/latest
+    
+    # Cache Configuration (default: 15 minutes)
+    # EXCHANGE_RATE_CACHE_TTL=15m
+    
+    # HTTP Configuration (default: 10 seconds timeout, 3 retries)
+    # EXCHANGE_RATE_HTTP_TIMEOUT=10s
+    # EXCHANGE_RATE_MAX_RETRIES=3
+    
+    # Rate Limiting (default: 60 requests per minute, burst of 10)
+    # EXCHANGE_RATE_REQUESTS_PER_MINUTE=60
+    # EXCHANGE_RATE_BURST_SIZE=10
+    
+    # Fallback Configuration (default: enabled with 1 hour TTL)
+    # EXCHANGE_RATE_ENABLE_FALLBACK=true
+    # EXCHANGE_RATE_FALLBACK_TTL=1h
     ```
 
     - `DATABASE_URL`: Specifies the connection string for your PostgreSQL database. The provided value is suitable for local development using Docker Compose. 🗄️
     - `JWT_SECRET_KEY`: A secret key used for signing and verifying JWTs. **For production environments, it is critical to use a strong, randomly generated key and manage it securely (e.g., via Kubernetes secrets, AWS Secrets Manager, or similar services). Never hardcode sensitive keys.** ⚠️
+    - `EXCHANGE_RATE_API_KEY`: API key for real-time exchange rates. **Get a free API key from [exchangerate-api.com](https://exchangerate-api.com/). If not provided, the system will use fallback rates.** 💱
+
+    **Note:** The application uses the `godotenv` package to automatically load environment variables from a `.env` file. If no `.env` file is found, the application will use system environment variables. 🔧
 
 ### Running the Application ▶️
 

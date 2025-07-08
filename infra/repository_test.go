@@ -29,18 +29,20 @@ func TestTransactionRepository_Create(t *testing.T) {
 	transRepo := transactionRepository{db: db}
 	userID := uuid.New()
 	accountID := uuid.New()
-	transaction := domain.NewTransactionFromData(uuid.New(), userID, accountID, 100, 100, "USD", time.Now())
+	transaction := domain.NewTransactionFromData(uuid.New(), userID, accountID, 100, 100, "USD", time.Now(), nil, nil, nil)
 
 	mock.ExpectBegin()
-	mock.ExpectExec(`INSERT INTO "transactions" (.+) VALUES (.+)`).
-		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectQuery(`INSERT INTO "transactions" (.+) VALUES (.+) RETURNING "id"`).
+		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg()).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(transaction.ID))
 	mock.ExpectCommit()
 
 	err = transRepo.Create(transaction)
 	assert.NoError(err)
 
 	mock.ExpectBegin()
-	mock.ExpectExec(`INSERT INTO "transactions" (.+) VALUES (.+)`).
+	mock.ExpectQuery(`INSERT INTO "transactions" (.+) VALUES (.+) RETURNING "id"`).
+		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg()).
 		WillReturnError(errors.New("create error"))
 	mock.ExpectRollback()
 

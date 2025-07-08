@@ -57,39 +57,51 @@
 				
 				<option value="file0">github.com/amirasaad/fintech/docs/docs.go (0.0%)</option>
 				
-				<option value="file1">github.com/amirasaad/fintech/infra/database.go (17.6%)</option>
+				<option value="file1">github.com/amirasaad/fintech/infra/cache/memory_cache.go (0.0%)</option>
 				
-				<option value="file2">github.com/amirasaad/fintech/infra/repository.go (22.1%)</option>
+				<option value="file2">github.com/amirasaad/fintech/infra/config/exchange_rates.go (0.0%)</option>
 				
-				<option value="file3">github.com/amirasaad/fintech/infra/uow.go (80.8%)</option>
+				<option value="file3">github.com/amirasaad/fintech/infra/currency_converter.go (0.0%)</option>
 				
-				<option value="file4">github.com/amirasaad/fintech/pkg/domain/account.go (86.2%)</option>
+				<option value="file4">github.com/amirasaad/fintech/infra/database.go (17.6%)</option>
 				
-				<option value="file5">github.com/amirasaad/fintech/pkg/domain/currency_converter.go (0.0%)</option>
+				<option value="file5">github.com/amirasaad/fintech/infra/exchange_rates.go (83.3%)</option>
 				
-				<option value="file6">github.com/amirasaad/fintech/pkg/domain/money.go (0.0%)</option>
+				<option value="file6">github.com/amirasaad/fintech/infra/factory.go (0.0%)</option>
 				
-				<option value="file7">github.com/amirasaad/fintech/pkg/domain/user.go (14.3%)</option>
+				<option value="file7">github.com/amirasaad/fintech/infra/providers/exchangerate_api.go (0.0%)</option>
 				
-				<option value="file8">github.com/amirasaad/fintech/pkg/middleware/auth.go (100.0%)</option>
+				<option value="file8">github.com/amirasaad/fintech/infra/repository.go (23.2%)</option>
 				
-				<option value="file9">github.com/amirasaad/fintech/pkg/service/account.go (68.9%)</option>
+				<option value="file9">github.com/amirasaad/fintech/infra/uow.go (80.8%)</option>
 				
-				<option value="file10">github.com/amirasaad/fintech/pkg/service/auth.go (25.7%)</option>
+				<option value="file10">github.com/amirasaad/fintech/pkg/domain/account.go (86.2%)</option>
 				
-				<option value="file11">github.com/amirasaad/fintech/pkg/service/user.go (88.4%)</option>
+				<option value="file11">github.com/amirasaad/fintech/pkg/domain/currency_converter.go (0.0%)</option>
 				
-				<option value="file12">github.com/amirasaad/fintech/webapi/account.go (81.1%)</option>
+				<option value="file12">github.com/amirasaad/fintech/pkg/domain/money.go (0.0%)</option>
 				
-				<option value="file13">github.com/amirasaad/fintech/webapi/app.go (75.0%)</option>
+				<option value="file13">github.com/amirasaad/fintech/pkg/domain/user.go (14.3%)</option>
 				
-				<option value="file14">github.com/amirasaad/fintech/webapi/auth.go (100.0%)</option>
+				<option value="file14">github.com/amirasaad/fintech/pkg/middleware/auth.go (100.0%)</option>
 				
-				<option value="file15">github.com/amirasaad/fintech/webapi/test_utils.go (86.6%)</option>
+				<option value="file15">github.com/amirasaad/fintech/pkg/service/account.go (70.4%)</option>
 				
-				<option value="file16">github.com/amirasaad/fintech/webapi/user.go (73.1%)</option>
+				<option value="file16">github.com/amirasaad/fintech/pkg/service/auth.go (25.7%)</option>
 				
-				<option value="file17">github.com/amirasaad/fintech/webapi/utils.go (70.6%)</option>
+				<option value="file17">github.com/amirasaad/fintech/pkg/service/user.go (88.4%)</option>
+				
+				<option value="file18">github.com/amirasaad/fintech/webapi/account.go (80.9%)</option>
+				
+				<option value="file19">github.com/amirasaad/fintech/webapi/app.go (75.0%)</option>
+				
+				<option value="file20">github.com/amirasaad/fintech/webapi/auth.go (100.0%)</option>
+				
+				<option value="file21">github.com/amirasaad/fintech/webapi/test_utils.go (86.6%)</option>
+				
+				<option value="file22">github.com/amirasaad/fintech/webapi/user.go (73.1%)</option>
+				
+				<option value="file23">github.com/amirasaad/fintech/webapi/utils.go (70.6%)</option>
 				
 				</select>
 			</div>
@@ -882,7 +894,294 @@ func init() <span class="cov0" title="0">{
 }</span>
 </pre>
 		
-		<pre class="file" id="file1" style="display: none">package infra
+		<pre class="file" id="file1" style="display: none">package cache
+
+import (
+        "sync"
+        "time"
+
+        "github.com/amirasaad/fintech/pkg/domain"
+)
+
+// MemoryCache implements ExchangeRateCache using in-memory storage
+type MemoryCache struct {
+        cache map[string]*cacheEntry
+        mu    sync.RWMutex
+}
+
+type cacheEntry struct {
+        rate      *domain.ExchangeRate
+        expiresAt time.Time
+}
+
+// NewMemoryCache creates a new in-memory cache
+func NewMemoryCache() *MemoryCache <span class="cov0" title="0">{
+        cache := &amp;MemoryCache{
+                cache: make(map[string]*cacheEntry),
+        }
+
+        // Start cleanup goroutine
+        go cache.cleanup()
+
+        return cache
+}</span>
+
+// Get retrieves a rate from cache
+func (c *MemoryCache) Get(key string) (*domain.ExchangeRate, error) <span class="cov0" title="0">{
+        c.mu.RLock()
+        defer c.mu.RUnlock()
+
+        entry, exists := c.cache[key]
+        if !exists </span><span class="cov0" title="0">{
+                return nil, nil
+        }</span>
+
+        <span class="cov0" title="0">if time.Now().After(entry.expiresAt) </span><span class="cov0" title="0">{
+                return nil, nil
+        }</span>
+
+        <span class="cov0" title="0">return entry.rate, nil</span>
+}
+
+// Set stores a rate in cache with TTL
+func (c *MemoryCache) Set(key string, rate *domain.ExchangeRate, ttl time.Duration) error <span class="cov0" title="0">{
+        c.mu.Lock()
+        defer c.mu.Unlock()
+
+        c.cache[key] = &amp;cacheEntry{
+                rate:      rate,
+                expiresAt: time.Now().Add(ttl),
+        }
+
+        return nil
+}</span>
+
+// Delete removes a rate from cache
+func (c *MemoryCache) Delete(key string) error <span class="cov0" title="0">{
+        c.mu.Lock()
+        defer c.mu.Unlock()
+
+        delete(c.cache, key)
+        return nil
+}</span>
+
+// cleanup removes expired entries from cache
+func (c *MemoryCache) cleanup() <span class="cov0" title="0">{
+        ticker := time.NewTicker(5 * time.Minute)
+        defer ticker.Stop()
+
+        for range ticker.C </span><span class="cov0" title="0">{
+                c.mu.Lock()
+                now := time.Now()
+                for key, entry := range c.cache </span><span class="cov0" title="0">{
+                        if now.After(entry.expiresAt) </span><span class="cov0" title="0">{
+                                delete(c.cache, key)
+                        }</span>
+                }
+                <span class="cov0" title="0">c.mu.Unlock()</span>
+        }
+}
+</pre>
+		
+		<pre class="file" id="file2" style="display: none">package config
+
+import (
+        "os"
+        "strconv"
+        "time"
+)
+
+// ExchangeRateConfig holds configuration for exchange rate services
+type ExchangeRateConfig struct {
+        // Provider settings
+        ExchangeRateAPIKey string
+        ExchangeRateAPIURL string
+
+        // Cache settings
+        CacheTTL time.Duration
+
+        // HTTP settings
+        HTTPTimeout time.Duration
+        MaxRetries  int
+
+        // Rate limiting
+        RequestsPerMinute int
+        BurstSize         int
+
+        // Fallback settings
+        EnableFallback bool
+        FallbackTTL    time.Duration
+}
+
+// LoadExchangeRateConfig loads configuration from environment variables
+func LoadExchangeRateConfig() *ExchangeRateConfig <span class="cov0" title="0">{
+        config := &amp;ExchangeRateConfig{
+                // Provider settings
+                ExchangeRateAPIKey: getEnv("EXCHANGE_RATE_API_KEY", ""),
+                ExchangeRateAPIURL: getEnv("EXCHANGE_RATE_API_URL", "https://api.exchangerate-api.com/v4/latest"),
+
+                // Cache settings
+                CacheTTL: getEnvAsDuration("EXCHANGE_RATE_CACHE_TTL", 15*time.Minute),
+
+                // HTTP settings
+                HTTPTimeout: getEnvAsDuration("EXCHANGE_RATE_HTTP_TIMEOUT", 10*time.Second),
+                MaxRetries:  getEnvAsInt("EXCHANGE_RATE_MAX_RETRIES", 3),
+
+                // Rate limiting
+                RequestsPerMinute: getEnvAsInt("EXCHANGE_RATE_REQUESTS_PER_MINUTE", 60),
+                BurstSize:         getEnvAsInt("EXCHANGE_RATE_BURST_SIZE", 10),
+
+                // Fallback settings
+                EnableFallback: getEnvAsBool("EXCHANGE_RATE_ENABLE_FALLBACK", true),
+                FallbackTTL:    getEnvAsDuration("EXCHANGE_RATE_FALLBACK_TTL", 1*time.Hour),
+        }
+
+        return config
+}</span>
+
+// Helper functions for environment variable parsing
+func getEnv(key, defaultValue string) string <span class="cov0" title="0">{
+        if value := os.Getenv(key); value != "" </span><span class="cov0" title="0">{
+                return value
+        }</span>
+        <span class="cov0" title="0">return defaultValue</span>
+}
+
+func getEnvAsInt(key string, defaultValue int) int <span class="cov0" title="0">{
+        if value := os.Getenv(key); value != "" </span><span class="cov0" title="0">{
+                if intValue, err := strconv.Atoi(value); err == nil </span><span class="cov0" title="0">{
+                        return intValue
+                }</span>
+        }
+        <span class="cov0" title="0">return defaultValue</span>
+}
+
+func getEnvAsBool(key string, defaultValue bool) bool <span class="cov0" title="0">{
+        if value := os.Getenv(key); value != "" </span><span class="cov0" title="0">{
+                if boolValue, err := strconv.ParseBool(value); err == nil </span><span class="cov0" title="0">{
+                        return boolValue
+                }</span>
+        }
+        <span class="cov0" title="0">return defaultValue</span>
+}
+
+func getEnvAsDuration(key string, defaultValue time.Duration) time.Duration <span class="cov0" title="0">{
+        if value := os.Getenv(key); value != "" </span><span class="cov0" title="0">{
+                if duration, err := time.ParseDuration(value); err == nil </span><span class="cov0" title="0">{
+                        return duration
+                }</span>
+        }
+        <span class="cov0" title="0">return defaultValue</span>
+}
+</pre>
+		
+		<pre class="file" id="file3" style="display: none">package infra
+
+import (
+        "log/slog"
+
+        "github.com/amirasaad/fintech/pkg/domain"
+)
+
+// RealCurrencyConverter implements the CurrencyConverter interface using real exchange rates.
+type RealCurrencyConverter struct {
+        exchangeRateService *ExchangeRateService
+        logger              *slog.Logger
+        fallback            domain.CurrencyConverter
+}
+
+// NewRealCurrencyConverter creates a new real currency converter with fallback support.
+func NewRealCurrencyConverter(exchangeRateService *ExchangeRateService, fallback domain.CurrencyConverter, logger *slog.Logger) *RealCurrencyConverter <span class="cov0" title="0">{
+        return &amp;RealCurrencyConverter{
+                exchangeRateService: exchangeRateService,
+                logger:              logger,
+                fallback:            fallback,
+        }
+}</span>
+
+// Convert converts an amount from one currency to another using real exchange rates.
+func (c *RealCurrencyConverter) Convert(amount float64, from, to string) (*domain.ConversionInfo, error) <span class="cov0" title="0">{
+        if from == to </span><span class="cov0" title="0">{
+                return &amp;domain.ConversionInfo{
+                        OriginalAmount:    amount,
+                        OriginalCurrency:  from,
+                        ConvertedAmount:   amount,
+                        ConvertedCurrency: to,
+                        ConversionRate:    1.0,
+                }, nil
+        }</span>
+
+        // Try to get real exchange rate
+        <span class="cov0" title="0">rate, err := c.exchangeRateService.GetRate(from, to)
+        if err != nil </span><span class="cov0" title="0">{
+                c.logger.Warn("Failed to get real exchange rate, falling back", "from", from, "to", to, "error", err)
+
+                // Use fallback converter
+                if c.fallback != nil </span><span class="cov0" title="0">{
+                        return c.fallback.Convert(amount, from, to)
+                }</span>
+
+                <span class="cov0" title="0">return nil, domain.ErrExchangeRateUnavailable</span>
+        }
+
+        <span class="cov0" title="0">convertedAmount := amount * rate.Rate
+
+        c.logger.Info("Currency conversion completed",
+                "from", from, "to", to, "amount", amount,
+                "converted", convertedAmount, "rate", rate.Rate, "source", rate.Source)
+
+        return &amp;domain.ConversionInfo{
+                OriginalAmount:    amount,
+                OriginalCurrency:  from,
+                ConvertedAmount:   convertedAmount,
+                ConvertedCurrency: to,
+                ConversionRate:    rate.Rate,
+        }, nil</span>
+}
+
+// GetRate returns the current exchange rate between two currencies.
+func (c *RealCurrencyConverter) GetRate(from, to string) (float64, error) <span class="cov0" title="0">{
+        if from == to </span><span class="cov0" title="0">{
+                return 1.0, nil
+        }</span>
+
+        <span class="cov0" title="0">rate, err := c.exchangeRateService.GetRate(from, to)
+        if err != nil </span><span class="cov0" title="0">{
+                c.logger.Warn("Failed to get real exchange rate, falling back", "from", from, "to", to, "error", err)
+
+                // Use fallback converter
+                if c.fallback != nil </span><span class="cov0" title="0">{
+                        return c.fallback.GetRate(from, to)
+                }</span>
+
+                <span class="cov0" title="0">return 0, domain.ErrExchangeRateUnavailable</span>
+        }
+
+        <span class="cov0" title="0">return rate.Rate, nil</span>
+}
+
+// IsSupported checks if a currency pair is supported by checking if we can get a rate.
+func (c *RealCurrencyConverter) IsSupported(from, to string) bool <span class="cov0" title="0">{
+        if from == to </span><span class="cov0" title="0">{
+                return true
+        }</span>
+
+        // Try to get a rate to check if supported
+        <span class="cov0" title="0">_, err := c.exchangeRateService.GetRate(from, to)
+        if err == nil </span><span class="cov0" title="0">{
+                return true
+        }</span>
+
+        // Check fallback
+        <span class="cov0" title="0">if c.fallback != nil </span><span class="cov0" title="0">{
+                return c.fallback.IsSupported(from, to)
+        }</span>
+
+        <span class="cov0" title="0">return false</span>
+}
+</pre>
+		
+		<pre class="file" id="file4" style="display: none">package infra
 
 import (
         "errors"
@@ -926,7 +1225,409 @@ func NewDBConnection() (*gorm.DB, error) <span class="cov8" title="1">{
 }
 </pre>
 		
-		<pre class="file" id="file2" style="display: none">package infra
+		<pre class="file" id="file5" style="display: none">package infra
+
+import (
+        "fmt"
+        "log/slog"
+        "math"
+        "sync"
+        "time"
+
+        "github.com/amirasaad/fintech/pkg/domain"
+)
+
+// ExchangeRateService provides real-time exchange rates with caching and fallback providers.
+type ExchangeRateService struct {
+        providers []domain.ExchangeRateProvider
+        cache     ExchangeRateCache
+        logger    *slog.Logger
+        mu        sync.RWMutex
+}
+
+// ExchangeRateCache defines the interface for caching exchange rates.
+type ExchangeRateCache interface {
+        Get(key string) (*domain.ExchangeRate, error)
+        Set(key string, rate *domain.ExchangeRate, ttl time.Duration) error
+        Delete(key string) error
+}
+
+// NewExchangeRateService creates a new exchange rate service with the given providers and cache.
+func NewExchangeRateService(providers []domain.ExchangeRateProvider, cache ExchangeRateCache, logger *slog.Logger) *ExchangeRateService <span class="cov8" title="1">{
+        return &amp;ExchangeRateService{
+                providers: providers,
+                cache:     cache,
+                logger:    logger,
+        }
+}</span>
+
+// GetRate retrieves an exchange rate, trying cache first, then providers in order.
+func (s *ExchangeRateService) GetRate(from, to string) (*domain.ExchangeRate, error) <span class="cov8" title="1">{
+        if from == to </span><span class="cov8" title="1">{
+                return &amp;domain.ExchangeRate{
+                        FromCurrency: from,
+                        ToCurrency:   to,
+                        Rate:         1.0,
+                        LastUpdated:  time.Now(),
+                        Source:       "internal",
+                        ExpiresAt:    time.Now().Add(24 * time.Hour),
+                }, nil
+        }</span>
+
+        // Try cache first
+        <span class="cov8" title="1">cacheKey := fmt.Sprintf("%s:%s", from, to)
+        if cached, err := s.cache.Get(cacheKey); err == nil &amp;&amp; cached != nil </span><span class="cov8" title="1">{
+                if time.Now().Before(cached.ExpiresAt) </span><span class="cov8" title="1">{
+                        s.logger.Debug("Exchange rate retrieved from cache", "from", from, "to", to, "rate", cached.Rate)
+                        return cached, nil
+                }</span>
+                // Rate expired, remove from cache
+                <span class="cov0" title="0">_ = s.cache.Delete(cacheKey)</span>
+        }
+
+        // Try providers in order
+        <span class="cov8" title="1">for _, provider := range s.providers </span><span class="cov8" title="1">{
+                if !provider.IsHealthy() </span><span class="cov8" title="1">{
+                        s.logger.Warn("Provider not healthy, skipping", "provider", provider.Name())
+                        continue</span>
+                }
+
+                <span class="cov8" title="1">rate, err := provider.GetRate(from, to)
+                if err != nil </span><span class="cov8" title="1">{
+                        s.logger.Warn("Failed to get rate from provider", "provider", provider.Name(), "error", err)
+                        continue</span>
+                }
+
+                // Validate rate
+                <span class="cov8" title="1">if rate.Rate &lt;= 0 || math.IsNaN(rate.Rate) || math.IsInf(rate.Rate, 0) </span><span class="cov8" title="1">{
+                        s.logger.Warn("Invalid rate received from provider", "provider", provider.Name(), "rate", rate.Rate)
+                        continue</span>
+                }
+
+                // Cache the rate
+                <span class="cov8" title="1">ttl := time.Until(rate.ExpiresAt)
+                if ttl &gt; 0 </span><span class="cov8" title="1">{
+                        _ = s.cache.Set(cacheKey, rate, ttl)
+                }</span>
+
+                <span class="cov8" title="1">s.logger.Info("Exchange rate retrieved from provider", "provider", provider.Name(), "from", from, "to", to, "rate", rate.Rate)
+                return rate, nil</span>
+        }
+
+        <span class="cov8" title="1">return nil, domain.ErrExchangeRateUnavailable</span>
+}
+
+// GetRates retrieves multiple exchange rates efficiently.
+func (s *ExchangeRateService) GetRates(from string, to []string) (map[string]*domain.ExchangeRate, error) <span class="cov8" title="1">{
+        results := make(map[string]*domain.ExchangeRate)
+        var missing []string
+
+        // Try cache first for each currency
+        for _, currency := range to </span><span class="cov8" title="1">{
+                cacheKey := fmt.Sprintf("%s:%s", from, currency)
+                if cached, err := s.cache.Get(cacheKey); err == nil &amp;&amp; cached != nil </span><span class="cov0" title="0">{
+                        if time.Now().Before(cached.ExpiresAt) </span><span class="cov0" title="0">{
+                                results[currency] = cached
+                                continue</span>
+                        }
+                        <span class="cov0" title="0">_ = s.cache.Delete(cacheKey)</span>
+                }
+                <span class="cov8" title="1">missing = append(missing, currency)</span>
+        }
+
+        // If we have missing rates, try providers
+        <span class="cov8" title="1">if len(missing) &gt; 0 </span><span class="cov8" title="1">{
+                for _, provider := range s.providers </span><span class="cov8" title="1">{
+                        if !provider.IsHealthy() </span><span class="cov0" title="0">{
+                                continue</span>
+                        }
+
+                        <span class="cov8" title="1">rates, err := provider.GetRates(from, missing)
+                        if err != nil </span><span class="cov0" title="0">{
+                                s.logger.Warn("Failed to get rates from provider", "provider", provider.Name(), "error", err)
+                                continue</span>
+                        }
+
+                        // Cache and add valid rates
+                        <span class="cov8" title="1">for currency, rate := range rates </span><span class="cov8" title="1">{
+                                if rate.Rate &gt; 0 &amp;&amp; !math.IsNaN(rate.Rate) &amp;&amp; !math.IsInf(rate.Rate, 0) </span><span class="cov8" title="1">{
+                                        results[currency] = rate
+                                        cacheKey := fmt.Sprintf("%s:%s", from, currency)
+                                        ttl := time.Until(rate.ExpiresAt)
+                                        if ttl &gt; 0 </span><span class="cov8" title="1">{
+                                                _ = s.cache.Set(cacheKey, rate, ttl)
+                                        }</span>
+                                }
+                        }
+
+                        // Update missing list
+                        <span class="cov8" title="1">missing = missing[:0]
+                        for _, currency := range to </span><span class="cov8" title="1">{
+                                if _, exists := results[currency]; !exists </span><span class="cov0" title="0">{
+                                        missing = append(missing, currency)
+                                }</span>
+                        }
+
+                        <span class="cov8" title="1">if len(missing) == 0 </span><span class="cov8" title="1">{
+                                break</span>
+                        }
+                }
+        }
+
+        <span class="cov8" title="1">if len(results) == 0 </span><span class="cov0" title="0">{
+                return nil, domain.ErrExchangeRateUnavailable
+        }</span>
+
+        <span class="cov8" title="1">return results, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file6" style="display: none">package infra
+
+import (
+        "log/slog"
+
+        "github.com/amirasaad/fintech/infra/cache"
+        "github.com/amirasaad/fintech/infra/config"
+        "github.com/amirasaad/fintech/infra/providers"
+        "github.com/amirasaad/fintech/pkg/domain"
+)
+
+// NewExchangeRateSystem creates a complete exchange rate system with providers, cache, and converter
+func NewExchangeRateSystem(logger *slog.Logger) (domain.CurrencyConverter, error) <span class="cov0" title="0">{
+        // Load configuration
+        cfg := config.LoadExchangeRateConfig()
+
+        // Create cache
+        rateCache := cache.NewMemoryCache()
+
+        // Create providers
+        var exchangeRateProviders []domain.ExchangeRateProvider
+
+        // Add ExchangeRate API provider if API key is configured
+        if cfg.ExchangeRateAPIKey != "" </span><span class="cov0" title="0">{
+                exchangeRateProvider := providers.NewExchangeRateAPIProvider(cfg.ExchangeRateAPIKey, logger)
+                exchangeRateProviders = append(exchangeRateProviders, exchangeRateProvider)
+                logger.Info("ExchangeRate API provider configured", "apiKey", maskAPIKey(cfg.ExchangeRateAPIKey))
+        }</span> else<span class="cov0" title="0"> {
+                logger.Warn("No ExchangeRate API key configured, using fallback only")
+        }</span>
+
+        // Create exchange rate service
+        <span class="cov0" title="0">exchangeRateService := NewExchangeRateService(exchangeRateProviders, rateCache, logger)
+
+        // Create fallback converter
+        var fallback domain.CurrencyConverter
+        if cfg.EnableFallback </span><span class="cov0" title="0">{
+                fallback = domain.NewStubCurrencyConverter()
+                logger.Info("Fallback currency converter enabled")
+        }</span>
+
+        // Create real currency converter
+        <span class="cov0" title="0">converter := NewRealCurrencyConverter(exchangeRateService, fallback, logger)
+
+        logger.Info("Exchange rate system initialized",
+                "providers", len(exchangeRateProviders),
+                "fallbackEnabled", cfg.EnableFallback,
+                "cacheTTL", cfg.CacheTTL)
+
+        return converter, nil</span>
+}
+
+// maskAPIKey returns a masked version of the API key for logging
+func maskAPIKey(apiKey string) string <span class="cov0" title="0">{
+        if len(apiKey) &lt;= 8 </span><span class="cov0" title="0">{
+                return "***"
+        }</span>
+        <span class="cov0" title="0">return apiKey[:4] + "..." + apiKey[len(apiKey)-4:]</span>
+}
+</pre>
+		
+		<pre class="file" id="file7" style="display: none">package providers
+
+import (
+        "encoding/json"
+        "fmt"
+        "io"
+        "log/slog"
+        "net/http"
+        "time"
+
+        "github.com/amirasaad/fintech/pkg/domain"
+)
+
+// ExchangeRateAPIProvider implements the ExchangeRateProvider interface for exchangerate-api.com
+type ExchangeRateAPIProvider struct {
+        apiKey     string
+        baseURL    string
+        httpClient *http.Client
+        logger     *slog.Logger
+}
+
+// ExchangeRateAPIResponse represents the response from the ExchangeRate API
+type ExchangeRateAPIResponse struct {
+        Success   bool               `json:"success"`
+        Timestamp int64              `json:"timestamp"`
+        Base      string             `json:"base"`
+        Date      string             `json:"date"`
+        Rates     map[string]float64 `json:"rates"`
+}
+
+// NewExchangeRateAPIProvider creates a new ExchangeRate API provider
+func NewExchangeRateAPIProvider(apiKey string, logger *slog.Logger) *ExchangeRateAPIProvider <span class="cov0" title="0">{
+        return &amp;ExchangeRateAPIProvider{
+                apiKey:  apiKey,
+                baseURL: "https://api.exchangerate-api.com/v4/latest",
+                httpClient: &amp;http.Client{
+                        Timeout: 10 * time.Second,
+                },
+                logger: logger,
+        }
+}</span>
+
+// GetRate fetches the current exchange rate for a currency pair
+func (p *ExchangeRateAPIProvider) GetRate(from, to string) (*domain.ExchangeRate, error) <span class="cov0" title="0">{
+        url := fmt.Sprintf("%s/%s", p.baseURL, from)
+
+        req, err := http.NewRequest("GET", url, nil)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to create request: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">if p.apiKey != "" </span><span class="cov0" title="0">{
+                req.Header.Set("Authorization", "Bearer "+p.apiKey)
+        }</span>
+
+        <span class="cov0" title="0">resp, err := p.httpClient.Do(req)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to make request: %w", err)
+        }</span>
+        <span class="cov0" title="0">defer resp.Body.Close()
+
+        if resp.StatusCode != http.StatusOK </span><span class="cov0" title="0">{
+                body, _ := io.ReadAll(resp.Body)
+                return nil, fmt.Errorf("API returned status %d: %s", resp.StatusCode, string(body))
+        }</span>
+
+        <span class="cov0" title="0">var apiResp ExchangeRateAPIResponse
+        if err := json.NewDecoder(resp.Body).Decode(&amp;apiResp); err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to decode response: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">if !apiResp.Success </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("API returned success=false")
+        }</span>
+
+        <span class="cov0" title="0">rate, exists := apiResp.Rates[to]
+        if !exists </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("currency %s not found in response", to)
+        }</span>
+
+        // Parse the date from the API response
+        <span class="cov0" title="0">date, err := time.Parse("2006-01-02", apiResp.Date)
+        if err != nil </span><span class="cov0" title="0">{
+                date = time.Now()
+        }</span>
+
+        <span class="cov0" title="0">return &amp;domain.ExchangeRate{
+                FromCurrency: from,
+                ToCurrency:   to,
+                Rate:         rate,
+                LastUpdated:  time.Unix(apiResp.Timestamp, 0),
+                Source:       "exchangerate-api",
+                ExpiresAt:    date.Add(24 * time.Hour), // Rates typically valid for 24 hours
+        }, nil</span>
+}
+
+// GetRates fetches multiple exchange rates in a single request
+func (p *ExchangeRateAPIProvider) GetRates(from string, to []string) (map[string]*domain.ExchangeRate, error) <span class="cov0" title="0">{
+        // For this provider, we need to make a single request and extract the rates we need
+        // We'll make a direct request to get all rates for the base currency
+
+        // Since this provider returns all rates in one call, we need to make a full request
+        url := fmt.Sprintf("%s/%s", p.baseURL, from)
+
+        req, err := http.NewRequest("GET", url, nil)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to create request: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">if p.apiKey != "" </span><span class="cov0" title="0">{
+                req.Header.Set("Authorization", "Bearer "+p.apiKey)
+        }</span>
+
+        <span class="cov0" title="0">resp, err := p.httpClient.Do(req)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to make request: %w", err)
+        }</span>
+        <span class="cov0" title="0">defer resp.Body.Close()
+
+        if resp.StatusCode != http.StatusOK </span><span class="cov0" title="0">{
+                body, _ := io.ReadAll(resp.Body)
+                return nil, fmt.Errorf("API returned status %d: %s", resp.StatusCode, string(body))
+        }</span>
+
+        <span class="cov0" title="0">var apiResp ExchangeRateAPIResponse
+        if err := json.NewDecoder(resp.Body).Decode(&amp;apiResp); err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to decode response: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">if !apiResp.Success </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("API returned success=false")
+        }</span>
+
+        // Parse the date from the API response
+        <span class="cov0" title="0">date, err := time.Parse("2006-01-02", apiResp.Date)
+        if err != nil </span><span class="cov0" title="0">{
+                date = time.Now()
+        }</span>
+
+        <span class="cov0" title="0">results := make(map[string]*domain.ExchangeRate)
+        for _, currency := range to </span><span class="cov0" title="0">{
+                if rate, exists := apiResp.Rates[currency]; exists </span><span class="cov0" title="0">{
+                        results[currency] = &amp;domain.ExchangeRate{
+                                FromCurrency: from,
+                                ToCurrency:   currency,
+                                Rate:         rate,
+                                LastUpdated:  time.Unix(apiResp.Timestamp, 0),
+                                Source:       "exchangerate-api",
+                                ExpiresAt:    date.Add(24 * time.Hour),
+                        }
+                }</span>
+        }
+
+        <span class="cov0" title="0">return results, nil</span>
+}
+
+// Name returns the provider's name
+func (p *ExchangeRateAPIProvider) Name() string <span class="cov0" title="0">{
+        return "exchangerate-api"
+}</span>
+
+// IsHealthy checks if the provider is currently available
+func (p *ExchangeRateAPIProvider) IsHealthy() bool <span class="cov0" title="0">{
+        // Make a simple health check request
+        url := fmt.Sprintf("%s/USD", p.baseURL)
+        req, err := http.NewRequest("GET", url, nil)
+        if err != nil </span><span class="cov0" title="0">{
+                return false
+        }</span>
+
+        <span class="cov0" title="0">if p.apiKey != "" </span><span class="cov0" title="0">{
+                req.Header.Set("Authorization", "Bearer "+p.apiKey)
+        }</span>
+
+        <span class="cov0" title="0">resp, err := p.httpClient.Do(req)
+        if err != nil </span><span class="cov0" title="0">{
+                return false
+        }</span>
+        <span class="cov0" title="0">defer resp.Body.Close()
+
+        return resp.StatusCode == http.StatusOK</span>
+}
+</pre>
+		
+		<pre class="file" id="file8" style="display: none">package infra
 
 import (
         "time"
@@ -999,8 +1700,24 @@ func NewTransactionRepository(db *gorm.DB) repository.TransactionRepository <spa
 }</span>
 
 func (r *transactionRepository) Create(transaction *domain.Transaction) error <span class="cov8" title="1">{
+        // Convert domain transaction to GORM model
+        dbTransaction := Transaction{
+                Model: gorm.Model{
+                        CreatedAt: transaction.CreatedAt,
+                        UpdatedAt: transaction.CreatedAt,
+                },
+                ID:               transaction.ID,
+                AccountID:        transaction.AccountID,
+                UserID:           transaction.UserID,
+                Amount:           transaction.Amount,
+                Currency:         transaction.Currency,
+                Balance:          transaction.Balance,
+                OriginalAmount:   transaction.OriginalAmount,
+                OriginalCurrency: transaction.OriginalCurrency,
+                ConversionRate:   transaction.ConversionRate,
+        }
 
-        result := r.db.Create(transaction)
+        result := r.db.Create(&amp;dbTransaction)
         if result.Error != nil </span><span class="cov8" title="1">{
                 return result.Error
         }</span>
@@ -1013,7 +1730,7 @@ func (r *transactionRepository) Get(id uuid.UUID) (*domain.Transaction, error) <
         if result.Error != nil </span><span class="cov0" title="0">{
                 return nil, result.Error
         }</span>
-        <span class="cov0" title="0">return domain.NewTransactionFromData(t.ID, t.UserID, t.AccountID, t.Amount, t.Balance, t.Currency, t.CreatedAt), nil</span>
+        <span class="cov0" title="0">return domain.NewTransactionFromData(t.ID, t.UserID, t.AccountID, t.Amount, t.Balance, t.Currency, t.CreatedAt, t.OriginalAmount, t.OriginalCurrency, t.ConversionRate), nil</span>
 }
 
 func (r *transactionRepository) List(userID, accountID uuid.UUID) ([]*domain.Transaction, error) <span class="cov0" title="0">{
@@ -1024,7 +1741,7 @@ func (r *transactionRepository) List(userID, accountID uuid.UUID) ([]*domain.Tra
         }</span>
         <span class="cov0" title="0">tx := make([]*domain.Transaction, 0, len(dbTransactions))
         for _, t := range dbTransactions </span><span class="cov0" title="0">{
-                tx = append(tx, domain.NewTransactionFromData(t.ID, t.UserID, t.AccountID, t.Amount, t.Balance, t.Currency, t.CreatedAt))
+                tx = append(tx, domain.NewTransactionFromData(t.ID, t.UserID, t.AccountID, t.Amount, t.Balance, t.Currency, t.CreatedAt, t.OriginalAmount, t.OriginalCurrency, t.ConversionRate))
         }</span>
         <span class="cov0" title="0">return tx, nil</span>
 }
@@ -1102,7 +1819,7 @@ func NewUserRepository(db *gorm.DB) repository.UserRepository <span class="cov0"
 }</span>
 </pre>
 		
-		<pre class="file" id="file3" style="display: none">package infra
+		<pre class="file" id="file9" style="display: none">package infra
 
 import (
         "fmt"
@@ -1205,7 +1922,7 @@ func (u *UoW) UserRepository() repository.UserRepository <span class="cov0" titl
 }
 </pre>
 		
-		<pre class="file" id="file4" style="display: none">package domain
+		<pre class="file" id="file10" style="display: none">package domain
 
 import (
         "errors"
@@ -1278,6 +1995,11 @@ type Transaction struct {
         Balance   int64 // Account balance snapshot
         CreatedAt time.Time
         Currency  string // ISO 4217 currency code
+
+        // Conversion fields (nullable when no conversion occurs)
+        OriginalAmount   *float64 // Amount in original currency
+        OriginalCurrency *string  // Original currency code
+        ConversionRate   *float64 // Rate used for conversion
 }
 
 // iso4217 is a minimal set of supported ISO 4217 currency codes.
@@ -1337,15 +2059,21 @@ func NewTransactionFromData(
         amount, balance int64,
         currency string,
         created time.Time,
+        originalAmount *float64,
+        originalCurrency *string,
+        conversionRate *float64,
 ) *Transaction <span class="cov8" title="1">{
         return &amp;Transaction{
-                ID:        id,
-                UserID:    userID,
-                AccountID: accountID,
-                Amount:    amount,
-                Balance:   balance,
-                Currency:  currency,
-                CreatedAt: created,
+                ID:               id,
+                UserID:           userID,
+                AccountID:        accountID,
+                Amount:           amount,
+                Balance:          balance,
+                Currency:         currency,
+                CreatedAt:        created,
+                OriginalAmount:   originalAmount,
+                OriginalCurrency: originalCurrency,
+                ConversionRate:   conversionRate,
         }
 }</span>
 
@@ -1356,13 +2084,16 @@ func NewTransactionWithCurrency(id, userID, accountID uuid.UUID, amount, balance
                 currency = DefaultCurrency
         }</span>
         <span class="cov8" title="1">return &amp;Transaction{
-                ID:        id,
-                UserID:    userID,
-                AccountID: accountID,
-                Amount:    amount,
-                Balance:   balance,
-                CreatedAt: time.Now(),
-                Currency:  currency,
+                ID:               id,
+                UserID:           userID,
+                AccountID:        accountID,
+                Amount:           amount,
+                Balance:          balance,
+                CreatedAt:        time.Now(),
+                Currency:         currency,
+                OriginalAmount:   nil,
+                OriginalCurrency: nil,
+                ConversionRate:   nil,
         }</span>
 }
 
@@ -1481,13 +2212,57 @@ func (a *Account) GetBalance(userID uuid.UUID) (balance float64, err error) <spa
 }
 </pre>
 		
-		<pre class="file" id="file5" style="display: none">package domain
+		<pre class="file" id="file11" style="display: none">package domain
+
+import (
+        "errors"
+        "time"
+)
+
+var (
+        ErrExchangeRateUnavailable = errors.New("exchange rate service unavailable")
+        ErrUnsupportedCurrencyPair = errors.New("unsupported currency pair")
+        ErrExchangeRateExpired     = errors.New("exchange rate has expired")
+        ErrExchangeRateInvalid     = errors.New("invalid exchange rate received")
+)
 
 // CurrencyConverter defines the interface for converting amounts between currencies.
 type CurrencyConverter interface {
         // Convert converts an amount from one currency to another.
         // Returns the converted amount and the rate used, or an error if conversion is not possible.
         Convert(amount float64, from, to string) (*ConversionInfo, error)
+
+        // GetRate returns the current exchange rate between two currencies.
+        // This is useful for displaying rates without performing a conversion.
+        GetRate(from, to string) (float64, error)
+
+        // IsSupported checks if a currency pair is supported by the converter.
+        IsSupported(from, to string) bool
+}
+
+// ExchangeRate represents a single exchange rate with metadata.
+type ExchangeRate struct {
+        FromCurrency string
+        ToCurrency   string
+        Rate         float64
+        LastUpdated  time.Time
+        Source       string
+        ExpiresAt    time.Time
+}
+
+// ExchangeRateProvider defines the interface for external exchange rate providers.
+type ExchangeRateProvider interface {
+        // GetRate fetches the current exchange rate for a currency pair.
+        GetRate(from, to string) (*ExchangeRate, error)
+
+        // GetRates fetches multiple exchange rates in a single request.
+        GetRates(from string, to []string) (map[string]*ExchangeRate, error)
+
+        // Name returns the provider's name for logging and identification.
+        Name() string
+
+        // IsHealthy checks if the provider is currently available.
+        IsHealthy() bool
 }
 
 // StubCurrencyConverter is a simple implementation that returns the same amount (1:1 conversion).
@@ -1522,18 +2297,40 @@ func NewStubCurrencyConverter() *StubCurrencyConverter <span class="cov0" title=
 }</span>
 
 func (s *StubCurrencyConverter) Convert(amount float64, from, to string) (*ConversionInfo, error) <span class="cov0" title="0">{
-        rate := s.rates[from][to]
-        return &amp;ConversionInfo{
+        rate, exists := s.rates[from][to]
+        if !exists </span><span class="cov0" title="0">{
+                return nil, ErrUnsupportedCurrencyPair
+        }</span>
+        <span class="cov0" title="0">return &amp;ConversionInfo{
                 OriginalAmount:    amount,
                 OriginalCurrency:  from,
                 ConvertedAmount:   amount * rate,
                 ConvertedCurrency: to,
                 ConversionRate:    rate,
-        }, nil
-}</span>
+        }, nil</span>
+}
+
+func (s *StubCurrencyConverter) GetRate(from, to string) (float64, error) <span class="cov0" title="0">{
+        if from == to </span><span class="cov0" title="0">{
+                return 1.0, nil
+        }</span>
+        <span class="cov0" title="0">rate, exists := s.rates[from][to]
+        if !exists </span><span class="cov0" title="0">{
+                return 0, ErrUnsupportedCurrencyPair
+        }</span>
+        <span class="cov0" title="0">return rate, nil</span>
+}
+
+func (s *StubCurrencyConverter) IsSupported(from, to string) bool <span class="cov0" title="0">{
+        if from == to </span><span class="cov0" title="0">{
+                return true
+        }</span>
+        <span class="cov0" title="0">_, exists := s.rates[from][to]
+        return exists</span>
+}
 </pre>
 		
-		<pre class="file" id="file6" style="display: none">package domain
+		<pre class="file" id="file12" style="display: none">package domain
 
 // Money represents a monetary amount with a currency.
 type Money struct {
@@ -1561,7 +2358,7 @@ func NewMoney(
 }
 </pre>
 		
-		<pre class="file" id="file7" style="display: none">package domain
+		<pre class="file" id="file13" style="display: none">package domain
 
 import (
         "errors"
@@ -1619,7 +2416,7 @@ func NewUserFromData(
 }</span>
 </pre>
 		
-		<pre class="file" id="file8" style="display: none">package middleware
+		<pre class="file" id="file14" style="display: none">package middleware
 
 import (
         "os"
@@ -1646,7 +2443,7 @@ func jwtError(c *fiber.Ctx, err error) error <span class="cov8" title="1">{
 }
 </pre>
 		
-		<pre class="file" id="file9" style="display: none">// Package service provides business logic for interacting with domain entities such as accounts and transactions.
+		<pre class="file" id="file15" style="display: none">// Package service provides business logic for interacting with domain entities such as accounts and transactions.
 // It defines the AccountService struct and its methods for creating accounts, depositing and withdrawing funds,
 // retrieving account details, listing transactions, and checking account balances.
 package service
@@ -1789,6 +2586,13 @@ func (s *AccountService) Deposit(
                 return
         }</span>
 
+        // Store conversion info in transaction if conversion occurred
+        <span class="cov8" title="1">if convInfo != nil </span><span class="cov8" title="1">{
+                tx.OriginalAmount = &amp;convInfo.OriginalAmount
+                tx.OriginalCurrency = &amp;convInfo.OriginalCurrency
+                tx.ConversionRate = &amp;convInfo.ConversionRate
+        }</span>
+
         <span class="cov8" title="1">err = uow.AccountRepository().Update(a)
         if err != nil </span><span class="cov8" title="1">{
                 _ = uow.Rollback()
@@ -1861,6 +2665,13 @@ func (s *AccountService) Withdraw(
         if err != nil </span><span class="cov8" title="1">{
                 _ = uow.Rollback()
                 return nil, nil, err
+        }</span>
+
+        // Store conversion info in transaction if conversion occurred
+        <span class="cov8" title="1">if convInfo != nil </span><span class="cov8" title="1">{
+                tx.OriginalAmount = &amp;convInfo.OriginalAmount
+                tx.OriginalCurrency = &amp;convInfo.OriginalCurrency
+                tx.ConversionRate = &amp;convInfo.ConversionRate
         }</span>
 
         <span class="cov8" title="1">err = uow.AccountRepository().Update(a)
@@ -1946,7 +2757,7 @@ func (s *AccountService) GetBalance(
 }
 </pre>
 		
-		<pre class="file" id="file10" style="display: none">package service
+		<pre class="file" id="file16" style="display: none">package service
 
 import (
         "context"
@@ -2142,7 +2953,7 @@ func checkPasswordHash(
 }</span>
 </pre>
 		
-		<pre class="file" id="file11" style="display: none">package service
+		<pre class="file" id="file17" style="display: none">package service
 
 import (
         "github.com/amirasaad/fintech/pkg/domain"
@@ -2306,7 +3117,7 @@ func (s *UserService) ValidUser(
 }
 </pre>
 		
-		<pre class="file" id="file12" style="display: none">// AccountRoutes registers HTTP routes for account-related operations using the Fiber web framework.
+		<pre class="file" id="file18" style="display: none">// AccountRoutes registers HTTP routes for account-related operations using the Fiber web framework.
 // It sets up endpoints for creating accounts, depositing and withdrawing funds, retrieving account balances,
 // and listing account transactions. All routes are protected by authentication middleware and require a valid user context.
 //
@@ -2366,6 +3177,11 @@ type TransactionDTO struct {
         Balance   float64 `json:"balance"`
         CreatedAt string  `json:"created_at"`
         Currency  string  `json:"currency"`
+
+        // Conversion fields (only present if conversion occurred)
+        OriginalAmount   *float64 `json:"original_amount,omitempty"`
+        OriginalCurrency *string  `json:"original_currency,omitempty"`
+        ConversionRate   *float64 `json:"conversion_rate,omitempty"`
 }
 
 // ConversionResponseDTO wraps a transaction and conversion details for API responses.
@@ -2383,7 +3199,7 @@ func ToTransactionDTO(tx *domain.Transaction) *TransactionDTO <span class="cov8"
         if tx == nil </span><span class="cov0" title="0">{
                 return nil
         }</span>
-        <span class="cov8" title="1">return &amp;TransactionDTO{
+        <span class="cov8" title="1">dto := &amp;TransactionDTO{
                 ID:        tx.ID.String(),
                 UserID:    tx.UserID.String(),
                 AccountID: tx.AccountID.String(),
@@ -2391,22 +3207,50 @@ func ToTransactionDTO(tx *domain.Transaction) *TransactionDTO <span class="cov8"
                 Balance:   float64(tx.Balance) / 100.0,
                 CreatedAt: tx.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
                 Currency:  tx.Currency,
+        }
+
+        // Include conversion fields if they exist
+        if tx.OriginalAmount != nil </span><span class="cov8" title="1">{
+                dto.OriginalAmount = tx.OriginalAmount
         }</span>
+        <span class="cov8" title="1">if tx.OriginalCurrency != nil </span><span class="cov8" title="1">{
+                dto.OriginalCurrency = tx.OriginalCurrency
+        }</span>
+        <span class="cov8" title="1">if tx.ConversionRate != nil </span><span class="cov8" title="1">{
+                dto.ConversionRate = tx.ConversionRate
+        }</span>
+
+        <span class="cov8" title="1">return dto</span>
 }
 
 // ToConversionResponseDTO maps a transaction and conversion info to a ConversionResponseDTO.
 func ToConversionResponseDTO(tx *domain.Transaction, convInfo *domain.ConversionInfo) *ConversionResponseDTO <span class="cov8" title="1">{
-        if convInfo == nil </span><span class="cov0" title="0">{
-                return nil
+        // If conversion info is provided (from service layer), use it
+        if convInfo != nil </span><span class="cov8" title="1">{
+                return &amp;ConversionResponseDTO{
+                        Transaction:       ToTransactionDTO(tx),
+                        OriginalAmount:    convInfo.OriginalAmount,
+                        OriginalCurrency:  convInfo.OriginalCurrency,
+                        ConvertedAmount:   convInfo.ConvertedAmount,
+                        ConvertedCurrency: convInfo.ConvertedCurrency,
+                        ConversionRate:    convInfo.ConversionRate,
+                }
         }</span>
-        <span class="cov8" title="1">return &amp;ConversionResponseDTO{
-                Transaction:       ToTransactionDTO(tx),
-                OriginalAmount:    convInfo.OriginalAmount,
-                OriginalCurrency:  convInfo.OriginalCurrency,
-                ConvertedAmount:   convInfo.ConvertedAmount,
-                ConvertedCurrency: convInfo.ConvertedCurrency,
-                ConversionRate:    convInfo.ConversionRate,
+
+        // If no conversion info provided but transaction has stored conversion data, use that
+        <span class="cov0" title="0">if tx.OriginalAmount != nil &amp;&amp; tx.OriginalCurrency != nil &amp;&amp; tx.ConversionRate != nil </span><span class="cov0" title="0">{
+                return &amp;ConversionResponseDTO{
+                        Transaction:       ToTransactionDTO(tx),
+                        OriginalAmount:    *tx.OriginalAmount,
+                        OriginalCurrency:  *tx.OriginalCurrency,
+                        ConvertedAmount:   float64(tx.Amount) / 100.0, // Convert from cents
+                        ConvertedCurrency: tx.Currency,
+                        ConversionRate:    *tx.ConversionRate,
+                }
         }</span>
+
+        // No conversion occurred
+        <span class="cov0" title="0">return nil</span>
 }
 
 func AccountRoutes(app *fiber.App, accountSvc *service.AccountService, authSvc *service.AuthService) <span class="cov8" title="1">{
@@ -2699,7 +3543,7 @@ func GetBalance(
 }
 </pre>
 		
-		<pre class="file" id="file13" style="display: none">package webapi
+		<pre class="file" id="file19" style="display: none">package webapi
 
 import (
         "time"
@@ -2759,7 +3603,7 @@ func NewApp(
 }
 </pre>
 		
-		<pre class="file" id="file14" style="display: none">package webapi
+		<pre class="file" id="file20" style="display: none">package webapi
 
 import (
         "github.com/amirasaad/fintech/pkg/service"
@@ -2806,7 +3650,7 @@ func Login(authSvc *service.AuthService) fiber.Handler <span class="cov8" title=
 }
 </pre>
 		
-		<pre class="file" id="file15" style="display: none">package webapi
+		<pre class="file" id="file21" style="display: none">package webapi
 
 import (
         "bytes"
@@ -2981,7 +3825,7 @@ func getTestToken(
 }
 </pre>
 		
-		<pre class="file" id="file16" style="display: none">package webapi
+		<pre class="file" id="file22" style="display: none">package webapi
 
 import (
         "github.com/amirasaad/fintech/pkg/middleware"
@@ -3187,7 +4031,7 @@ func DeleteUser(
 }
 </pre>
 		
-		<pre class="file" id="file17" style="display: none">package webapi
+		<pre class="file" id="file23" style="display: none">package webapi
 
 import (
         "errors"

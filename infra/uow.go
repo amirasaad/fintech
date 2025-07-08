@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"gorm.io/gorm"
 )
@@ -11,13 +12,15 @@ import (
 type UoW struct {
 	session *gorm.DB
 	started bool
+	cfg     config.DBConfig
 }
 
-func NewGormUoW(dbConn *gorm.DB) (*UoW, error) {
-
+func NewGormUoW(cfg config.DBConfig) (*UoW, error) {
+	db, _ := NewDBConnection(cfg)
 	return &UoW{
-		session: dbConn,
+		session: db,
 		started: false,
+		cfg:     cfg,
 	}, nil
 }
 func (u *UoW) Begin() error {
@@ -32,11 +35,6 @@ func (u *UoW) Begin() error {
 	}
 	slog.Info("Starting new transaction")
 	tx := u.session.Begin()
-	defer func() {
-		if r := recover(); r != nil {
-			tx.Rollback()
-		}
-	}()
 	if tx.Error != nil {
 		slog.Error("Failed to start transaction", slog.Any("error", tx.Error))
 		return tx.Error
@@ -56,9 +54,9 @@ func (u *UoW) Commit() error {
 	if err != nil {
 		slog.Error("Failed to commit transaction", slog.Any("error", err))
 	} else {
-		u.started = true
 		slog.Info("Transaction committed successfully")
 	}
+	u.started = false
 	return err
 }
 func (u *UoW) Rollback() error {
@@ -71,22 +69,22 @@ func (u *UoW) Rollback() error {
 	if err != nil {
 		slog.Error("Failed to rollback transaction", slog.Any("error", err))
 	} else {
-		u.started = false
 		slog.Info("Transaction rolled back successfully")
 	}
+	u.started = false // Always reset the flag, regardless of success/failure
 	return err
 }
 
 func (u *UoW) AccountRepository() repository.AccountRepository {
 	if !u.started {
-		db, _ := NewDBConnection()
+		db, _ := NewDBConnection(u.cfg)
 		return NewAccountRepository(db)
 	}
 	return NewAccountRepository(u.session)
 }
 func (u *UoW) TransactionRepository() repository.TransactionRepository {
 	if !u.started {
-		db, _ := NewDBConnection()
+		db, _ := NewDBConnection(u.cfg)
 		return NewTransactionRepository(db)
 	}
 	return NewTransactionRepository(u.session)
@@ -94,7 +92,7 @@ func (u *UoW) TransactionRepository() repository.TransactionRepository {
 
 func (u *UoW) UserRepository() repository.UserRepository {
 	if !u.started {
-		db, _ := NewDBConnection()
+		db, _ := NewDBConnection(u.cfg)
 		return NewUserRepository(db)
 	}
 	return NewUserRepository(u.session)
