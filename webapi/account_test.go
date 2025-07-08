@@ -78,14 +78,12 @@ func TestMain(m *testing.M) {
 }
 
 func (s *AccountTestSuite) TestAccountCreate() {
+
 	s.mockUow.EXPECT().AccountRepository().Return(s.accountRepo)
 	s.accountRepo.EXPECT().Create(mock.Anything).Return(nil)
 
 	s.mockUow.EXPECT().Begin().Return(nil)
 	s.mockUow.EXPECT().Commit().Return(nil)
-
-	s.authStrategy.EXPECT().GenerateToken(s.testUser).Return(s.testToken, nil)
-
 	req := httptest.NewRequest("POST", "/account", nil)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+s.testToken)
