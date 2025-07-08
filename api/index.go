@@ -6,11 +6,11 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/amirasaad/fintech/infra"
 	"github.com/amirasaad/fintech/pkg/config"
-	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/fatih/color"
 
-	"github.com/amirasaad/fintech/infra"
+	infra_repository "github.com/amirasaad/fintech/infra/repository"
 
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/amirasaad/fintech/pkg/service"
@@ -35,20 +35,20 @@ func handler() http.HandlerFunc {
 		_, _ = color.New(color.FgRed).Fprintln(os.Stderr, "Failed to load application configuration:", err)
 		panic("Failed to load application configuration")
 	}
+	currencyConverter, err := infra.NewExchangeRateSystem(logger, cfg.Exchange)
+	if err != nil {
+		logger.Error("Failed to initialize exchange rate system", "error", err)
+		log.Fatal(err)
+	}
 
 	appEnv := os.Getenv("APP_ENV")
+	uow := func() (repository.UnitOfWork, error) {
+		return infra_repository.NewGormUoW(cfg.DB, appEnv)
+	}
 	app := webapi.NewApp(
-		service.NewAccountService(func() (repository.UnitOfWork, error) {
-			return infra.NewGormUoW(cfg.DB, appEnv)
-		}, domain.NewStubCurrencyConverter()),
-		service.NewUserService(func() (repository.UnitOfWork, error) {
-			return infra.NewGormUoW(cfg.DB, appEnv)
-		}),
-		service.NewAuthService(func() (repository.UnitOfWork, error) {
-			return infra.NewGormUoW(cfg.DB, appEnv)
-		}, service.NewJWTAuthStrategy(func() (repository.UnitOfWork, error) {
-			return infra.NewGormUoW(cfg.DB, appEnv)
-		}, cfg.Jwt)),
+		service.NewAccountService(uow, currencyConverter),
+		service.NewUserService(uow),
+		service.NewAuthService(uow, service.NewJWTAuthStrategy(uow, cfg.Jwt)),
 		cfg,
 	)
 	return adaptor.FiberApp(app)

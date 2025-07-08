@@ -1,9 +1,10 @@
-package infra
+package repository
 
 import (
 	"fmt"
 	"log/slog"
 
+	"github.com/amirasaad/fintech/infra"
 	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"gorm.io/gorm"
@@ -17,7 +18,7 @@ type UoW struct {
 }
 
 func NewGormUoW(cfg config.DBConfig, appEnv string) (*UoW, error) {
-	db, _ := NewDBConnection(cfg, appEnv)
+	db, _ := infra.NewDBConnection(cfg, appEnv)
 	return &UoW{
 		session: db,
 		started: false,
@@ -79,14 +80,14 @@ func (u *UoW) Rollback() error {
 
 func (u *UoW) AccountRepository() repository.AccountRepository {
 	if !u.started {
-		db, _ := NewDBConnection(u.cfg, u.appEnv)
+		db, _ := infra.NewDBConnection(u.cfg, u.appEnv)
 		return NewAccountRepository(db)
 	}
 	return NewAccountRepository(u.session)
 }
 func (u *UoW) TransactionRepository() repository.TransactionRepository {
 	if !u.started {
-		db, _ := NewDBConnection(u.cfg, u.appEnv)
+		db, _ := infra.NewDBConnection(u.cfg, u.appEnv)
 		return NewTransactionRepository(db)
 	}
 	return NewTransactionRepository(u.session)
@@ -94,7 +95,7 @@ func (u *UoW) TransactionRepository() repository.TransactionRepository {
 
 func (u *UoW) UserRepository() repository.UserRepository {
 	if !u.started {
-		db, _ := NewDBConnection(u.cfg, u.appEnv)
+		db, _ := infra.NewDBConnection(u.cfg, u.appEnv)
 		return NewUserRepository(db)
 	}
 	return NewUserRepository(u.session)

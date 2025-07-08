@@ -1,4 +1,4 @@
-package infra
+package provider
 
 import (
 	"fmt"
@@ -6,26 +6,21 @@ import (
 	"math"
 	"time"
 
+	"github.com/amirasaad/fintech/pkg/cache"
 	"github.com/amirasaad/fintech/pkg/domain"
+	"github.com/amirasaad/fintech/pkg/provider"
 )
 
 // ExchangeRateService provides real-time exchange rates with caching and fallback providers.
 type ExchangeRateService struct {
-	providers []domain.ExchangeRateProvider
-	cache     ExchangeRateCache
+	providers []provider.ExchangeRateProvider
+	cache     cache.ExchangeRateCache
 	logger    *slog.Logger
 	// mu        sync.RWMutex
 }
 
-// ExchangeRateCache defines the interface for caching exchange rates.
-type ExchangeRateCache interface {
-	Get(key string) (*domain.ExchangeRate, error)
-	Set(key string, rate *domain.ExchangeRate, ttl time.Duration) error
-	Delete(key string) error
-}
-
 // NewExchangeRateService creates a new exchange rate service with the given providers and cache.
-func NewExchangeRateService(providers []domain.ExchangeRateProvider, cache ExchangeRateCache, logger *slog.Logger) *ExchangeRateService {
+func NewExchangeRateService(providers []provider.ExchangeRateProvider, cache cache.ExchangeRateCache, logger *slog.Logger) *ExchangeRateService {
 	return &ExchangeRateService{
 		providers: providers,
 		cache:     cache,

@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/amirasaad/fintech/infra"
+	infra_repository "github.com/amirasaad/fintech/infra/repository"
 	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/amirasaad/fintech/pkg/service"
@@ -52,7 +53,7 @@ func main() {
 
 	appEnv := os.Getenv("APP_ENV")
 	uowFactory := func() (repository.UnitOfWork, error) {
-		return infra.NewGormUoW(cfg.DB, appEnv)
+		return infra_repository.NewGormUoW(cfg.DB, appEnv)
 	}
 	// Create exchange rate system
 	currencyConverter, err := infra.NewExchangeRateSystem(logger, cfg.Exchange)

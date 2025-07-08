@@ -1,4 +1,4 @@
-package providers
+package provider
 
 import (
 	"encoding/json"
@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/amirasaad/fintech/pkg/domain"
+	"github.com/amirasaad/fintech/pkg/provider"
 )
 
 // ExchangeRateAPIProvider implements the ExchangeRateProvider interface for exchangerate-api.com
@@ -180,3 +181,6 @@ func (p *ExchangeRateAPIProvider) IsHealthy() bool {
 
 	return resp.StatusCode == http.StatusOK
 }
+
+// Ensure ExchangeRateAPIProvider implements provider.ExchangeRateProvider
+var _ provider.ExchangeRateProvider = (*ExchangeRateAPIProvider)(nil)

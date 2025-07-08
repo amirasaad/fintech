@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/amirasaad/fintech/infra"
+	infra_repository "github.com/amirasaad/fintech/infra/repository"
 	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/amirasaad/fintech/pkg/service"
@@ -43,7 +44,7 @@ func main() {
 
 	// Create UOW factory
 	uowFactory := func() (repository.UnitOfWork, error) {
-		return infra.NewGormUoW(cfg.DB, appEnv)
+		return infra_repository.NewGormUoW(cfg.DB, appEnv)
 	}
 
 	// Create exchange rate system

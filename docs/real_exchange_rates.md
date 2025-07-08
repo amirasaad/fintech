@@ -275,12 +275,12 @@ EXCHANGE_RATE_API_KEY=your_key go test ./pkg/infrastructure -v -tags=integration
 ```go
 // Use mock providers for testing
 mockProvider := &MockExchangeRateProvider{}
-mockProvider.On("GetRate", "USD", "EUR").Return(&domain.ExchangeRate{
+mockProvider.On("GetRate", "USD", "EUR").Return(&provider.ExchangeRate{
     Rate: 0.85,
     // ... other fields
 }, nil)
 
-service := NewExchangeRateService([]domain.ExchangeRateProvider{mockProvider}, cache, logger)
+service := NewExchangeRateService([]provider.ExchangeRateProvider{mockProvider}, cache, logger)
 ```
 
 ## Future Enhancements
@@ -295,14 +295,14 @@ service := NewExchangeRateService([]domain.ExchangeRateProvider{mockProvider}, c
 
 ### Provider Integration
 
-Easy to add new providers by implementing the `ExchangeRateProvider` interface:
+Easy to add new providers by implementing the `provider.ExchangeRateProvider` interface:
 
 ```go
 type MyProvider struct {
     // Provider-specific fields
 }
 
-func (p *MyProvider) GetRate(from, to string) (*domain.ExchangeRate, error) {
+func (p *MyProvider) GetRate(from, to string) (*provider.ExchangeRate, error) {
     // Implementation
 }
 

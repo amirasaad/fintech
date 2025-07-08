@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
+	infra_provider "github.com/amirasaad/fintech/infra/provider"
 	"github.com/amirasaad/fintech/pkg/config"
-	"github.com/amirasaad/fintech/pkg/domain"
 
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/amirasaad/fintech/pkg/service"
@@ -22,7 +22,7 @@ type RateLimitTestSuite struct {
 func (s *RateLimitTestSuite) SetupTest() {
 	// Provide dummy services for required arguments
 	dummyUow := func() (repository.UnitOfWork, error) { return nil, nil }
-	accountSvc := service.NewAccountService(dummyUow, domain.NewStubCurrencyConverter())
+	accountSvc := service.NewAccountService(dummyUow, infra_provider.NewStubCurrencyConverter())
 	userSvc := service.NewUserService(dummyUow)
 	authSvc := &service.AuthService{} // Use zero value or a mock if available
 

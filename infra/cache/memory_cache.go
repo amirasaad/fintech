@@ -13,11 +13,6 @@ type MemoryCache struct {
 	mu    sync.RWMutex
 }
 
-type cacheEntry struct {
-	rate      *domain.ExchangeRate
-	expiresAt time.Time
-}
-
 // NewMemoryCache creates a new in-memory cache
 func NewMemoryCache() *MemoryCache {
 	cache := &MemoryCache{
@@ -84,4 +79,9 @@ func (c *MemoryCache) cleanup() {
 		}
 		c.mu.Unlock()
 	}
+}
+
+type cacheEntry struct {
+	rate      *domain.ExchangeRate
+	expiresAt time.Time
 }
