@@ -13,7 +13,7 @@ import (
 
 func TestProtected_Unauthorized(t *testing.T) {
 	app := fiber.New()
-	app.Use(Protected(config.AuthConfig{JwtSecret: "secret"}))
+	app.Use(JwtProtected(config.JwtConfig{}))
 	app.Get("/", func(c *fiber.Ctx) error { return c.SendStatus(fiber.StatusOK) })
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)

@@ -13,14 +13,16 @@ type UoW struct {
 	session *gorm.DB
 	started bool
 	cfg     config.DBConfig
+	appEnv  string
 }
 
-func NewGormUoW(cfg config.DBConfig) (*UoW, error) {
-	db, _ := NewDBConnection(cfg)
+func NewGormUoW(cfg config.DBConfig, appEnv string) (*UoW, error) {
+	db, _ := NewDBConnection(cfg, appEnv)
 	return &UoW{
 		session: db,
 		started: false,
 		cfg:     cfg,
+		appEnv:  appEnv,
 	}, nil
 }
 func (u *UoW) Begin() error {
@@ -77,14 +79,14 @@ func (u *UoW) Rollback() error {
 
 func (u *UoW) AccountRepository() repository.AccountRepository {
 	if !u.started {
-		db, _ := NewDBConnection(u.cfg)
+		db, _ := NewDBConnection(u.cfg, u.appEnv)
 		return NewAccountRepository(db)
 	}
 	return NewAccountRepository(u.session)
 }
 func (u *UoW) TransactionRepository() repository.TransactionRepository {
 	if !u.started {
-		db, _ := NewDBConnection(u.cfg)
+		db, _ := NewDBConnection(u.cfg, u.appEnv)
 		return NewTransactionRepository(db)
 	}
 	return NewTransactionRepository(u.session)
@@ -92,7 +94,7 @@ func (u *UoW) TransactionRepository() repository.TransactionRepository {
 
 func (u *UoW) UserRepository() repository.UserRepository {
 	if !u.started {
-		db, _ := NewDBConnection(u.cfg)
+		db, _ := NewDBConnection(u.cfg, u.appEnv)
 		return NewUserRepository(db)
 	}
 	return NewUserRepository(u.session)

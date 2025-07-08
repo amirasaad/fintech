@@ -65,6 +65,7 @@ func (s *UserTestSuite) TestCreateUserInvalidBody() {
 
 func (s *UserTestSuite) TestGetUserNotFound() {
 	s.mockUow.EXPECT().UserRepository().Return(s.userRepo)
+	s.userRepo.EXPECT().Get(s.testUser.ID).Return(s.testUser, nil)
 
 	id := uuid.New()
 	s.userRepo.EXPECT().Get(id).Return(&domain.User{}, domain.ErrUserNotFound)
@@ -130,6 +131,7 @@ func (s *UserTestSuite) TestUpdateUserSuccess() {
 
 func (s *UserTestSuite) TestUpdateUserInvalidBody() {
 	s.mockUow.EXPECT().UserRepository().Return(s.userRepo)
+	s.userRepo.EXPECT().Get(s.testUser.ID).Return(s.testUser, nil)
 
 	body := bytes.NewBuffer([]byte(`{"names":123}`)) // Invalid body
 	req := httptest.NewRequest("PUT", fmt.Sprintf("/user/%s", s.testUser.ID), body)

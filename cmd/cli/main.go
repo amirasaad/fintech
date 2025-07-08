@@ -46,12 +46,13 @@ func main() {
 	if *verbose {
 		logger.Info("Configuration loaded successfully",
 			"database_url", cfg.DB.Url,
-			"jwt_expiry", cfg.Auth.JwtExpiry,
+			"jwt_expiry", cfg.Auth,
 			"exchange_rate_api_configured", cfg.Exchange.ApiKey != "")
 	}
 
+	appEnv := os.Getenv("APP_ENV")
 	uowFactory := func() (repository.UnitOfWork, error) {
-		return infra.NewGormUoW(cfg.DB)
+		return infra.NewGormUoW(cfg.DB, appEnv)
 	}
 	// Create exchange rate system
 	currencyConverter, err := infra.NewExchangeRateSystem(logger, cfg.Exchange)

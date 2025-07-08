@@ -18,7 +18,7 @@ func TestUnitOfWork(t *testing.T) {
 		DriverName: "postgres",
 	})
 	_, _ = gorm.Open(dialector, &gorm.Config{})
-	uow, err := NewGormUoW(config.DBConfig{Url: "postgres:"})
+	uow, err := NewGormUoW(config.DBConfig{Url: "postgres:"}, "test")
 
 	assert.NoError(t, err)
 

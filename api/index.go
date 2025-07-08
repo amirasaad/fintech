@@ -36,18 +36,19 @@ func handler() http.HandlerFunc {
 		panic("Failed to load application configuration")
 	}
 
+	appEnv := os.Getenv("APP_ENV")
 	app := webapi.NewApp(
 		service.NewAccountService(func() (repository.UnitOfWork, error) {
-			return infra.NewGormUoW(cfg.DB)
+			return infra.NewGormUoW(cfg.DB, appEnv)
 		}, domain.NewStubCurrencyConverter()),
 		service.NewUserService(func() (repository.UnitOfWork, error) {
-			return infra.NewGormUoW(cfg.DB)
+			return infra.NewGormUoW(cfg.DB, appEnv)
 		}),
 		service.NewAuthService(func() (repository.UnitOfWork, error) {
-			return infra.NewGormUoW(cfg.DB)
+			return infra.NewGormUoW(cfg.DB, appEnv)
 		}, service.NewJWTAuthStrategy(func() (repository.UnitOfWork, error) {
-			return infra.NewGormUoW(cfg.DB)
-		}, cfg.Auth)),
+			return infra.NewGormUoW(cfg.DB, appEnv)
+		}, cfg.Jwt)),
 		*cfg,
 	)
 	return adaptor.FiberApp(app)

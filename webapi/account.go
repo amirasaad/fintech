@@ -136,11 +136,11 @@ func ToConversionResponseDTO(tx *domain.Transaction, convInfo *domain.Conversion
 }
 
 func AccountRoutes(app *fiber.App, accountSvc *service.AccountService, authSvc *service.AuthService, cfg config.AppConfig) {
-	app.Post("/account", middleware.Protected(cfg.Auth), CreateAccount(accountSvc, authSvc))
-	app.Post("/account/:id/deposit", middleware.Protected(cfg.Auth), Deposit(accountSvc, authSvc))
-	app.Post("/account/:id/withdraw", middleware.Protected(cfg.Auth), Withdraw(accountSvc, authSvc))
-	app.Get("/account/:id/balance", middleware.Protected(cfg.Auth), GetBalance(accountSvc, authSvc))
-	app.Get("/account/:id/transactions", middleware.Protected(cfg.Auth), GetTransactions(accountSvc, authSvc))
+	app.Post("/account", middleware.JwtProtected(cfg.Jwt), CreateAccount(accountSvc, authSvc))
+	app.Post("/account/:id/deposit", middleware.JwtProtected(cfg.Jwt), Deposit(accountSvc, authSvc))
+	app.Post("/account/:id/withdraw", middleware.JwtProtected(cfg.Jwt), Withdraw(accountSvc, authSvc))
+	app.Get("/account/:id/balance", middleware.JwtProtected(cfg.Jwt), GetBalance(accountSvc, authSvc))
+	app.Get("/account/:id/transactions", middleware.JwtProtected(cfg.Jwt), GetTransactions(accountSvc, authSvc))
 }
 
 // CreateAccount returns a Fiber handler for creating a new account for the current user.

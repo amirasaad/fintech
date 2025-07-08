@@ -13,8 +13,11 @@ type DBConfig struct {
 }
 
 type AuthConfig struct {
-	JwtSecret string        `envconfig:"JWT_SECRET" required:"true"`
-	JwtExpiry time.Duration `envconfig:"JWT_EXPIRY" default:"24h"`
+	Strategy string `envconfig:"STRATEGY" default:"jwt"`
+}
+type JwtConfig struct {
+	Secret string        `envconfig:"SECRET" required:"true"`
+	Expiry time.Duration `envconfig:"EXPIRY" default:"24h"`
 }
 
 type ExchangeRateConfig struct {
@@ -32,6 +35,7 @@ type ExchangeRateConfig struct {
 type AppConfig struct {
 	DB       DBConfig           `envconfig:"DATABASE"`
 	Auth     AuthConfig         `envconfig:"AUTH"`
+	Jwt      JwtConfig          `envconfig:"JWT"`
 	Exchange ExchangeRateConfig `envconfig:"EXCHANGE_RATE"`
 }
 
@@ -45,7 +49,6 @@ func LoadAppConfig(logger *slog.Logger) (*AppConfig, error) {
 	if err := envconfig.Process("", &cfg); err != nil {
 		return nil, err
 	}
-	logger.Info("Loaded JWT secret", "jwt_secret", cfg.Auth.JwtSecret)
-	logger.Info("App config loaded", "db", cfg.DB.Url, "jwt_expiry", cfg.Auth.JwtExpiry, "exchange_cache_ttl", cfg.Exchange.CacheTTL)
+	logger.Info("App config loaded", "db", cfg.DB.Url, "jwt_expiry", cfg, "exchange_cache_ttl", cfg.Exchange.CacheTTL)
 	return &cfg, nil
 }

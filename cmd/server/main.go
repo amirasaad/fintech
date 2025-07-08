@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"log/slog"
+	"os"
 
 	"github.com/amirasaad/fintech/infra"
 	"github.com/amirasaad/fintech/pkg/config"
@@ -35,12 +36,14 @@ func main() {
 
 	logger.Info("Configuration loaded successfully",
 		"database_url_configured", cfg.DB.Url != "",
-		"jwt_expiry", cfg.Auth.JwtExpiry,
+		"jwt_expiry", cfg.Jwt.Expiry,
 		"exchange_rate_api_configured", cfg.Exchange.ApiKey != "")
+
+	appEnv := os.Getenv("APP_ENV")
 
 	// Create UOW factory
 	uowFactory := func() (repository.UnitOfWork, error) {
-		return infra.NewGormUoW(cfg.DB)
+		return infra.NewGormUoW(cfg.DB, appEnv)
 	}
 
 	// Create exchange rate system
@@ -53,7 +56,7 @@ func main() {
 	// Create services
 	accountSvc := service.NewAccountService(uowFactory, currencyConverter)
 	userSvc := service.NewUserService(uowFactory)
-	authSvc := service.NewAuthService(uowFactory, service.NewJWTAuthStrategy(uowFactory, cfg.Auth))
+	authSvc := service.NewAuthService(uowFactory, service.NewJWTAuthStrategy(uowFactory, cfg.Jwt))
 
 	logger.Info("Starting fintech server", "port", ":3000")
 	log.Fatal(webapi.NewApp(accountSvc, userSvc, authSvc, *cfg).Listen(":3000"))

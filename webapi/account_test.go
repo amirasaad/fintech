@@ -40,8 +40,8 @@ func (s *AccountTestSuite) BeforeTest(_, _s string) {
 	s.E2ETestSuite.BeforeTest("", _s)
 	s.app, s.userRepo, s.accountRepo, s.transRepo, s.mockUow, s.testUser, s.authService, s.mockConverter = SetupTestApp(s.T())
 	// Setup mock for login request
-	s.mockUow.EXPECT().UserRepository().Return(s.userRepo).Maybe()
-	s.userRepo.EXPECT().GetByUsername("testuser").Return(s.testUser, nil).Maybe()
+	s.mockUow.EXPECT().UserRepository().Return(s.userRepo)
+	s.userRepo.EXPECT().GetByUsername("testuser").Return(s.testUser, nil)
 	s.testToken = getTestToken(s.T(), s.app, s.testUser)
 }
 

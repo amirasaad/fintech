@@ -20,6 +20,7 @@ const userContextKey contextKey = "user"
 type AuthStrategy interface {
 	Login(identity, password string) (*domain.User, string, error)
 	GetCurrentUserID(ctx context.Context) (uuid.UUID, error)
+	GenerateToken(userID uuid.UUID) (string, error)
 }
 
 type AuthService struct {
@@ -64,17 +65,39 @@ func (s *AuthService) Login(
 	return
 }
 
+func (s *AuthService) GenerateToken(userID uuid.UUID) (string, error) {
+	return s.strategy.GenerateToken(userID)
+}
+
 // JWTAuthStrategy implements AuthStrategy for JWT-based authentication
 type JWTAuthStrategy struct {
 	uowFactory func() (repository.UnitOfWork, error)
-	cfg        config.AuthConfig
+	cfg        config.JwtConfig
 }
 
 func NewJWTAuthStrategy(
 	uowFactory func() (repository.UnitOfWork, error),
-	cfg config.AuthConfig,
+	cfg config.JwtConfig,
 ) *JWTAuthStrategy {
 	return &JWTAuthStrategy{uowFactory: uowFactory, cfg: cfg}
+}
+func (s *JWTAuthStrategy) GenerateToken(userID uuid.UUID) (string, error) {
+	uow, err := s.uowFactory()
+	if err != nil {
+		return "", err
+	}
+	user, err := uow.UserRepository().Get(userID)
+	if err != nil {
+		return "", err
+	}
+
+	token := jwt.New(jwt.SigningMethodHS256)
+	claims := token.Claims.(jwt.MapClaims)
+	claims["username"] = user.Username
+	claims["email"] = user.Email
+	claims["user_id"] = user.ID.String()
+	claims["exp"] = time.Now().Add(s.cfg.Expiry).Unix()
+	return token.SignedString([]byte(s.cfg.Secret))
 }
 
 func (s *JWTAuthStrategy) Login(
@@ -110,8 +133,8 @@ func (s *JWTAuthStrategy) Login(
 	claims["username"] = user.Username
 	claims["email"] = user.Email
 	claims["user_id"] = user.ID.String()
-	claims["exp"] = time.Now().Add(s.cfg.JwtExpiry).Unix()
-	tokenString, err = token.SignedString([]byte(s.cfg.JwtSecret))
+	claims["exp"] = time.Now().Add(s.cfg.Expiry).Unix()
+	tokenString, err = token.SignedString([]byte(s.cfg.Secret))
 	if err != nil {
 		return
 	}
@@ -173,6 +196,10 @@ func (s *BasicAuthStrategy) Login(
 
 func (s *BasicAuthStrategy) GetCurrentUserID(ctx context.Context) (uuid.UUID, error) {
 	return uuid.Nil, nil
+}
+
+func (s *BasicAuthStrategy) GenerateToken(userID uuid.UUID) (string, error) {
+	return "", nil // No token for basic auth
 }
 
 // Helper functions

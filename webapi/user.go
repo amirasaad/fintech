@@ -26,10 +26,10 @@ type PasswordInput struct {
 }
 
 func UserRoutes(app *fiber.App, userSvc *service.UserService, authSvc *service.AuthService, cfg config.AppConfig) {
-	app.Get("/user/:id", middleware.Protected(cfg.Auth), GetUser(userSvc))
+	app.Get("/user/:id", middleware.JwtProtected(cfg.Jwt), GetUser(userSvc))
 	app.Post("/user", CreateUser(userSvc))
-	app.Put("/user/:id", middleware.Protected(cfg.Auth), UpdateUser(userSvc, authSvc))
-	app.Delete("/user/:id", middleware.Protected(cfg.Auth), DeleteUser(userSvc, authSvc))
+	app.Put("/user/:id", middleware.JwtProtected(cfg.Jwt), UpdateUser(userSvc, authSvc))
+	app.Delete("/user/:id", middleware.JwtProtected(cfg.Jwt), DeleteUser(userSvc, authSvc))
 }
 
 // GetUser retrieves a user by ID.

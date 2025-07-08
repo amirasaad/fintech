@@ -39,6 +39,66 @@ func (_m *MockAuthStrategy) EXPECT() *MockAuthStrategy_Expecter {
 	return &MockAuthStrategy_Expecter{mock: &_m.Mock}
 }
 
+// GenerateToken provides a mock function for the type MockAuthStrategy
+func (_mock *MockAuthStrategy) GenerateToken(userID uuid.UUID) (string, error) {
+	ret := _mock.Called(userID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GenerateToken")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(uuid.UUID) (string, error)); ok {
+		return returnFunc(userID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(uuid.UUID) string); ok {
+		r0 = returnFunc(userID)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(uuid.UUID) error); ok {
+		r1 = returnFunc(userID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockAuthStrategy_GenerateToken_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GenerateToken'
+type MockAuthStrategy_GenerateToken_Call struct {
+	*mock.Call
+}
+
+// GenerateToken is a helper method to define mock.On call
+//   - userID uuid.UUID
+func (_e *MockAuthStrategy_Expecter) GenerateToken(userID interface{}) *MockAuthStrategy_GenerateToken_Call {
+	return &MockAuthStrategy_GenerateToken_Call{Call: _e.mock.On("GenerateToken", userID)}
+}
+
+func (_c *MockAuthStrategy_GenerateToken_Call) Run(run func(userID uuid.UUID)) *MockAuthStrategy_GenerateToken_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 uuid.UUID
+		if args[0] != nil {
+			arg0 = args[0].(uuid.UUID)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockAuthStrategy_GenerateToken_Call) Return(s string, err error) *MockAuthStrategy_GenerateToken_Call {
+	_c.Call.Return(s, err)
+	return _c
+}
+
+func (_c *MockAuthStrategy_GenerateToken_Call) RunAndReturn(run func(userID uuid.UUID) (string, error)) *MockAuthStrategy_GenerateToken_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetCurrentUserID provides a mock function for the type MockAuthStrategy
 func (_mock *MockAuthStrategy) GetCurrentUserID(ctx context.Context) (uuid.UUID, error) {
 	ret := _mock.Called(ctx)

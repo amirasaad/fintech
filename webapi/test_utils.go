@@ -8,10 +8,13 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/amirasaad/fintech/internal/fixtures"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/domain"
@@ -97,8 +100,9 @@ func NewTestApp(
 		return c.SendString("App is working! 🚀")
 	})
 
-	AccountRoutes(app, accountSvc, authSvc, config.AppConfig{})
-	UserRoutes(app, userSvc, authSvc, config.AppConfig{Auth: config.AuthConfig{JwtSecret: "secret"}})
+	cfg := config.AppConfig{Jwt: config.JwtConfig{Secret: "secret", Expiry: 24 * time.Hour}}
+	AccountRoutes(app, accountSvc, authSvc, cfg)
+	UserRoutes(app, userSvc, authSvc, cfg)
 	AuthRoutes(app, authSvc)
 
 	return app
@@ -117,8 +121,6 @@ func SetupTestApp(
 	mockConverter *fixtures.MockCurrencyConverter,
 ) {
 	t.Helper()
-	// Set JWT secret key before creating the app
-	t.Setenv("JWT_SECRET_KEY", "secret")
 
 	userRepo = fixtures.NewMockUserRepository(t)
 	accountRepo = fixtures.NewMockAccountRepository(t)
@@ -126,7 +128,18 @@ func SetupTestApp(
 
 	mockUow = fixtures.NewMockUnitOfWork(t)
 
-	authStrategy := service.NewJWTAuthStrategy(func() (repository.UnitOfWork, error) { return mockUow, nil }, config.AuthConfig{JwtSecret: "secret"})
+	hashed, _ := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.DefaultCost)
+	testUser = &domain.User{
+		ID:       uuid.New(),
+		Username: "testuser",
+		Email:    "testuser@example.com",
+		Password: string(hashed),
+	}
+	mockUow.EXPECT().UserRepository().Return(userRepo)
+	userRepo.EXPECT().GetByUsername(testUser.Username).Return(testUser, nil)
+	userRepo.EXPECT().Get(testUser.ID).Return(testUser, nil)
+
+	authStrategy := service.NewJWTAuthStrategy(func() (repository.UnitOfWork, error) { return mockUow, nil }, config.JwtConfig{Secret: "secret", Expiry: 24 * time.Hour})
 	authService = service.NewAuthService(func() (repository.UnitOfWork, error) { return mockUow, nil }, authStrategy)
 	mockConverter = fixtures.NewMockCurrencyConverter(t)
 	// Create services with the mock UOW factory
@@ -134,7 +147,6 @@ func SetupTestApp(
 	userSvc := service.NewUserService(func() (repository.UnitOfWork, error) { return mockUow, nil })
 
 	app = NewTestApp(accountSvc, userSvc, authService)
-	testUser, _ = domain.NewUser("testuser", "testuser@example.com", "password123")
 	log.SetOutput(io.Discard)
 
 	return
