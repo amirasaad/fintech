@@ -49,7 +49,7 @@ func handler() http.HandlerFunc {
 		}, service.NewJWTAuthStrategy(func() (repository.UnitOfWork, error) {
 			return infra.NewGormUoW(cfg.DB, appEnv)
 		}, cfg.Jwt)),
-		*cfg,
+		cfg,
 	)
 	return adaptor.FiberApp(app)
 }

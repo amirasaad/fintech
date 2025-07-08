@@ -40,8 +40,8 @@ func (_m *MockAuthStrategy) EXPECT() *MockAuthStrategy_Expecter {
 }
 
 // GenerateToken provides a mock function for the type MockAuthStrategy
-func (_mock *MockAuthStrategy) GenerateToken(userID uuid.UUID) (string, error) {
-	ret := _mock.Called(userID)
+func (_mock *MockAuthStrategy) GenerateToken(user *domain.User) (string, error) {
+	ret := _mock.Called(user)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GenerateToken")
@@ -49,16 +49,16 @@ func (_mock *MockAuthStrategy) GenerateToken(userID uuid.UUID) (string, error) {
 
 	var r0 string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(uuid.UUID) (string, error)); ok {
-		return returnFunc(userID)
+	if returnFunc, ok := ret.Get(0).(func(*domain.User) (string, error)); ok {
+		return returnFunc(user)
 	}
-	if returnFunc, ok := ret.Get(0).(func(uuid.UUID) string); ok {
-		r0 = returnFunc(userID)
+	if returnFunc, ok := ret.Get(0).(func(*domain.User) string); ok {
+		r0 = returnFunc(user)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
-	if returnFunc, ok := ret.Get(1).(func(uuid.UUID) error); ok {
-		r1 = returnFunc(userID)
+	if returnFunc, ok := ret.Get(1).(func(*domain.User) error); ok {
+		r1 = returnFunc(user)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -71,16 +71,16 @@ type MockAuthStrategy_GenerateToken_Call struct {
 }
 
 // GenerateToken is a helper method to define mock.On call
-//   - userID uuid.UUID
-func (_e *MockAuthStrategy_Expecter) GenerateToken(userID interface{}) *MockAuthStrategy_GenerateToken_Call {
-	return &MockAuthStrategy_GenerateToken_Call{Call: _e.mock.On("GenerateToken", userID)}
+//   - user *domain.User
+func (_e *MockAuthStrategy_Expecter) GenerateToken(user interface{}) *MockAuthStrategy_GenerateToken_Call {
+	return &MockAuthStrategy_GenerateToken_Call{Call: _e.mock.On("GenerateToken", user)}
 }
 
-func (_c *MockAuthStrategy_GenerateToken_Call) Run(run func(userID uuid.UUID)) *MockAuthStrategy_GenerateToken_Call {
+func (_c *MockAuthStrategy_GenerateToken_Call) Run(run func(user *domain.User)) *MockAuthStrategy_GenerateToken_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 uuid.UUID
+		var arg0 *domain.User
 		if args[0] != nil {
-			arg0 = args[0].(uuid.UUID)
+			arg0 = args[0].(*domain.User)
 		}
 		run(
 			arg0,
@@ -94,7 +94,7 @@ func (_c *MockAuthStrategy_GenerateToken_Call) Return(s string, err error) *Mock
 	return _c
 }
 
-func (_c *MockAuthStrategy_GenerateToken_Call) RunAndReturn(run func(userID uuid.UUID) (string, error)) *MockAuthStrategy_GenerateToken_Call {
+func (_c *MockAuthStrategy_GenerateToken_Call) RunAndReturn(run func(user *domain.User) (string, error)) *MockAuthStrategy_GenerateToken_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -162,7 +162,7 @@ func (_c *MockAuthStrategy_GetCurrentUserID_Call) RunAndReturn(run func(ctx cont
 }
 
 // Login provides a mock function for the type MockAuthStrategy
-func (_mock *MockAuthStrategy) Login(identity string, password string) (*domain.User, string, error) {
+func (_mock *MockAuthStrategy) Login(identity string, password string) (*domain.User, error) {
 	ret := _mock.Called(identity, password)
 
 	if len(ret) == 0 {
@@ -170,9 +170,8 @@ func (_mock *MockAuthStrategy) Login(identity string, password string) (*domain.
 	}
 
 	var r0 *domain.User
-	var r1 string
-	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(string, string) (*domain.User, string, error)); ok {
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(string, string) (*domain.User, error)); ok {
 		return returnFunc(identity, password)
 	}
 	if returnFunc, ok := ret.Get(0).(func(string, string) *domain.User); ok {
@@ -182,17 +181,12 @@ func (_mock *MockAuthStrategy) Login(identity string, password string) (*domain.
 			r0 = ret.Get(0).(*domain.User)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(string, string) string); ok {
+	if returnFunc, ok := ret.Get(1).(func(string, string) error); ok {
 		r1 = returnFunc(identity, password)
 	} else {
-		r1 = ret.Get(1).(string)
+		r1 = ret.Error(1)
 	}
-	if returnFunc, ok := ret.Get(2).(func(string, string) error); ok {
-		r2 = returnFunc(identity, password)
-	} else {
-		r2 = ret.Error(2)
-	}
-	return r0, r1, r2
+	return r0, r1
 }
 
 // MockAuthStrategy_Login_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Login'
@@ -225,12 +219,12 @@ func (_c *MockAuthStrategy_Login_Call) Run(run func(identity string, password st
 	return _c
 }
 
-func (_c *MockAuthStrategy_Login_Call) Return(user *domain.User, s string, err error) *MockAuthStrategy_Login_Call {
-	_c.Call.Return(user, s, err)
+func (_c *MockAuthStrategy_Login_Call) Return(user *domain.User, err error) *MockAuthStrategy_Login_Call {
+	_c.Call.Return(user, err)
 	return _c
 }
 
-func (_c *MockAuthStrategy_Login_Call) RunAndReturn(run func(identity string, password string) (*domain.User, string, error)) *MockAuthStrategy_Login_Call {
+func (_c *MockAuthStrategy_Login_Call) RunAndReturn(run func(identity string, password string) (*domain.User, error)) *MockAuthStrategy_Login_Call {
 	_c.Call.Return(run)
 	return _c
 }

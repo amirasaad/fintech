@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/amirasaad/fintech/internal/fixtures"
+	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/service"
 	"github.com/gofiber/fiber/v2"
@@ -26,14 +27,22 @@ type UserTestSuite struct {
 	testUser    *domain.User
 	testToken   string
 	authService *service.AuthService
+	cfg         *config.AppConfig
 }
 
 func (s *UserTestSuite) SetupTest() {
-	s.app, s.userRepo, _, _, s.mockUow, s.testUser, s.authService, _ = SetupTestApp(s.T())
+	s.app,
+		s.userRepo,
+		_,
+		_,
+		s.mockUow,
+		s.testUser,
+		s.authService,
+		_,
+		_,
+		s.cfg = SetupTestApp(s.T())
 	// Setup mock for login request
-	s.mockUow.EXPECT().UserRepository().Return(s.userRepo).Maybe()
-	s.userRepo.EXPECT().GetByUsername("testuser").Return(s.testUser, nil).Maybe()
-	s.testToken = getTestToken(s.T(), s.app, s.testUser)
+	s.testToken = generateTestToken(s.T(), s.authService, s.testUser, s.cfg)
 }
 
 func (s *UserTestSuite) TestCreateUser() {

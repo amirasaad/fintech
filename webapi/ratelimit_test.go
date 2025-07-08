@@ -26,7 +26,7 @@ func (s *RateLimitTestSuite) SetupTest() {
 	userSvc := service.NewUserService(dummyUow)
 	authSvc := &service.AuthService{} // Use zero value or a mock if available
 
-	s.app = NewApp(accountSvc, userSvc, authSvc, config.AppConfig{})
+	s.app = NewApp(accountSvc, userSvc, authSvc, &config.AppConfig{})
 }
 
 func (s *RateLimitTestSuite) TestRateLimit() {

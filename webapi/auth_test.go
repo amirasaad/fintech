@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/amirasaad/fintech/internal/fixtures"
+	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/gofiber/fiber/v2"
 	"github.com/stretchr/testify/mock"
@@ -16,19 +17,27 @@ import (
 
 type AuthTestSuite struct {
 	E2ETestSuite
-	app           *fiber.App
-	userRepo      *fixtures.MockUserRepository
-	mockUow       *fixtures.MockUnitOfWork
-	mockConverter *fixtures.MockCurrencyConverter
-	testUser      *domain.User
+	app      *fiber.App
+	userRepo *fixtures.MockUserRepository
+	mockUow  *fixtures.MockUnitOfWork
+	testUser *domain.User
+	cfg      *config.AppConfig
 }
 
 func (s *AuthTestSuite) SetupTest() {
-	s.app, s.userRepo, _, _, s.mockUow, s.testUser, _, s.mockConverter = SetupTestApp(s.T())
+	s.app,
+		s.userRepo,
+		_,
+		_,
+		s.mockUow,
+		s.testUser,
+		_,
+		_,
+		_,
+		s.cfg = SetupTestApp(s.T())
 }
 
 func (s *AuthTestSuite) TestLoginRoute_BadRequest() {
-
 	req := httptest.NewRequest("POST", "/login", bytes.NewBuffer([]byte(`{"identity":123}`))) // Invalid JSON
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := s.app.Test(req, 10000)
@@ -38,14 +47,18 @@ func (s *AuthTestSuite) TestLoginRoute_BadRequest() {
 }
 
 func (s *AuthTestSuite) TestLoginRoute_Unauthorized() {
-
-	s.mockUow.EXPECT().UserRepository().Return(s.userRepo).Once()
-	s.userRepo.EXPECT().GetByUsername(mock.Anything).Return(nil, nil).Once() // User not found
+	s.userRepo.EXPECT().GetByUsername(mock.Anything).Return(nil, nil).Once()
 	req := httptest.NewRequest("POST", "/login", bytes.NewBuffer([]byte(`{"identity":"nonexistent","password":"password"}`)))
 	req.Header.Set("Content-Type", "application/json")
+
 	resp, err := s.app.Test(req, 10000)
 	s.Require().NoError(err)
 	defer resp.Body.Close() //nolint: errcheck
+
+	buf := new(bytes.Buffer)
+	_, _ = buf.ReadFrom(resp.Body)
+	s.T().Logf("Response body: %s", buf.String())
+
 	s.Assert().Equal(fiber.StatusUnauthorized, resp.StatusCode)
 }
 

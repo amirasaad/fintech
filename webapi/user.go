@@ -25,7 +25,7 @@ type PasswordInput struct {
 	Password string `json:"password"`
 }
 
-func UserRoutes(app *fiber.App, userSvc *service.UserService, authSvc *service.AuthService, cfg config.AppConfig) {
+func UserRoutes(app *fiber.App, userSvc *service.UserService, authSvc *service.AuthService, cfg *config.AppConfig) {
 	app.Get("/user/:id", middleware.JwtProtected(cfg.Jwt), GetUser(userSvc))
 	app.Post("/user", CreateUser(userSvc))
 	app.Put("/user/:id", middleware.JwtProtected(cfg.Jwt), UpdateUser(userSvc, authSvc))

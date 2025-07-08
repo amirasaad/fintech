@@ -1,10 +1,8 @@
 package webapi
 
 import (
-	"bytes"
-	"encoding/json"
 	"io"
-	"net/http/httptest"
+	"log/slog"
 	"runtime"
 	"strings"
 	"testing"
@@ -82,6 +80,7 @@ func NewTestApp(
 	accountSvc *service.AccountService,
 	userSvc *service.UserService,
 	authSvc *service.AuthService,
+	cfg *config.AppConfig,
 ) *fiber.App {
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
@@ -100,7 +99,6 @@ func NewTestApp(
 		return c.SendString("App is working! 🚀")
 	})
 
-	cfg := config.AppConfig{Jwt: config.JwtConfig{Secret: "secret", Expiry: 24 * time.Hour}}
 	AccountRoutes(app, accountSvc, authSvc, cfg)
 	UserRoutes(app, userSvc, authSvc, cfg)
 	AuthRoutes(app, authSvc)
@@ -118,9 +116,17 @@ func SetupTestApp(
 	mockUow *fixtures.MockUnitOfWork,
 	testUser *domain.User,
 	authService *service.AuthService,
+	mockAuthStrategy *fixtures.MockAuthStrategy,
 	mockConverter *fixtures.MockCurrencyConverter,
+	cfg *config.AppConfig,
 ) {
 	t.Helper()
+
+	// Load test configuration
+	cfg, err := config.LoadAppConfig(slog.Default(), "../.env.test")
+	if err != nil {
+		t.Fatalf("Failed to load app config for tests: %v", err)
+	}
 
 	userRepo = fixtures.NewMockUserRepository(t)
 	accountRepo = fixtures.NewMockAccountRepository(t)
@@ -146,41 +152,8 @@ func SetupTestApp(
 	accountSvc := service.NewAccountService(func() (repository.UnitOfWork, error) { return mockUow, nil }, mockConverter)
 	userSvc := service.NewUserService(func() (repository.UnitOfWork, error) { return mockUow, nil })
 
-	app = NewTestApp(accountSvc, userSvc, authService)
+	app = NewTestApp(accountSvc, userSvc, authService, cfg)
 	log.SetOutput(io.Discard)
 
 	return
-}
-
-func getTestToken(
-	t *testing.T,
-	app *fiber.App,
-	testUser *domain.User,
-) string {
-	t.Helper()
-	loginBody := &LoginInput{Identity: testUser.Username, Password: "password123"}
-	body, _ := json.Marshal(loginBody)
-
-	req := httptest.NewRequest("POST", "/login", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := app.Test(req, 10000)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if resp.StatusCode != fiber.StatusOK {
-		// Read response body for debugging
-		respBody, _ := io.ReadAll(resp.Body)
-		t.Logf("Login failed with status %d, body: %s", resp.StatusCode, string(respBody))
-		t.Fatalf("expected status 200 but got %d", resp.StatusCode)
-	}
-	var response Response
-	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-		t.Fatal(err)
-	}
-	token, ok := response.Data.(map[string]interface{})["token"].(string)
-	if !ok {
-		t.Fatal("unable to extract token from response")
-	}
-	return token
 }

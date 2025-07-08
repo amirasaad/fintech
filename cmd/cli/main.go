@@ -92,7 +92,7 @@ func cliApp(scv *service.AccountService, authSvc *service.AuthService) {
 			bytePassword, _ := term.ReadPassword(int(os.Stdin.Fd()))
 			fmt.Println()
 			password := string(bytePassword)
-			user, _, err := authSvc.Login(identity, password)
+			user, err := authSvc.Login(identity, password)
 			if err != nil {
 				fmt.Println(errorMsg("Login error:"), err)
 				continue

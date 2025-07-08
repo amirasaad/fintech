@@ -16,7 +16,7 @@ type AuthConfig struct {
 	Strategy string `envconfig:"STRATEGY" default:"jwt"`
 }
 type JwtConfig struct {
-	Secret string        `envconfig:"SECRET" required:"true"`
+	Secret string        `envconfig:"SECRET_KEY" required:"true"`
 	Expiry time.Duration `envconfig:"EXPIRY" default:"24h"`
 }
 
@@ -39,9 +39,16 @@ type AppConfig struct {
 	Exchange ExchangeRateConfig `envconfig:"EXCHANGE_RATE"`
 }
 
-func LoadAppConfig(logger *slog.Logger) (*AppConfig, error) {
-	if err := godotenv.Load(); err != nil {
-		logger.Warn("No .env file found, using system environment variables")
+func LoadAppConfig(logger *slog.Logger, envFilePath ...string) (*AppConfig, error) {
+	var err error
+	if len(envFilePath) > 0 && envFilePath[0] != "" {
+		err = godotenv.Load(envFilePath[0])
+	} else {
+		err = godotenv.Load()
+	}
+
+	if err != nil {
+		logger.Warn("No .env file found or specified, using system environment variables")
 	} else {
 		logger.Info("Environment variables loaded from .env file")
 	}

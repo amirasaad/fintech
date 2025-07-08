@@ -33,12 +33,16 @@ func Login(authSvc *service.AuthService) fiber.Handler {
 		if err := c.BodyParser(input); err != nil {
 			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Error on login request", err.Error())
 		}
-		user, token, err := authSvc.Login(input.Identity, input.Password)
+		user, err := authSvc.Login(input.Identity, input.Password)
 		if err != nil {
 			return ErrorResponseJSON(c, fiber.StatusInternalServerError, "Internal Server Error", err.Error())
 		}
-		if user == nil || token == "" {
+		if user == nil {
 			return ErrorResponseJSON(c, fiber.StatusUnauthorized, "Invalid identity or password", nil)
+		}
+		token, err := authSvc.GenerateToken(user)
+		if err != nil {
+			return ErrorResponseJSON(c, fiber.StatusInternalServerError, "Internal Server Error", err.Error())
 		}
 		return c.JSON(Response{Status: fiber.StatusOK, Message: "Success login", Data: fiber.Map{"token": token}})
 	}

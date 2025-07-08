@@ -18,9 +18,9 @@ type contextKey string
 const userContextKey contextKey = "user"
 
 type AuthStrategy interface {
-	Login(identity, password string) (*domain.User, string, error)
+	Login(identity, password string) (*domain.User, error)
 	GetCurrentUserID(ctx context.Context) (uuid.UUID, error)
-	GenerateToken(userID uuid.UUID) (string, error)
+	GenerateToken(user *domain.User) (string, error)
 }
 
 type AuthService struct {
@@ -60,13 +60,16 @@ func (s *AuthService) GetCurrentUserId(
 
 func (s *AuthService) Login(
 	identity, password string,
-) (user *domain.User, token string, err error) {
-	user, token, err = s.strategy.Login(identity, password)
+) (user *domain.User, err error) {
+	user, err = s.strategy.Login(identity, password)
+	if err != nil {
+		return
+	}
 	return
 }
 
-func (s *AuthService) GenerateToken(userID uuid.UUID) (string, error) {
-	return s.strategy.GenerateToken(userID)
+func (s *AuthService) GenerateToken(user *domain.User) (string, error) {
+	return s.strategy.GenerateToken(user)
 }
 
 // JWTAuthStrategy implements AuthStrategy for JWT-based authentication
@@ -81,16 +84,7 @@ func NewJWTAuthStrategy(
 ) *JWTAuthStrategy {
 	return &JWTAuthStrategy{uowFactory: uowFactory, cfg: cfg}
 }
-func (s *JWTAuthStrategy) GenerateToken(userID uuid.UUID) (string, error) {
-	uow, err := s.uowFactory()
-	if err != nil {
-		return "", err
-	}
-	user, err := uow.UserRepository().Get(userID)
-	if err != nil {
-		return "", err
-	}
-
+func (s *JWTAuthStrategy) GenerateToken(user *domain.User) (string, error) {
 	token := jwt.New(jwt.SigningMethodHS256)
 	claims := token.Claims.(jwt.MapClaims)
 	claims["username"] = user.Username
@@ -104,7 +98,6 @@ func (s *JWTAuthStrategy) Login(
 	identity, password string,
 ) (
 	user *domain.User,
-	tokenString string,
 	err error,
 ) {
 	uow, err := s.uowFactory()
@@ -125,17 +118,6 @@ func (s *JWTAuthStrategy) Login(
 		return
 	}
 	if !checkPasswordHash(password, user.Password) {
-		return
-	}
-
-	token := jwt.New(jwt.SigningMethodHS256)
-	claims := token.Claims.(jwt.MapClaims)
-	claims["username"] = user.Username
-	claims["email"] = user.Email
-	claims["user_id"] = user.ID.String()
-	claims["exp"] = time.Now().Add(s.cfg.Expiry).Unix()
-	tokenString, err = token.SignedString([]byte(s.cfg.Secret))
-	if err != nil {
 		return
 	}
 	return
@@ -168,7 +150,6 @@ func (s *BasicAuthStrategy) Login(
 	identity, password string,
 ) (
 	user *domain.User,
-	tokenString string,
 	err error,
 ) {
 	uow, err := s.uowFactory()
@@ -198,7 +179,7 @@ func (s *BasicAuthStrategy) GetCurrentUserID(ctx context.Context) (uuid.UUID, er
 	return uuid.Nil, nil
 }
 
-func (s *BasicAuthStrategy) GenerateToken(userID uuid.UUID) (string, error) {
+func (s *BasicAuthStrategy) GenerateToken(user *domain.User) (string, error) {
 	return "", nil // No token for basic auth
 }
 

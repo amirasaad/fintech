@@ -28,12 +28,12 @@ func BenchmarkLogin_Success(b *testing.B) {
 	uow := fixtures.NewMockUnitOfWork(b)
 	uow.EXPECT().UserRepository().Return(repo).Maybe()
 	authStrategy := fixtures.NewMockAuthStrategy(b)
-	authStrategy.EXPECT().Login("user@example.com", "password").Return(user, "testtoken", nil).Maybe()
+	authStrategy.EXPECT().Login("user@example.com", "password").Return(user, nil).Maybe()
 	s := NewAuthService(func() (repository.UnitOfWork, error) { return uow, nil }, authStrategy)
 
 	b.ResetTimer()
 	for b.Loop() {
-		_, _, _ = s.Login("user@example.com", "password")
+		_, _ = s.Login("user@example.com", "password")
 	}
 }
 
@@ -52,13 +52,13 @@ func BenchmarkLogin_InvalidPassword(b *testing.B) {
 	uow := fixtures.NewMockUnitOfWork(b)
 	uow.EXPECT().UserRepository().Return(repo).Maybe()
 	authStrategy := fixtures.NewMockAuthStrategy(b)
-	authStrategy.EXPECT().Login("user@example.com", "wrong").Return(nil, "", errors.New("invalid password")).Maybe()
+	authStrategy.EXPECT().Login("user@example.com", "wrong").Return(nil, errors.New("invalid password")).Maybe()
 
 	s := NewAuthService(func() (repository.UnitOfWork, error) { return uow, nil }, authStrategy)
 
 	b.ResetTimer()
 	for b.Loop() {
-		_, _, _ = s.Login("user@example.com", "wrong")
+		_, _ = s.Login("user@example.com", "wrong")
 	}
 }
 
@@ -68,11 +68,11 @@ func BenchmarkLogin_UserNotFound(b *testing.B) {
 	uow := fixtures.NewMockUnitOfWork(b)
 	uow.EXPECT().UserRepository().Return(repo).Maybe()
 	authStrategy := fixtures.NewMockAuthStrategy(b)
-	authStrategy.EXPECT().Login("notfound@example.com", "password").Return(nil, "", nil).Maybe()
+	authStrategy.EXPECT().Login("notfound@example.com", "password").Return(nil, nil).Maybe()
 
 	s := NewAuthService(func() (repository.UnitOfWork, error) { return uow, nil }, authStrategy)
 	b.ResetTimer()
 	for b.Loop() {
-		_, _, _ = s.Login("notfound@example.com", "password")
+		_, _ = s.Login("notfound@example.com", "password")
 	}
 }

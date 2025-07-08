@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/amirasaad/fintech/internal/fixtures"
+	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/service"
 	"github.com/gofiber/fiber/v2"
@@ -33,16 +34,38 @@ type AccountTestSuite struct {
 	testUser      *domain.User
 	testToken     string
 	authService   *service.AuthService
+	authStrategy  *fixtures.MockAuthStrategy
 	mockConverter *fixtures.MockCurrencyConverter
+	cfg           *config.AppConfig
+}
+
+// Helper to generate a real JWT for the test user
+func generateTestToken(t *testing.T,
+	authService *service.AuthService,
+	user *domain.User,
+	cfg *config.AppConfig,
+) string {
+	t.Helper()
+	token, err := service.NewJWTAuthStrategy(nil, cfg.Jwt).GenerateToken(user)
+	if err != nil {
+		t.Fatalf("Failed to generate test JWT: %v", err)
+	}
+	return token
 }
 
 func (s *AccountTestSuite) BeforeTest(_, _s string) {
 	s.E2ETestSuite.BeforeTest("", _s)
-	s.app, s.userRepo, s.accountRepo, s.transRepo, s.mockUow, s.testUser, s.authService, s.mockConverter = SetupTestApp(s.T())
-	// Setup mock for login request
-	s.mockUow.EXPECT().UserRepository().Return(s.userRepo)
-	s.userRepo.EXPECT().GetByUsername("testuser").Return(s.testUser, nil)
-	s.testToken = getTestToken(s.T(), s.app, s.testUser)
+	s.app,
+		s.userRepo,
+		s.accountRepo,
+		s.transRepo,
+		s.mockUow,
+		s.testUser,
+		s.authService,
+		s.authStrategy,
+		s.mockConverter,
+		s.cfg = SetupTestApp(s.T())
+	s.testToken = generateTestToken(s.T(), s.authService, s.testUser, s.cfg)
 }
 
 // TestMain runs before any tests and applies globally for all tests in the package.
@@ -60,6 +83,8 @@ func (s *AccountTestSuite) TestAccountCreate() {
 
 	s.mockUow.EXPECT().Begin().Return(nil)
 	s.mockUow.EXPECT().Commit().Return(nil)
+
+	s.authStrategy.EXPECT().GenerateToken(s.testUser).Return(s.testToken, nil)
 
 	req := httptest.NewRequest("POST", "/account", nil)
 	req.Header.Set("Content-Type", "application/json")

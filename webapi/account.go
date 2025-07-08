@@ -135,7 +135,7 @@ func ToConversionResponseDTO(tx *domain.Transaction, convInfo *domain.Conversion
 	return nil
 }
 
-func AccountRoutes(app *fiber.App, accountSvc *service.AccountService, authSvc *service.AuthService, cfg config.AppConfig) {
+func AccountRoutes(app *fiber.App, accountSvc *service.AccountService, authSvc *service.AuthService, cfg *config.AppConfig) {
 	app.Post("/account", middleware.JwtProtected(cfg.Jwt), CreateAccount(accountSvc, authSvc))
 	app.Post("/account/:id/deposit", middleware.JwtProtected(cfg.Jwt), Deposit(accountSvc, authSvc))
 	app.Post("/account/:id/withdraw", middleware.JwtProtected(cfg.Jwt), Withdraw(accountSvc, authSvc))

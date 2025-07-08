@@ -18,7 +18,7 @@ func NewApp(
 	accountSvc *service.AccountService,
 	userSvc *service.UserService,
 	authSvc *service.AuthService,
-	cfg config.AppConfig,
+	cfg *config.AppConfig,
 ) *fiber.App {
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
