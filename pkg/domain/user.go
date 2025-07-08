@@ -32,9 +32,13 @@ func hashPassword(password string) (string, error) {
 }
 
 // NewUser creates a new User with a hashed password and current timestamps.
-func NewUser(
-	username, email, password string,
-) (*User, error) {
+func NewUser(username, email, password string) (*User, error) {
+	if username == "" {
+		return nil, errors.New("username cannot be empty")
+	}
+	if email == "" {
+		return nil, errors.New("email cannot be empty")
+	}
 	hashedPassword, err := hashPassword(password)
 	if err != nil {
 		return nil, err
