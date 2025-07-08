@@ -8,8 +8,14 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-var ErrUserNotFound = errors.New("user not found")
+var (
+	// ErrUserNotFound is returned when a user cannot be found in the repository.
+	ErrUserNotFound     = errors.New("user not found")
+	// ErrUserUnauthorized is return when user  
+	ErrUserUnauthorized = errors.New("user unauthorized")
+)
 
+// User represents a user in the system.
 type User struct {
 	ID        uuid.UUID `json:"id"`
 	Username  string    `json:"username"`
@@ -24,6 +30,8 @@ func hashPassword(password string) (string, error) {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
 	return string(bytes), err
 }
+
+// NewUser creates a new User with a hashed password and current timestamps.
 func NewUser(
 	username, email, password string,
 ) (*User, error) {
@@ -41,6 +49,7 @@ func NewUser(
 	}, nil
 }
 
+// NewUserFromData creates a User from raw data (used for DB hydration).
 func NewUserFromData(
 	id uuid.UUID,
 	username, email, password string,

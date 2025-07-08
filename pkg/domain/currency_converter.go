@@ -6,10 +6,17 @@ import (
 )
 
 var (
+	// ErrExchangeRateUnavailable indicates the exchange rate service is unreachable or down.
 	ErrExchangeRateUnavailable = errors.New("exchange rate service unavailable")
+
+	// ErrUnsupportedCurrencyPair indicates the currency pair is not supported.
 	ErrUnsupportedCurrencyPair = errors.New("unsupported currency pair")
-	ErrExchangeRateExpired     = errors.New("exchange rate has expired")
-	ErrExchangeRateInvalid     = errors.New("invalid exchange rate received")
+
+	// ErrExchangeRateExpired indicates the exchange rate data is stale or expired.
+	ErrExchangeRateExpired = errors.New("exchange rate has expired")
+
+	// ErrExchangeRateInvalid indicates the received exchange rate is invalid.
+	ErrExchangeRateInvalid = errors.New("invalid exchange rate received")
 )
 
 // CurrencyConverter defines the interface for converting amounts between currencies.

@@ -12,13 +12,23 @@ import (
 )
 
 var (
-	ErrDepositAmountExceedsMaxSafeInt  = errors.New("deposit amount exceeds maximum safe integer value")
-	ErrTransactionAmountMustBePositive = errors.New("transaction amount must be positive")
-	ErrWithdrawalAmountMustBePositive  = errors.New("withdrawal amount must be positive")
-	ErrInsufficientFunds               = errors.New("insufficient funds for withdrawal")
-	ErrAccountNotFound                 = errors.New("account not found")
-	ErrUserUnauthorized                = errors.New("user unauthorized")
-	ErrInvalidCurrencyCode             = errors.New("invalid currency code")
+	// ErrDepositAmountExceedsMaxSafeInt is returned when a deposit would overflow the account balance.
+	ErrDepositAmountExceedsMaxSafeInt = errors.New("deposit amount exceeds maximum safe integer value") // Deposit would overflow balance
+
+	// ErrTransactionAmountMustBePositive is returned when a transaction amount is not positive.
+	ErrTransactionAmountMustBePositive = errors.New("transaction amount must be positive") // Amount must be > 0
+
+	// ErrWithdrawalAmountMustBePositive is returned when a withdrawal amount is not positive.
+	ErrWithdrawalAmountMustBePositive = errors.New("withdrawal amount must be positive") // Withdrawal must be > 0
+
+	// ErrInsufficientFunds is returned when an account has insufficient funds for a withdrawal.
+	ErrInsufficientFunds = errors.New("insufficient funds for withdrawal") // Not enough balance
+
+	// ErrAccountNotFound is returned when an account cannot be found.
+	ErrAccountNotFound = errors.New("account not found") // Account does not exist
+
+	// ErrInvalidCurrencyCode is returned when a currency code is invalid.
+	ErrInvalidCurrencyCode = errors.New("invalid currency code") // Currency code not recognized
 )
 
 // CurrencyMeta holds metadata for a currency, such as decimals and symbol.
@@ -28,7 +38,9 @@ type CurrencyMeta struct {
 }
 
 const (
+	// DefaultCurrency is the fallback currency code (USD)
 	DefaultCurrency = "USD"
+	// DefaultDecimals is the default number of decimal places for currencies
 	DefaultDecimals = 2
 )
 
