@@ -11,6 +11,9 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 
+	"os"
+	"path/filepath"
+
 	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/repository"
@@ -71,6 +74,27 @@ func (suite *E2ETestSuite) T() *testing.T {
 	return suite.Suite.T()
 }
 
+func findNearestEnvTest() (current string, err error) {
+	startDir, err := os.Getwd()
+	if err != nil {
+		return
+	}
+	curr := startDir
+	for {
+		candidate := filepath.Join(curr, ".env.test")
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate, nil
+		}
+		parent := filepath.Dir(curr)
+		if parent == curr {
+			break
+		}
+		curr = parent
+	}
+	err = os.ErrNotExist
+	return
+}
+
 func SetupTestApp(
 	t *testing.T,
 ) (
@@ -86,10 +110,12 @@ func SetupTestApp(
 	cfg *config.AppConfig,
 ) {
 	t.Helper()
-	// find .env.test at app base dir
-
-	// Load test configuration
-	cfg, err := config.LoadAppConfig(slog.Default(), "../.env.test")
+	// Search for nearest .env.test upwards from current directory
+	cfgPath, err := findNearestEnvTest()
+	if err != nil {
+		t.Fatalf("Failed to find .env.test for tests: %v", err)
+	}
+	cfg, err = config.LoadAppConfig(slog.Default(), cfgPath)
 	if err != nil {
 		t.Fatalf("Failed to load app config for tests: %v", err)
 	}
