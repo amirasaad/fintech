@@ -27,17 +27,17 @@ import (
 )
 
 type CreateAccountRequest struct {
-	Currency string `json:"currency"`
+	Currency string `json:"currency" validate:"omitempty,len=3,uppercase"`
 }
 
 type DepositRequest struct {
-	Amount   float64 `json:"amount" xml:"amount" form:"amount"`
-	Currency string  `json:"currency"`
+	Amount   float64 `json:"amount" xml:"amount" form:"amount" validate:"required,gt=0"`
+	Currency string  `json:"currency" validate:"omitempty,len=3,uppercase"`
 }
 
 type WithdrawRequest struct {
-	Amount   float64 `json:"amount" xml:"amount" form:"amount"`
-	Currency string  `json:"currency"`
+	Amount   float64 `json:"amount" xml:"amount" form:"amount" validate:"required,gt=0"`
+	Currency string  `json:"currency" validate:"omitempty,len=3,uppercase"`
 }
 
 // ConversionResponse wraps a transaction and conversion details if a currency conversion occurred.
@@ -175,11 +175,10 @@ func CreateAccount(
 			status := ErrorToStatusCode(err)
 			return ErrorResponseJSON(c, status, "invalid user ID", err.Error())
 		}
-		var req CreateAccountRequest
-		_ = c.BodyParser(&req)
-		currency := req.Currency
-		if currency == "" {
-			currency = "USD"
+		input, _ := BindAndValidate[CreateAccountRequest](c) // ignore error, currency is optional
+		currency := "USD"
+		if input != nil && input.Currency != "" {
+			currency = input.Currency
 		}
 		a, err := accountSvc.CreateAccountWithCurrency(userID, currency)
 		if err != nil {
@@ -232,22 +231,17 @@ func Deposit(
 			log.Errorf("Invalid account ID for deposit: %v", err)
 			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid account ID", err.Error())
 		}
-		var request DepositRequest
-
-		err = c.BodyParser(&request)
+		input, err := BindAndValidate[DepositRequest](c)
 		if err != nil {
 			log.Errorf("Failed to parse deposit request: %v", err)
-			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Failed to parse deposit request", err.Error())
+			return nil // Error already written by helper
 		}
-
-		// Call service and get conversion info
-		tx, convInfo, err := accountSvc.Deposit(userID, id, request.Amount, request.Currency)
+		tx, convInfo, err := accountSvc.Deposit(userID, id, input.Amount, input.Currency)
 		if err != nil {
 			log.Errorf("Failed to deposit: %v", err)
 			status := ErrorToStatusCode(err)
 			return ErrorResponseJSON(c, status, "Failed to deposit", err.Error())
 		}
-
 		if convInfo != nil {
 			resp := ToConversionResponseDTO(tx, convInfo)
 			return c.JSON(Response{Status: fiber.StatusOK, Message: "Deposit successful (converted)", Data: resp})
@@ -302,24 +296,20 @@ func Withdraw(
 			log.Errorf("Invalid account ID for withdrawal: %v", err)
 			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid account ID", err.Error())
 		}
-		var request WithdrawRequest
-		err = c.BodyParser(&request)
+		input, err := BindAndValidate[WithdrawRequest](c)
 		if err != nil {
 			log.Errorf("Failed to parse withdrawal request: %v", err)
-			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Failed to parse withdrawal request", err.Error())
+			return nil // Error already written by helper
 		}
-		if request.Currency == "" {
-			request.Currency = "USD"
+		if input.Currency == "" {
+			input.Currency = "USD"
 		}
-
-		// Call service and get conversion info
-		tx, convInfo, err := accountSvc.Withdraw(userID, id, request.Amount, request.Currency)
+		tx, convInfo, err := accountSvc.Withdraw(userID, id, input.Amount, input.Currency)
 		if err != nil {
 			log.Errorf("Failed to withdraw: %v", err)
 			status := ErrorToStatusCode(err)
 			return ErrorResponseJSON(c, status, "Failed to withdraw", err.Error())
 		}
-
 		if convInfo != nil {
 			resp := ToConversionResponseDTO(tx, convInfo)
 			return c.JSON(Response{Status: fiber.StatusOK, Message: "Withdrawal successful (converted)", Data: resp})

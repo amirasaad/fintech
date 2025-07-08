@@ -82,6 +82,16 @@ func BindAndValidate[T any](c *fiber.Ctx) (*T, error) {
 	}
 	validate := validator.New()
 	if err := validate.Struct(input); err != nil {
+		if ve, ok := err.(validator.ValidationErrors); ok {
+			details := make(map[string]string)
+			for _, fe := range ve {
+				field := fe.Field()
+				msg := fe.Tag()
+				details[field] = msg
+			}
+			ErrorResponseJSON(c, fiber.StatusBadRequest, "Validation failed", details)
+			return nil, err
+		}
 		ErrorResponseJSON(c, fiber.StatusBadRequest, "Validation failed", err.Error())
 		return nil, err
 	}

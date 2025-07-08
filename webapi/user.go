@@ -11,17 +11,17 @@ import (
 )
 
 type NewUser struct {
-	Username string `json:"username" validate:"required,max=50"`
+	Username string `json:"username" validate:"required,max=50,min=3"`
 	Email    string `json:"email" validate:"required,email,max=50"`
-	Password string `json:"password" validate:"required,min=6"`
+	Password string `json:"password" validate:"required,min=6,max=72"`
 }
 
 type UpdateUserInput struct {
-	Names string `json:"names"`
+	Names string `json:"names" validate:"max=100"`
 }
 
 type PasswordInput struct {
-	Password string `json:"password"`
+	Password string `json:"password" validate:"required"`
 }
 
 func UserRoutes(app *fiber.App, userSvc *service.UserService, authSvc *service.AuthService, cfg *config.AppConfig) {
@@ -39,8 +39,8 @@ func UserRoutes(app *fiber.App, userSvc *service.UserService, authSvc *service.A
 // @Produce json
 // @Param id path string true "User ID"
 // @Success 200 {object} Response
-// @Failure 400 {object} Response
-// @Failure 404 {object} Response
+// @Failure 400 {object} ProblemDetails
+// @Failure 404 {object} ProblemDetails
 // @Router /user/{id} [get]
 // @Security Bearer
 func GetUser(userSvc *service.UserService) fiber.Handler {

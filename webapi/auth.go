@@ -6,8 +6,8 @@ import (
 )
 
 type LoginInput struct {
-	Identity string `json:"identity"`
-	Password string `json:"password"`
+	Identity string `json:"identity" validate:"required"`
+	Password string `json:"password" validate:"required"`
 }
 
 func AuthRoutes(app *fiber.App, authSvc *service.AuthService) {
