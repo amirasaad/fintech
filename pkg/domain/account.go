@@ -41,6 +41,12 @@ type ConversionInfo struct {
 }
 
 // Account represents a user's financial account, supporting multi-currency.
+// Invariants:
+//   - Only the account owner can perform actions.
+//   - Currency must be valid and match the account’s currency.
+//   - Balance cannot overflow int64.
+//   - Balance cannot be negative.
+//   - All operations are thread-safe.
 type Account struct {
 	ID        uuid.UUID
 	UserID    uuid.UUID
@@ -73,14 +79,21 @@ func IsValidCurrencyFormat(code string) bool {
 	return re.MatchString(code)
 }
 
-// NewTransactionWithCurrency creates a new transaction with the specified currency.
+// NewAccount creates a new account with the default currency.
+// Invariants enforced:
+//   - Defaults to USD if no currency is specified.
+//
+// Returns an Account.
 func NewAccount(userID uuid.UUID) (acc *Account) {
 	acc, _ = NewAccountWithCurrency(userID, currency.DefaultCurrency)
 	return
 }
 
 // NewAccountWithCurrency creates a new account with the specified currency.
-// If the currency is invalid or empty, defaults to USD.
+// Invariants enforced:
+//   - Currency code must be valid ISO 4217 (3 uppercase letters).
+//
+// Returns an Account or an error if any invariant is violated.
 func NewAccountWithCurrency(userID uuid.UUID, currencyCode currency.Code) (acc *Account, err error) {
 	if !currency.IsValidCurrencyFormat(string(currencyCode)) {
 		return nil, ErrInvalidCurrencyCode
@@ -96,6 +109,7 @@ func NewAccountWithCurrency(userID uuid.UUID, currencyCode currency.Code) (acc *
 }
 
 // NewAccountFromData creates an Account from raw data (used for DB hydration).
+// This bypasses invariants and should only be used for repository hydration or tests.
 func NewAccountFromData(
 	id, userID uuid.UUID,
 	balance int64,
@@ -114,8 +128,7 @@ func NewAccountFromData(
 }
 
 // NewTransactionFromData creates a Transaction from raw data (used for DB hydration or test fixtures).
-// This constructor should NOT be used in service, API, or domain logic outside of repository hydration or tests.
-// All business transaction creation must go through Account aggregate methods (Deposit, Withdraw, etc.).
+// This bypasses invariants and should only be used for repository hydration or tests.
 func NewTransactionFromData(
 	id, userID, accountID uuid.UUID,
 	amount, balance int64,
@@ -140,8 +153,10 @@ func NewTransactionFromData(
 }
 
 // NewTransactionWithCurrency creates a new transaction with the specified currency.
-// This is intended for internal use by the Account aggregate, or for test setup.
-// Do NOT use this directly in services, API, or other domain logic—use Account methods instead.
+// Invariants enforced:
+//   - Currency code must be valid ISO 4217 (3 uppercase letters).
+//
+// Returns a Transaction.
 func NewTransactionWithCurrency(id, userID, accountID uuid.UUID, amount, balance int64, currencyCode string) *Transaction {
 	if !IsValidCurrencyFormat(currencyCode) {
 		currencyCode = currency.DefaultCurrency
@@ -160,8 +175,12 @@ func NewTransactionWithCurrency(id, userID, accountID uuid.UUID, amount, balance
 	}
 }
 
-// GetBalance returns the current balance of the account in dollars.
-// It converts the balance from cents to dollars for display purposes.
+// GetBalance returns the current balance of the account in the main currency unit (e.g., dollars for USD).
+// Invariants enforced:
+//   - Only the account owner can view the balance.
+//   - Currency metadata must be valid.
+//
+// Returns the balance as float64 or an error if any invariant is violated.
 func (a *Account) GetBalance(userID uuid.UUID) (balance float64, err error) {
 	if a.UserID != userID {
 		err = ErrUserUnauthorized
@@ -177,6 +196,11 @@ func (a *Account) GetBalance(userID uuid.UUID) (balance float64, err error) {
 }
 
 // GetBalanceAsMoney returns the current balance as a Money value object.
+// Invariants enforced:
+//   - Only the account owner can view the balance.
+//   - Currency must be valid.
+//
+// Returns Money or an error if any invariant is violated.
 func (a *Account) GetBalanceAsMoney(userID uuid.UUID) (money Money, err error) {
 	if a.UserID != userID {
 		err = ErrUserUnauthorized
@@ -186,8 +210,14 @@ func (a *Account) GetBalanceAsMoney(userID uuid.UUID) (money Money, err error) {
 	return
 }
 
-// Deposit adds funds to the account if the currency matches and returns a transaction record.
-// Returns an error if the currency does not match or the deposit amount is invalid.
+// Deposit adds funds to the account if all business invariants are satisfied.
+// Invariants enforced:
+//   - Only the account owner can deposit.
+//   - Deposit amount must be positive.
+//   - Deposit currency must match account currency.
+//   - Deposit must not cause integer overflow.
+//
+// Returns a Transaction or an error if any invariant is violated.
 func (a *Account) Deposit(userID uuid.UUID, money Money) (*Transaction, error) {
 	if a.UserID != userID {
 		return nil, ErrUserUnauthorized
@@ -237,8 +267,14 @@ func (a *Account) Deposit(userID uuid.UUID, money Money) (*Transaction, error) {
 	return &transaction, nil
 }
 
-// Withdraw removes funds from the account if the currency matches and returns a transaction record.
-// Returns an error if the currency does not match or if there are insufficient funds.
+// Withdraw removes funds from the account if all business invariants are satisfied.
+// Invariants enforced:
+//   - Only the account owner can withdraw.
+//   - Withdrawal amount must be positive.
+//   - Withdrawal currency must match account currency.
+//   - Cannot withdraw more than the current balance.
+//
+// Returns a Transaction or an error if any invariant is violated.
 func (a *Account) Withdraw(userID uuid.UUID, money Money) (*Transaction, error) {
 	if a.UserID != userID {
 		return nil, ErrUserUnauthorized

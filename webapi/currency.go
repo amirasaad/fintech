@@ -262,7 +262,7 @@ func GetDefaultCurrency(currencySvc *service.CurrencyService) fiber.Handler {
 
 // RegisterCurrencyRequest represents the request body for registering a currency
 type RegisterCurrencyRequest struct {
-	Code     string            `json:"code" validate:"required"`
+	Code     string            `json:"code" validate:"required,len=3,uppercase"`
 	Name     string            `json:"name" validate:"required"`
 	Symbol   string            `json:"symbol" validate:"required"`
 	Decimals int               `json:"decimals" validate:"required,min=0,max=8"`

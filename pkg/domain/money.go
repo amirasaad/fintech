@@ -14,13 +14,22 @@ import (
 type Amount int64
 
 // Money represents a monetary value in a specific currency.
+// Invariants:
+//   - Amount is always stored in the smallest currency unit (e.g., cents for USD).
+//   - Currency code must be valid ISO 4217 (3 uppercase letters).
+//   - All arithmetic operations require matching currencies.
 type Money struct {
 	amount   Amount
 	currency currency.Code
 }
 
 // NewMoney creates a new Money value object with the given amount and currency code.
-// The amount is converted to the smallest currency unit (e.g., cents for USD).
+// Invariants enforced:
+//   - Currency code must be valid ISO 4217 (3 uppercase letters).
+//   - Amount must not have more decimal places than allowed by the currency.
+//   - Amount is converted to the smallest currency unit.
+//
+// Returns Money or an error if any invariant is violated.
 func NewMoney(
 	amount float64,
 	currencyCode currency.Code,
@@ -46,7 +55,10 @@ func NewMoney(
 }
 
 // NewMoneyFromSmallestUnit creates a new Money object from the smallest currency unit.
-// This is useful for internal operations where precision is already handled.
+// Invariants enforced:
+//   - Currency code must be valid ISO 4217 (3 uppercase letters).
+//
+// Returns Money or an error if any invariant is violated.
 func NewMoneyFromSmallestUnit(
 	amount int64,
 	currencyCode currency.Code,
@@ -72,6 +84,8 @@ func (m Money) Amount() Amount {
 }
 
 // AmountFloat returns the amount as a float64 in the main currency unit (e.g., dollars for USD).
+// Invariants enforced:
+//   - Currency metadata must be valid.
 func (m Money) AmountFloat() float64 {
 	meta, err := currency.Get(string(m.currency))
 	if err != nil {
@@ -89,7 +103,10 @@ func (m Money) Currency() currency.Code {
 }
 
 // Add adds another Money object to the current Money object.
-// Returns an error if the currencies do not match.
+// Invariants enforced:
+//   - Currencies must match.
+//
+// Returns Money or an error if currencies do not match.
 func (m Money) Add(other Money) (Money, error) {
 	if !m.IsSameCurrency(other) {
 		return Money{}, ErrInvalidCurrencyCode
@@ -101,7 +118,10 @@ func (m Money) Add(other Money) (Money, error) {
 }
 
 // Subtract subtracts another Money object from the current Money object.
-// Returns an error if the currencies do not match.
+// Invariants enforced:
+//   - Currencies must match.
+//
+// Returns Money or an error if currencies do not match.
 func (m Money) Subtract(other Money) (Money, error) {
 	if !m.IsSameCurrency(other) {
 		return Money{}, ErrInvalidCurrencyCode
@@ -121,13 +141,19 @@ func (m Money) Negate() Money {
 }
 
 // Equals checks if the current Money object is equal to another Money object.
+// Invariants enforced:
+//   - Currencies must match.
+//
 // Returns false if currencies do not match.
 func (m Money) Equals(other Money) bool {
 	return m.IsSameCurrency(other) && m.amount == other.amount
 }
 
 // GreaterThan checks if the current Money object is greater than another Money object.
-// Returns an error if the currencies do not match.
+// Invariants enforced:
+//   - Currencies must match.
+//
+// Returns an error if currencies do not match.
 func (m Money) GreaterThan(other Money) (bool, error) {
 	if !m.IsSameCurrency(other) {
 		return false, ErrInvalidCurrencyCode
@@ -136,7 +162,10 @@ func (m Money) GreaterThan(other Money) (bool, error) {
 }
 
 // LessThan checks if the current Money object is less than another Money object.
-// Returns an error if the currencies do not match.
+// Invariants enforced:
+//   - Currencies must match.
+//
+// Returns an error if currencies do not match.
 func (m Money) LessThan(other Money) (bool, error) {
 	if !m.IsSameCurrency(other) {
 		return false, ErrInvalidCurrencyCode
@@ -173,7 +202,10 @@ func (m Money) Abs() Money {
 }
 
 // Multiply multiplies the Money amount by a scalar factor.
-// Returns an error if the result would overflow.
+// Invariants enforced:
+//   - Result must not overflow int64.
+//
+// Returns Money or an error if overflow would occur.
 func (m Money) Multiply(factor float64) (Money, error) {
 	// Convert to float for multiplication
 	resultFloat := float64(m.amount) * factor
@@ -190,7 +222,12 @@ func (m Money) Multiply(factor float64) (Money, error) {
 }
 
 // Divide divides the Money amount by a scalar divisor.
-// Returns an error if the divisor is zero or if precision would be lost.
+// Invariants enforced:
+//   - Divisor must not be zero.
+//   - Result must not overflow int64.
+//   - Division must not lose precision.
+//
+// Returns Money or an error if any invariant is violated.
 func (m Money) Divide(divisor float64) (Money, error) {
 	if divisor == 0 {
 		return Money{}, fmt.Errorf("division by zero")

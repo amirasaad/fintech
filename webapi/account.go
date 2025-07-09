@@ -179,9 +179,6 @@ func CreateAccount(
 		input, _ := BindAndValidate[CreateAccountRequest](c) // ignore error, currency is optional
 		currencyCode := currency.Code("USD")
 		if input != nil && input.Currency != "" {
-			if !currency.IsValidCurrencyFormat(input.Currency) {
-				return ProblemDetailsJSON(c, fiber.StatusBadRequest, "invalid currency", "Currency must be a valid ISO 4217 code")
-			}
 			currencyCode = currency.Code(input.Currency)
 		}
 		a, err := accountSvc.CreateAccountWithCurrency(userID, currencyCode)
@@ -241,9 +238,6 @@ func Deposit(
 		}
 		currencyCode := currency.Code("USD")
 		if input.Currency != "" {
-			if !currency.IsValidCurrencyFormat(input.Currency) {
-				return ProblemDetailsJSON(c, fiber.StatusBadRequest, "invalid currency", "Currency must be a valid ISO 4217 code")
-			}
 			currencyCode = currency.Code(input.Currency)
 		}
 		tx, convInfo, err := accountSvc.Deposit(userID, accountID, input.Amount, currencyCode)
@@ -312,9 +306,6 @@ func Withdraw(
 		}
 		currencyCode := currency.Code("USD")
 		if input.Currency != "" {
-			if !currency.IsValidCurrencyFormat(input.Currency) {
-				return ProblemDetailsJSON(c, fiber.StatusBadRequest, "invalid currency", "Currency must be a valid ISO 4217 code")
-			}
 			currencyCode = currency.Code(input.Currency)
 		}
 		tx, convInfo, err := accountSvc.Withdraw(userID, accountID, input.Amount, currencyCode)
