@@ -64,7 +64,7 @@ func main() {
 	}
 
 	// Create services
-	accountSvc := service.NewAccountService(uowFactory, currencyConverter)
+	accountSvc := service.NewAccountService(uowFactory, currencyConverter, logger)
 	userSvc := service.NewUserService(uowFactory)
 	authSvc := service.NewAuthService(uowFactory, service.NewJWTAuthStrategy(uowFactory, cfg.Jwt))
 	currencySvc := service.NewCurrencyService(currencyRegistry)

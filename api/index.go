@@ -56,7 +56,7 @@ func handler() http.HandlerFunc {
 	}
 
 	app := webapi.NewApp(
-		service.NewAccountService(uowFactory, currencyConverter),
+		service.NewAccountService(uowFactory, currencyConverter, slog.Default()),
 		service.NewUserService(uowFactory),
 		service.NewAuthService(uowFactory,
 			service.NewJWTAuthStrategy(

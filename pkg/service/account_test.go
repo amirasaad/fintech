@@ -4,6 +4,8 @@ import (
 	"errors"
 	"testing"
 
+	"log/slog"
+
 	"github.com/amirasaad/fintech/internal/fixtures"
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain"
@@ -22,7 +24,7 @@ func newServiceWithMocks(t interface {
 	accountRepo = fixtures.NewMockAccountRepository(t)
 	transactionRepo = fixtures.NewMockTransactionRepository(t)
 	uow = fixtures.NewMockUnitOfWork(t)
-	svc := NewAccountService(func() (repository.UnitOfWork, error) { return uow, nil }, nil)
+	svc := NewAccountService(func() (repository.UnitOfWork, error) { return uow, nil }, nil, slog.Default())
 	return svc, accountRepo, transactionRepo, uow
 }
 
@@ -54,7 +56,7 @@ func TestCreateAccount_RepoError(t *testing.T) {
 }
 
 func TestCreateAccount_UoWFactoryError(t *testing.T) {
-	svc := NewAccountService(func() (repository.UnitOfWork, error) { return nil, errors.New("uow error") }, nil)
+	svc := NewAccountService(func() (repository.UnitOfWork, error) { return nil, errors.New("uow error") }, nil, slog.Default())
 	account, err := svc.CreateAccount(uuid.New())
 	assert.Error(t, err)
 	assert.Nil(t, account)
@@ -131,7 +133,7 @@ func TestDeposit_NegativeAmount(t *testing.T) {
 
 func TestDeposit_UoWFactoryError(t *testing.T) {
 	t.Parallel()
-	svc := NewAccountService(func() (repository.UnitOfWork, error) { return nil, errors.New("uow error") }, nil)
+	svc := NewAccountService(func() (repository.UnitOfWork, error) { return nil, errors.New("uow error") }, nil, slog.Default())
 	tx, _, err := svc.Deposit(uuid.New(), uuid.New(), 100.0, currency.Code("USD"))
 	assert.Error(t, err)
 	assert.Nil(t, tx)
@@ -264,7 +266,7 @@ func TestWithdraw_InsufficientFunds(t *testing.T) {
 
 func TestWithdraw_UoWFactoryError(t *testing.T) {
 	t.Parallel()
-	svc := NewAccountService(func() (repository.UnitOfWork, error) { return nil, errors.New("uow error") }, nil)
+	svc := NewAccountService(func() (repository.UnitOfWork, error) { return nil, errors.New("uow error") }, nil, slog.Default())
 	tx, _, err := svc.Withdraw(uuid.New(), uuid.New(), 100.0, currency.Code("USD"))
 	assert.Error(t, err)
 	assert.Nil(t, tx)
@@ -316,7 +318,7 @@ func TestGetAccount_NotFound(t *testing.T) {
 
 func TestGetAccount_UoWFactoryError(t *testing.T) {
 	t.Parallel()
-	svc := NewAccountService(func() (repository.UnitOfWork, error) { return nil, errors.New("uow error") }, nil)
+	svc := NewAccountService(func() (repository.UnitOfWork, error) { return nil, errors.New("uow error") }, nil, slog.Default())
 	_, err := svc.GetAccount(uuid.New(), uuid.New())
 	assert.Error(t, err)
 }
@@ -368,7 +370,7 @@ func TestGetTransactions_Error(t *testing.T) {
 
 func TestGetTransactions_UoWFactoryError(t *testing.T) {
 	t.Parallel()
-	svc := NewAccountService(func() (repository.UnitOfWork, error) { return nil, errors.New("uow error") }, nil)
+	svc := NewAccountService(func() (repository.UnitOfWork, error) { return nil, errors.New("uow error") }, nil, slog.Default())
 	_, err := svc.GetTransactions(uuid.New(), uuid.New())
 	assert.Error(t, err)
 }
@@ -404,7 +406,7 @@ func TestGetBalance_NotFound(t *testing.T) {
 
 func TestGetBalance_UoWFactoryError(t *testing.T) {
 	t.Parallel()
-	svc := NewAccountService(func() (repository.UnitOfWork, error) { return nil, errors.New("uow error") }, nil)
+	svc := NewAccountService(func() (repository.UnitOfWork, error) { return nil, errors.New("uow error") }, nil, slog.Default())
 	_, err := svc.GetBalance(uuid.New(), uuid.New())
 	assert.Error(t, err)
 }

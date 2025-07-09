@@ -17,13 +17,15 @@ import (
 type AccountService struct {
 	uowFactory func() (repository.UnitOfWork, error)
 	converter  domain.CurrencyConverter
+	logger     *slog.Logger
 }
 
-// NewAccountService creates a new AccountService with the given UnitOfWork factory and CurrencyConverter.
-func NewAccountService(uowFactory func() (repository.UnitOfWork, error), converter domain.CurrencyConverter) *AccountService {
+// NewAccountService creates a new AccountService with the given UnitOfWork factory, CurrencyConverter, and logger.
+func NewAccountService(uowFactory func() (repository.UnitOfWork, error), converter domain.CurrencyConverter, logger *slog.Logger) *AccountService {
 	return &AccountService{
 		uowFactory: uowFactory,
 		converter:  converter,
+		logger:     logger,
 	}
 }
 
@@ -114,7 +116,7 @@ func (s *AccountService) Deposit(
 	amount float64,
 	currencyCode currency.Code,
 ) (tx *domain.Transaction, convInfo *domain.ConversionInfo, err error) {
-	logger := slog.Default()
+	logger := s.logger
 	logger.Info("Deposit started", "userID", userID, "accountID", accountID, "amount", amount, "currency", currencyCode)
 	money, err := domain.NewMoney(amount, currencyCode)
 	if err != nil {
@@ -230,7 +232,7 @@ func (s *AccountService) Withdraw(
 	convInfo *domain.ConversionInfo,
 	err error,
 ) {
-	logger := slog.Default()
+	logger := s.logger
 	logger.Info("Withdraw started", "userID", userID, "accountID", accountID, "amount", amount, "currency", currencyCode)
 	money, err := domain.NewMoney(amount, currencyCode)
 	if err != nil {

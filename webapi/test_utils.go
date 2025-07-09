@@ -88,7 +88,7 @@ func SetupTestApp(
 	authService = service.NewAuthService(uow, authStrategy)
 	mockConverter = fixtures.NewMockCurrencyConverter(t)
 	// Create services with the mock UOW factory
-	accountSvc := service.NewAccountService(uow, mockConverter)
+	accountSvc := service.NewAccountService(uow, mockConverter, slog.Default())
 	userSvc := service.NewUserService(uow)
 
 	// Initialize currency service with testing registry
