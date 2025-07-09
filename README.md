@@ -384,6 +384,46 @@ The Fintech App exposes a comprehensive RESTful API for all its functionalities.
 - `GET /account/:id/balance`: Fetches the current balance of the specified account. **(Protected)** 💲
 - `GET /account/:id/transactions`: Retrieves a list of all transactions associated with the specified account. **(Protected)** 📜
 
+### Error Handling 🚨
+
+The API follows RESTful conventions for error responses and uses consistent error handling patterns:
+
+#### HTTP Status Codes
+
+- **200 OK**: Request successful
+- **201 Created**: Resource created successfully
+- **204 No Content**: Request successful, no content to return
+- **400 Bad Request**: Invalid request data or validation errors
+- **401 Unauthorized**: Authentication required or invalid credentials
+- **403 Forbidden**: Authenticated but not authorized for the resource
+- **404 Not Found**: Resource not found
+- **422 Unprocessable Entity**: Business rule violations (e.g., insufficient funds)
+- **429 Too Many Requests**: Rate limit exceeded
+- **500 Internal Server Error**: Unexpected server error
+
+#### Error Response Format
+
+All error responses follow the RFC 9457 Problem Details format:
+
+```json
+{
+  "type": "about:blank",
+  "title": "Error Title",
+  "status": 404,
+  "detail": "Detailed error message",
+  "instance": "/user/123"
+}
+```
+
+#### Common Error Scenarios
+
+- **User Not Found**: Returns 404 when attempting to update/delete a non-existent user
+- **Account Not Found**: Returns 404 when accessing non-existent accounts
+- **Insufficient Funds**: Returns 422 when withdrawal amount exceeds balance
+- **Invalid Currency**: Returns 422 for unsupported currency codes
+- **Unauthorized Access**: Returns 403 when users try to access other users' resources
+- **Validation Errors**: Returns 400 with detailed field-specific error messages
+
 ## Multi-Currency & Money Value Object
 
 - All monetary operations (deposit, withdraw) are now currency-aware and validated using the `Money` value object in the domain layer.

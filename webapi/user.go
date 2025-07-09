@@ -136,7 +136,8 @@ func UpdateUser(
 			return nil
 		})
 		if err != nil {
-			return ProblemDetailsJSON(c, fiber.StatusInternalServerError, "Failed to update user", err.Error())
+			status := ErrorToStatusCode(err)
+			return ProblemDetailsJSON(c, status, "Failed to update user", err.Error())
 		}
 		// Get the updated user to return in response
 		updatedUser, err := userSvc.GetUser(id.String())

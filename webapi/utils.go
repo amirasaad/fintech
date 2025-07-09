@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/amirasaad/fintech/pkg/domain"
+	"github.com/amirasaad/fintech/pkg/domain/user"
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 )
@@ -54,6 +55,8 @@ func ProblemDetailsJSON(
 func ErrorToStatusCode(err error) int {
 	switch {
 	case errors.Is(err, domain.ErrAccountNotFound):
+		return fiber.StatusNotFound
+	case errors.Is(err, user.ErrUserNotFound):
 		return fiber.StatusNotFound
 	case errors.Is(err, domain.ErrInvalidCurrencyCode):
 		return fiber.StatusUnprocessableEntity

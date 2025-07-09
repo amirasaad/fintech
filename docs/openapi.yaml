@@ -7,6 +7,293 @@ info:
 
     **Rate Limiting:** All endpoints are subject to rate limiting. By default, a user can make a certain number of requests within a given time window. If the limit is exceeded, a `429 Too Many Requests` status code will be returned.
 paths:
+  /user:
+    post:
+      summary: Create a new user
+      description: Create a new user account with username, email, and password
+      tags:
+        - users
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                  description: Username (3-50 characters)
+                  example: "john_doe"
+                email:
+                  type: string
+                  format: email
+                  description: Email address
+                  example: "john@example.com"
+                password:
+                  type: string
+                  description: Password (6-72 characters)
+                  example: "securepassword123"
+              required:
+                - username
+                - email
+                - password
+      responses:
+        201:
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Response"
+        400:
+          description: Bad request (validation errors)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        429:
+          description: Too Many Requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        500:
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+
+  /user/{id}:
+    get:
+      summary: Get user by ID
+      description: Get a user by their unique identifier
+      tags:
+        - users
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: User ID
+      security:
+        - Bearer: []
+      responses:
+        200:
+          description: User found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Response"
+        400:
+          description: Bad request (invalid user ID)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        401:
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        404:
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+    
+    put:
+      summary: Update user
+      description: Update user information by ID
+      tags:
+        - users
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: User ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                names:
+                  type: string
+                  description: User's display name
+                  example: "John Doe"
+                  maxLength: 100
+      security:
+        - Bearer: []
+      responses:
+        200:
+          description: User updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Response"
+        400:
+          description: Bad request (validation errors)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        401:
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        403:
+          description: Forbidden (user can only update their own profile)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        404:
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        429:
+          description: Too Many Requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        500:
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+    
+    delete:
+      summary: Delete user
+      description: Delete a user account by ID with password confirmation
+      tags:
+        - users
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: User ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                password:
+                  type: string
+                  description: Password confirmation
+                  example: "securepassword123"
+              required:
+                - password
+      security:
+        - Bearer: []
+      responses:
+        204:
+          description: User deleted successfully
+        400:
+          description: Bad request (validation errors)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        401:
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        403:
+          description: Forbidden (user can only delete their own account)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        429:
+          description: Too Many Requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        500:
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+
+  /login:
+    post:
+      summary: User login
+      description: Authenticate user with identity (username or email) and password
+      tags:
+        - auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                identity:
+                  type: string
+                  description: Username or email
+                  example: "john_doe"
+                password:
+                  type: string
+                  description: Password
+                  example: "securepassword123"
+              required:
+                - identity
+                - password
+      responses:
+        200:
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Response"
+        400:
+          description: Bad request (validation errors)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        401:
+          description: Unauthorized (invalid credentials)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        429:
+          description: Too Many Requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        500:
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+
   /account:
     post:
       summary: Create a new account
@@ -463,28 +750,6 @@ components:
           description: Response data
           nullable: true
 
-    Error:
-      type: object
-      properties:
-        type:
-          type: string
-          description: A URI reference that identifies the problem type
-        title:
-          type: string
-          description: short, human-readable summary
-        status:
-          type: integer
-          description: HTTP status code
-        detail:
-          type: string
-          description: Human-readable explanation
-        instance:
-          type: string
-          description: URI reference that identifies the specific occurrence
-        errors:
-          required: false
-          type: object
-          description: additional error details
     TransactionDTO:
       type: object
       properties:
@@ -517,3 +782,25 @@ components:
           type: string
         conversion_rate:
           type: number
+    ProblemDetails:
+      type: object
+      properties:
+        type:
+          type: string
+          description: A URI reference that identifies the problem type
+        title:
+          type: string
+          description: short, human-readable summary
+        status:
+          type: integer
+          description: HTTP status code
+        detail:
+          type: string
+          description: Human-readable explanation
+        instance:
+          type: string
+          description: URI reference that identifies the specific occurrence
+        errors:
+          required: false
+          type: object
+          description: additional error details
