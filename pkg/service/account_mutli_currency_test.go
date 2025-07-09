@@ -1,6 +1,7 @@
 package service_test
 
 import (
+	"log/slog"
 	"testing"
 
 	"github.com/amirasaad/fintech/internal/fixtures"
@@ -18,7 +19,7 @@ func TestDeposit_AcceptsMatchingCurrency(t *testing.T) {
 	uow.EXPECT().Begin().Return(nil)
 	uow.EXPECT().Commit().Return(nil)
 	repo := fixtures.NewMockAccountRepository(t)
-	accountSvc := service.NewAccountService(func() (repository.UnitOfWork, error) { return uow, nil }, nil)
+	accountSvc := service.NewAccountService(func() (repository.UnitOfWork, error) { return uow, nil }, nil, slog.Default())
 	transactionRepo := fixtures.NewMockTransactionRepository(t)
 	uow.EXPECT().TransactionRepository().Return(transactionRepo, nil)
 	transactionRepo.EXPECT().Create(mock.Anything).Return(nil)
@@ -42,7 +43,7 @@ func TestWithdraw_AcceptsMatchingCurrency(t *testing.T) {
 	uow.EXPECT().Begin().Return(nil)
 	uow.EXPECT().Commit().Return(nil)
 	repo := fixtures.NewMockAccountRepository(t)
-	accountSvc := service.NewAccountService(func() (repository.UnitOfWork, error) { return uow, nil }, nil)
+	accountSvc := service.NewAccountService(func() (repository.UnitOfWork, error) { return uow, nil }, nil, slog.Default())
 	transactionRepo := fixtures.NewMockTransactionRepository(t)
 	uow.EXPECT().TransactionRepository().Return(transactionRepo, nil)
 	transactionRepo.EXPECT().Create(mock.Anything).Return(nil)
@@ -82,7 +83,7 @@ func TestDeposit_ConvertsCurrency(t *testing.T) {
 		ConversionRate:    1.2,
 	}, nil)
 
-	accountSvc := service.NewAccountService(func() (repository.UnitOfWork, error) { return uow, nil }, mockConverter)
+	accountSvc := service.NewAccountService(func() (repository.UnitOfWork, error) { return uow, nil }, mockConverter, slog.Default())
 
 	// Create an account in USD
 	account, _ := domain.NewAccountWithCurrency(uuid.New(), "USD")
@@ -116,7 +117,7 @@ func TestWithdraw_ConvertsCurrency(t *testing.T) {
 		ConversionRate:    1.2,
 	}, nil)
 
-	accountSvc := service.NewAccountService(func() (repository.UnitOfWork, error) { return uow, nil }, mockConverter)
+	accountSvc := service.NewAccountService(func() (repository.UnitOfWork, error) { return uow, nil }, mockConverter, slog.Default())
 
 	// Create an account in USD and deposit some funds
 	account, _ := domain.NewAccountWithCurrency(uuid.New(), "USD")
