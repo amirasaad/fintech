@@ -18,6 +18,7 @@ func NewApp(
 	accountSvc *service.AccountService,
 	userSvc *service.UserService,
 	authSvc *service.AuthService,
+	currencySvc *service.CurrencyService,
 	cfg *config.AppConfig,
 ) *fiber.App {
 	app := fiber.New(fiber.Config{
@@ -55,6 +56,7 @@ func NewApp(
 	AccountRoutes(app, accountSvc, authSvc, cfg)
 	UserRoutes(app, userSvc, authSvc, cfg)
 	AuthRoutes(app, authSvc)
+	CurrencyRoutes(app, currencySvc, authSvc, cfg)
 
 	return app
 }

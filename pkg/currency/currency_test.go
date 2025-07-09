@@ -409,7 +409,7 @@ func TestCurrencyRegistry(t *testing.T) {
 
 		// Register a new currency
 		newCurrency := CurrencyMeta{
-			Code:     "TEST",
+			Code:     "TST",
 			Name:     "Test Currency",
 			Symbol:   "T",
 			Decimals: 2,
@@ -420,17 +420,17 @@ func TestCurrencyRegistry(t *testing.T) {
 		require.NoError(t, err)
 
 		// Initially should not be supported (inactive)
-		assert.False(t, registry.IsSupported("TEST"))
+		assert.False(t, registry.IsSupported("TST"))
 
 		// Activate
-		err = registry.Activate("TEST")
+		err = registry.Activate("TST")
 		require.NoError(t, err)
-		assert.True(t, registry.IsSupported("TEST"))
+		assert.True(t, registry.IsSupported("TST"))
 
 		// Deactivate
-		err = registry.Deactivate("TEST")
+		err = registry.Deactivate("TST")
 		require.NoError(t, err)
-		assert.False(t, registry.IsSupported("TEST"))
+		assert.False(t, registry.IsSupported("TST"))
 	})
 
 	t.Run("unregister currency", func(t *testing.T) {
@@ -439,7 +439,7 @@ func TestCurrencyRegistry(t *testing.T) {
 
 		// Register a test currency
 		testCurrency := CurrencyMeta{
-			Code:     "TEST2",
+			Code:     "TS2",
 			Name:     "Test Currency 2",
 			Symbol:   "T2",
 			Decimals: 2,
@@ -449,15 +449,15 @@ func TestCurrencyRegistry(t *testing.T) {
 		require.NoError(t, err)
 
 		// Verify it exists
-		_, err = registry.Get("TEST2")
+		_, err = registry.Get("TS2")
 		require.NoError(t, err)
 
 		// Unregister
-		err = registry.Unregister("TEST2")
+		err = registry.Unregister("TS2")
 		require.NoError(t, err)
 
 		// Verify it's gone
-		_, err = registry.Get("TEST2")
+		_, err = registry.Get("TS2")
 		assert.Error(t, err)
 	})
 
@@ -561,16 +561,16 @@ func TestGlobalFunctions(t *testing.T) {
 func TestBackwardCompatibility(t *testing.T) {
 	t.Run("legacy register", func(t *testing.T) {
 		// This should not panic
-		RegisterLegacy("LEGACY", CurrencyMeta{
+		RegisterLegacy("LGY", CurrencyMeta{
 			Symbol:   "L",
 			Decimals: 2,
 		})
 
 		// Check that it was registered
-		meta, err := Get("LEGACY")
+		meta, err := Get("LGY")
 		require.NoError(t, err)
-		assert.Equal(t, "LEGACY", meta.Code)
-		assert.Equal(t, "LEGACY", meta.Name)
+		assert.Equal(t, "LGY", meta.Code)
+		assert.Equal(t, "LGY", meta.Name)
 		assert.Equal(t, "L", meta.Symbol)
 		assert.Equal(t, 2, meta.Decimals)
 		assert.True(t, meta.Active)
@@ -612,17 +612,17 @@ func TestBackwardCompatibility(t *testing.T) {
 
 	t.Run("legacy unregister", func(t *testing.T) {
 		// Register a test currency
-		RegisterLegacy("TEST3", CurrencyMeta{
+		RegisterLegacy("TS3", CurrencyMeta{
 			Symbol:   "T3",
 			Decimals: 2,
 		})
 
 		// Unregister it
-		success := UnregisterLegacy("TEST3")
+		success := UnregisterLegacy("TS3")
 		assert.True(t, success)
 
 		// Verify it's gone
-		assert.False(t, IsSupportedLegacy("TEST3"))
+		assert.False(t, IsSupportedLegacy("TS3"))
 	})
 
 	t.Run("legacy count", func(t *testing.T) {

@@ -1,6 +1,7 @@
 package webapi
 
 import (
+	"context"
 	"io"
 	"log/slog"
 	"runtime"
@@ -15,6 +16,7 @@ import (
 	"path/filepath"
 
 	"github.com/amirasaad/fintech/pkg/config"
+	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/amirasaad/fintech/pkg/service"
@@ -138,7 +140,16 @@ func SetupTestApp(
 	accountSvc := service.NewAccountService(uow, mockConverter)
 	userSvc := service.NewUserService(uow)
 
-	app = NewApp(accountSvc, userSvc, authService, cfg)
+	// Initialize currency service with testing registry
+	ctx := context.Background()
+	var currencyRegistry *currency.CurrencyRegistry
+	currencyRegistry, err = currency.NewCurrencyRegistry(ctx)
+	if err != nil {
+		t.Fatalf("Failed to create currency registry for tests: %v", err)
+	}
+	currencySvc := service.NewCurrencyService(currencyRegistry)
+
+	app = NewApp(accountSvc, userSvc, authService, currencySvc, cfg)
 	log.SetOutput(io.Discard)
 
 	return

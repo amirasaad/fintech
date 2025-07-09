@@ -1,13 +1,14 @@
 package handler
 
 import (
+	"context"
 	"log"
 	"log/slog"
 	"net/http"
-	"os"
 
 	"github.com/amirasaad/fintech/infra"
 	"github.com/amirasaad/fintech/pkg/config"
+	"github.com/amirasaad/fintech/pkg/currency"
 
 	infra_repository "github.com/amirasaad/fintech/infra/repository"
 
@@ -39,15 +40,29 @@ func handler() http.HandlerFunc {
 		logger.Error("Failed to initialize exchange rate system", "error", err)
 		log.Fatal(err)
 	}
-
-	appEnv := os.Getenv("APP_ENV")
-	uow := func() (repository.UnitOfWork, error) {
-		return infra_repository.NewGormUoW(cfg.DB, appEnv)
+	// Initialize currency registry
+	ctx := context.Background()
+	currencyRegistry, err := currency.NewCurrencyRegistry(ctx)
+	if err != nil {
+		logger.Error("Failed to initialize currency registry", "error", err)
+		log.Fatal(err)
 	}
+	logger.Info("Currency registry initialized successfully")
+	currencySvc := service.NewCurrencyService(currencyRegistry)
+
+	// Create UOW factory
+	uowFactory := func() (repository.UnitOfWork, error) {
+		return infra_repository.NewGormUoW(cfg.DB, cfg.Env)
+	}
+
 	app := webapi.NewApp(
-		service.NewAccountService(uow, currencyConverter),
-		service.NewUserService(uow),
-		service.NewAuthService(uow, service.NewJWTAuthStrategy(uow, cfg.Jwt)),
+		service.NewAccountService(uowFactory, currencyConverter),
+		service.NewUserService(uowFactory),
+		service.NewAuthService(uowFactory,
+			service.NewJWTAuthStrategy(
+				uowFactory, cfg.Jwt,
+			)),
+		currencySvc,
 		cfg,
 	)
 	return adaptor.FiberApp(app)

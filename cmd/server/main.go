@@ -1,13 +1,15 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"log"
 	"log/slog"
-	"os"
 
 	"github.com/amirasaad/fintech/infra"
 	infra_repository "github.com/amirasaad/fintech/infra/repository"
 	"github.com/amirasaad/fintech/pkg/config"
+	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/amirasaad/fintech/pkg/service"
 	"github.com/amirasaad/fintech/webapi"
@@ -40,11 +42,18 @@ func main() {
 		"jwt_expiry", cfg.Jwt.Expiry,
 		"exchange_rate_api_configured", cfg.Exchange.ApiKey != "")
 
-	appEnv := os.Getenv("APP_ENV")
+	// Initialize currency registry
+	ctx := context.Background()
+	currencyRegistry, err := currency.NewCurrencyRegistry(ctx)
+	if err != nil {
+		logger.Error("Failed to initialize currency registry", "error", err)
+		log.Fatal(err)
+	}
+	logger.Info("Currency registry initialized successfully")
 
 	// Create UOW factory
 	uowFactory := func() (repository.UnitOfWork, error) {
-		return infra_repository.NewGormUoW(cfg.DB, appEnv)
+		return infra_repository.NewGormUoW(cfg.DB, cfg.Env)
 	}
 
 	// Create exchange rate system
@@ -58,7 +67,14 @@ func main() {
 	accountSvc := service.NewAccountService(uowFactory, currencyConverter)
 	userSvc := service.NewUserService(uowFactory)
 	authSvc := service.NewAuthService(uowFactory, service.NewJWTAuthStrategy(uowFactory, cfg.Jwt))
+	currencySvc := service.NewCurrencyService(currencyRegistry)
 
 	logger.Info("Starting fintech server", "port", ":3000")
-	log.Fatal(webapi.NewApp(accountSvc, userSvc, authSvc, cfg).Listen(":3000"))
+	log.Fatal(webapi.NewApp(
+		accountSvc,
+		userSvc,
+		authSvc,
+		currencySvc,
+		cfg,
+	).Listen(fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)))
 }

@@ -33,6 +33,9 @@ type ExchangeRateConfig struct {
 }
 
 type AppConfig struct {
+	Env      string             `envconfig:"APP_ENV" default:"development"`
+	Host     string             `envconfig:"APP_HOST" default:"localhost"`
+	Port     int                `envconfig:"APP_PORT" default:"3000"`
 	DB       DBConfig           `envconfig:"DATABASE"`
 	Auth     AuthConfig         `envconfig:"AUTH"`
 	Jwt      JwtConfig          `envconfig:"JWT"`

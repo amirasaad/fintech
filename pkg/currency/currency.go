@@ -195,10 +195,15 @@ func validateCurrencyMeta(meta CurrencyMeta) error {
 	return nil
 }
 
-// isValidCurrencyCode checks if a currency code is valid (3 uppercase letters)
-func isValidCurrencyCode(code string) bool {
+// IsValidCurrencyFormat returns true if the code is a well-formed ISO 4217 currency code (3 uppercase letters).
+func IsValidCurrencyFormat(code string) bool {
 	re := regexp.MustCompile(`^[A-Z]{3}$`)
 	return re.MatchString(code)
+}
+
+// isValidCurrencyCode checks if a currency code is valid (3 uppercase letters)
+func isValidCurrencyCode(code string) bool {
+	return IsValidCurrencyFormat(code)
 }
 
 // CurrencyRegistry provides currency-specific operations using the registry system
@@ -289,18 +294,18 @@ func NewCurrencyRegistryWithPersistence(ctx context.Context, persistencePath str
 // registerDefaults registers the default set of currencies
 func (cr *CurrencyRegistry) registerDefaults() error {
 	defaultCurrencies := []CurrencyMeta{
-		{Code: "USD", Name: "US Dollar", Symbol: "$", Decimals: 2, Country: "United States", Region: "North America"},
-		{Code: "EUR", Name: "Euro", Symbol: "€", Decimals: 2, Country: "European Union", Region: "Europe"},
-		{Code: "GBP", Name: "British Pound", Symbol: "£", Decimals: 2, Country: "United Kingdom", Region: "Europe"},
-		{Code: "JPY", Name: "Japanese Yen", Symbol: "¥", Decimals: 0, Country: "Japan", Region: "Asia"},
-		{Code: "CAD", Name: "Canadian Dollar", Symbol: "C$", Decimals: 2, Country: "Canada", Region: "North America"},
-		{Code: "AUD", Name: "Australian Dollar", Symbol: "A$", Decimals: 2, Country: "Australia", Region: "Oceania"},
-		{Code: "CHF", Name: "Swiss Franc", Symbol: "CHF", Decimals: 2, Country: "Switzerland", Region: "Europe"},
-		{Code: "CNY", Name: "Chinese Yuan", Symbol: "¥", Decimals: 2, Country: "China", Region: "Asia"},
-		{Code: "INR", Name: "Indian Rupee", Symbol: "₹", Decimals: 2, Country: "India", Region: "Asia"},
-		{Code: "BRL", Name: "Brazilian Real", Symbol: "R$", Decimals: 2, Country: "Brazil", Region: "South America"},
-		{Code: "KWD", Name: "Kuwaiti Dinar", Symbol: "د.ك", Decimals: 3, Country: "Kuwait", Region: "Middle East"},
-		{Code: "EGP", Name: "Egyptian Pound", Symbol: "£", Decimals: 2, Country: "Egypt", Region: "Africa"},
+		{Code: "USD", Name: "US Dollar", Symbol: "$", Decimals: 2, Country: "United States", Region: "North America", Active: true},
+		{Code: "EUR", Name: "Euro", Symbol: "€", Decimals: 2, Country: "European Union", Region: "Europe", Active: true},
+		{Code: "GBP", Name: "British Pound", Symbol: "£", Decimals: 2, Country: "United Kingdom", Region: "Europe", Active: true},
+		{Code: "JPY", Name: "Japanese Yen", Symbol: "¥", Decimals: 0, Country: "Japan", Region: "Asia", Active: true},
+		{Code: "CAD", Name: "Canadian Dollar", Symbol: "C$", Decimals: 2, Country: "Canada", Region: "North America", Active: true},
+		{Code: "AUD", Name: "Australian Dollar", Symbol: "A$", Decimals: 2, Country: "Australia", Region: "Oceania", Active: true},
+		{Code: "CHF", Name: "Swiss Franc", Symbol: "CHF", Decimals: 2, Country: "Switzerland", Region: "Europe", Active: true},
+		{Code: "CNY", Name: "Chinese Yuan", Symbol: "¥", Decimals: 2, Country: "China", Region: "Asia", Active: true},
+		{Code: "INR", Name: "Indian Rupee", Symbol: "₹", Decimals: 2, Country: "India", Region: "Asia", Active: true},
+		{Code: "BRL", Name: "Brazilian Real", Symbol: "R$", Decimals: 2, Country: "Brazil", Region: "South America", Active: true},
+		{Code: "KWD", Name: "Kuwaiti Dinar", Symbol: "د.ك", Decimals: 3, Country: "Kuwait", Region: "Middle East", Active: true},
+		{Code: "EGP", Name: "Egyptian Pound", Symbol: "£", Decimals: 2, Country: "Egypt", Region: "Africa", Active: true},
 	}
 
 	for _, meta := range defaultCurrencies {
