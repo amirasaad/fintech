@@ -3,14 +3,16 @@ package service
 import (
 	"log/slog"
 
+	"github.com/amirasaad/fintech/pkg/decorator"
 	"github.com/amirasaad/fintech/pkg/domain/user"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/google/uuid"
 )
 
 type UserService struct {
-	uowFactory func() (repository.UnitOfWork, error)
-	logger     *slog.Logger
+	uowFactory  func() (repository.UnitOfWork, error)
+	logger      *slog.Logger
+	transaction decorator.TransactionDecorator
 }
 
 func NewUserService(
@@ -18,8 +20,9 @@ func NewUserService(
 	logger *slog.Logger,
 ) *UserService {
 	return &UserService{
-		uowFactory: uowFactory,
-		logger:     logger,
+		uowFactory:  uowFactory,
+		logger:      logger,
+		transaction: decorator.NewUnitOfWorkTransactionDecorator(uowFactory, logger),
 	}
 }
 
@@ -27,49 +30,39 @@ func (s *UserService) CreateUser(
 	username, email, password string,
 ) (u *user.User, err error) {
 	logger := s.logger.With("username", username, "email", email)
-	uow, err := s.uowFactory()
-	if err != nil {
-		logger.Error("CreateUser failed: uowFactory error", "error", err)
-		u = nil
-		return
-	}
-	err = uow.Begin()
-	if err != nil {
-		logger.Error("CreateUser failed: begin error", "error", err)
-		u = nil
-		return
-	}
+	var uLocal *user.User
+	err = s.transaction.Execute(func() error {
+		uLocal, err = user.NewUser(username, email, password)
+		if err != nil {
+			logger.Error("CreateUser failed: domain error", "error", err)
+			return err
+		}
 
-	u, err = user.NewUser(username, email, password)
-	if err != nil {
-		logger.Error("CreateUser failed: domain error", "error", err)
-		u = nil
-		return
-	}
+		uow, err := s.uowFactory()
+		if err != nil {
+			logger.Error("CreateUser failed: uowFactory error", "error", err)
+			return err
+		}
 
-	repo, err := uow.UserRepository()
-	if err != nil {
-		logger.Error("CreateUser failed: UserRepository error", "error", err)
-		_ = uow.Rollback()
-		u = nil
-		return
-	}
+		repo, err := uow.UserRepository()
+		if err != nil {
+			logger.Error("CreateUser failed: UserRepository error", "error", err)
+			return err
+		}
 
-	err = repo.Create(u)
-	if err != nil {
-		logger.Error("CreateUser failed: repo create error", "error", err)
-		_ = uow.Rollback()
-		u = nil
-		return
-	}
+		err = repo.Create(uLocal)
+		if err != nil {
+			logger.Error("CreateUser failed: repo create error", "error", err)
+			return err
+		}
 
-	err = uow.Commit()
+		return nil
+	})
 	if err != nil {
-		logger.Error("CreateUser failed: commit error", "error", err)
-		_ = uow.Rollback()
-		u = nil
-		return
+		logger.Error("CreateUser failed: transaction error", "error", err)
+		return nil, err
 	}
+	u = uLocal
 	logger.Info("CreateUser successful", "userID", u.ID)
 	return
 }
@@ -139,62 +132,46 @@ func (s *UserService) GetUserByUsername(username string) (u *user.User, err erro
 }
 
 func (s *UserService) UpdateUser(u *user.User) (err error) {
-	uow, err := s.uowFactory()
-	if err != nil {
-		return
-	}
-	err = uow.Begin()
-	if err != nil {
-		return
-	}
+	err = s.transaction.Execute(func() error {
+		uow, err := s.uowFactory()
+		if err != nil {
+			return err
+		}
 
-	repo, err := uow.UserRepository()
-	if err != nil {
-		_ = uow.Rollback()
-		return
-	}
+		repo, err := uow.UserRepository()
+		if err != nil {
+			return err
+		}
 
-	err = repo.Update(u)
-	if err != nil {
-		_ = uow.Rollback()
-		return
-	}
+		err = repo.Update(u)
+		if err != nil {
+			return err
+		}
 
-	err = uow.Commit()
-	if err != nil {
-		_ = uow.Rollback()
-		return
-	}
+		return nil
+	})
 	return
 }
 
 func (s *UserService) DeleteUser(id uuid.UUID) (err error) {
-	uow, err := s.uowFactory()
-	if err != nil {
-		return
-	}
-	err = uow.Begin()
-	if err != nil {
-		return
-	}
+	err = s.transaction.Execute(func() error {
+		uow, err := s.uowFactory()
+		if err != nil {
+			return err
+		}
 
-	repo, err := uow.UserRepository()
-	if err != nil {
-		_ = uow.Rollback()
-		return
-	}
+		repo, err := uow.UserRepository()
+		if err != nil {
+			return err
+		}
 
-	err = repo.Delete(id)
-	if err != nil {
-		_ = uow.Rollback()
-		return
-	}
+		err = repo.Delete(id)
+		if err != nil {
+			return err
+		}
 
-	err = uow.Commit()
-	if err != nil {
-		_ = uow.Rollback()
-		return
-	}
+		return nil
+	})
 	return
 }
 
