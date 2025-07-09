@@ -13,6 +13,8 @@ import (
 
 	"log/slog"
 
+	"math"
+
 	"github.com/google/uuid"
 )
 
@@ -117,7 +119,14 @@ func (s *AccountService) handleCurrencyConversion(
 	if err != nil {
 		return
 	}
-	convertedMoney, err = mon.NewMoney(convInfo.ConvertedAmount, target)
+	meta, metaErr := currency.Get(string(target))
+	if metaErr != nil {
+		err = metaErr
+		return
+	}
+	factor := math.Pow10(meta.Decimals)
+	rounded := math.Round(convInfo.ConvertedAmount*factor) / factor
+	convertedMoney, err = mon.NewMoney(rounded, target)
 	if err != nil {
 		return
 	}

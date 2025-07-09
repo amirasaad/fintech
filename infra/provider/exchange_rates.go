@@ -52,6 +52,22 @@ func (s *ExchangeRateService) GetRate(from, to string) (*domain.ExchangeRate, er
 		_ = s.cache.Delete(cacheKey)
 	}
 
+	// Try reverse pair in cache and invert
+	reverseKey := fmt.Sprintf("%s:%s", to, from)
+	if cached, err := s.cache.Get(reverseKey); err == nil && cached != nil {
+		if time.Now().Before(cached.ExpiresAt) && cached.Rate != 0 {
+			s.logger.Debug("Exchange rate retrieved from cache (reversed)", "from", to, "to", from, "rate", cached.Rate)
+			return &domain.ExchangeRate{
+				FromCurrency: from,
+				ToCurrency:   to,
+				Rate:         1 / cached.Rate,
+				LastUpdated:  cached.LastUpdated,
+				Source:       cached.Source + " (reversed)",
+				ExpiresAt:    cached.ExpiresAt,
+			}, nil
+		}
+	}
+
 	// Try providers in order
 	for _, provider := range s.providers {
 		if !provider.IsHealthy() {

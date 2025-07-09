@@ -290,3 +290,49 @@ func TestMoney_Divide(t *testing.T) {
 		assert.Contains(t, err.Error(), "precision loss")
 	})
 }
+
+func TestNewMoney_JPY(t *testing.T) {
+	t.Run("JPY whole number valid", func(t *testing.T) {
+		m, err := money.NewMoney(1000, "JPY")
+		require.NoError(t, err)
+		assert.Equal(t, int64(1000), m.Amount())
+		assert.Equal(t, "JPY", string(m.Currency()))
+		assert.InDelta(t, 1000.0, m.AmountFloat(), 0.001)
+	})
+
+	t.Run("JPY with .0 valid", func(t *testing.T) {
+		m, err := money.NewMoney(5000.0, "JPY")
+		require.NoError(t, err)
+		assert.Equal(t, int64(5000), m.Amount())
+		assert.Equal(t, "JPY", string(m.Currency()))
+		assert.InDelta(t, 5000.0, m.AmountFloat(), 0.001)
+	})
+
+	t.Run("JPY with decimals invalid", func(t *testing.T) {
+		_, err := money.NewMoney(1000.5, "JPY")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "decimal places")
+	})
+
+	t.Run("JPY with two decimals invalid", func(t *testing.T) {
+		_, err := money.NewMoney(1234.56, "JPY")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "decimal places")
+	})
+
+	t.Run("JPY negative whole number valid", func(t *testing.T) {
+		m, err := money.NewMoney(-2000, "JPY")
+		require.NoError(t, err)
+		assert.Equal(t, int64(-2000), m.Amount())
+		assert.Equal(t, "JPY", string(m.Currency()))
+		assert.InDelta(t, -2000.0, m.AmountFloat(), 0.001)
+	})
+
+	t.Run("JPY zero valid", func(t *testing.T) {
+		m, err := money.NewMoney(0, "JPY")
+		require.NoError(t, err)
+		assert.Equal(t, int64(0), m.Amount())
+		assert.Equal(t, "JPY", string(m.Currency()))
+		assert.InDelta(t, 0.0, m.AmountFloat(), 0.001)
+	})
+}
