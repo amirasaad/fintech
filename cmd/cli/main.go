@@ -63,7 +63,7 @@ func main() {
 	}
 
 	scv := service.NewAccountService(uowFactory, currencyConverter, logger)
-	authSvc := service.NewBasicAuthService(uowFactory)
+	authSvc := service.NewBasicAuthService(uowFactory, logger)
 
 	cliApp(scv, authSvc)
 }

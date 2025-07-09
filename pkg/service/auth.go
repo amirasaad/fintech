@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/mail"
 	"time"
 
@@ -27,17 +28,19 @@ type AuthStrategy interface {
 type AuthService struct {
 	uowFactory func() (repository.UnitOfWork, error)
 	strategy   AuthStrategy
+	logger     *slog.Logger
 }
 
 func NewAuthService(
 	uowFactory func() (repository.UnitOfWork, error),
 	strategy AuthStrategy,
+	logger *slog.Logger,
 ) *AuthService {
-	return &AuthService{uowFactory: uowFactory, strategy: strategy}
+	return &AuthService{uowFactory: uowFactory, strategy: strategy, logger: logger}
 }
 
-func NewBasicAuthService(uowFactory func() (repository.UnitOfWork, error)) *AuthService {
-	return NewAuthService(uowFactory, &BasicAuthStrategy{uowFactory: uowFactory})
+func NewBasicAuthService(uowFactory func() (repository.UnitOfWork, error), logger *slog.Logger) *AuthService {
+	return NewAuthService(uowFactory, &BasicAuthStrategy{uowFactory: uowFactory}, logger)
 }
 
 func (s *AuthService) CheckPasswordHash(
@@ -77,13 +80,15 @@ func (s *AuthService) GenerateToken(user *domain.User) (string, error) {
 type JWTAuthStrategy struct {
 	uowFactory func() (repository.UnitOfWork, error)
 	cfg        config.JwtConfig
+	logger     *slog.Logger
 }
 
 func NewJWTAuthStrategy(
 	uowFactory func() (repository.UnitOfWork, error),
 	cfg config.JwtConfig,
+	logger *slog.Logger,
 ) *JWTAuthStrategy {
-	return &JWTAuthStrategy{uowFactory: uowFactory, cfg: cfg}
+	return &JWTAuthStrategy{uowFactory: uowFactory, cfg: cfg, logger: logger}
 }
 func (s *JWTAuthStrategy) GenerateToken(user *domain.User) (string, error) {
 	token := jwt.New(jwt.SigningMethodHS256)
@@ -153,6 +158,7 @@ func (s *JWTAuthStrategy) GetCurrentUserID(
 // BasicAuthStrategy implements AuthStrategy for CLI (no JWT, just password check)
 type BasicAuthStrategy struct {
 	uowFactory func() (repository.UnitOfWork, error)
+	logger     *slog.Logger
 }
 
 func (s *BasicAuthStrategy) Login(

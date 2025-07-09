@@ -85,12 +85,13 @@ func SetupTestApp(
 		t.Fatalf("Failed to create test user: %v", err)
 	}
 	uow := func() (repository.UnitOfWork, error) { return mockUow, nil }
-	authStrategy := service.NewJWTAuthStrategy(uow, cfg.Jwt)
-	authService = service.NewAuthService(uow, authStrategy)
+	logger := slog.Default()
+	authStrategy := service.NewJWTAuthStrategy(uow, cfg.Jwt, logger)
+	authService = service.NewAuthService(uow, authStrategy, logger)
 	mockConverter = fixtures.NewMockCurrencyConverter(t)
 	// Create services with the mock UOW factory
-	accountSvc := service.NewAccountService(uow, mockConverter, slog.Default())
-	userSvc := service.NewUserService(uow)
+	accountSvc := service.NewAccountService(uow, mockConverter, logger)
+	userSvc := service.NewUserService(uow, logger)
 
 	// Initialize currency service with testing registry
 	ctx := context.Background()
@@ -111,7 +112,7 @@ func SetupTestApp(
 			t.Fatalf("Failed to register currency meta: %v", err)
 		}
 	}
-	currencySvc := service.NewCurrencyService(currencyRegistry)
+	currencySvc := service.NewCurrencyService(currencyRegistry, logger)
 
 	app = NewApp(accountSvc, userSvc, authService, currencySvc, cfg)
 	log.SetOutput(io.Discard)

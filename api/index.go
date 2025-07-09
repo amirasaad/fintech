@@ -48,7 +48,7 @@ func handler() http.HandlerFunc {
 		log.Fatal(err)
 	}
 	logger.Info("Currency registry initialized successfully")
-	currencySvc := service.NewCurrencyService(currencyRegistry)
+	currencySvc := service.NewCurrencyService(currencyRegistry, logger)
 
 	// Create UOW factory
 	uowFactory := func() (repository.UnitOfWork, error) {
@@ -56,12 +56,12 @@ func handler() http.HandlerFunc {
 	}
 
 	app := webapi.NewApp(
-		service.NewAccountService(uowFactory, currencyConverter, slog.Default()),
-		service.NewUserService(uowFactory),
+		service.NewAccountService(uowFactory, currencyConverter, logger),
+		service.NewUserService(uowFactory, logger),
 		service.NewAuthService(uowFactory,
 			service.NewJWTAuthStrategy(
-				uowFactory, cfg.Jwt,
-			)),
+				uowFactory, cfg.Jwt, logger,
+			), logger),
 		currencySvc,
 		cfg,
 	)

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/amirasaad/fintech/pkg/currency"
 )
@@ -10,12 +11,14 @@ import (
 // CurrencyService provides business logic for currency operations
 type CurrencyService struct {
 	registry *currency.CurrencyRegistry
+	logger   *slog.Logger
 }
 
 // NewCurrencyService creates a new currency service
-func NewCurrencyService(registry *currency.CurrencyRegistry) *CurrencyService {
+func NewCurrencyService(registry *currency.CurrencyRegistry, logger *slog.Logger) *CurrencyService {
 	return &CurrencyService{
 		registry: registry,
+		logger:   logger,
 	}
 }
 
