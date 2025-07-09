@@ -1,6 +1,9 @@
 // Package service provides business logic for interacting with domain entities such as accounts and transactions.
 // It defines the AccountService struct and its methods for creating accounts, depositing and withdrawing funds,
 // retrieving account details, listing transactions, and checking account balances.
+//
+// The service layer follows clean architecture principles and uses the decorator pattern for transaction management.
+// All business operations are wrapped with automatic transaction handling, error recovery, and structured logging.
 package service
 
 import (
@@ -19,7 +22,35 @@ import (
 	"github.com/google/uuid"
 )
 
-// AccountService provides business logic for account operations
+// AccountService provides business logic for account operations including creation, deposits, withdrawals,
+// and balance inquiries. It implements the application layer of clean architecture and coordinates between
+// domain entities and repositories.
+//
+// The service uses dependency injection for all dependencies and the decorator pattern for transaction
+// management. All operations are automatically wrapped with transaction handling, error recovery, and
+// structured logging.
+//
+// Key Features:
+// - Automatic transaction management using the decorator pattern
+// - Multi-currency support with real-time conversion
+// - Comprehensive error handling and logging
+// - Clean separation of business logic from infrastructure concerns
+// - Thread-safe operations with proper concurrency handling
+//
+// Example usage:
+//
+//	uowFactory := func() (repository.UnitOfWork, error) {
+//	    return infra.NewUnitOfWork(db)
+//	}
+//	converter := currency.NewConverter(apiKey)
+//	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+//
+//	accountService := NewAccountService(uowFactory, converter, logger)
+//
+//	account, err := accountService.CreateAccount(userID)
+//	if err != nil {
+//	    // Handle error - transaction was automatically rolled back
+//	}
 type AccountService struct {
 	uowFactory  func() (repository.UnitOfWork, error)
 	converter   mon.CurrencyConverter
@@ -27,7 +58,33 @@ type AccountService struct {
 	transaction decorator.TransactionDecorator
 }
 
-// NewAccountService creates a new AccountService instance
+// NewAccountService creates a new AccountService instance with all required dependencies.
+//
+// The service is configured with:
+// - Unit of Work factory for transaction management
+// - Currency converter for multi-currency operations
+// - Structured logger for observability
+// - Transaction decorator for automatic transaction handling
+//
+// Parameters:
+//   - uowFactory: A function that creates and returns a UnitOfWork instance. This factory
+//     is used by the transaction decorator to manage transaction lifecycles.
+//   - converter: A currency converter that handles real-time exchange rate conversion
+//     for multi-currency operations. Can be nil for single-currency applications.
+//   - logger: A structured logger for recording business operations, errors, and
+//     debugging information. All operations are logged with appropriate context.
+//
+// Returns a fully configured AccountService ready for business operations.
+//
+// Example:
+//
+//	uowFactory := func() (repository.UnitOfWork, error) {
+//	    return infra.NewUnitOfWork(db)
+//	}
+//	converter := currency.NewConverter(apiKey)
+//	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+//
+//	service := NewAccountService(uowFactory, converter, logger)
 func NewAccountService(
 	uowFactory func() (repository.UnitOfWork, error),
 	converter mon.CurrencyConverter,
@@ -41,8 +98,33 @@ func NewAccountService(
 	}
 }
 
-// CreateAccount creates a new account and persists it using the repository.
-// Returns the created account or an error if the operation fails.
+// CreateAccount creates a new account for the specified user and persists it using the repository.
+// The account is created with default currency settings and automatically assigned a unique ID.
+//
+// The operation is wrapped with automatic transaction management using the decorator pattern.
+// If any part of the operation fails, the transaction is automatically rolled back and an
+// appropriate error is returned.
+//
+// Parameters:
+//   - userID: The UUID of the user who will own the account. The user must exist in the system.
+//
+// Returns:
+//   - A pointer to the created account with all fields populated
+//   - An error if the operation fails (e.g., user not found, database error)
+//
+// The method includes comprehensive logging for observability:
+// - Start of operation with user ID
+// - Success with account ID
+// - Failure with error details
+//
+// Example:
+//
+//	account, err := service.CreateAccount(userID)
+//	if err != nil {
+//	    log.Error("Failed to create account", "error", err)
+//	    return
+//	}
+//	log.Info("Account created", "accountID", account.ID, "userID", account.UserID)
 func (s *AccountService) CreateAccount(
 	userID uuid.UUID,
 ) (a *account.Account, err error) {
@@ -84,6 +166,32 @@ func (s *AccountService) CreateAccount(
 	return
 }
 
+// CreateAccountWithCurrency creates a new account for the specified user with a specific currency.
+// This method allows creating accounts in different currencies, which is useful for multi-currency
+// applications where users may need accounts in various currencies.
+//
+// The operation is wrapped with automatic transaction management and includes comprehensive
+// error handling and logging.
+//
+// Parameters:
+//   - userID: The UUID of the user who will own the account
+//   - currencyCode: The ISO 4217 currency code for the account (e.g., "USD", "EUR", "JPY")
+//
+// Returns:
+//   - A pointer to the created account with the specified currency
+//   - An error if the operation fails (e.g., invalid currency, user not found, database error)
+//
+// The method validates the currency code and ensures it's supported by the system.
+// If the currency is not supported, an appropriate domain error is returned.
+//
+// Example:
+//
+//	account, err := service.CreateAccountWithCurrency(userID, currency.Code("EUR"))
+//	if err != nil {
+//	    log.Error("Failed to create EUR account", "error", err)
+//	    return
+//	}
+//	log.Info("EUR account created", "accountID", account.ID, "currency", account.Currency)
 func (s *AccountService) CreateAccountWithCurrency(
 	userID uuid.UUID,
 	currencyCode currency.Code,
@@ -126,7 +234,58 @@ func (s *AccountService) CreateAccountWithCurrency(
 }
 
 // Deposit adds funds to the specified account and creates a transaction record.
-// Returns the transaction or an error if the operation fails.
+// The method supports multi-currency deposits with automatic currency conversion
+// when the deposit currency differs from the account currency.
+//
+// The operation is wrapped with automatic transaction management and includes
+// comprehensive validation, error handling, and logging.
+//
+// Key Features:
+// - Multi-currency support with real-time conversion
+// - Automatic transaction record creation
+// - Comprehensive validation (positive amounts, valid currencies)
+// - User authorization checks
+// - Detailed logging for observability
+//
+// Parameters:
+//   - userID: The UUID of the user making the deposit (must own the account)
+//   - accountID: The UUID of the account to deposit into
+//   - amount: The amount to deposit (must be positive)
+//   - currencyCode: The ISO 4217 currency code of the deposit amount
+//
+// Returns:
+//   - A pointer to the created transaction record
+//   - A pointer to conversion information (if currency conversion occurred)
+//   - An error if the operation fails
+//
+// Currency Conversion:
+// If the deposit currency differs from the account currency, the system will:
+// 1. Fetch real-time exchange rates from the configured provider
+// 2. Convert the amount to the account's currency
+// 3. Store conversion details for audit purposes
+// 4. Update the account balance with the converted amount
+//
+// Error Scenarios:
+// - Account not found: Returns domain.ErrAccountNotFound
+// - User not authorized: Returns domain.ErrUserUnauthorized
+// - Invalid amount: Returns domain.ErrTransactionAmountMustBePositive
+// - Invalid currency: Returns domain.ErrInvalidCurrencyCode
+// - Insufficient funds: Returns domain.ErrInsufficientFunds
+// - Conversion failure: Returns conversion service error
+//
+// Example:
+//
+//	tx, convInfo, err := service.Deposit(userID, accountID, 100.0, currency.Code("EUR"))
+//	if err != nil {
+//	    log.Error("Deposit failed", "error", err)
+//	    return
+//	}
+//	if convInfo != nil {
+//	    log.Info("Currency conversion applied",
+//	        "originalAmount", convInfo.OriginalAmount,
+//	        "convertedAmount", convInfo.ConvertedAmount,
+//	        "rate", convInfo.ConversionRate)
+//	}
 func (s *AccountService) Deposit(
 	userID, accountID uuid.UUID,
 	amount float64,

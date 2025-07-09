@@ -1,3 +1,5 @@
+// Package service provides business logic for user management operations.
+// It uses the decorator pattern for transaction management and includes comprehensive logging.
 package service
 
 import (
@@ -9,12 +11,15 @@ import (
 	"github.com/google/uuid"
 )
 
+// UserService provides business logic for user operations including creation, updates, and deletion.
+// Uses the decorator pattern for automatic transaction management and structured logging.
 type UserService struct {
 	uowFactory  func() (repository.UnitOfWork, error)
 	logger      *slog.Logger
 	transaction decorator.TransactionDecorator
 }
 
+// NewUserService creates a new UserService with transaction decorator and logging.
 func NewUserService(
 	uowFactory func() (repository.UnitOfWork, error),
 	logger *slog.Logger,
@@ -26,6 +31,8 @@ func NewUserService(
 	}
 }
 
+// CreateUser creates a new user account with automatic transaction management.
+// Returns the created user or an error if the operation fails.
 func (s *UserService) CreateUser(
 	username, email, password string,
 ) (u *user.User, err error) {
@@ -33,7 +40,7 @@ func (s *UserService) CreateUser(
 	defer func() {
 		if err != nil {
 			s.logger.Error("CreateUser failed", "username", username, "email", email, "error", err)
-		} else if u != nil {
+		} else {
 			s.logger.Info("CreateUser successful", "username", username, "email", email, "userID", u.ID)
 		}
 	}()
@@ -41,53 +48,35 @@ func (s *UserService) CreateUser(
 	err = s.transaction.Execute(func() error {
 		uLocal, err = user.NewUser(username, email, password)
 		if err != nil {
-			logger := s.logger.With("username", username, "email", email)
-			logger.Error("CreateUser failed: domain error", "error", err)
 			return err
 		}
-
 		uow, err := s.uowFactory()
 		if err != nil {
-			logger := s.logger.With("username", username, "email", email)
-			logger.Error("CreateUser failed: uowFactory error", "error", err)
 			return err
 		}
-
 		repo, err := uow.UserRepository()
 		if err != nil {
-			logger := s.logger.With("username", username, "email", email)
-			logger.Error("CreateUser failed: UserRepository error", "error", err)
 			return err
 		}
-
 		err = repo.Create(uLocal)
-		if err != nil {
-			logger := s.logger.With("username", username, "email", email)
-			logger.Error("CreateUser failed: repo create error", "error", err)
-			return err
-		}
-
-		return nil
+		return err
 	})
 	if err != nil {
-		logger := s.logger.With("username", username, "email", email)
-		logger.Error("CreateUser failed: transaction error", "error", err)
+		s.logger.Error("CreateUser failed: transaction error", "username", username, "email", email, "error", err)
 		return nil, err
 	}
 	u = uLocal
-	logger := s.logger.With("username", username, "email", email)
-	logger.Info("CreateUser successful", "userID", u.ID)
 	return
 }
 
-func (s *UserService) GetUser(
-	userID string,
-) (u *user.User, err error) {
+// GetUser retrieves a user by ID with automatic transaction management.
+// Returns the user or an error if not found.
+func (s *UserService) GetUser(userID string) (u *user.User, err error) {
 	s.logger.Info("GetUser started", "userID", userID)
 	defer func() {
 		if err != nil {
 			s.logger.Error("GetUser failed", "userID", userID, "error", err)
-		} else if u != nil {
+		} else {
 			s.logger.Info("GetUser successful", "userID", userID, "foundUserID", u.ID)
 		}
 	}()
@@ -96,21 +85,29 @@ func (s *UserService) GetUser(
 		err = parseErr
 		return
 	}
-	uow, err := s.uowFactory()
+	var uLocal *user.User
+	err = s.transaction.Execute(func() error {
+		uow, err := s.uowFactory()
+		if err != nil {
+			return err
+		}
+		repo, err := uow.UserRepository()
+		if err != nil {
+			return err
+		}
+		uLocal, err = repo.Get(uid)
+		return err
+	})
 	if err != nil {
-		return
+		s.logger.Error("GetUser failed: transaction error", "userID", userID, "error", err)
+		return nil, err
 	}
-	repo, err := uow.UserRepository()
-	if err != nil {
-		return
-	}
-	u, err = repo.Get(uid)
-	if err != nil {
-		u = nil
-	}
+	u = uLocal
 	return
 }
 
+// GetUserByEmail retrieves a user by email with automatic transaction management.
+// Returns the user or an error if not found.
 func (s *UserService) GetUserByEmail(
 	email string,
 ) (u *user.User, err error) {
@@ -142,6 +139,8 @@ func (s *UserService) GetUserByEmail(
 	return
 }
 
+// GetUserByUsername retrieves a user by username with automatic transaction management.
+// Returns the user or an error if not found.
 func (s *UserService) GetUserByUsername(
 	username string,
 ) (u *user.User, err error) {
@@ -173,6 +172,8 @@ func (s *UserService) GetUserByUsername(
 	return
 }
 
+// UpdateUser updates user information with automatic transaction management.
+// Returns an error if the user is not found or the operation fails.
 func (s *UserService) UpdateUser(
 	userID string,
 	updateFn func(u *user.User) error,
@@ -215,9 +216,9 @@ func (s *UserService) UpdateUser(
 	return
 }
 
-func (s *UserService) DeleteUser(
-	userID string,
-) (err error) {
+// DeleteUser deletes a user account with automatic transaction management.
+// Returns an error if the operation fails.
+func (s *UserService) DeleteUser(userID string) (err error) {
 	s.logger.Info("DeleteUser started", "userID", userID)
 	defer func() {
 		if err != nil {
@@ -246,20 +247,39 @@ func (s *UserService) DeleteUser(
 	return
 }
 
-func (s *UserService) ValidUser(
-	id uuid.UUID,
-	password string,
-) (isValid bool, err error) {
-	uow, err := s.uowFactory()
-	if err != nil {
+// ValidUser validates user credentials with automatic transaction management.
+// Returns true if credentials are valid, false otherwise.
+func (s *UserService) ValidUser(userID string, password string) (valid bool, err error) {
+	s.logger.Info("ValidUser started", "userID", userID)
+	defer func() {
+		if err != nil {
+			s.logger.Error("ValidUser failed", "userID", userID, "error", err)
+		} else {
+			s.logger.Info("ValidUser completed", "userID", userID, "valid", valid)
+		}
+	}()
+	uid, parseErr := uuid.Parse(userID)
+	if parseErr != nil {
+		err = parseErr
 		return
 	}
-
-	repo, err := uow.UserRepository()
+	var validLocal bool
+	err = s.transaction.Execute(func() error {
+		uow, err := s.uowFactory()
+		if err != nil {
+			return err
+		}
+		repo, err := uow.UserRepository()
+		if err != nil {
+			return err
+		}
+		validLocal = repo.Valid(uid, password)
+		return nil
+	})
 	if err != nil {
-		return
+		s.logger.Error("ValidUser failed: transaction error", "userID", userID, "error", err)
+		return false, err
 	}
-
-	isValid = repo.Valid(id, password)
+	valid = validLocal
 	return
 }
