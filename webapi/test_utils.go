@@ -82,7 +82,7 @@ func findNearestEnvTest() (current string, err error) {
 	curr := startDir
 	for {
 		candidate := filepath.Join(curr, ".env.test")
-		if _, err := os.Stat(candidate); err == nil {
+		if _, err = os.Stat(candidate); err == nil {
 			return candidate, nil
 		}
 		parent := filepath.Dir(curr)

@@ -8,7 +8,6 @@ import (
 
 	"github.com/amirasaad/fintech/infra"
 	"github.com/amirasaad/fintech/pkg/config"
-	"github.com/fatih/color"
 
 	infra_repository "github.com/amirasaad/fintech/infra/repository"
 
@@ -32,10 +31,10 @@ func handler() http.HandlerFunc {
 	slog.SetDefault(logger)
 	cfg, err := config.LoadAppConfig(logger)
 	if err != nil {
-		_, _ = color.New(color.FgRed).Fprintln(os.Stderr, "Failed to load application configuration:", err)
-		panic("Failed to load application configuration")
+		logger.Error("Failed to load application configuration", "error", err)
+		log.Fatal(err)
 	}
-	currencyConverter, err := infra.NewExchangeRateSystem(logger, cfg.Exchange)
+	currencyConverter, err := infra.NewExchangeRateSystem(slog.Default(), cfg.Exchange)
 	if err != nil {
 		logger.Error("Failed to initialize exchange rate system", "error", err)
 		log.Fatal(err)

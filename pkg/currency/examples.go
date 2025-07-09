@@ -55,7 +55,7 @@ func ExampleCustomRegistry() {
 		},
 	}
 
-	if err := registry.Register(crypto); err != nil {
+	if err = registry.Register(crypto); err != nil {
 		log.Fatal(err)
 	}
 
@@ -282,7 +282,7 @@ func ExampleCurrencyMetadata() {
 		},
 	}
 
-	if err := registry.Register(richCurrency); err != nil {
+	if err = registry.Register(richCurrency); err != nil {
 		log.Fatal(err)
 	}
 
