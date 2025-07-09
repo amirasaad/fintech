@@ -110,19 +110,26 @@ func (s *AccountService) CreateAccountWithCurrency(
 }
 
 // handleCurrencyConversion encapsulates the conversion logic for Deposit and Withdraw
-func (s *AccountService) handleCurrencyConversion(money domain.Money, target currency.Code) (domain.Money, *domain.ConversionInfo, error) {
-	if string(money.Currency()) == string(target) {
-		return money, nil, nil
+func (s *AccountService) handleCurrencyConversion(
+	money domain.Money,
+	target currency.Code,
+) (
+	convertedMoney domain.Money,
+	convInfo *domain.ConversionInfo,
+	err error,
+) {
+	if money.Currency() == target {
+		return
 	}
-	convInfo, err := s.converter.Convert(money.AmountFloat(), string(money.Currency()), string(target))
+	convInfo, err = s.converter.Convert(money.AmountFloat(), string(money.Currency()), string(target))
 	if err != nil {
-		return domain.Money{}, nil, err
+		return
 	}
-	convertedMoney, err := domain.NewMoney(convInfo.ConvertedAmount, target)
+	convertedMoney, err = domain.NewMoney(convInfo.ConvertedAmount, target)
 	if err != nil {
-		return domain.Money{}, nil, err
+		return
 	}
-	return convertedMoney, convInfo, nil
+	return
 }
 
 // Deposit adds funds to the specified account and creates a transaction record.
