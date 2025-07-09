@@ -3,6 +3,7 @@ package domain_test
 import (
 	"testing"
 
+	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -12,7 +13,7 @@ func TestNewMoney_Precision(t *testing.T) {
 	tests := []struct {
 		name     string
 		amount   float64
-		currency string
+		currency currency.Code
 		wantErr  bool
 	}{
 		{"USD with cents", 100.50, "USD", false},
@@ -140,7 +141,7 @@ func TestMoney_String(t *testing.T) {
 	tests := []struct {
 		name     string
 		amount   float64
-		currency string
+		cc       currency.Code
 		expected string
 	}{
 		{"USD", 100.50, "USD", "100.50 USD"},
@@ -151,7 +152,7 @@ func TestMoney_String(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			money, err := domain.NewMoney(tt.amount, tt.currency)
+			money, err := domain.NewMoney(tt.amount, tt.cc)
 			require.NoError(t, err)
 			assert.Equal(t, tt.expected, money.String())
 		})

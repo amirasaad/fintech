@@ -47,7 +47,7 @@ type Account struct {
 	Balance   int64 // Account balance snapshot
 	UpdatedAt time.Time
 	CreatedAt time.Time
-	Currency  string // ISO 4217 currency code
+	Currency  currency.Code // ISO 4217 currency code
 	mu        sync.Mutex
 }
 
@@ -81,8 +81,8 @@ func NewAccount(userID uuid.UUID) (acc *Account) {
 
 // NewAccountWithCurrency creates a new account with the specified currency.
 // If the currency is invalid or empty, defaults to USD.
-func NewAccountWithCurrency(userID uuid.UUID, currencyCode string) (acc *Account, err error) {
-	if !IsValidCurrencyFormat(currencyCode) {
+func NewAccountWithCurrency(userID uuid.UUID, currencyCode currency.Code) (acc *Account, err error) {
+	if !currency.IsValidCurrencyFormat(string(currencyCode)) {
 		return nil, ErrInvalidCurrencyCode
 	}
 	return &Account{
@@ -99,7 +99,7 @@ func NewAccountWithCurrency(userID uuid.UUID, currencyCode string) (acc *Account
 func NewAccountFromData(
 	id, userID uuid.UUID,
 	balance int64,
-	currencyCode string,
+	currencyCode currency.Code,
 	created, updated time.Time,
 ) *Account {
 	return &Account{
@@ -167,7 +167,7 @@ func (a *Account) GetBalance(userID uuid.UUID) (balance float64, err error) {
 		err = ErrUserUnauthorized
 		return
 	}
-	meta, err := currency.Get(a.Currency)
+	meta, err := currency.Get(string(a.Currency))
 	if err != nil {
 		return 0, err
 	}
@@ -197,6 +197,10 @@ func (a *Account) Deposit(userID uuid.UUID, money Money) (*Transaction, error) {
 
 	if !money.IsPositive() {
 		return nil, ErrTransactionAmountMustBePositive
+	}
+
+	if string(money.Currency()) != string(a.Currency) {
+		return nil, ErrInvalidCurrencyCode
 	}
 
 	// Check for overflow before performing the addition

@@ -5,24 +5,38 @@ import (
 
 	infra_cache "github.com/amirasaad/fintech/infra/cache"
 	infra_provider "github.com/amirasaad/fintech/infra/provider"
+	"github.com/amirasaad/fintech/pkg/cache"
 	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/provider"
+	"github.com/redis/go-redis/v9"
 )
 
 // NewExchangeRateSystem creates a complete exchange rate system with providers, cache, and converter
-func NewExchangeRateSystem(logger *slog.Logger, cfg config.ExchangeRateConfig) (domain.CurrencyConverter, error) {
+func NewExchangeRateSystem(logger *slog.Logger, cfg config.AppConfig) (domain.CurrencyConverter, error) {
 	// Create cache
-	rateCache := infra_cache.NewMemoryCache()
+	var rateCache cache.ExchangeRateCache
+	if cfg.Redis.URL != "" {
+		opt, err := redis.ParseURL(cfg.Redis.URL)
+		if err != nil {
+			logger.Error("Invalid Redis URL", "url", cfg.Redis.URL, "error", err)
+			return nil, err
+		}
+		rateCache = infra_cache.NewRedisExchangeRateCacheWithOptions(opt, cfg.Exchange.CachePrefix, logger)
+		logger.Info("Using Redis for exchange rate cache", "url", cfg.Redis.URL)
+	} else {
+		rateCache = infra_cache.NewMemoryCache()
+		logger.Info("Using in-memory cache for exchange rates")
+	}
 
 	// Create providers
 	var exchangeRateProviders []provider.ExchangeRateProvider
 
 	// Add ExchangeRate API provider if API key is configured
-	if cfg.ApiKey != "" {
-		exchangeRateProvider := infra_provider.NewExchangeRateAPIProvider(cfg.ApiKey, logger)
+	if cfg.Exchange.ApiKey != "" {
+		exchangeRateProvider := infra_provider.NewExchangeRateAPIProvider(cfg.Exchange.ApiKey, logger)
 		exchangeRateProviders = append(exchangeRateProviders, exchangeRateProvider)
-		logger.Info("ExchangeRate API provider configured", "apiKey", maskAPIKey(cfg.ApiKey))
+		logger.Info("ExchangeRate API provider configured", "apiKey", maskAPIKey(cfg.Exchange.ApiKey))
 	} else {
 		logger.Warn("No ExchangeRate API key configured, using fallback only")
 	}
@@ -32,7 +46,7 @@ func NewExchangeRateSystem(logger *slog.Logger, cfg config.ExchangeRateConfig) (
 
 	// Create fallback converter
 	var fallback domain.CurrencyConverter
-	if cfg.EnableFallback {
+	if cfg.Exchange.EnableFallback {
 		fallback = infra_provider.NewStubCurrencyConverter()
 		logger.Info("Fallback currency converter enabled")
 	}
@@ -42,8 +56,8 @@ func NewExchangeRateSystem(logger *slog.Logger, cfg config.ExchangeRateConfig) (
 
 	logger.Info("Exchange rate system initialized",
 		"providers", len(exchangeRateProviders),
-		"fallbackEnabled", cfg.EnableFallback,
-		"cacheTTL", cfg.CacheTTL)
+		"fallbackEnabled", cfg.Exchange.EnableFallback,
+		"cacheTTL", cfg.Exchange.CacheTTL)
 
 	return converter, nil
 }

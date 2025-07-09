@@ -102,8 +102,8 @@ func (r *EnhancedRegistry) Register(ctx context.Context, entity Entity) error {
 	defer r.mu.Unlock()
 
 	// Check if entity already exists
-	_, exists := r.entities[entity.GetID()]
-	r.entities[entity.GetID()] = entity
+	_, exists := r.entities[entity.ID()]
+	r.entities[entity.ID()] = entity
 
 	// Update cache if available
 	if r.cache != nil {
@@ -114,7 +114,7 @@ func (r *EnhancedRegistry) Register(ctx context.Context, entity Entity) error {
 	if r.metrics != nil {
 		r.metrics.IncrementRegistration()
 		r.metrics.SetEntityCount(len(r.entities))
-		if entity.IsActive() {
+		if entity.Active() {
 			activeCount := r.countActiveLocked()
 			r.metrics.SetActiveCount(activeCount)
 		}
@@ -128,7 +128,7 @@ func (r *EnhancedRegistry) Register(ctx context.Context, entity Entity) error {
 		}
 		event := RegistryEvent{
 			Type:      eventType,
-			EntityID:  entity.GetID(),
+			EntityID:  entity.ID(),
 			Entity:    entity,
 			Timestamp: time.Now(),
 		}
@@ -268,7 +268,7 @@ func (r *EnhancedRegistry) ListActive(ctx context.Context) ([]Entity, error) {
 
 	entities := make([]Entity, 0)
 	for _, entity := range r.entities {
-		if entity.IsActive() {
+		if entity.Active() {
 			entities = append(entities, entity)
 		}
 	}
@@ -282,7 +282,7 @@ func (r *EnhancedRegistry) ListByMetadata(ctx context.Context, key, value string
 
 	entities := make([]Entity, 0)
 	for _, entity := range r.entities {
-		if metadata := entity.GetMetadata(); metadata != nil {
+		if metadata := entity.Metadata(); metadata != nil {
 			if val, exists := metadata[key]; exists && val == value {
 				entities = append(entities, entity)
 			}
@@ -309,7 +309,7 @@ func (r *EnhancedRegistry) CountActive(ctx context.Context) (int, error) {
 func (r *EnhancedRegistry) countActiveLocked() int {
 	count := 0
 	for _, entity := range r.entities {
-		if entity.IsActive() {
+		if entity.Active() {
 			count++
 		}
 	}
@@ -323,7 +323,7 @@ func (r *EnhancedRegistry) GetMetadata(ctx context.Context, id, key string) (str
 		return "", err
 	}
 
-	metadata := entity.GetMetadata()
+	metadata := entity.Metadata()
 	if val, exists := metadata[key]; exists {
 		return val, nil
 	}
@@ -340,7 +340,7 @@ func (r *EnhancedRegistry) SetMetadata(ctx context.Context, id, key, value strin
 
 	// Validate metadata if validator is set
 	if r.validator != nil {
-		metadata := entity.GetMetadata()
+		metadata := entity.Metadata()
 		metadata[key] = value
 		if err := r.validator.ValidateMetadata(ctx, metadata); err != nil {
 			return fmt.Errorf("metadata validation failed: %w", err)
@@ -348,7 +348,7 @@ func (r *EnhancedRegistry) SetMetadata(ctx context.Context, id, key, value strin
 	}
 
 	// Update the entity's metadata
-	metadata := entity.GetMetadata()
+	metadata := entity.Metadata()
 	metadata[key] = value
 
 	// Re-register the entity to update it
@@ -362,7 +362,7 @@ func (r *EnhancedRegistry) RemoveMetadata(ctx context.Context, id, key string) e
 		return err
 	}
 
-	metadata := entity.GetMetadata()
+	metadata := entity.Metadata()
 	delete(metadata, key)
 
 	// Re-register the entity to update it
@@ -380,12 +380,12 @@ func (r *EnhancedRegistry) Activate(ctx context.Context, id string) error {
 	// Note: This is a simplified approach - in a real implementation,
 	// you might want to make the Entity interface mutable or use a different approach
 	baseEntity := &BaseEntity{
-		ID:        entity.GetID(),
-		Name:      entity.GetName(),
-		Active:    true,
-		Metadata:  entity.GetMetadata(),
-		CreatedAt: entity.GetCreatedAt(),
-		UpdatedAt: time.Now(),
+		id:        entity.ID(),
+		name:      entity.Name(),
+		active:    true,
+		metadata:  entity.Metadata(),
+		createdAt: entity.CreatedAt(),
+		updatedAt: entity.UpdatedAt(),
 	}
 
 	return r.Register(ctx, baseEntity)
@@ -400,12 +400,12 @@ func (r *EnhancedRegistry) Deactivate(ctx context.Context, id string) error {
 
 	// Create a new entity with inactive status
 	baseEntity := &BaseEntity{
-		ID:        entity.GetID(),
-		Name:      entity.GetName(),
-		Active:    false,
-		Metadata:  entity.GetMetadata(),
-		CreatedAt: entity.GetCreatedAt(),
-		UpdatedAt: time.Now(),
+		id:        entity.ID(),
+		name:      entity.Name(),
+		active:    false,
+		metadata:  entity.Metadata(),
+		createdAt: entity.CreatedAt(),
+		updatedAt: entity.UpdatedAt(),
 	}
 
 	return r.Register(ctx, baseEntity)
@@ -418,7 +418,7 @@ func (r *EnhancedRegistry) Search(ctx context.Context, query string) ([]Entity, 
 
 	entities := make([]Entity, 0)
 	for _, entity := range r.entities {
-		if contains(entity.GetName(), query) {
+		if contains(entity.Name(), query) {
 			entities = append(entities, entity)
 		}
 	}
@@ -432,7 +432,7 @@ func (r *EnhancedRegistry) SearchByMetadata(ctx context.Context, metadata map[st
 
 	entities := make([]Entity, 0)
 	for _, entity := range r.entities {
-		entityMetadata := entity.GetMetadata()
+		entityMetadata := entity.Metadata()
 		matches := true
 		for key, value := range metadata {
 			if val, exists := entityMetadata[key]; !exists || val != value {

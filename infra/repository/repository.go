@@ -45,7 +45,7 @@ func (r *accountRepository) Update(a *domain.Account) error {
 		ID:       a.ID,
 		UserID:   a.UserID,
 		Balance:  a.Balance,
-		Currency: a.Currency,
+		Currency: string(a.Currency),
 	}
 	result := r.db.Save(&dbModel)
 	if result.Error != nil {

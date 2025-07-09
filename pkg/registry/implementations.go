@@ -58,7 +58,7 @@ func (c *MemoryCache) Set(ctx context.Context, entity Entity) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	c.cache[entity.GetID()] = cacheEntry{
+	c.cache[entity.ID()] = cacheEntry{
 		entity:    entity,
 		expiresAt: time.Now().Add(c.ttl),
 	}
@@ -131,12 +131,12 @@ func (p *FilePersistence) Save(ctx context.Context, entities []Entity) error {
 	data := make([]map[string]interface{}, len(entities))
 	for i, entity := range entities {
 		data[i] = map[string]interface{}{
-			"id":         entity.GetID(),
-			"name":       entity.GetName(),
-			"active":     entity.IsActive(),
-			"metadata":   entity.GetMetadata(),
-			"created_at": entity.GetCreatedAt(),
-			"updated_at": entity.GetUpdatedAt(),
+			"id":         entity.ID(),
+			"name":       entity.Name(),
+			"active":     entity.Active(),
+			"metadata":   entity.Metadata(),
+			"created_at": entity.CreatedAt(),
+			"updated_at": entity.UpdatedAt(),
 		}
 	}
 
@@ -194,12 +194,12 @@ func (p *FilePersistence) Load(ctx context.Context) ([]Entity, error) {
 		}
 
 		entities[i] = &BaseEntity{
-			ID:        raw["id"].(string),
-			Name:      raw["name"].(string),
-			Active:    raw["active"].(bool),
-			Metadata:  metadata,
-			CreatedAt: createdAt,
-			UpdatedAt: updatedAt,
+			id:        raw["id"].(string),
+			name:      raw["name"].(string),
+			active:    raw["active"].(bool),
+			metadata:  metadata,
+			createdAt: createdAt,
+			updatedAt: updatedAt,
 		}
 	}
 
@@ -414,15 +414,15 @@ func (v *SimpleValidator) WithValidator(field string, validator func(string) err
 // Validate validates an entity
 func (v *SimpleValidator) Validate(ctx context.Context, entity Entity) error {
 	// Validate required fields
-	if entity.GetID() == "" {
+	if entity.ID() == "" {
 		return fmt.Errorf("entity ID cannot be empty")
 	}
-	if entity.GetName() == "" {
+	if entity.Name() == "" {
 		return fmt.Errorf("entity name cannot be empty")
 	}
 
 	// Validate metadata
-	return v.ValidateMetadata(ctx, entity.GetMetadata())
+	return v.ValidateMetadata(ctx, entity.Metadata())
 }
 
 // ValidateMetadata validates entity metadata

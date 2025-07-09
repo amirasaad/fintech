@@ -14,6 +14,7 @@ import (
 
 	"github.com/amirasaad/fintech/internal/fixtures"
 	"github.com/amirasaad/fintech/pkg/config"
+	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/service"
 	"github.com/gofiber/fiber/v2"
@@ -122,7 +123,7 @@ func (s *AccountTestSuite) TestAccountWithdraw() {
 	s.mockUow.EXPECT().TransactionRepository().Return(s.transRepo, nil)
 
 	testAccount := domain.NewAccount(s.testUser.ID)
-	money, err := domain.NewMoney(1000.0, "USD")
+	money, err := domain.NewMoney(1000.0, currency.Code("USD"))
 	assert.NoError(s.T(), err)
 	_, _ = testAccount.Deposit(s.testUser.ID, money)
 	s.accountRepo.EXPECT().Get(mock.Anything).Return(testAccount, nil)
@@ -218,7 +219,7 @@ func (s *AccountTestSuite) TestAccountRoutesTransactionList() {
 func (s *AccountTestSuite) TestAccountRoutesBalance() {
 	s.mockUow.EXPECT().AccountRepository().Return(s.accountRepo, nil)
 	accountID := uuid.New()
-	account := &domain.Account{ID: accountID, UserID: s.testUser.ID, Balance: 100.0, Currency: "USD"}
+	account := &domain.Account{ID: accountID, UserID: s.testUser.ID, Balance: 100.0, Currency: currency.Code("USD")}
 	s.accountRepo.EXPECT().Get(accountID).Return(account, nil)
 
 	req := httptest.NewRequest("GET", fmt.Sprintf("/account/%s/balance", accountID), nil)
@@ -484,7 +485,7 @@ func (s *AccountTestSuite) TestAccountCreateWithCurrency() {
 func (s *AccountTestSuite) TestAccountDepositWithCurrency() {
 	s.mockUow.EXPECT().AccountRepository().Return(s.accountRepo, nil)
 	s.mockUow.EXPECT().TransactionRepository().Return(s.transRepo, nil)
-	testAccount, _ := domain.NewAccountWithCurrency(s.testUser.ID, "EUR")
+	testAccount, _ := domain.NewAccountWithCurrency(s.testUser.ID, currency.Code("EUR"))
 	s.accountRepo.EXPECT().Get(mock.Anything).Return(testAccount, nil)
 	s.transRepo.EXPECT().Create(mock.Anything).Return(nil)
 	s.accountRepo.EXPECT().Update(mock.Anything).Return(nil)
@@ -509,7 +510,7 @@ func (s *AccountTestSuite) TestAccountDepositWithCurrency() {
 
 func (s *AccountTestSuite) TestDepositWithConversion_Integration() {
 	// Setup: create account in USD
-	account, _ := domain.NewAccountWithCurrency(s.testUser.ID, "USD")
+	account, _ := domain.NewAccountWithCurrency(s.testUser.ID, currency.Code("USD"))
 	s.accountRepo.EXPECT().Get(account.ID).Return(account, nil)
 	s.accountRepo.EXPECT().Update(account).Return(nil)
 	s.transRepo.EXPECT().Create(mock.Anything).Return(nil)

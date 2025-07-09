@@ -10,26 +10,26 @@ func TestEntityInterface(t *testing.T) {
 	// Test BaseEntity implementation
 	entity := NewBaseEntity("test-id", "Test Entity")
 
-	if entity.GetID() != "test-id" {
-		t.Errorf("Expected ID 'test-id', got '%s'", entity.GetID())
+	if entity.ID() != "test-id" {
+		t.Errorf("Expected ID 'test-id', got '%s'", entity.ID())
 	}
 
-	if entity.GetName() != "Test Entity" {
-		t.Errorf("Expected name 'Test Entity', got '%s'", entity.GetName())
+	if entity.Name() != "Test Entity" {
+		t.Errorf("Expected name 'Test Entity', got '%s'", entity.Name())
 	}
 
-	if !entity.IsActive() {
+	if !entity.Active() {
 		t.Error("Expected entity to be active")
 	}
 
-	metadata := entity.GetMetadata()
+	metadata := entity.Metadata()
 	if metadata == nil {
 		t.Error("Expected metadata to be initialized")
 	}
 
 	// Test metadata operations
 	metadata["key"] = "value"
-	if entity.GetMetadata()["key"] != "value" {
+	if entity.Metadata()["key"] != "value" {
 		t.Error("Failed to set metadata")
 	}
 }
@@ -59,8 +59,8 @@ func TestEnhancedRegistry_BasicOperations(t *testing.T) {
 		t.Fatalf("Failed to get entity: %v", err)
 	}
 
-	if retrieved.GetID() != "test-1" {
-		t.Errorf("Expected ID 'test-1', got '%s'", retrieved.GetID())
+	if retrieved.ID() != "test-1" {
+		t.Errorf("Expected ID 'test-1', got '%s'", retrieved.ID())
 	}
 
 	// Test listing
@@ -125,8 +125,8 @@ func TestEnhancedRegistry_WithCache(t *testing.T) {
 		t.Error("Entity should be in cache")
 	}
 
-	if cached.GetID() != "test-1" {
-		t.Errorf("Expected cached entity ID 'test-1', got '%s'", cached.GetID())
+	if cached.ID() != "test-1" {
+		t.Errorf("Expected cached entity ID 'test-1', got '%s'", cached.ID())
 	}
 
 	// Test cache expiration
@@ -327,8 +327,8 @@ func TestEnhancedRegistry_SearchOperations(t *testing.T) {
 
 	// Test metadata search
 	entity := NewBaseEntity("test-4", "Test Entity")
-	entity.GetMetadata()["category"] = "fruit"
-	entity.GetMetadata()["color"] = "red"
+	entity.Metadata()["category"] = "fruit"
+	entity.Metadata()["color"] = "red"
 
 	err = registry.Register(ctx, entity)
 	if err != nil {

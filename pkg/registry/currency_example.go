@@ -9,37 +9,42 @@ import (
 // CurrencyEntity represents a currency in the registry
 type CurrencyEntity struct {
 	*BaseEntity
-	Code     string
-	Symbol   string
-	Decimals int
-	Active   bool
+	code     string
+	symbol   string
+	decimals int
+	active   bool
 }
 
 // NewCurrencyEntity creates a new currency entity
 func NewCurrencyEntity(code, name, symbol string, decimals int) *CurrencyEntity {
 	return &CurrencyEntity{
 		BaseEntity: NewBaseEntity(code, name),
-		Code:       code,
-		Symbol:     symbol,
-		Decimals:   decimals,
-		Active:     true,
+		code:       code,
+		symbol:     symbol,
+		decimals:   decimals,
+		active:     true,
 	}
 }
 
 // GetMetadata returns currency metadata
-func (c *CurrencyEntity) GetMetadata() map[string]string {
-	metadata := c.BaseEntity.GetMetadata()
-	metadata["code"] = c.Code
-	metadata["symbol"] = c.Symbol
-	metadata["decimals"] = fmt.Sprintf("%d", c.Decimals)
-	metadata["active"] = fmt.Sprintf("%t", c.Active)
+func (c *CurrencyEntity) Metadata() map[string]string {
+	metadata := c.BaseEntity.Metadata()
+	metadata["code"] = c.code
+	metadata["symbol"] = c.symbol
+	metadata["decimals"] = fmt.Sprintf("%d", c.decimals)
+	metadata["active"] = fmt.Sprintf("%t", c.active)
 	return metadata
 }
 
 // IsActive returns whether the currency is active
-func (c *CurrencyEntity) IsActive() bool {
-	return c.Active
+func (c *CurrencyEntity) Active() bool {
+	return c.active
 }
+
+// Refactor CurrencyEntity to use property-style getter methods and forward to BaseEntity.
+// Already implemented above or not needed due to direct field access
+
+// Remove property-style getter methods that conflict.
 
 // CurrencyRegistryExample demonstrates using the registry for currency management
 func CurrencyRegistryExample() {
@@ -76,9 +81,9 @@ func CurrencyRegistryExample() {
 	for _, currency := range currencies {
 		err := registry.Register(ctx, currency)
 		if err != nil {
-			fmt.Printf("Failed to register %s: %v\n", currency.GetName(), err)
+			fmt.Printf("Failed to register %s: %v\n", currency.Name(), err)
 		} else {
-			fmt.Printf("Registered: %s (%s)\n", currency.GetName(), currency.GetMetadata()["code"])
+			fmt.Printf("Registered: %s (%s)\n", currency.Name(), currency.Metadata()["code"])
 		}
 	}
 
@@ -89,24 +94,31 @@ func CurrencyRegistryExample() {
 	dollarResults, _ := registry.Search(ctx, "Dollar")
 	fmt.Printf("Found %d currencies with 'Dollar' in name:\n", len(dollarResults))
 	for _, currency := range dollarResults {
-		fmt.Printf("  - %s (%s)\n", currency.GetName(), currency.GetMetadata()["code"])
+		fmt.Printf("  - %s (%s)\n", currency.Name(), currency.Metadata()["code"])
 	}
 
 	// Search by metadata (2 decimal places)
 	twoDecimalCurrencies, _ := registry.SearchByMetadata(ctx, map[string]string{"decimals": "2"})
 	fmt.Printf("\nFound %d currencies with 2 decimal places:\n", len(twoDecimalCurrencies))
 	for _, currency := range twoDecimalCurrencies {
-		fmt.Printf("  - %s (%s)\n", currency.GetName(), currency.GetMetadata()["code"])
+		fmt.Printf("  - %s (%s)\n", currency.Name(), currency.Metadata()["code"])
 	}
 
 	// List all active currencies
 	activeCurrencies, _ := registry.ListActive(ctx)
 	fmt.Printf("\nFound %d active currencies:\n", len(activeCurrencies))
 	for _, currency := range activeCurrencies {
-		fmt.Printf("  - %s (%s) %s\n",
-			currency.GetName(),
-			currency.GetMetadata()["code"],
-			currency.GetMetadata()["symbol"])
+		if ce, ok := currency.(*CurrencyEntity); ok {
+			fmt.Printf("  - %s (%s) %s\n",
+				ce.Name(),
+				ce.ID(),
+				ce.symbol)
+		} else {
+			fmt.Printf("  - %s (%s) %s\n",
+				currency.Name(),
+				currency.ID(),
+				currency.Metadata()["symbol"])
+		}
 	}
 
 	// Demonstrate metadata operations
@@ -188,17 +200,31 @@ func CurrencyRegistryExample() {
 	allCurrencies, _ := registry.List(ctx)
 	fmt.Printf("\nAll registered currencies (%d):\n", len(allCurrencies))
 	for _, currency := range allCurrencies {
-		metadata := currency.GetMetadata()
-		status := "Active"
-		if !currency.IsActive() {
-			status = "Inactive"
+		if ce, ok := currency.(*CurrencyEntity); ok {
+			metadata := ce.Metadata()
+			status := "Active"
+			if !ce.Active() {
+				status = "Inactive"
+			}
+			fmt.Printf("  %s: %s %s (%s decimals) - %s\n",
+				ce.ID(),
+				ce.symbol,
+				ce.Name(),
+				metadata["decimals"],
+				status)
+		} else {
+			metadata := currency.Metadata()
+			status := "Active"
+			if !currency.Active() {
+				status = "Inactive"
+			}
+			fmt.Printf("  %s: %s %s (%s decimals) - %s\n",
+				currency.ID(),
+				metadata["symbol"],
+				currency.Name(),
+				metadata["decimals"],
+				status)
 		}
-		fmt.Printf("  %s: %s %s (%s decimals) - %s\n",
-			metadata["code"],
-			metadata["symbol"],
-			currency.GetName(),
-			metadata["decimals"],
-			status)
 	}
 }
 
@@ -232,7 +258,7 @@ func (v *CurrencyValidator) Validate(ctx context.Context, entity Entity) error {
 	}
 
 	// Additional currency-specific validation
-	metadata := entity.GetMetadata()
+	metadata := entity.Metadata()
 
 	// Check code format (3 uppercase letters)
 	code := metadata["code"]
@@ -343,11 +369,18 @@ func CurrencyRegistryWithPersistence() {
 	loadedCurrencies, _ := newRegistry.List(ctx)
 	fmt.Println("Available currencies after restart:")
 	for _, currency := range loadedCurrencies {
-		metadata := currency.GetMetadata()
-		fmt.Printf("  %s: %s %s\n",
-			metadata["code"],
-			metadata["symbol"],
-			currency.GetName())
+		if ce, ok := currency.(*CurrencyEntity); ok {
+			fmt.Printf("  %s: %s %s\n",
+				ce.ID(),
+				ce.symbol,
+				ce.Name())
+		} else {
+			metadata := currency.Metadata()
+			fmt.Printf("  %s: %s %s\n",
+				currency.ID(),
+				metadata["symbol"],
+				currency.Name())
+		}
 	}
 }
 
@@ -404,11 +437,18 @@ func CurrencyRegistryWithEvents() {
 type CurrencyEventLogger struct{}
 
 func (l *CurrencyEventLogger) OnEntityRegistered(ctx context.Context, entity Entity) {
-	metadata := entity.GetMetadata()
-	fmt.Printf("CURRENCY REGISTERED: %s (%s) %s\n",
-		entity.GetName(),
-		metadata["code"],
-		metadata["symbol"])
+	if ce, ok := entity.(*CurrencyEntity); ok {
+		fmt.Printf("CURRENCY REGISTERED: %s (%s) %s\n",
+			ce.Name(),
+			ce.ID(),
+			ce.symbol)
+	} else {
+		metadata := entity.Metadata()
+		fmt.Printf("CURRENCY REGISTERED: %s (%s) %s\n",
+			entity.Name(),
+			entity.ID(),
+			metadata["symbol"])
+	}
 }
 
 func (l *CurrencyEventLogger) OnEntityUnregistered(ctx context.Context, id string) {
@@ -416,10 +456,15 @@ func (l *CurrencyEventLogger) OnEntityUnregistered(ctx context.Context, id strin
 }
 
 func (l *CurrencyEventLogger) OnEntityUpdated(ctx context.Context, entity Entity) {
-	metadata := entity.GetMetadata()
-	fmt.Printf("CURRENCY UPDATED: %s (%s)\n",
-		entity.GetName(),
-		metadata["code"])
+	if ce, ok := entity.(*CurrencyEntity); ok {
+		fmt.Printf("CURRENCY UPDATED: %s (%s)\n",
+			ce.Name(),
+			ce.ID())
+	} else {
+		fmt.Printf("CURRENCY UPDATED: %s (%s)\n",
+			entity.Name(),
+			entity.ID())
+	}
 }
 
 func (l *CurrencyEventLogger) OnEntityActivated(ctx context.Context, id string) {

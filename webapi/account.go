@@ -17,6 +17,7 @@ package webapi
 
 import (
 	"github.com/amirasaad/fintech/pkg/config"
+	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/middleware"
 	"github.com/amirasaad/fintech/pkg/service"
@@ -176,11 +177,14 @@ func CreateAccount(
 			return ProblemDetailsJSON(c, status, "invalid user ID", err.Error())
 		}
 		input, _ := BindAndValidate[CreateAccountRequest](c) // ignore error, currency is optional
-		currency := "USD"
+		currencyCode := currency.Code("USD")
 		if input != nil && input.Currency != "" {
-			currency = input.Currency
+			if !currency.IsValidCurrencyFormat(input.Currency) {
+				return ProblemDetailsJSON(c, fiber.StatusBadRequest, "invalid currency", "Currency must be a valid ISO 4217 code")
+			}
+			currencyCode = currency.Code(input.Currency)
 		}
-		a, err := accountSvc.CreateAccountWithCurrency(userID, currency)
+		a, err := accountSvc.CreateAccountWithCurrency(userID, currencyCode)
 		if err != nil {
 			log.Errorf("Failed to create account: %v", err)
 			status := ErrorToStatusCode(err)
@@ -218,7 +222,7 @@ func Deposit(
 	return func(c *fiber.Ctx) error {
 		token, ok := c.Locals("user").(*jwt.Token)
 		if !ok {
-			return ErrorResponseJSON(c, fiber.StatusUnauthorized, "unauthorized", "missing user context")
+			return ProblemDetailsJSON(c, fiber.StatusUnauthorized, "unauthorized", "missing user context")
 		}
 		userID, err := authSvc.GetCurrentUserId(token)
 		if err != nil {
@@ -226,17 +230,23 @@ func Deposit(
 			status := ErrorToStatusCode(err)
 			return ProblemDetailsJSON(c, status, "invalid user ID", err.Error())
 		}
-		id, err := uuid.Parse(c.Params("id"))
+		accountID, err := uuid.Parse(c.Params("id"))
 		if err != nil {
 			log.Errorf("Invalid account ID for deposit: %v", err)
 			return ProblemDetailsJSON(c, fiber.StatusBadRequest, "Invalid account ID", err.Error())
 		}
 		input, err := BindAndValidate[DepositRequest](c)
 		if err != nil {
-			log.Errorf("Failed to parse deposit request: %v", err)
-			return nil // Error already written by helper
+			return ProblemDetailsJSON(c, fiber.StatusBadRequest, "invalid input", err.Error())
 		}
-		tx, convInfo, err := accountSvc.Deposit(userID, id, input.Amount, input.Currency)
+		currencyCode := currency.Code("USD")
+		if input.Currency != "" {
+			if !currency.IsValidCurrencyFormat(input.Currency) {
+				return ProblemDetailsJSON(c, fiber.StatusBadRequest, "invalid currency", "Currency must be a valid ISO 4217 code")
+			}
+			currencyCode = currency.Code(input.Currency)
+		}
+		tx, convInfo, err := accountSvc.Deposit(userID, accountID, input.Amount, currencyCode)
 		if err != nil {
 			log.Errorf("Failed to deposit: %v", err)
 			status := ErrorToStatusCode(err)
@@ -291,20 +301,23 @@ func Withdraw(
 			status := ErrorToStatusCode(err)
 			return ProblemDetailsJSON(c, status, "invalid user ID", err.Error())
 		}
-		id, err := uuid.Parse(c.Params("id"))
+		accountID, err := uuid.Parse(c.Params("id"))
 		if err != nil {
 			log.Errorf("Invalid account ID for withdrawal: %v", err)
 			return ProblemDetailsJSON(c, fiber.StatusBadRequest, "Invalid account ID", err.Error())
 		}
 		input, err := BindAndValidate[WithdrawRequest](c)
 		if err != nil {
-			log.Errorf("Failed to parse withdrawal request: %v", err)
-			return nil // Error already written by helper
+			return ProblemDetailsJSON(c, fiber.StatusBadRequest, "invalid input", err.Error())
 		}
-		if input.Currency == "" {
-			input.Currency = "USD"
+		currencyCode := currency.Code("USD")
+		if input.Currency != "" {
+			if !currency.IsValidCurrencyFormat(input.Currency) {
+				return ProblemDetailsJSON(c, fiber.StatusBadRequest, "invalid currency", "Currency must be a valid ISO 4217 code")
+			}
+			currencyCode = currency.Code(input.Currency)
 		}
-		tx, convInfo, err := accountSvc.Withdraw(userID, id, input.Amount, input.Currency)
+		tx, convInfo, err := accountSvc.Withdraw(userID, accountID, input.Amount, currencyCode)
 		if err != nil {
 			log.Errorf("Failed to withdraw: %v", err)
 			status := ErrorToStatusCode(err)

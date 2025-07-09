@@ -45,7 +45,7 @@ func (f *RegistryFactoryImpl) CreateWithPersistence(ctx context.Context, config 
 	if entities, err := persistence.Load(ctx); err == nil {
 		for _, entity := range entities {
 			if err := registry.Register(ctx, entity); err != nil {
-				return nil, fmt.Errorf("failed to load entity %s: %w", entity.GetID(), err)
+				return nil, fmt.Errorf("failed to load entity %s: %w", entity.ID(), err)
 			}
 		}
 	}
@@ -128,7 +128,7 @@ func (f *RegistryFactoryImpl) CreateFullFeatured(ctx context.Context, config Reg
 		if entities, err := persistence.Load(ctx); err == nil {
 			for _, entity := range entities {
 				if err := registry.Register(ctx, entity); err != nil {
-					return nil, fmt.Errorf("failed to load entity %s: %w", entity.GetID(), err)
+					return nil, fmt.Errorf("failed to load entity %s: %w", entity.ID(), err)
 				}
 			}
 		}

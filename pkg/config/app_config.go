@@ -20,6 +20,10 @@ type JwtConfig struct {
 	Expiry time.Duration `envconfig:"EXPIRY" default:"24h"`
 }
 
+type RedisConfig struct {
+	URL string `envconfig:"REDIS_URL" default:"redis://localhost:6379/0"`
+}
+
 type ExchangeRateConfig struct {
 	ApiKey            string        `envconfig:"API_KEY"`
 	ApiUrl            string        `envconfig:"API_URL" default:"https://api.exchangerate-api.com/v4/latest"`
@@ -30,6 +34,7 @@ type ExchangeRateConfig struct {
 	BurstSize         int           `envconfig:"BURST_SIZE" default:"10"`
 	EnableFallback    bool          `envconfig:"ENABLE_FALLBACK" default:"true"`
 	FallbackTTL       time.Duration `envconfig:"FALLBACK_TTL" default:"1h"`
+	CachePrefix       string        `envconfig:"CACHE_PREFIX" default:"exr:rate:"`
 }
 
 type AppConfig struct {
@@ -40,6 +45,7 @@ type AppConfig struct {
 	Auth     AuthConfig         `envconfig:"AUTH"`
 	Jwt      JwtConfig          `envconfig:"JWT"`
 	Exchange ExchangeRateConfig `envconfig:"EXCHANGE_RATE"`
+	Redis    RedisConfig        `envconfig:"REDIS"`
 }
 
 func LoadAppConfig(logger *slog.Logger, envFilePath ...string) (*AppConfig, error) {

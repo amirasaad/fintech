@@ -3,6 +3,7 @@ package domain_test
 import (
 	"testing"
 
+	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/google/uuid"
 )
@@ -14,27 +15,27 @@ func FuzzAccountDeposit(f *testing.F) {
 	f.Add(-50.0, "EUR")
 	f.Add(0.0, "JPY")
 	f.Add(1e12, "ZZZ")
-	f.Fuzz(func(t *testing.T, amount float64, currency string) {
+	f.Fuzz(func(t *testing.T, amount float64, cc currency.Code) {
 		acc, err := domain.NewAccountWithCurrency(userID, "USD")
 		if err != nil {
 			t.Skip()
 		}
-		money, err := domain.NewMoney(amount, currency)
+		money, err := domain.NewMoney(amount, cc)
 		if err != nil {
 			t.Skip()
 		}
 		defer func() {
 			if r := recover(); r != nil {
-				t.Errorf("Deposit panicked: %v (amount=%v, currency=%q)", r, amount, currency)
+				t.Errorf("Deposit panicked: %v (amount=%v, currency=%q)", r, amount, cc)
 			}
 		}()
 		_, _ = acc.Deposit(userID, money)
 		// Invariant: balance should never be negative
 		if acc.Balance < 0 {
-			t.Errorf("Account balance is negative after deposit: %d (amount=%v, currency=%q)", acc.Balance, amount, currency)
+			t.Errorf("Account balance is negative after deposit: %d (amount=%v, currency=%q)", acc.Balance, amount, cc)
 		}
 		// Invariant: currency format is always valid
-		if !domain.IsValidCurrencyFormat(acc.Currency) {
+		if !currency.IsValidCurrencyFormat(string(acc.Currency)) {
 			t.Errorf("Account currency is invalid: %q", acc.Currency)
 		}
 	})
@@ -47,7 +48,7 @@ func FuzzAccountWithdraw(f *testing.F) {
 	f.Add(-50.0, "EUR")
 	f.Add(0.0, "JPY")
 	f.Add(1e6, "ZZZ")
-	f.Fuzz(func(t *testing.T, amount float64, currency string) {
+	f.Fuzz(func(t *testing.T, amount float64, currency currency.Code) {
 		acc, err := domain.NewAccountWithCurrency(userID, "USD")
 		if err != nil {
 			t.Skip()
@@ -73,7 +74,8 @@ func FuzzAccountWithdraw(f *testing.F) {
 			t.Errorf("Account balance is negative after withdraw: %d (amount=%v, currency=%q)", acc.Balance, amount, currency)
 		}
 		// Invariant: currency format is always valid
-		if !domain.IsValidCurrencyFormat(acc.Currency) {
+		// Explicitly convert currency.Code to string for validation
+		if !domain.IsValidCurrencyFormat(string(acc.Currency)) {
 			t.Errorf("Account currency is invalid: %q", acc.Currency)
 		}
 	})

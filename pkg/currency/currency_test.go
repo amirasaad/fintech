@@ -71,14 +71,14 @@ func TestCurrencyEntity(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			entity := NewCurrencyEntity(tt.meta)
 
-			assert.Equal(t, tt.expected.Code, entity.GetID())
-			assert.Equal(t, tt.expected.Name, entity.GetName())
-			assert.Equal(t, tt.expected.Active, entity.IsActive())
-			assert.True(t, entity.GetCreatedAt().After(time.Time{}))
-			assert.True(t, entity.GetUpdatedAt().After(time.Time{}))
+			assert.Equal(t, tt.expected.Code, entity.ID())
+			assert.Equal(t, tt.expected.Name, entity.Name())
+			assert.Equal(t, tt.expected.Active, entity.Active())
+			assert.True(t, entity.CreatedAt().After(time.Time{}))
+			assert.True(t, entity.UpdatedAt().After(time.Time{}))
 
 			// Check metadata
-			metadata := entity.GetMetadata()
+			metadata := entity.Metadata()
 			assert.Equal(t, tt.expected.Code, metadata["code"])
 			assert.Equal(t, tt.expected.Symbol, metadata["symbol"])
 			assert.Equal(t, "2", metadata["decimals"])
@@ -92,7 +92,7 @@ func TestCurrencyEntity(t *testing.T) {
 			}
 
 			// Check returned meta
-			returnedMeta := entity.GetMeta()
+			returnedMeta := entity.Meta()
 			assert.Equal(t, tt.expected.Code, returnedMeta.Code)
 			assert.Equal(t, tt.expected.Name, returnedMeta.Name)
 			assert.Equal(t, tt.expected.Symbol, returnedMeta.Symbol)

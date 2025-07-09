@@ -31,8 +31,8 @@ const (
 	MaxSymbolLength = 10
 )
 
-// CurrencyCode represents a 3-letter ISO currency code
-type CurrencyCode string
+// Code represents a 3-letter ISO currency code
+type Code string
 
 // CurrencyMeta holds currency-specific metadata
 type CurrencyMeta struct {
@@ -66,24 +66,24 @@ func NewCurrencyEntity(meta CurrencyMeta) *CurrencyEntity {
 	}
 }
 
-// GetID returns the currency code
-func (c *CurrencyEntity) GetID() string {
+// Code returns the currency code
+func (c *CurrencyEntity) Code() string {
 	return c.meta.Code
 }
 
-// GetName returns the currency name
-func (c *CurrencyEntity) GetName() string {
+// Name returns the currency name
+func (c *CurrencyEntity) Name() string {
 	return c.meta.Name
 }
 
-// IsActive returns whether the currency is active
-func (c *CurrencyEntity) IsActive() bool {
+// Active returns whether the currency is active
+func (c *CurrencyEntity) Active() bool {
 	return c.meta.Active
 }
 
-// GetMetadata returns currency metadata
-func (c *CurrencyEntity) GetMetadata() map[string]string {
-	metadata := c.BaseEntity.GetMetadata()
+// Metadata returns currency metadata
+func (c *CurrencyEntity) Metadata() map[string]string {
+	metadata := c.BaseEntity.Metadata()
 	metadata["code"] = c.meta.Code
 	metadata["symbol"] = c.meta.Symbol
 	metadata["decimals"] = strconv.Itoa(c.meta.Decimals)
@@ -101,18 +101,18 @@ func (c *CurrencyEntity) GetMetadata() map[string]string {
 	return metadata
 }
 
-// GetCreatedAt returns the creation timestamp
-func (c *CurrencyEntity) GetCreatedAt() time.Time {
+// CreatedAt returns the creation timestamp
+func (c *CurrencyEntity) CreatedAt() time.Time {
 	return c.meta.Created
 }
 
-// GetUpdatedAt returns the last update timestamp
-func (c *CurrencyEntity) GetUpdatedAt() time.Time {
+// UpdatedAt returns the last update timestamp
+func (c *CurrencyEntity) UpdatedAt() time.Time {
 	return c.meta.Updated
 }
 
-// GetMeta returns the currency metadata
-func (c *CurrencyEntity) GetMeta() CurrencyMeta {
+// Meta returns the currency metadata
+func (c *CurrencyEntity) Meta() CurrencyMeta {
 	return c.meta
 }
 
@@ -128,12 +128,12 @@ func NewCurrencyValidator() *CurrencyValidator {
 func (cv *CurrencyValidator) Validate(ctx context.Context, entity registry.Entity) error {
 	// Try to convert to CurrencyEntity first
 	if currencyEntity, ok := entity.(*CurrencyEntity); ok {
-		return validateCurrencyMeta(currencyEntity.GetMeta())
+		return validateCurrencyMeta(currencyEntity.Meta())
 	}
 
 	// If it's not a CurrencyEntity, try to validate using metadata
 	// This handles cases where the entity might be a BaseEntity or other type
-	metadata := entity.GetMetadata()
+	metadata := entity.Metadata()
 	if len(metadata) == 0 {
 		return fmt.Errorf("invalid entity type: expected *CurrencyEntity or entity with metadata")
 	}
@@ -384,13 +384,13 @@ func (cr *CurrencyRegistry) Get(code string) (CurrencyMeta, error) {
 	currencyEntity, ok := entity.(*CurrencyEntity)
 	if !ok {
 		// Fallback: try to convert from BaseEntity
-		metadata := entity.GetMetadata()
+		metadata := entity.Metadata()
 		decimals, _ := strconv.Atoi(metadata["decimals"])
 		active, _ := strconv.ParseBool(metadata["active"])
 
 		return CurrencyMeta{
 			Code:     metadata["code"],
-			Name:     entity.GetName(),
+			Name:     entity.Name(),
 			Symbol:   metadata["symbol"],
 			Decimals: decimals,
 			Country:  metadata["country"],
@@ -399,7 +399,7 @@ func (cr *CurrencyRegistry) Get(code string) (CurrencyMeta, error) {
 		}, nil
 	}
 
-	return currencyEntity.GetMeta(), nil
+	return currencyEntity.Meta(), nil
 }
 
 // IsSupported checks if a currency code is registered and active
@@ -413,7 +413,11 @@ func (cr *CurrencyRegistry) IsSupported(code string) bool {
 		return false
 	}
 
-	return entity.IsActive()
+	if ce, ok := entity.(*CurrencyEntity); ok {
+		return ce.Active()
+	} else {
+		return entity.Active()
+	}
 }
 
 // ListSupported returns a list of all supported currency codes
@@ -425,7 +429,11 @@ func (cr *CurrencyRegistry) ListSupported() ([]string, error) {
 
 	codes := make([]string, len(entities))
 	for i, entity := range entities {
-		codes[i] = entity.GetID()
+		if ce, ok := entity.(*CurrencyEntity); ok {
+			codes[i] = ce.Code()
+		} else {
+			codes[i] = entity.ID()
+		}
 	}
 
 	return codes, nil
@@ -441,16 +449,16 @@ func (cr *CurrencyRegistry) ListAll() ([]CurrencyMeta, error) {
 	currencies := make([]CurrencyMeta, len(entities))
 	for i, entity := range entities {
 		if currencyEntity, ok := entity.(*CurrencyEntity); ok {
-			currencies[i] = currencyEntity.GetMeta()
+			currencies[i] = currencyEntity.Meta()
 		} else {
 			// Fallback conversion
-			metadata := entity.GetMetadata()
+			metadata := entity.Metadata()
 			decimals, _ := strconv.Atoi(metadata["decimals"])
 			active, _ := strconv.ParseBool(metadata["active"])
 
 			currencies[i] = CurrencyMeta{
 				Code:     metadata["code"],
-				Name:     entity.GetName(),
+				Name:     entity.Name(),
 				Symbol:   metadata["symbol"],
 				Decimals: decimals,
 				Country:  metadata["country"],
@@ -510,7 +518,7 @@ func (cr *CurrencyRegistry) Search(query string) ([]CurrencyMeta, error) {
 	currencies := make([]CurrencyMeta, len(entities))
 	for i, entity := range entities {
 		if currencyEntity, ok := entity.(*CurrencyEntity); ok {
-			currencies[i] = currencyEntity.GetMeta()
+			currencies[i] = currencyEntity.Meta()
 		}
 	}
 
@@ -527,7 +535,7 @@ func (cr *CurrencyRegistry) SearchByRegion(region string) ([]CurrencyMeta, error
 	currencies := make([]CurrencyMeta, len(entities))
 	for i, entity := range entities {
 		if currencyEntity, ok := entity.(*CurrencyEntity); ok {
-			currencies[i] = currencyEntity.GetMeta()
+			currencies[i] = currencyEntity.Meta()
 		}
 	}
 

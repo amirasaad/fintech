@@ -36,8 +36,8 @@ Authorization: Bearer {{login.response.body.$.data.$.token}}
 
 
 {
-    "amount": 10000,
-    "currency": "EGP"
+    "amount": 1000000000,
+    "currency": "JPY"
 }
 
 ### Withdraw from account

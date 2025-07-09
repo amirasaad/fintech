@@ -7,12 +7,12 @@ import (
 
 // Entity represents any entity that can be registered
 type Entity interface {
-	GetID() string
-	GetName() string
-	IsActive() bool
-	GetMetadata() map[string]string
-	GetCreatedAt() time.Time
-	GetUpdatedAt() time.Time
+	ID() string
+	Name() string
+	Active() bool
+	Metadata() map[string]string
+	CreatedAt() time.Time
+	UpdatedAt() time.Time
 }
 
 // RegistryProvider defines the interface for registry implementations
@@ -156,57 +156,40 @@ type RegistryFactory interface {
 
 // BaseEntity provides a default implementation of the Entity interface
 type BaseEntity struct {
-	ID        string            `json:"id"`
-	Name      string            `json:"name"`
-	Active    bool              `json:"active"`
-	Metadata  map[string]string `json:"metadata,omitempty"`
-	CreatedAt time.Time         `json:"created_at"`
-	UpdatedAt time.Time         `json:"updated_at"`
+	id        string            `json:"id"` //nolint:structtag
+	name      string            `json:"name"`
+	active    bool              `json:"active"`
+	metadata  map[string]string `json:"metadata,omitempty"`
+	createdAt time.Time         `json:"created_at"`
+	updatedAt time.Time         `json:"updated_at"`
 }
 
-// GetID returns the entity ID
-func (e *BaseEntity) GetID() string {
-	return e.ID
-}
-
-// GetName returns the entity name
-func (e *BaseEntity) GetName() string {
-	return e.Name
-}
-
-// IsActive returns whether the entity is active
-func (e *BaseEntity) IsActive() bool {
-	return e.Active
-}
-
-// GetMetadata returns the entity metadata
-func (e *BaseEntity) GetMetadata() map[string]string {
-	if e.Metadata == nil {
-		e.Metadata = make(map[string]string)
+// Property-style getter methods to implement Entity interface
+func (e *BaseEntity) ID() string   { return e.id }
+func (e *BaseEntity) Name() string { return e.name }
+func (e *BaseEntity) Active() bool { return e.active }
+func (e *BaseEntity) Metadata() map[string]string {
+	if e.metadata == nil {
+		e.metadata = make(map[string]string)
 	}
-	return e.Metadata
+	return e.metadata
 }
+func (e *BaseEntity) CreatedAt() time.Time { return e.createdAt }
+func (e *BaseEntity) UpdatedAt() time.Time { return e.updatedAt }
 
-// GetCreatedAt returns the creation timestamp
-func (e *BaseEntity) GetCreatedAt() time.Time {
-	return e.CreatedAt
-}
-
-// GetUpdatedAt returns the last update timestamp
-func (e *BaseEntity) GetUpdatedAt() time.Time {
-	return e.UpdatedAt
-}
+// Add a compile-time check to ensure BaseEntity implements the Entity interface.
+var _ Entity = (*BaseEntity)(nil)
 
 // NewBaseEntity creates a new base entity
 func NewBaseEntity(id, name string) *BaseEntity {
 	now := time.Now()
 	return &BaseEntity{
-		ID:        id,
-		Name:      name,
-		Active:    true,
-		Metadata:  make(map[string]string),
-		CreatedAt: now,
-		UpdatedAt: now,
+		id:        id,
+		name:      name,
+		active:    true,
+		metadata:  make(map[string]string),
+		createdAt: now,
+		updatedAt: now,
 	}
 }
 

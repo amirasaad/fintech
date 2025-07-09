@@ -13,38 +13,35 @@ import (
 // Amount represents a monetary amount as an integer in the smallest currency unit (e.g., cents for USD).
 type Amount int64
 
-// CurrencyCode represents an ISO 4217 currency code as a string.
-type CurrencyCode string
-
-// Money represents a monetary amount with a currency.
+// Money represents a monetary value in a specific currency.
 type Money struct {
 	amount   Amount
-	currency CurrencyCode
+	currency currency.Code
 }
 
-// NewMoney creates a new Money object from a float64 amount and currency code.
+// NewMoney creates a new Money value object with the given amount and currency code.
 // The amount is converted to the smallest currency unit (e.g., cents for USD).
 func NewMoney(
 	amount float64,
-	currencyCode string,
+	currencyCode currency.Code,
 ) (
 	money Money,
 	err error,
 ) {
 	if currencyCode == "" {
-		currencyCode = currency.DefaultCurrency
+		currencyCode = currency.Code(currency.DefaultCurrency)
 	}
-	if !IsValidCurrencyFormat(currencyCode) {
+	if !currency.IsValidCurrencyFormat(string(currencyCode)) {
 		err = ErrInvalidCurrencyCode
 		return
 	}
 
-	smallestUnit, err := convertToSmallestUnit(amount, currencyCode)
+	smallestUnit, err := convertToSmallestUnit(amount, string(currencyCode))
 	if err != nil {
 		return
 	}
 
-	money = Money{amount: Amount(smallestUnit), currency: CurrencyCode(currencyCode)}
+	money = Money{amount: Amount(smallestUnit), currency: currencyCode}
 	return
 }
 
@@ -52,20 +49,20 @@ func NewMoney(
 // This is useful for internal operations where precision is already handled.
 func NewMoneyFromSmallestUnit(
 	amount int64,
-	currencyCode string,
+	currencyCode currency.Code,
 ) (
 	money Money,
 	err error,
 ) {
 	if currencyCode == "" {
-		currencyCode = currency.DefaultCurrency
+		currencyCode = currency.Code(currency.DefaultCurrency)
 	}
-	if !IsValidCurrencyFormat(currencyCode) {
+	if !currency.IsValidCurrencyFormat(string(currencyCode)) {
 		err = ErrInvalidCurrencyCode
 		return
 	}
 
-	money = Money{amount: Amount(amount), currency: CurrencyCode(currencyCode)}
+	money = Money{amount: Amount(amount), currency: currencyCode}
 	return
 }
 
@@ -87,7 +84,7 @@ func (m Money) AmountFloat() float64 {
 }
 
 // Currency returns the currency of the Money object.
-func (m Money) Currency() CurrencyCode {
+func (m Money) Currency() currency.Code {
 	return m.currency
 }
 

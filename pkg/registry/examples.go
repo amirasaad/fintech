@@ -15,12 +15,12 @@ func ExampleBasicRegistry() {
 
 	// Register entities
 	user1 := NewBaseEntity("user-1", "John Doe")
-	user1.GetMetadata()["email"] = "john@example.com"
-	user1.GetMetadata()["role"] = "admin"
+	user1.Metadata()["email"] = "john@example.com"
+	user1.Metadata()["role"] = "admin"
 
 	user2 := NewBaseEntity("user-2", "Jane Smith")
-	user2.GetMetadata()["email"] = "jane@example.com"
-	user2.GetMetadata()["role"] = "user"
+	user2.Metadata()["email"] = "jane@example.com"
+	user2.Metadata()["role"] = "user"
 
 	registry.Register(ctx, user1)
 	registry.Register(ctx, user2)
@@ -35,7 +35,7 @@ func ExampleBasicRegistry() {
 
 	// Get specific entity
 	if user, err := registry.Get(ctx, "user-1"); err == nil {
-		fmt.Printf("Found user: %s (%s)\n", user.GetName(), user.GetMetadata()["email"])
+		fmt.Printf("Found user: %s (%s)\n", user.Name(), user.Metadata()["email"])
 	}
 }
 
@@ -134,8 +134,8 @@ func ExampleRegistryBuilder() {
 
 	// Register a user with required metadata
 	user := NewBaseEntity("user-1", "John Doe")
-	user.GetMetadata()["email"] = "john@example.com"
-	user.GetMetadata()["role"] = "admin"
+	user.Metadata()["email"] = "john@example.com"
+	user.Metadata()["role"] = "admin"
 
 	err = registry.Register(ctx, user)
 	if err != nil {
@@ -162,8 +162,8 @@ func NewProduct(id, name string, price float64, category string) *Product {
 	}
 }
 
-func (p *Product) GetMetadata() map[string]string {
-	metadata := p.BaseEntity.GetMetadata()
+func (p *Product) Metadata() map[string]string {
+	metadata := p.BaseEntity.Metadata()
 	metadata["price"] = fmt.Sprintf("%.2f", p.Price)
 	metadata["category"] = p.Category
 	metadata["in_stock"] = fmt.Sprintf("%t", p.InStock)
@@ -192,10 +192,10 @@ func ExampleCustomEntity() {
 	// List all products
 	allProducts, _ := registry.List(ctx)
 	for _, product := range allProducts {
-		metadata := product.GetMetadata()
+		metadata := product.Metadata()
 		fmt.Printf("%s: %s - $%s (%s)\n",
-			product.GetID(),
-			product.GetName(),
+			product.ID(),
+			product.Name(),
 			metadata["price"],
 			metadata["category"])
 	}
@@ -235,7 +235,7 @@ func ExampleEventDrivenRegistry() {
 type UserActivityLogger struct{}
 
 func (l *UserActivityLogger) OnEntityRegistered(ctx context.Context, entity Entity) {
-	fmt.Printf("USER REGISTERED: %s (%s)\n", entity.GetName(), entity.GetID())
+	fmt.Printf("USER REGISTERED: %s (%s)\n", entity.Name(), entity.ID())
 }
 
 func (l *UserActivityLogger) OnEntityUnregistered(ctx context.Context, id string) {
@@ -243,7 +243,7 @@ func (l *UserActivityLogger) OnEntityUnregistered(ctx context.Context, id string
 }
 
 func (l *UserActivityLogger) OnEntityUpdated(ctx context.Context, entity Entity) {
-	fmt.Printf("USER UPDATED: %s (%s)\n", entity.GetName(), entity.GetID())
+	fmt.Printf("USER UPDATED: %s (%s)\n", entity.Name(), entity.ID())
 }
 
 func (l *UserActivityLogger) OnEntityActivated(ctx context.Context, id string) {
@@ -273,8 +273,8 @@ func ExampleCustomValidation() {
 
 	// Test valid user
 	validUser := NewBaseEntity("user-1", "John Doe")
-	validUser.GetMetadata()["email"] = "john@example.com"
-	validUser.GetMetadata()["age"] = "25"
+	validUser.Metadata()["email"] = "john@example.com"
+	validUser.Metadata()["age"] = "25"
 
 	err := registry.Register(ctx, validUser)
 	if err != nil {
@@ -285,7 +285,7 @@ func ExampleCustomValidation() {
 
 	// Test invalid user (missing required metadata)
 	invalidUser := NewBaseEntity("user-2", "Jane Smith")
-	invalidUser.GetMetadata()["email"] = "jane@example.com"
+	invalidUser.Metadata()["email"] = "jane@example.com"
 	// Missing age
 
 	err = registry.Register(ctx, invalidUser)
@@ -295,9 +295,9 @@ func ExampleCustomValidation() {
 
 	// Test user with forbidden metadata
 	forbiddenUser := NewBaseEntity("user-3", "Bob Wilson")
-	forbiddenUser.GetMetadata()["email"] = "bob@example.com"
-	forbiddenUser.GetMetadata()["age"] = "30"
-	forbiddenUser.GetMetadata()["password"] = "secret123" // Forbidden
+	forbiddenUser.Metadata()["email"] = "bob@example.com"
+	forbiddenUser.Metadata()["age"] = "30"
+	forbiddenUser.Metadata()["password"] = "secret123" // Forbidden
 
 	err = registry.Register(ctx, forbiddenUser)
 	if err != nil {
@@ -409,11 +409,11 @@ func ExampleAdvancedSearch() {
 
 	for _, u := range users {
 		user := NewBaseEntity(u.id, u.name)
-		user.GetMetadata()["email"] = u.email
-		user.GetMetadata()["role"] = u.role
-		user.GetMetadata()["location"] = u.location
+		user.Metadata()["email"] = u.email
+		user.Metadata()["role"] = u.role
+		user.Metadata()["location"] = u.location
 		if !u.active {
-			user.GetMetadata()["active"] = "false"
+			user.Metadata()["active"] = "false"
 		}
 		registry.Register(ctx, user)
 	}
