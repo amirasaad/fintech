@@ -15,7 +15,7 @@ func LoadCurrencyMetaCSV(path string) ([]currency.CurrencyMeta, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer f.Close() //nolint:errcheck
 
 	r := csv.NewReader(f)
 	records, err := r.ReadAll()

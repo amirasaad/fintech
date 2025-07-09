@@ -63,7 +63,11 @@ func (p *ExchangeRateAPIProvider) FetchAndCacheRates(base string, cache cache.Ex
 	if err != nil {
 		return fmt.Errorf("failed to fetch rates: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if cerr := resp.Body.Close(); cerr != nil {
+			p.logger.Warn("Failed to close response body", "error", cerr)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
@@ -117,7 +121,11 @@ func (p *ExchangeRateAPIProvider) GetRate(from, to string) (*domain.ExchangeRate
 	if err != nil {
 		return nil, fmt.Errorf("failed to make request: %w", err)
 	}
-	defer resp.Body.Close() //nolint:errcheck
+	defer func() {
+		if cerr := resp.Body.Close(); cerr != nil {
+			p.logger.Warn("Failed to close response body", "error", cerr)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
@@ -175,7 +183,11 @@ func (p *ExchangeRateAPIProvider) GetRates(from string, to []string) (map[string
 	if err != nil {
 		return nil, fmt.Errorf("failed to make request: %w", err)
 	}
-	defer resp.Body.Close() //nolint:errcheck
+	defer func() {
+		if cerr := resp.Body.Close(); cerr != nil {
+			p.logger.Warn("Failed to close response body", "error", cerr)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
@@ -236,7 +248,11 @@ func (p *ExchangeRateAPIProvider) IsHealthy() bool {
 	if err != nil {
 		return false
 	}
-	defer resp.Body.Close() //nolint:errcheck
+	defer func() {
+		if cerr := resp.Body.Close(); cerr != nil {
+			p.logger.Warn("Failed to close response body", "error", cerr)
+		}
+	}()
 
 	return resp.StatusCode == http.StatusOK
 }

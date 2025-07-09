@@ -181,7 +181,7 @@ func CurrencyRegistryExample() {
 	// Test lookup performance
 	start = time.Now()
 	for i := 1; i <= 1000; i++ {
-		registry.Get(ctx, "USD")
+		registry.Get(ctx, "USD") //nolint:errcheck
 	}
 	lookupTime := time.Since(start)
 	fmt.Printf("1000 USD lookups in %v (avg: %v per lookup)\n",
@@ -360,7 +360,7 @@ func CurrencyRegistryWithPersistence() {
 	}
 
 	for _, entity := range entities {
-		newRegistry.Register(ctx, entity)
+		newRegistry.Register(ctx, entity) //nolint:errcheck
 	}
 
 	fmt.Printf("Loaded %d currencies from persistent storage\n", len(entities))
@@ -422,12 +422,12 @@ func CurrencyRegistryWithEvents() {
 	// Simulate currency updates
 	usd, _ := registry.Get(ctx, "USD")
 	if usd != nil {
-		registry.SetMetadata(ctx, "USD", "last_updated", time.Now().Format(time.RFC3339))
+		registry.SetMetadata(ctx, "USD", "last_updated", time.Now().Format(time.RFC3339)) //nolint:errcheck
 		observer.OnEntityUpdated(ctx, usd)
 	}
 
 	// Simulate currency deactivation
-	registry.Deactivate(ctx, "EUR")
+	registry.Deactivate(ctx, "EUR") //nolint:errcheck
 	observer.OnEntityDeactivated(ctx, "EUR")
 
 	fmt.Println("Currency events processed successfully")

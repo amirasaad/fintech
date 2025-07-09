@@ -11,7 +11,7 @@ import (
 
 func TestGetEnv(t *testing.T) {
 	// Test with environment variable set
-	os.Setenv("TEST_VAR", "test_value") //no
+	os.Setenv("TEST_VAR", "test_value") //nolint:errcheck
 	defer os.Unsetenv("TEST_VAR")       //nolint:errcheck
 
 	value := GetEnv("TEST_VAR", "default")

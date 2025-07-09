@@ -92,7 +92,7 @@ func (s *AccountTestSuite) TestAccountCreate() {
 
 	resp, err := s.app.Test(req, 10000)
 	s.Require().NoError(err)
-	defer resp.Body.Close() //nolint: errcheck
+	defer resp.Body.Close() //nolint:errcheck
 
 	s.Assert().Equal(fiber.StatusCreated, resp.StatusCode)
 }
@@ -115,7 +115,7 @@ func (s *AccountTestSuite) TestAccountDeposit() {
 
 	resp, err := s.app.Test(req, 10000)
 	s.Require().NoError(err)
-	defer resp.Body.Close() //nolint: errcheck
+	defer resp.Body.Close() //nolint:errcheck
 
 	s.Assert().Equal(fiber.StatusOK, resp.StatusCode)
 }
@@ -141,7 +141,7 @@ func (s *AccountTestSuite) TestAccountWithdraw() {
 
 	resp, err := s.app.Test(req, 10000)
 	s.Require().NoError(err)
-	defer resp.Body.Close() //nolint: errcheck
+	defer resp.Body.Close() //nolint:errcheck
 
 	s.Assert().Equal(fiber.StatusOK, resp.StatusCode)
 }
@@ -158,7 +158,7 @@ func (s *AccountTestSuite) TestAccountRoutesFailureAccountNotFound() {
 
 	resp, err := s.app.Test(req, 10000)
 	s.Require().NoError(err)
-	defer resp.Body.Close() //nolint: errcheck
+	defer resp.Body.Close() //nolint:errcheck
 
 	s.Assert().Equal(fiber.StatusNotFound, resp.StatusCode)
 	s.mockUow.AssertCalled(s.T(), "Rollback")
@@ -173,7 +173,7 @@ func (s *AccountTestSuite) TestAccountRoutesFailureTransaction() {
 
 	resp, err := s.app.Test(req, 10000)
 	s.Require().NoError(err)
-	defer resp.Body.Close() //nolint: errcheck
+	defer resp.Body.Close() //nolint:errcheck
 
 	s.Assert().Equal(fiber.StatusBadRequest, resp.StatusCode)
 
@@ -184,7 +184,7 @@ func (s *AccountTestSuite) TestAccountRoutesFailureTransaction() {
 
 	resp, err = s.app.Test(req, 10000)
 	s.Require().NoError(err)
-	defer resp.Body.Close() //nolint: errcheck
+	defer resp.Body.Close() //nolint:errcheck
 
 	s.Assert().Equal(fiber.StatusBadRequest, resp.StatusCode)
 }
@@ -204,7 +204,7 @@ func (s *AccountTestSuite) TestAccountRoutesTransactionList() {
 
 	resp, err := s.app.Test(req, 10000)
 	s.Require().NoError(err)
-	defer resp.Body.Close() //nolint: errcheck
+	defer resp.Body.Close() //nolint:errcheck
 
 	s.Assert().Equal(fiber.StatusOK, resp.StatusCode)
 
@@ -229,7 +229,7 @@ func (s *AccountTestSuite) TestAccountRoutesBalance() {
 
 	resp, err := s.app.Test(req, 10000)
 	s.Require().NoError(err)
-	defer resp.Body.Close() //nolint: errcheck
+	defer resp.Body.Close() //nolint:errcheck
 
 	s.Assert().Equal(fiber.StatusOK, resp.StatusCode)
 
@@ -257,7 +257,7 @@ func (s *AccountTestSuite) TestAccountRoutesUoWError() {
 
 	resp, err := s.app.Test(req, 10000)
 	s.Require().NoError(err)
-	defer resp.Body.Close() //nolint: errcheck
+	defer resp.Body.Close() //nolint:errcheck
 
 	s.Assert().Equal(fiber.StatusInternalServerError, resp.StatusCode)
 }
@@ -271,7 +271,7 @@ func (s *AccountTestSuite) TestGetBalanceAccountNotFound() {
 
 	resp, err := s.app.Test(req, 10000)
 	s.Require().NoError(err)
-	defer resp.Body.Close() //nolint: errcheck
+	defer resp.Body.Close() //nolint:errcheck
 
 	s.Assert().Equal(fiber.StatusNotFound, resp.StatusCode)
 }
@@ -285,7 +285,7 @@ func (s *AccountTestSuite) TestGetTransactions() {
 
 	resp, err := s.app.Test(req, 10000)
 	s.Require().NoError(err)
-	defer resp.Body.Close() //nolint: errcheck
+	defer resp.Body.Close() //nolint:errcheck
 
 	s.Assert().Equal(fiber.StatusOK, resp.StatusCode)
 }
@@ -301,7 +301,7 @@ func (s *AccountTestSuite) TestAccountRoutesRollbackWhenCreateFails() {
 
 	resp, err := s.app.Test(req, 10000)
 	s.Require().NoError(err)
-	defer resp.Body.Close() //nolint: errcheck
+	defer resp.Body.Close() //nolint:errcheck
 
 	s.Assert().Equal(fiber.StatusInternalServerError, resp.StatusCode)
 }
@@ -323,7 +323,7 @@ func (s *AccountTestSuite) TestAccountRoutesRollbackWhenDepositFails() {
 
 	resp, err := s.app.Test(req, 10000)
 	s.Require().NoError(err)
-	defer resp.Body.Close() //nolint: errcheck
+	defer resp.Body.Close() //nolint:errcheck
 
 	s.mockUow.AssertCalled(s.T(), "Rollback")
 	s.Assert().Equal(fiber.StatusInternalServerError, resp.StatusCode)
@@ -352,7 +352,7 @@ func (s *AccountTestSuite) TestDeposit_InvalidAccountID() {
 
 	resp, err := s.app.Test(req, 10000)
 	s.Require().NoError(err)
-	defer resp.Body.Close() //nolint: errcheck
+	defer resp.Body.Close() //nolint:errcheck
 	s.Assert().Equal(fiber.StatusBadRequest, resp.StatusCode)
 }
 
@@ -364,7 +364,7 @@ func (s *AccountTestSuite) TestDeposit_InvalidBody() {
 
 	resp, err := s.app.Test(req, 10000)
 	s.Require().NoError(err)
-	defer resp.Body.Close() //nolint: errcheck
+	defer resp.Body.Close() //nolint:errcheck
 	s.Assert().Equal(fiber.StatusBadRequest, resp.StatusCode)
 }
 
@@ -372,7 +372,7 @@ func (s *AccountTestSuite) TestWithdraw_Unauthorized() {
 	req := httptest.NewRequest("POST", fmt.Sprintf("/account/%s/withdraw", uuid.New()), nil)
 	resp, err := s.app.Test(req, 10000)
 	s.Require().NoError(err)
-	defer resp.Body.Close() //nolint: errcheck
+	defer resp.Body.Close() //nolint:errcheck
 	s.Assert().Equal(fiber.StatusUnauthorized, resp.StatusCode)
 }
 
@@ -384,7 +384,7 @@ func (s *AccountTestSuite) TestWithdraw_InvalidAccountID() {
 
 	resp, err := s.app.Test(req, 10000)
 	s.Require().NoError(err)
-	defer resp.Body.Close() //nolint: errcheck
+	defer resp.Body.Close() //nolint:errcheck
 	s.Assert().Equal(fiber.StatusBadRequest, resp.StatusCode)
 }
 
@@ -396,7 +396,7 @@ func (s *AccountTestSuite) TestWithdraw_InvalidBody() {
 
 	resp, err := s.app.Test(req, 10000)
 	s.Require().NoError(err)
-	defer resp.Body.Close() //nolint: errcheck
+	defer resp.Body.Close() //nolint:errcheck
 	s.Assert().Equal(fiber.StatusBadRequest, resp.StatusCode)
 }
 
@@ -413,7 +413,7 @@ func (s *AccountTestSuite) TestGetTransactions_InvalidAccountID() {
 
 	resp, err := s.app.Test(req, 10000)
 	s.Require().NoError(err)
-	defer resp.Body.Close() //nolint: errcheck
+	defer resp.Body.Close() //nolint:errcheck
 	s.Assert().Equal(fiber.StatusBadRequest, resp.StatusCode)
 }
 
@@ -426,7 +426,7 @@ func (s *AccountTestSuite) TestGetTransactions_InternalServerError() {
 
 	resp, err := s.app.Test(req, 10000)
 	s.Require().NoError(err)
-	defer resp.Body.Close() //nolint: errcheck
+	defer resp.Body.Close() //nolint:errcheck
 	s.Assert().Equal(fiber.StatusInternalServerError, resp.StatusCode)
 }
 
@@ -434,7 +434,7 @@ func (s *AccountTestSuite) TestGetBalance_Unauthorized() {
 	req := httptest.NewRequest("GET", fmt.Sprintf("/account/%s/balance", uuid.New()), nil)
 	resp, err := s.app.Test(req, 10000)
 	s.Require().NoError(err)
-	defer resp.Body.Close() //nolint: errcheck
+	defer resp.Body.Close() //nolint:errcheck
 	s.Assert().Equal(fiber.StatusUnauthorized, resp.StatusCode)
 }
 
@@ -444,7 +444,7 @@ func (s *AccountTestSuite) TestGetBalance_InvalidAccountID() {
 
 	resp, err := s.app.Test(req, 10000)
 	s.Require().NoError(err)
-	defer resp.Body.Close() //nolint: errcheck
+	defer resp.Body.Close() //nolint:errcheck
 	s.Assert().Equal(fiber.StatusBadRequest, resp.StatusCode)
 }
 
@@ -457,7 +457,7 @@ func (s *AccountTestSuite) TestGetBalance_InternalServerError() {
 
 	resp, err := s.app.Test(req, 10000)
 	s.Require().NoError(err)
-	defer resp.Body.Close() //nolint: errcheck
+	defer resp.Body.Close() //nolint:errcheck
 	s.Assert().Equal(fiber.StatusInternalServerError, resp.StatusCode)
 }
 
@@ -475,7 +475,7 @@ func (s *AccountTestSuite) TestAccountCreateWithCurrency() {
 
 	resp, err := s.app.Test(req, 10000)
 	s.Require().NoError(err)
-	defer resp.Body.Close() //nolint: errcheck
+	defer resp.Body.Close() //nolint:errcheck
 
 	s.Assert().Equal(fiber.StatusCreated, resp.StatusCode)
 	var response Response
@@ -501,7 +501,7 @@ func (s *AccountTestSuite) TestAccountDepositWithCurrency() {
 
 	resp, err := s.app.Test(req, 10000)
 	s.Require().NoError(err)
-	defer resp.Body.Close() //nolint: errcheck
+	defer resp.Body.Close() //nolint:errcheck
 
 	s.Assert().Equal(fiber.StatusOK, resp.StatusCode)
 	var response Response
@@ -537,7 +537,7 @@ func (s *AccountTestSuite) TestDepositWithConversion_Integration() {
 
 	resp, err := s.app.Test(req, 10000)
 	s.Require().NoError(err)
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	s.Assert().Equal(fiber.StatusOK, resp.StatusCode)
 	var response Response

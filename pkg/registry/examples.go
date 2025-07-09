@@ -85,7 +85,7 @@ func ExampleCachedRegistry() {
 	// Repeated lookups will be served from cache
 	start := time.Now()
 	for i := 0; i < 1000; i++ {
-		registry.Get(ctx, "user-1")
+		registry.Get(ctx, "user-1") //nolint:errcheck
 	}
 	duration := time.Since(start)
 	fmt.Printf("1000 lookups completed in %v\n", duration)
@@ -227,7 +227,7 @@ func ExampleEventDrivenRegistry() {
 	}
 
 	// Unregister a user (would trigger events)
-	registry.Unregister(ctx, "user-1")
+	registry.Unregister(ctx, "user-1") //nolint:errcheck
 	observer.OnEntityUnregistered(ctx, "user-1")
 }
 
@@ -379,9 +379,9 @@ func ExampleRegistryFactory() {
 
 	// Use the registries
 	user := NewBaseEntity("test-user", "Test User")
-	prodRegistry.Register(ctx, user)
-	devRegistry.Register(ctx, user)
-	testRegistry.Register(ctx, user)
+	prodRegistry.Register(ctx, user) //nolint:errcheck
+	devRegistry.Register(ctx, user)  //nolint:errcheck
+	testRegistry.Register(ctx, user) //nolint:errcheck
 
 	fmt.Println("User registered in all three registry types")
 }

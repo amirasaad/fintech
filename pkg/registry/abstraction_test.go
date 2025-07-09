@@ -133,7 +133,7 @@ func TestEnhancedRegistry_WithCache(t *testing.T) {
 	shortCache := NewMemoryCache(time.Millisecond)
 	registry.WithCache(shortCache)
 
-	registry.Register(ctx, entity)
+	registry.Register(ctx, entity) //nolint:errcheck
 	time.Sleep(50 * time.Millisecond)
 
 	// Force a Get to trigger possible cleanup
@@ -158,9 +158,9 @@ func TestEnhancedRegistry_WithMetrics(t *testing.T) {
 
 	// Perform operations
 	entity := NewBaseEntity("test-1", "Test Entity 1")
-	registry.Register(ctx, entity)
-	registry.Get(ctx, "test-1")
-	registry.Unregister(ctx, "test-1")
+	registry.Register(ctx, entity)     //nolint:errcheck
+	registry.Get(ctx, "test-1")        //nolint:errcheck
+	registry.Unregister(ctx, "test-1") //nolint:errcheck
 
 	// Check metrics
 	stats := metrics.GetStats()
@@ -227,12 +227,12 @@ func TestEnhancedRegistry_WithEvents(t *testing.T) {
 	// Create test observer
 	events := make([]string, 0)
 	observer := &testObserver{events: &events}
-	eventBus.Subscribe(observer)
+	eventBus.Subscribe(observer) //nolint:errcheck
 
 	// Perform operations
 	entity := NewBaseEntity("test-1", "Test Entity 1")
-	registry.Register(ctx, entity)
-	registry.Unregister(ctx, "test-1")
+	registry.Register(ctx, entity)     //nolint:errcheck
+	registry.Unregister(ctx, "test-1") //nolint:errcheck
 
 	// Check events
 	expectedEvents := []string{"registered", "unregistered"}
