@@ -322,29 +322,26 @@ func (s *AccountService) GetAccount(
 	logger.Info("GetAccount started")
 	uow, err := s.uowFactory()
 	if err != nil {
-		a = nil
 		logger.Error("GetAccount failed: uowFactory error", "error", err)
 		return
 	}
 	repo, err := uow.AccountRepository()
 	if err != nil {
-		a = nil
 		logger.Error("GetAccount failed: AccountRepository error", "error", err)
 		return
 	}
-	a, err = repo.Get(accountID)
+	aLocal, err := repo.Get(accountID)
 	if err != nil {
-		a = nil
 		logger.Error("GetAccount failed: account not found", "error", err)
 		err = acc.ErrAccountNotFound
 		return
 	}
-	if a.UserID != userID {
-		a = nil
-		logger.Error("GetAccount failed: user unauthorized", "accountUserID", a.UserID)
+	if aLocal.UserID != userID {
+		logger.Error("GetAccount failed: user unauthorized", "accountUserID", aLocal.UserID)
 		err = user.ErrUserUnauthorized
 		return
 	}
+	a = aLocal
 	logger.Info("GetAccount successful")
 	return
 }
