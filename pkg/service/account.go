@@ -46,8 +46,14 @@ func NewAccountService(
 func (s *AccountService) CreateAccount(
 	userID uuid.UUID,
 ) (a *account.Account, err error) {
-	logger := s.logger.With("userID", userID)
-	logger.Info("CreateAccount started")
+	s.logger.Info("CreateAccount started", "userID", userID)
+	defer func() {
+		if err != nil {
+			s.logger.Error("CreateAccount failed", "userID", userID, "error", err)
+		} else {
+			s.logger.Info("CreateAccount successful", "userID", userID, "accountID", a.ID)
+		}
+	}()
 	var aLocal *account.Account
 	err = s.transaction.Execute(func() error {
 		aLocal, err = account.New().WithUserID(userID).Build()
@@ -56,26 +62,25 @@ func (s *AccountService) CreateAccount(
 		}
 		uow, err := s.uowFactory()
 		if err != nil {
-			logger.Error("CreateAccount failed: uowFactory error", "error", err)
+			s.logger.Error("CreateAccount failed: uowFactory error", "userID", userID, "error", err)
 			return err
 		}
 		repo, err := uow.AccountRepository()
 		if err != nil {
-			logger.Error("CreateAccount failed: AccountRepository error", "error", err)
+			s.logger.Error("CreateAccount failed: AccountRepository error", "userID", userID, "error", err)
 			return err
 		}
 		if err = repo.Create(aLocal); err != nil {
-			logger.Error("CreateAccount failed: repo create error", "error", err)
+			s.logger.Error("CreateAccount failed: repo create error", "userID", userID, "error", err)
 			return err
 		}
 		return nil
 	})
 	if err != nil {
-		logger.Error("CreateAccount failed: transaction error", "error", err)
+		s.logger.Error("CreateAccount failed: transaction error", "userID", userID, "error", err)
 		return nil, err
 	}
 	a = aLocal
-	logger.Info("CreateAccount successful", "accountID", a.ID)
 	return
 }
 
@@ -127,6 +132,14 @@ func (s *AccountService) Deposit(
 	amount float64,
 	currencyCode currency.Code,
 ) (tx *account.Transaction, convInfo *common.ConversionInfo, err error) {
+	s.logger.Info("Deposit started", "userID", userID, "accountID", accountID, "amount", amount, "currency", currencyCode)
+	defer func() {
+		if err != nil {
+			s.logger.Error("Deposit failed", "userID", userID, "accountID", accountID, "amount", amount, "currency", currencyCode, "error", err)
+		} else {
+			s.logger.Info("Deposit successful", "userID", userID, "accountID", accountID, "amount", amount, "currency", currencyCode, "transactionID", tx.ID)
+		}
+	}()
 	logger := s.logger.With("userID", userID, "accountID", accountID, "amount", amount, "currency", currencyCode)
 	logger.Info("Deposit started")
 
@@ -216,7 +229,6 @@ func (s *AccountService) Deposit(
 	}
 	tx = txLocal
 	convInfo = convInfoLocal
-	logger.Info("Deposit successful", "transactionID", tx.ID)
 	return
 }
 
@@ -231,6 +243,14 @@ func (s *AccountService) Withdraw(
 	convInfo *common.ConversionInfo,
 	err error,
 ) {
+	s.logger.Info("Withdraw started", "userID", userID, "accountID", accountID, "amount", amount, "currency", currencyCode)
+	defer func() {
+		if err != nil {
+			s.logger.Error("Withdraw failed", "userID", userID, "accountID", accountID, "amount", amount, "currency", currencyCode, "error", err)
+		} else {
+			s.logger.Info("Withdraw successful", "userID", userID, "accountID", accountID, "amount", amount, "currency", currencyCode, "transactionID", tx.ID)
+		}
+	}()
 	logger := s.logger.With("userID", userID, "accountID", accountID, "amount", amount, "currency", currencyCode)
 	logger.Info("Withdraw started")
 
@@ -320,7 +340,6 @@ func (s *AccountService) Withdraw(
 	}
 	tx = txLocal
 	convInfo = convInfoLocal
-	logger.Info("Withdraw successful", "transactionID", tx.ID)
 	return
 }
 
@@ -329,6 +348,14 @@ func (s *AccountService) Withdraw(
 func (s *AccountService) GetAccount(
 	userID, accountID uuid.UUID,
 ) (a *account.Account, err error) {
+	s.logger.Info("GetAccount started", "userID", userID, "accountID", accountID)
+	defer func() {
+		if err != nil {
+			s.logger.Error("GetAccount failed", "userID", userID, "accountID", accountID, "error", err)
+		} else {
+			s.logger.Info("GetAccount successful", "userID", userID, "accountID", accountID)
+		}
+	}()
 	logger := s.logger.With("userID", userID, "accountID", accountID)
 	logger.Info("GetAccount started")
 	uow, err := s.uowFactory()
@@ -353,7 +380,6 @@ func (s *AccountService) GetAccount(
 		return
 	}
 	a = aLocal
-	logger.Info("GetAccount successful")
 	return
 }
 
@@ -362,6 +388,14 @@ func (s *AccountService) GetAccount(
 func (s *AccountService) GetTransactions(
 	userID, accountID uuid.UUID,
 ) (txs []*account.Transaction, err error) {
+	s.logger.Info("GetTransactions started", "userID", userID, "accountID", accountID)
+	defer func() {
+		if err != nil {
+			s.logger.Error("GetTransactions failed", "userID", userID, "accountID", accountID, "error", err)
+		} else {
+			s.logger.Info("GetTransactions successful", "userID", userID, "accountID", accountID, "count", len(txs))
+		}
+	}()
 	logger := s.logger.With("userID", userID, "accountID", accountID)
 	logger.Info("GetTransactions started")
 	uow, err := s.uowFactory()
@@ -382,7 +416,6 @@ func (s *AccountService) GetTransactions(
 		logger.Error("GetTransactions failed: repo list error", "error", err)
 		return
 	}
-	logger.Info("GetTransactions successful", "count", len(txs))
 	return
 }
 
@@ -391,6 +424,14 @@ func (s *AccountService) GetTransactions(
 func (s *AccountService) GetBalance(
 	userID, accountID uuid.UUID,
 ) (balance float64, err error) {
+	s.logger.Info("GetBalance started", "userID", userID, "accountID", accountID)
+	defer func() {
+		if err != nil {
+			s.logger.Error("GetBalance failed", "userID", userID, "accountID", accountID, "error", err)
+		} else {
+			s.logger.Info("GetBalance successful", "userID", userID, "accountID", accountID, "balance", balance)
+		}
+	}()
 	logger := s.logger.With("userID", userID, "accountID", accountID)
 	logger.Info("GetBalance started")
 	uow, err := s.uowFactory()
@@ -413,6 +454,5 @@ func (s *AccountService) GetBalance(
 		logger.Error("GetBalance failed: domain error", "error", err)
 		return
 	}
-	logger.Info("GetBalance successful", "balance", balance)
 	return
 }

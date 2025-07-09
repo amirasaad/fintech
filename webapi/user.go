@@ -2,6 +2,7 @@ package webapi
 
 import (
 	"github.com/amirasaad/fintech/pkg/config"
+	"github.com/amirasaad/fintech/pkg/domain/user"
 	"github.com/amirasaad/fintech/pkg/middleware"
 	"github.com/amirasaad/fintech/pkg/service"
 	"github.com/gofiber/fiber/v2"
@@ -47,10 +48,10 @@ func GetUser(userSvc *service.UserService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		id, err := uuid.Parse(c.Params("id"))
 		if err != nil {
-			log.Errorf("Invalid account ID for deposit: %v", err)
+			log.Errorf("Invalid user ID: %v", err)
 			return ProblemDetailsJSON(c, fiber.StatusBadRequest, "Invalid user ID", err.Error())
 		}
-		user, err := userSvc.GetUser(id)
+		user, err := userSvc.GetUser(id.String())
 		if err != nil {
 			return ProblemDetailsJSON(c, fiber.StatusNotFound, "No user found with ID", nil)
 		}
@@ -114,7 +115,7 @@ func UpdateUser(
 		}
 		id, err := uuid.Parse(c.Params("id"))
 		if err != nil {
-			log.Errorf("Invalid account ID for deposit: %v", err)
+			log.Errorf("Invalid user ID: %v", err)
 			return ProblemDetailsJSON(c, fiber.StatusBadRequest, "Invalid user ID", err.Error())
 		}
 		token, ok := c.Locals("user").(*jwt.Token)
@@ -130,16 +131,19 @@ func UpdateUser(
 		if id != userID {
 			return ProblemDetailsJSON(c, fiber.StatusForbidden, "You are not allowed to update this user", nil)
 		}
-		user, err := userSvc.GetUser(id)
-		if err != nil {
-			return ProblemDetailsJSON(c, fiber.StatusNotFound, "User not found", nil)
-		}
-		user.Names = input.Names // Use the validated input
-		err = userSvc.UpdateUser(user)
+		err = userSvc.UpdateUser(id.String(), func(u *user.User) error {
+			u.Names = input.Names
+			return nil
+		})
 		if err != nil {
 			return ProblemDetailsJSON(c, fiber.StatusInternalServerError, "Failed to update user", err.Error())
 		}
-		return c.JSON(Response{Status: fiber.StatusOK, Message: "User updated successfully", Data: user})
+		// Get the updated user to return in response
+		updatedUser, err := userSvc.GetUser(id.String())
+		if err != nil {
+			return ProblemDetailsJSON(c, fiber.StatusInternalServerError, "Failed to get updated user", err.Error())
+		}
+		return c.JSON(Response{Status: fiber.StatusOK, Message: "User updated successfully", Data: updatedUser})
 	}
 }
 
@@ -169,7 +173,7 @@ func DeleteUser(
 		}
 		id, err := uuid.Parse(c.Params("id"))
 		if err != nil {
-			log.Errorf("Invalid account ID for deposit: %v", err)
+			log.Errorf("Invalid user ID: %v", err)
 			return ProblemDetailsJSON(c, fiber.StatusBadRequest, "Invalid user ID", err.Error())
 		}
 		token, ok := c.Locals("user").(*jwt.Token)
@@ -192,7 +196,7 @@ func DeleteUser(
 		if !isValid {
 			return ProblemDetailsJSON(c, fiber.StatusUnauthorized, "Not valid user", nil)
 		}
-		err = userSvc.DeleteUser(id)
+		err = userSvc.DeleteUser(id.String())
 		if err != nil {
 			return ProblemDetailsJSON(c, fiber.StatusInternalServerError, "Failed to delete user", err.Error())
 		}

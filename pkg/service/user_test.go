@@ -79,7 +79,7 @@ func TestGetUser_Success(t *testing.T) {
 	user := &domain.User{ID: uuid.New(), Username: "alice"}
 	userRepo.On("Get", user.ID).Return(user, nil)
 
-	got, err := svc.GetUser(user.ID)
+	got, err := svc.GetUser(user.ID.String())
 	assert.NoError(t, err)
 	assert.Equal(t, user, got)
 }
@@ -89,7 +89,7 @@ func TestGetUser_NotFound(t *testing.T) {
 	svc, userRepo, _ := newUserServiceWithMocks(t)
 	userRepo.EXPECT().Get(mock.Anything).Return(&domain.User{}, domain.ErrAccountNotFound)
 
-	got, err := svc.GetUser(uuid.New())
+	got, err := svc.GetUser(uuid.New().String())
 	assert.Error(t, err)
 	assert.Nil(t, got)
 }
@@ -97,7 +97,7 @@ func TestGetUser_NotFound(t *testing.T) {
 func TestGetUser_UoWFactoryError(t *testing.T) {
 	t.Parallel()
 	svc := NewUserService(func() (repository.UnitOfWork, error) { return nil, errors.New("uow error") }, slog.Default())
-	_, err := svc.GetUser(uuid.New())
+	_, err := svc.GetUser(uuid.New().String())
 	assert.Error(t, err)
 }
 
@@ -165,9 +165,14 @@ func TestUpdateUser_Success(t *testing.T) {
 	uow.EXPECT().Commit().Return(nil).Once()
 	uow.EXPECT().UserRepository().Return(userRepo, nil)
 	user := &domain.User{ID: uuid.New(), Username: "alice"}
+	uuidStr := user.ID.String()
+	userRepo.EXPECT().Get(user.ID).Return(user, nil)
 	userRepo.EXPECT().Update(user).Return(nil)
 
-	err := svc.UpdateUser(user)
+	err := svc.UpdateUser(uuidStr, func(u *domain.User) error {
+		u.Username = "updated"
+		return nil
+	})
 	assert.NoError(t, err)
 }
 
@@ -178,16 +183,21 @@ func TestUpdateUser_RepoError(t *testing.T) {
 	uow.EXPECT().Rollback().Return(nil).Once()
 	uow.EXPECT().UserRepository().Return(userRepo, nil)
 	user := &domain.User{ID: uuid.New(), Username: "alice"}
+	uuidStr := user.ID.String()
+	userRepo.EXPECT().Get(user.ID).Return(user, nil)
 	userRepo.EXPECT().Update(user).Return(errors.New("db error"))
 
-	err := svc.UpdateUser(user)
+	err := svc.UpdateUser(uuidStr, func(u *domain.User) error {
+		u.Username = "updated"
+		return nil
+	})
 	assert.Error(t, err)
 }
 
 func TestUpdateUser_UoWFactoryError(t *testing.T) {
 	t.Parallel()
 	svc := NewUserService(func() (repository.UnitOfWork, error) { return nil, errors.New("uow error") }, slog.Default())
-	err := svc.UpdateUser(&domain.User{})
+	err := svc.UpdateUser(uuid.New().String(), func(u *domain.User) error { return nil })
 	assert.Error(t, err)
 }
 
@@ -200,7 +210,7 @@ func TestDeleteUser_Success(t *testing.T) {
 	id := uuid.New()
 	userRepo.EXPECT().Delete(id).Return(nil)
 
-	err := svc.DeleteUser(id)
+	err := svc.DeleteUser(id.String())
 	assert.NoError(t, err)
 }
 
@@ -211,16 +221,16 @@ func TestDeleteUser_RepoError(t *testing.T) {
 	uow.EXPECT().Rollback().Return(nil).Once()
 	uow.EXPECT().UserRepository().Return(userRepo, nil)
 	id := uuid.New()
-	userRepo.EXPECT().Delete(id).Return(errors.New("db error")).Once()
+	userRepo.EXPECT().Delete(id).Return(errors.New("db error"))
 
-	err := svc.DeleteUser(id)
+	err := svc.DeleteUser(id.String())
 	assert.Error(t, err)
 }
 
 func TestDeleteUser_UoWFactoryError(t *testing.T) {
 	t.Parallel()
 	svc := NewUserService(func() (repository.UnitOfWork, error) { return nil, errors.New("uow error") }, slog.Default())
-	err := svc.DeleteUser(uuid.New())
+	err := svc.DeleteUser(uuid.New().String())
 	assert.Error(t, err)
 }
 
