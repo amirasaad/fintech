@@ -167,7 +167,10 @@ func (a *Account) GetBalance(userID uuid.UUID) (balance float64, err error) {
 		err = ErrUserUnauthorized
 		return
 	}
-	meta := currency.Get(a.Currency)
+	meta, err := currency.Get(a.Currency)
+	if err != nil {
+		return 0, err
+	}
 	divisor := math.Pow10(meta.Decimals)
 	balance = float64(a.Balance) / divisor
 	return

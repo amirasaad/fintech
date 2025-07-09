@@ -2,6 +2,7 @@ package domain
 
 import (
 	"fmt"
+	"log/slog"
 	"math"
 	"math/big"
 	"strings"
@@ -75,7 +76,12 @@ func (m Money) Amount() Amount {
 
 // AmountFloat returns the amount as a float64 in the main currency unit (e.g., dollars for USD).
 func (m Money) AmountFloat() float64 {
-	meta := currency.Get(string(m.currency))
+	meta, err := currency.Get(string(m.currency))
+	if err != nil {
+		slog.Error("invalid currency code in AmountFloat", "currency", m.currency, "error", err)
+		return 0
+	}
+
 	divisor := math.Pow10(meta.Decimals)
 	return float64(m.amount) / divisor
 }
@@ -214,15 +220,21 @@ func (m Money) Divide(divisor float64) (Money, error) {
 
 // String returns a string representation of the Money object.
 func (m Money) String() string {
-	meta := currency.Get(string(m.currency))
+	meta, err := currency.Get(string(m.currency))
+	if err != nil {
+		slog.Error("invalid currency code in String", "currency", m.currency, "error", err)
+		return ""
+	}
 	return fmt.Sprintf("%.*f %s", meta.Decimals, m.AmountFloat(), m.currency)
 }
 
 // convertToSmallestUnit converts a float64 amount to the smallest currency unit.
 // This ensures precision by avoiding floating-point arithmetic issues.
 func convertToSmallestUnit(amount float64, currencyCode string) (int64, error) {
-	meta := currency.Get(currencyCode)
-
+	meta, err := currency.Get(currencyCode)
+	if err != nil {
+		return 0, err
+	}
 	// First, check if the amount has too many decimal places
 	amountStr := fmt.Sprintf("%.10f", amount) // Use high precision for checking
 	parts := strings.Split(amountStr, ".")
