@@ -156,26 +156,26 @@ type RegistryFactory interface {
 
 // BaseEntity provides a default implementation of the Entity interface
 type BaseEntity struct {
-	id        string            `json:"id"` //nolint:structtag
-	name      string            `json:"name"`
-	active    bool              `json:"active"`
-	metadata  map[string]string `json:"metadata,omitempty"`
-	createdAt time.Time         `json:"created_at"`
-	updatedAt time.Time         `json:"updated_at"`
+	BEId        string            `json:"id"`
+	BEName      string            `json:"name"`
+	BEActive    bool              `json:"active"`
+	BEMetadata  map[string]string `json:"metadata,omitempty"`
+	BECreatedAt time.Time         `json:"created_at"`
+	BEUpdatedAt time.Time         `json:"updated_at"`
 }
 
 // Property-style getter methods to implement Entity interface
-func (e *BaseEntity) ID() string   { return e.id }
-func (e *BaseEntity) Name() string { return e.name }
-func (e *BaseEntity) Active() bool { return e.active }
+func (e *BaseEntity) ID() string   { return e.BEId }
+func (e *BaseEntity) Name() string { return e.BEName }
+func (e *BaseEntity) Active() bool { return e.BEActive }
 func (e *BaseEntity) Metadata() map[string]string {
-	if e.metadata == nil {
-		e.metadata = make(map[string]string)
+	if e.BEMetadata == nil {
+		e.BEMetadata = make(map[string]string)
 	}
-	return e.metadata
+	return e.BEMetadata
 }
-func (e *BaseEntity) CreatedAt() time.Time { return e.createdAt }
-func (e *BaseEntity) UpdatedAt() time.Time { return e.updatedAt }
+func (e *BaseEntity) CreatedAt() time.Time { return e.BECreatedAt }
+func (e *BaseEntity) UpdatedAt() time.Time { return e.BEUpdatedAt }
 
 // Add a compile-time check to ensure BaseEntity implements the Entity interface.
 var _ Entity = (*BaseEntity)(nil)
@@ -184,12 +184,12 @@ var _ Entity = (*BaseEntity)(nil)
 func NewBaseEntity(id, name string) *BaseEntity {
 	now := time.Now()
 	return &BaseEntity{
-		id:        id,
-		name:      name,
-		active:    true,
-		metadata:  make(map[string]string),
-		createdAt: now,
-		updatedAt: now,
+		BEId:        id,
+		BEName:      name,
+		BEActive:    true,
+		BEMetadata:  make(map[string]string),
+		BECreatedAt: now,
+		BEUpdatedAt: now,
 	}
 }
 

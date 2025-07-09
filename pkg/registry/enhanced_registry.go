@@ -380,12 +380,12 @@ func (r *EnhancedRegistry) Activate(ctx context.Context, id string) error {
 	// Note: This is a simplified approach - in a real implementation,
 	// you might want to make the Entity interface mutable or use a different approach
 	baseEntity := &BaseEntity{
-		id:        entity.ID(),
-		name:      entity.Name(),
-		active:    true,
-		metadata:  entity.Metadata(),
-		createdAt: entity.CreatedAt(),
-		updatedAt: entity.UpdatedAt(),
+		BEId:        entity.ID(),
+		BEName:      entity.Name(),
+		BEActive:    true,
+		BEMetadata:  entity.Metadata(),
+		BECreatedAt: entity.CreatedAt(),
+		BEUpdatedAt: entity.UpdatedAt(),
 	}
 
 	return r.Register(ctx, baseEntity)
@@ -400,12 +400,12 @@ func (r *EnhancedRegistry) Deactivate(ctx context.Context, id string) error {
 
 	// Create a new entity with inactive status
 	baseEntity := &BaseEntity{
-		id:        entity.ID(),
-		name:      entity.Name(),
-		active:    false,
-		metadata:  entity.Metadata(),
-		createdAt: entity.CreatedAt(),
-		updatedAt: entity.UpdatedAt(),
+		BEId:        entity.ID(),
+		BEName:      entity.Name(),
+		BEActive:    false,
+		BEMetadata:  entity.Metadata(),
+		BECreatedAt: entity.CreatedAt(),
+		BEUpdatedAt: entity.UpdatedAt(),
 	}
 
 	return r.Register(ctx, baseEntity)

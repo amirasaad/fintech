@@ -194,12 +194,12 @@ func (p *FilePersistence) Load(ctx context.Context) ([]Entity, error) {
 		}
 
 		entities[i] = &BaseEntity{
-			id:        raw["id"].(string),
-			name:      raw["name"].(string),
-			active:    raw["active"].(bool),
-			metadata:  metadata,
-			createdAt: createdAt,
-			updatedAt: updatedAt,
+			BEId:        raw["id"].(string),
+			BEName:      raw["name"].(string),
+			BEActive:    raw["active"].(bool),
+			BEMetadata:  metadata,
+			BECreatedAt: createdAt,
+			BEUpdatedAt: updatedAt,
 		}
 	}
 
