@@ -1,8 +1,10 @@
-package domain
+package money
 
 import (
 	"errors"
 	"time"
+
+	"github.com/amirasaad/fintech/pkg/domain/common"
 )
 
 var (
@@ -23,7 +25,7 @@ var (
 type CurrencyConverter interface {
 	// Convert converts an amount from one currency to another.
 	// Returns the converted amount and the rate used, or an error if conversion is not possible.
-	Convert(amount float64, from, to string) (*ConversionInfo, error)
+	Convert(amount float64, from, to string) (*common.ConversionInfo, error)
 
 	// GetRate returns the current exchange rate between two currencies.
 	// This is useful for displaying rates without performing a conversion.

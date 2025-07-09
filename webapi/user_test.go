@@ -12,6 +12,7 @@ import (
 	"github.com/amirasaad/fintech/internal/fixtures"
 	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/domain"
+	"github.com/amirasaad/fintech/pkg/domain/user"
 	"github.com/amirasaad/fintech/pkg/service"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -76,7 +77,7 @@ func (s *UserTestSuite) TestGetUserNotFound() {
 	s.mockUow.EXPECT().UserRepository().Return(s.userRepo, nil)
 
 	id := uuid.New()
-	s.userRepo.EXPECT().Get(id).Return(&domain.User{}, domain.ErrUserNotFound)
+	s.userRepo.EXPECT().Get(id).Return(&domain.User{}, user.ErrUserNotFound)
 
 	req := httptest.NewRequest("GET", fmt.Sprintf("/user/%s", id), nil)
 	req.Header.Set("Content-Type", "application/json")

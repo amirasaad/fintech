@@ -16,6 +16,8 @@ import (
 	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain"
+	"github.com/amirasaad/fintech/pkg/domain/account"
+	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/amirasaad/fintech/pkg/service"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/log"
@@ -99,7 +101,7 @@ func (s *AccountTestSuite) TestAccountDeposit() {
 	s.mockUow.EXPECT().AccountRepository().Return(s.accountRepo, nil)
 	s.mockUow.EXPECT().TransactionRepository().Return(s.transRepo, nil)
 
-	testAccount := domain.NewAccount(s.testUser.ID)
+	testAccount := account.NewAccount(s.testUser.ID)
 	s.accountRepo.EXPECT().Get(mock.Anything).Return(testAccount, nil)
 	s.transRepo.EXPECT().Create(mock.Anything).Return(nil)
 	s.accountRepo.EXPECT().Update(mock.Anything).Return(nil)
@@ -122,8 +124,8 @@ func (s *AccountTestSuite) TestAccountWithdraw() {
 	s.mockUow.EXPECT().AccountRepository().Return(s.accountRepo, nil)
 	s.mockUow.EXPECT().TransactionRepository().Return(s.transRepo, nil)
 
-	testAccount := domain.NewAccount(s.testUser.ID)
-	money, err := domain.NewMoney(1000.0, currency.Code("USD"))
+	testAccount := account.NewAccount(s.testUser.ID)
+	money, err := money.NewMoney(1000.0, currency.Code("USD"))
 	assert.NoError(s.T(), err)
 	_, _ = testAccount.Deposit(s.testUser.ID, money)
 	s.accountRepo.EXPECT().Get(mock.Anything).Return(testAccount, nil)
@@ -189,7 +191,7 @@ func (s *AccountTestSuite) TestAccountRoutesFailureTransaction() {
 
 func (s *AccountTestSuite) TestAccountRoutesTransactionList() {
 	s.mockUow.EXPECT().TransactionRepository().Return(s.transRepo, nil)
-	account := domain.NewAccount(s.testUser.ID)
+	account := account.NewAccount(s.testUser.ID)
 	created1, _ := time.Parse(time.RFC3339, "2023-10-01T00:00:00Z")
 	created2, _ := time.Parse(time.RFC3339, "2023-10-02T00:00:00Z")
 	s.transRepo.EXPECT().List(s.testUser.ID, account.ID).Return([]*domain.Transaction{
@@ -309,7 +311,7 @@ func (s *AccountTestSuite) TestAccountRoutesRollbackWhenDepositFails() {
 	s.mockUow.EXPECT().TransactionRepository().Return(s.transRepo, nil)
 	s.mockUow.EXPECT().Begin().Return(nil)
 	s.mockUow.EXPECT().Rollback().Return(nil)
-	account := domain.NewAccount(s.testUser.ID)
+	account := account.NewAccount(s.testUser.ID)
 	s.accountRepo.EXPECT().Get(account.ID).Return(account, nil)
 	s.accountRepo.EXPECT().Update(account).Return(nil)
 	s.transRepo.EXPECT().Create(mock.Anything).Return(errors.New("failed to create transaction"))
@@ -485,7 +487,7 @@ func (s *AccountTestSuite) TestAccountCreateWithCurrency() {
 func (s *AccountTestSuite) TestAccountDepositWithCurrency() {
 	s.mockUow.EXPECT().AccountRepository().Return(s.accountRepo, nil)
 	s.mockUow.EXPECT().TransactionRepository().Return(s.transRepo, nil)
-	testAccount, _ := domain.NewAccountWithCurrency(s.testUser.ID, currency.Code("EUR"))
+	testAccount, _ := account.NewAccountWithCurrency(s.testUser.ID, currency.Code("EUR"))
 	s.accountRepo.EXPECT().Get(mock.Anything).Return(testAccount, nil)
 	s.transRepo.EXPECT().Create(mock.Anything).Return(nil)
 	s.accountRepo.EXPECT().Update(mock.Anything).Return(nil)
@@ -510,7 +512,7 @@ func (s *AccountTestSuite) TestAccountDepositWithCurrency() {
 
 func (s *AccountTestSuite) TestDepositWithConversion_Integration() {
 	// Setup: create account in USD
-	account, _ := domain.NewAccountWithCurrency(s.testUser.ID, currency.Code("USD"))
+	account, _ := account.NewAccountWithCurrency(s.testUser.ID, currency.USD)
 	s.accountRepo.EXPECT().Get(account.ID).Return(account, nil)
 	s.accountRepo.EXPECT().Update(account).Return(nil)
 	s.transRepo.EXPECT().Create(mock.Anything).Return(nil)

@@ -29,6 +29,9 @@ const (
 	MaxDecimals = 8
 	// MaxSymbolLength is the maximum length for currency symbols
 	MaxSymbolLength = 10
+
+	USD = Code("USD")
+	EUR = Code("EUR")
 )
 
 // Code represents a 3-letter ISO currency code

@@ -1,4 +1,4 @@
-package domain
+package account
 
 import (
 	"errors"
@@ -8,6 +8,9 @@ import (
 	"time"
 
 	"github.com/amirasaad/fintech/pkg/currency"
+	"github.com/amirasaad/fintech/pkg/domain/common"
+	"github.com/amirasaad/fintech/pkg/domain/money"
+	"github.com/amirasaad/fintech/pkg/domain/user"
 	"github.com/google/uuid"
 )
 
@@ -26,20 +29,9 @@ var (
 
 	// ErrAccountNotFound is returned when an account cannot be found.
 	ErrAccountNotFound = errors.New("account not found") // Account does not exist
-
-	// ErrInvalidCurrencyCode is returned when a currency code is invalid.
-	ErrInvalidCurrencyCode = errors.New("invalid currency code") // Currency code not recognized
 )
 
-// ConversionInfo holds details about a currency conversion performed during a transaction.
-type ConversionInfo struct {
-	OriginalAmount    float64
-	OriginalCurrency  string
-	ConvertedAmount   float64
-	ConvertedCurrency string
-	ConversionRate    float64
-}
-
+// Use common.ConversionInfo and common.ErrInvalidCurrencyCode
 // Account represents a user's financial account, supporting multi-currency.
 // Invariants:
 //   - Only the account owner can perform actions.
@@ -50,27 +42,11 @@ type ConversionInfo struct {
 type Account struct {
 	ID        uuid.UUID
 	UserID    uuid.UUID
-	Balance   int64 // Account balance snapshot
+	Balance   int64         // Account balance snapshot
+	Currency  currency.Code // ISO 4217 currency code
 	UpdatedAt time.Time
 	CreatedAt time.Time
-	Currency  currency.Code // ISO 4217 currency code
 	mu        sync.Mutex
-}
-
-// Transaction represents a financial transaction, supporting multi-currency.
-type Transaction struct {
-	ID        uuid.UUID
-	UserID    uuid.UUID
-	AccountID uuid.UUID
-	Amount    int64
-	Currency  currency.Code // Transaction Currency
-	Balance   int64         // Account balance snapshot
-	CreatedAt time.Time
-
-	// Conversion fields (nullable when no conversion occurs)
-	OriginalAmount   *float64 // Amount in original currency
-	OriginalCurrency *string  // Original currency code
-	ConversionRate   *float64 // Rate used for conversion
 }
 
 // IsValidCurrencyFormat returns true if the code is a well-formed ISO 4217 currency code (3 uppercase letters).
@@ -79,33 +55,83 @@ func IsValidCurrencyFormat(code currency.Code) bool {
 	return re.MatchString(string(code))
 }
 
-// NewAccount creates a new account with the default currency.
-// Invariants enforced:
-//   - Defaults to USD if no currency is specified.
-//
-// Returns an Account.
+// accountBuilder is used to build Account instances using a fluent API.
+type accountBuilder struct {
+	id        uuid.UUID
+	userID    uuid.UUID
+	balance   int64
+	currency  currency.Code
+	updatedAt time.Time
+	createdAt time.Time
+}
+
+// New creates a new accountBuilder with default values.
+func New() *accountBuilder {
+	return &accountBuilder{
+		id:        uuid.New(),
+		currency:  currency.DefaultCurrency,
+		createdAt: time.Now(),
+	}
+}
+
+// WithUserID sets the user ID for the account.
+func (b *accountBuilder) WithUserID(userID uuid.UUID) *accountBuilder {
+	b.userID = userID
+	return b
+}
+
+// WithCurrency sets the currency for the account.
+func (b *accountBuilder) WithCurrency(currencyCode currency.Code) *accountBuilder {
+	b.currency = currencyCode
+	return b
+}
+
+// WithBalance sets the initial balance for the account (for test/data hydration only).
+func (b *accountBuilder) WithBalance(balance int64) *accountBuilder {
+	b.balance = balance
+	return b
+}
+
+// WithCreatedAt sets the createdAt timestamp (for test/data hydration only).
+func (b *accountBuilder) WithCreatedAt(t time.Time) *accountBuilder {
+	b.createdAt = t
+	return b
+}
+
+// WithUpdatedAt sets the updatedAt timestamp (for test/data hydration only).
+func (b *accountBuilder) WithUpdatedAt(t time.Time) *accountBuilder {
+	b.updatedAt = t
+	return b
+}
+
+// Build validates invariants and returns a new Account instance.
+func (b *accountBuilder) Build() (*Account, error) {
+	if !currency.IsValidCurrencyFormat(string(b.currency)) {
+		return nil, common.ErrInvalidCurrencyCode
+	}
+	if b.userID == uuid.Nil {
+		return nil, errors.New("userID is required")
+	}
+	return &Account{
+		ID:        b.id,
+		UserID:    b.userID,
+		Balance:   b.balance,
+		Currency:  b.currency,
+		CreatedAt: b.createdAt,
+		UpdatedAt: b.updatedAt,
+		mu:        sync.Mutex{},
+	}, nil
+}
+
+// Deprecated: Use New().WithUserID(...).WithCurrency(...).Build() instead.
 func NewAccount(userID uuid.UUID) (acc *Account) {
-	acc, _ = NewAccountWithCurrency(userID, currency.DefaultCurrency)
+	acc, _ = New().WithUserID(userID).Build()
 	return
 }
 
-// NewAccountWithCurrency creates a new account with the specified currency.
-// Invariants enforced:
-//   - Currency code must be valid ISO 4217 (3 uppercase letters).
-//
-// Returns an Account or an error if any invariant is violated.
+// Deprecated: Use New().WithUserID(...).WithCurrency(...).Build() instead.
 func NewAccountWithCurrency(userID uuid.UUID, currencyCode currency.Code) (acc *Account, err error) {
-	if !currency.IsValidCurrencyFormat(string(currencyCode)) {
-		return nil, ErrInvalidCurrencyCode
-	}
-	return &Account{
-		ID:        uuid.New(),
-		UserID:    userID,
-		CreatedAt: time.Now(),
-		Balance:   0,
-		Currency:  currencyCode,
-		mu:        sync.Mutex{},
-	}, nil
+	return New().WithUserID(userID).WithCurrency(currencyCode).Build()
 }
 
 // NewAccountFromData creates an Account from raw data (used for DB hydration).
@@ -127,54 +153,6 @@ func NewAccountFromData(
 	}
 }
 
-// NewTransactionFromData creates a Transaction from raw data (used for DB hydration or test fixtures).
-// This bypasses invariants and should only be used for repository hydration or tests.
-func NewTransactionFromData(
-	id, userID, accountID uuid.UUID,
-	amount, balance int64,
-	currencyCode currency.Code,
-	created time.Time,
-	originalAmount *float64,
-	originalCurrency *string,
-	conversionRate *float64,
-) *Transaction {
-	return &Transaction{
-		ID:               id,
-		UserID:           userID,
-		AccountID:        accountID,
-		Amount:           amount,
-		Balance:          balance,
-		Currency:         currencyCode,
-		CreatedAt:        created,
-		OriginalAmount:   originalAmount,
-		OriginalCurrency: originalCurrency,
-		ConversionRate:   conversionRate,
-	}
-}
-
-// NewTransactionWithCurrency creates a new transaction with the specified currency.
-// Invariants enforced:
-//   - Currency code must be valid ISO 4217 (3 uppercase letters).
-//
-// Returns a Transaction.
-func NewTransactionWithCurrency(id, userID, accountID uuid.UUID, amount, balance int64, currencyCode currency.Code) *Transaction {
-	if !IsValidCurrencyFormat(currencyCode) {
-		currencyCode = currency.DefaultCurrency
-	}
-	return &Transaction{
-		ID:               id,
-		UserID:           userID,
-		AccountID:        accountID,
-		Amount:           amount,
-		Balance:          balance,
-		CreatedAt:        time.Now(),
-		Currency:         currencyCode,
-		OriginalAmount:   nil,
-		OriginalCurrency: nil,
-		ConversionRate:   nil,
-	}
-}
-
 // GetBalance returns the current balance of the account in the main currency unit (e.g., dollars for USD).
 // Invariants enforced:
 //   - Only the account owner can view the balance.
@@ -183,7 +161,7 @@ func NewTransactionWithCurrency(id, userID, accountID uuid.UUID, amount, balance
 // Returns the balance as float64 or an error if any invariant is violated.
 func (a *Account) GetBalance(userID uuid.UUID) (balance float64, err error) {
 	if a.UserID != userID {
-		err = ErrUserUnauthorized
+		err = user.ErrUserUnauthorized
 		return
 	}
 	meta, err := currency.Get(string(a.Currency))
@@ -201,12 +179,12 @@ func (a *Account) GetBalance(userID uuid.UUID) (balance float64, err error) {
 //   - Currency must be valid.
 //
 // Returns Money or an error if any invariant is violated.
-func (a *Account) GetBalanceAsMoney(userID uuid.UUID) (money Money, err error) {
+func (a *Account) GetBalanceAsMoney(userID uuid.UUID) (m money.Money, err error) {
 	if a.UserID != userID {
-		err = ErrUserUnauthorized
+		err = user.ErrUserUnauthorized
 		return
 	}
-	money, err = NewMoneyFromSmallestUnit(a.Balance, a.Currency)
+	m, err = money.NewMoneyFromSmallestUnit(a.Balance, a.Currency)
 	return
 }
 
@@ -218,53 +196,58 @@ func (a *Account) GetBalanceAsMoney(userID uuid.UUID) (money Money, err error) {
 //   - Deposit must not cause integer overflow.
 //
 // Returns a Transaction or an error if any invariant is violated.
-func (a *Account) Deposit(userID uuid.UUID, money Money) (*Transaction, error) {
+func (a *Account) Deposit(userID uuid.UUID, m money.Money) (tx *Transaction, err error) {
 	if a.UserID != userID {
-		return nil, ErrUserUnauthorized
+		err = user.ErrUserUnauthorized
+		return
 	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	if !money.IsPositive() {
-		return nil, ErrTransactionAmountMustBePositive
+	if !m.IsPositive() {
+		err = ErrTransactionAmountMustBePositive
+		return
 	}
 
-	if string(money.Currency()) != string(a.Currency) {
-		return nil, ErrInvalidCurrencyCode
+	if string(m.Currency()) != string(a.Currency) {
+		err = common.ErrInvalidCurrencyCode
+		return
 	}
 
 	// Check for overflow before performing the addition
-	depositAmount := int64(money.Amount())
+	depositAmount := int64(m.Amount())
 	if depositAmount > 0 && a.Balance > 0 && depositAmount > math.MaxInt64-a.Balance {
-		return nil, ErrDepositAmountExceedsMaxSafeInt
+		err = ErrDepositAmountExceedsMaxSafeInt
+		return
 	}
 
 	// Get current balance as Money
-	currentBalance, err := a.GetBalanceAsMoney(userID)
+	var currentBalance money.Money
+	currentBalance, err = a.GetBalanceAsMoney(userID)
 	if err != nil {
-		return nil, err
+		return
 	}
 
 	// Add the deposit amount to current balance
-	newBalance, err := currentBalance.Add(money)
+	var newBalance money.Money
+	newBalance, err = currentBalance.Add(m)
 	if err != nil {
-		return nil, err
+		return
 	}
 
 	// Update account balance
 	a.Balance = int64(newBalance.Amount())
 
-	transaction := Transaction{
+	tx = &Transaction{
 		ID:        uuid.New(),
 		UserID:    userID,
 		AccountID: a.ID,
 		Amount:    depositAmount,
-		Currency:  money.Currency(),
+		Currency:  m.Currency(),
 		Balance:   a.Balance,
 		CreatedAt: time.Now().UTC(),
 	}
-
-	return &transaction, nil
+	return
 }
 
 // Withdraw removes funds from the account if all business invariants are satisfied.
@@ -275,50 +258,55 @@ func (a *Account) Deposit(userID uuid.UUID, money Money) (*Transaction, error) {
 //   - Cannot withdraw more than the current balance.
 //
 // Returns a Transaction or an error if any invariant is violated.
-func (a *Account) Withdraw(userID uuid.UUID, money Money) (*Transaction, error) {
+func (a *Account) Withdraw(userID uuid.UUID, m money.Money) (tx *Transaction, err error) {
 	if a.UserID != userID {
-		return nil, ErrUserUnauthorized
+		err = user.ErrUserUnauthorized
+		return
 	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	if !money.IsPositive() {
-		return nil, ErrWithdrawalAmountMustBePositive
+	if !m.IsPositive() {
+		err = ErrWithdrawalAmountMustBePositive
+		return
 	}
 
 	// Get current balance as Money
-	currentBalance, err := a.GetBalanceAsMoney(userID)
+	var currentBalance money.Money
+	currentBalance, err = a.GetBalanceAsMoney(userID)
 	if err != nil {
-		return nil, err
+		return
 	}
 
 	// Check if we have sufficient funds
-	hasEnough, err := currentBalance.GreaterThan(money)
+	var hasEnough bool
+	hasEnough, err = currentBalance.GreaterThan(m)
 	if err != nil {
-		return nil, err
+		return
 	}
-	if !hasEnough && !currentBalance.Equals(money) {
-		return nil, ErrInsufficientFunds
+	if !hasEnough && !currentBalance.Equals(m) {
+		err = ErrInsufficientFunds
+		return
 	}
 
 	// Subtract the withdrawal amount from current balance
-	newBalance, err := currentBalance.Subtract(money)
+	var newBalance money.Money
+	newBalance, err = currentBalance.Subtract(m)
 	if err != nil {
-		return nil, err
+		return
 	}
 
 	// Update account balance
 	a.Balance = int64(newBalance.Amount())
 
-	transaction := Transaction{
+	tx = &Transaction{
 		ID:        uuid.New(),
 		UserID:    userID,
 		AccountID: a.ID,
-		Amount:    -int64(money.Amount()),
-		Currency:  money.Currency(),
+		Amount:    -int64(m.Amount()),
+		Currency:  m.Currency(),
 		Balance:   a.Balance,
 		CreatedAt: time.Now().UTC(),
 	}
-
-	return &transaction, nil
+	return
 }

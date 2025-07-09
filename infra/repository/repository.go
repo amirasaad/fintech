@@ -5,6 +5,7 @@ import (
 
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain"
+	"github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -24,7 +25,7 @@ func (r *accountRepository) Get(id uuid.UUID) (*domain.Account, error) {
 	if result.Error != nil {
 		return nil, result.Error
 	}
-	return domain.NewAccountFromData(a.ID, a.UserID, a.Balance, a.Currency, a.CreatedAt, a.UpdatedAt), nil
+	return account.NewAccountFromData(a.ID, a.UserID, a.Balance, a.Currency, a.CreatedAt, a.UpdatedAt), nil
 }
 
 func (r *accountRepository) Create(a *domain.Account) error {
@@ -107,7 +108,7 @@ func (r *transactionRepository) Get(
 	if result.Error != nil {
 		return nil, result.Error
 	}
-	return domain.NewTransactionFromData(t.ID, t.UserID, t.AccountID, t.Amount, t.Balance, currency.Code(t.Currency), t.CreatedAt, t.OriginalAmount, t.OriginalCurrency, t.ConversionRate), nil
+	return account.NewTransactionFromData(t.ID, t.UserID, t.AccountID, t.Amount, t.Balance, currency.Code(t.Currency), t.CreatedAt, t.OriginalAmount, t.OriginalCurrency, t.ConversionRate), nil
 }
 
 func (r *transactionRepository) List(
@@ -120,7 +121,7 @@ func (r *transactionRepository) List(
 	}
 	tx := make([]*domain.Transaction, 0, len(dbTransactions))
 	for _, t := range dbTransactions {
-		tx = append(tx, domain.NewTransactionFromData(t.ID, t.UserID, t.AccountID, t.Amount, t.Balance, currency.Code(t.Currency), t.CreatedAt, t.OriginalAmount, t.OriginalCurrency, t.ConversionRate))
+		tx = append(tx, account.NewTransactionFromData(t.ID, t.UserID, t.AccountID, t.Amount, t.Balance, currency.Code(t.Currency), t.CreatedAt, t.OriginalAmount, t.OriginalCurrency, t.ConversionRate))
 	}
 	return tx, nil
 }

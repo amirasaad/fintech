@@ -6,7 +6,8 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/amirasaad/fintech/pkg/domain"
+	"github.com/amirasaad/fintech/pkg/domain/account"
+	"github.com/amirasaad/fintech/pkg/domain/user"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"gorm.io/driver/postgres"
@@ -29,7 +30,7 @@ func TestTransactionRepository_Create(t *testing.T) {
 	transRepo := transactionRepository{db: db}
 	userID := uuid.New()
 	accountID := uuid.New()
-	transaction := domain.NewTransactionFromData(uuid.New(), userID, accountID, 100, 100, "USD", time.Now(), nil, nil, nil)
+	transaction := account.NewTransactionFromData(uuid.New(), userID, accountID, 100, 100, "USD", time.Now(), nil, nil, nil)
 
 	mock.ExpectBegin()
 	mock.ExpectQuery(`INSERT INTO "transactions" (.+) VALUES (.+) RETURNING "id"`).
@@ -63,7 +64,7 @@ func TestUserRepository_Create(t *testing.T) {
 	assert.NoError(err)
 
 	userRepo := userRepository{db: db}
-	user, _ := domain.NewUser("testuser", "test@example.com", "password")
+	user, _ := user.NewUser("testuser", "test@example.com", "password")
 
 	mock.ExpectBegin()
 	mock.ExpectExec(`INSERT INTO "users" (.+) VALUES (.+)`).

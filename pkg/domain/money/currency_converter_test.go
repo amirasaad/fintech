@@ -1,9 +1,10 @@
-package domain_test
+package money_test
 
 import (
 	"errors"
-	"github.com/amirasaad/fintech/pkg/domain"
 	"testing"
+
+	"github.com/amirasaad/fintech/pkg/domain"
 
 	"github.com/amirasaad/fintech/internal/fixtures"
 )

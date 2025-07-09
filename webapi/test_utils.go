@@ -17,6 +17,7 @@ import (
 	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain"
+	"github.com/amirasaad/fintech/pkg/domain/user"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/amirasaad/fintech/pkg/service"
 	"github.com/gofiber/fiber/v2"
@@ -79,7 +80,7 @@ func SetupTestApp(
 
 	mockUow = fixtures.NewMockUnitOfWork(t)
 
-	testUser, err = domain.NewUser("test", "test@example.com", "password123")
+	testUser, err = user.NewUser("test", "test@example.com", "password123")
 	if err != nil {
 		t.Fatalf("Failed to create test user: %v", err)
 	}

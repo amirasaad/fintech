@@ -1,4 +1,4 @@
-package domain
+package money
 
 import (
 	"fmt"
@@ -8,10 +8,13 @@ import (
 	"strings"
 
 	"github.com/amirasaad/fintech/pkg/currency"
+	"github.com/amirasaad/fintech/pkg/domain/common"
 )
 
+// Use common.ErrInvalidCurrencyCode and common.ConversionInfo
+
 // Amount represents a monetary amount as an integer in the smallest currency unit (e.g., cents for USD).
-type Amount int64
+type Amount = int64
 
 // Money represents a monetary value in a specific currency.
 // Invariants:
@@ -41,7 +44,7 @@ func NewMoney(
 		currencyCode = currency.Code(currency.DefaultCurrency)
 	}
 	if !currency.IsValidCurrencyFormat(string(currencyCode)) {
-		err = ErrInvalidCurrencyCode
+		err = common.ErrInvalidCurrencyCode
 		return
 	}
 
@@ -70,7 +73,7 @@ func NewMoneyFromSmallestUnit(
 		currencyCode = currency.Code(currency.DefaultCurrency)
 	}
 	if !currency.IsValidCurrencyFormat(string(currencyCode)) {
-		err = ErrInvalidCurrencyCode
+		err = common.ErrInvalidCurrencyCode
 		return
 	}
 
@@ -109,7 +112,7 @@ func (m Money) Currency() currency.Code {
 // Returns Money or an error if currencies do not match.
 func (m Money) Add(other Money) (Money, error) {
 	if !m.IsSameCurrency(other) {
-		return Money{}, ErrInvalidCurrencyCode
+		return Money{}, common.ErrInvalidCurrencyCode
 	}
 	return Money{
 		amount:   m.amount + other.amount,
@@ -124,7 +127,7 @@ func (m Money) Add(other Money) (Money, error) {
 // Returns Money or an error if currencies do not match.
 func (m Money) Subtract(other Money) (Money, error) {
 	if !m.IsSameCurrency(other) {
-		return Money{}, ErrInvalidCurrencyCode
+		return Money{}, common.ErrInvalidCurrencyCode
 	}
 	return Money{
 		amount:   m.amount - other.amount,
@@ -156,7 +159,7 @@ func (m Money) Equals(other Money) bool {
 // Returns an error if currencies do not match.
 func (m Money) GreaterThan(other Money) (bool, error) {
 	if !m.IsSameCurrency(other) {
-		return false, ErrInvalidCurrencyCode
+		return false, common.ErrInvalidCurrencyCode
 	}
 	return m.amount > other.amount, nil
 }
@@ -168,7 +171,7 @@ func (m Money) GreaterThan(other Money) (bool, error) {
 // Returns an error if currencies do not match.
 func (m Money) LessThan(other Money) (bool, error) {
 	if !m.IsSameCurrency(other) {
-		return false, ErrInvalidCurrencyCode
+		return false, common.ErrInvalidCurrencyCode
 	}
 	return m.amount < other.amount, nil
 }

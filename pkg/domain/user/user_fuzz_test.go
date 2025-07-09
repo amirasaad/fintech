@@ -1,9 +1,7 @@
-package domain_test
+package user
 
 import (
 	"testing"
-
-	"github.com/amirasaad/fintech/pkg/domain"
 )
 
 // FuzzNewUser tests NewUser invariants with random input.
@@ -16,7 +14,7 @@ func FuzzNewUser(f *testing.F) {
 				t.Errorf("NewUser panicked: %v (username=%q, email=%q, password=%q)", r, username, email, password)
 			}
 		}()
-		user, err := domain.NewUser(username, email, password)
+		user, err := NewUser(username, email, password)
 		if err == nil {
 			if user.Username == "" || user.Email == "" {
 				t.Errorf("User has empty username or email: username=%q, email=%q", user.Username, user.Email)

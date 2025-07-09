@@ -1,7 +1,7 @@
 package service
 
 import (
-	"github.com/amirasaad/fintech/pkg/domain"
+	"github.com/amirasaad/fintech/pkg/domain/user"
 	"github.com/amirasaad/fintech/pkg/repository"
 
 	"github.com/google/uuid"
@@ -21,7 +21,7 @@ func NewUserService(
 
 func (s *UserService) CreateUser(
 	username, email, password string,
-) (u *domain.User, err error) {
+) (u *user.User, err error) {
 	uow, err := s.uowFactory()
 	if err != nil {
 		u = nil
@@ -33,7 +33,7 @@ func (s *UserService) CreateUser(
 		return
 	}
 
-	u, err = domain.NewUser(username, email, password)
+	u, err = user.NewUser(username, email, password)
 	if err != nil {
 		u = nil
 		return
@@ -62,7 +62,7 @@ func (s *UserService) CreateUser(
 	return
 }
 
-func (s *UserService) GetUser(id uuid.UUID) (u *domain.User, err error) {
+func (s *UserService) GetUser(id uuid.UUID) (u *user.User, err error) {
 	uow, err := s.uowFactory()
 	if err != nil {
 		u = nil
@@ -84,7 +84,7 @@ func (s *UserService) GetUser(id uuid.UUID) (u *domain.User, err error) {
 	return
 }
 
-func (s *UserService) GetUserByEmail(email string) (u *domain.User, err error) {
+func (s *UserService) GetUserByEmail(email string) (u *user.User, err error) {
 	uow, err := s.uowFactory()
 	if err != nil {
 		u = nil
@@ -105,7 +105,7 @@ func (s *UserService) GetUserByEmail(email string) (u *domain.User, err error) {
 	return
 }
 
-func (s *UserService) GetUserByUsername(username string) (u *domain.User, err error) {
+func (s *UserService) GetUserByUsername(username string) (u *user.User, err error) {
 	uow, err := s.uowFactory()
 	if err != nil {
 		u = nil
@@ -126,7 +126,7 @@ func (s *UserService) GetUserByUsername(username string) (u *domain.User, err er
 	return
 }
 
-func (s *UserService) UpdateUser(u *domain.User) (err error) {
+func (s *UserService) UpdateUser(u *user.User) (err error) {
 	uow, err := s.uowFactory()
 	if err != nil {
 		return

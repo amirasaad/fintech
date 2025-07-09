@@ -1,10 +1,10 @@
-package domain_test
+package money_test
 
 import (
 	"testing"
 
 	"github.com/amirasaad/fintech/pkg/currency"
-	"github.com/amirasaad/fintech/pkg/domain"
+	"github.com/amirasaad/fintech/pkg/domain/money"
 )
 
 // FuzzNewMoney tests NewMoney invariants with random input.
@@ -19,10 +19,11 @@ func FuzzNewMoney(f *testing.F) {
 				t.Errorf("NewMoney panicked: %v (amount=%v, currency=%q)", r, amount, cc)
 			}
 		}()
-		money, err := domain.NewMoney(amount, currency.Code(cc))
+		m, err := money.NewMoney(amount, currency.Code(cc))
 		if err == nil {
-			if !domain.IsValidCurrencyFormat(money.Currency()) {
-				t.Errorf("Money currency is invalid: %q", money.Currency())
+			if !currency.IsValidCurrencyFormat(string(m.Currency())) {
+
+				t.Errorf("Money currency is invalid: %q", m.Currency())
 			}
 		}
 	})
