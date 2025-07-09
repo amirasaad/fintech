@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"slices"
 	"testing"
 
 	"github.com/amirasaad/fintech/pkg/currency"
@@ -51,13 +52,7 @@ func TestCurrencyService(t *testing.T) {
 		assert.Greater(t, len(supported), 0)
 
 		// Check that USD is in the list
-		found := false
-		for _, code := range supported {
-			if code == "USD" {
-				found = true
-				break
-			}
-		}
+		found := slices.Contains(supported, "USD")
 		assert.True(t, found)
 	})
 

@@ -439,7 +439,7 @@ func TestCurrencyRegistry(t *testing.T) {
 
 		// Register a test currency
 		testCurrency := CurrencyMeta{
-			Code:     "TS2",
+			Code:     "TSU",
 			Name:     "Test Currency 2",
 			Symbol:   "T2",
 			Decimals: 2,
@@ -449,15 +449,15 @@ func TestCurrencyRegistry(t *testing.T) {
 		require.NoError(t, err)
 
 		// Verify it exists
-		_, err = registry.Get("TS2")
+		_, err = registry.Get("TSU")
 		require.NoError(t, err)
 
 		// Unregister
-		err = registry.Unregister("TS2")
+		err = registry.Unregister("TSU")
 		require.NoError(t, err)
 
 		// Verify it's gone
-		_, err = registry.Get("TS2")
+		_, err = registry.Get("TSU")
 		assert.Error(t, err)
 	})
 
@@ -612,17 +612,17 @@ func TestBackwardCompatibility(t *testing.T) {
 
 	t.Run("legacy unregister", func(t *testing.T) {
 		// Register a test currency
-		RegisterLegacy("TS3", CurrencyMeta{
+		RegisterLegacy("TSV", CurrencyMeta{
 			Symbol:   "T3",
 			Decimals: 2,
 		})
 
 		// Unregister it
-		success := UnregisterLegacy("TS3")
+		success := UnregisterLegacy("TSV")
 		assert.True(t, success)
 
 		// Verify it's gone
-		assert.False(t, IsSupportedLegacy("TS3"))
+		assert.False(t, IsSupportedLegacy("TSV"))
 	})
 
 	t.Run("legacy count", func(t *testing.T) {

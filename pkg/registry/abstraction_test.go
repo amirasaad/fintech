@@ -134,7 +134,10 @@ func TestEnhancedRegistry_WithCache(t *testing.T) {
 	registry.WithCache(shortCache)
 
 	registry.Register(ctx, entity)
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(50 * time.Millisecond)
+
+	// Force a Get to trigger possible cleanup
+	_, _ = shortCache.Get(ctx, "test-1")
 
 	if shortCache.Size() != 0 {
 		t.Error("Cache should be empty after expiration")

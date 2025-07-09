@@ -126,12 +126,50 @@ func NewCurrencyValidator() *CurrencyValidator {
 
 // Validate validates a currency entity
 func (cv *CurrencyValidator) Validate(ctx context.Context, entity registry.Entity) error {
-	currencyEntity, ok := entity.(*CurrencyEntity)
-	if !ok {
-		return fmt.Errorf("invalid entity type: expected *CurrencyEntity")
+	// Try to convert to CurrencyEntity first
+	if currencyEntity, ok := entity.(*CurrencyEntity); ok {
+		return validateCurrencyMeta(currencyEntity.GetMeta())
 	}
 
-	return validateCurrencyMeta(currencyEntity.GetMeta())
+	// If it's not a CurrencyEntity, try to validate using metadata
+	// This handles cases where the entity might be a BaseEntity or other type
+	metadata := entity.GetMetadata()
+	if len(metadata) == 0 {
+		return fmt.Errorf("invalid entity type: expected *CurrencyEntity or entity with metadata")
+	}
+
+	// Validate required metadata fields
+	requiredFields := []string{"code", "symbol", "decimals"}
+	for _, field := range requiredFields {
+		if value, exists := metadata[field]; !exists || value == "" {
+			return fmt.Errorf("required metadata field missing: %s", field)
+		}
+	}
+
+	// Validate currency code format
+	if code, exists := metadata["code"]; exists {
+		if !isValidCurrencyCode(code) {
+			return ErrInvalidCurrencyCode
+		}
+	}
+
+	// Validate decimals
+	if decimalsStr, exists := metadata["decimals"]; exists {
+		if decimals, err := strconv.Atoi(decimalsStr); err != nil {
+			return ErrInvalidDecimals
+		} else if decimals < 0 || decimals > MaxDecimals {
+			return ErrInvalidDecimals
+		}
+	}
+
+	// Validate symbol
+	if symbol, exists := metadata["symbol"]; exists {
+		if symbol == "" || len(symbol) > MaxSymbolLength {
+			return ErrInvalidSymbol
+		}
+	}
+
+	return nil
 }
 
 // ValidateMetadata validates currency metadata
