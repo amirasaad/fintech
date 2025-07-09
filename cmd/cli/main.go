@@ -56,7 +56,7 @@ func main() {
 		return infra_repository.NewGormUoW(cfg.DB, appEnv)
 	}
 	// Create exchange rate system
-	currencyConverter, err := infra.NewExchangeRateSystem(logger, cfg.Exchange)
+	currencyConverter, err := infra.NewExchangeRateSystem(logger, *cfg)
 	if err != nil {
 		_, _ = color.New(color.FgRed).Fprintln(os.Stderr, "Failed to initialize exchange rate system:", err)
 		return

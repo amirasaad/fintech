@@ -28,14 +28,14 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 
 // building the fiber application
 func handler() http.HandlerFunc {
-	logger := slog.New(slog.NewTextHandler(log.Writer(), nil))
+	logger := slog.New(slog.NewTextHandler(log.Writer(), &slog.HandlerOptions{Level: slog.LevelDebug}))
 	slog.SetDefault(logger)
 	cfg, err := config.LoadAppConfig(logger)
 	if err != nil {
 		logger.Error("Failed to load application configuration", "error", err)
 		log.Fatal(err)
 	}
-	currencyConverter, err := infra.NewExchangeRateSystem(slog.Default(), cfg.Exchange)
+	currencyConverter, err := infra.NewExchangeRateSystem(logger, *cfg)
 	if err != nil {
 		logger.Error("Failed to initialize exchange rate system", "error", err)
 		log.Fatal(err)

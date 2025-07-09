@@ -72,7 +72,7 @@ func main() {
 
     // Register an entity
     user := registry.NewBaseEntity("user-1", "John Doe")
-    user.GetMetadata()["email"] = "john@example.com"
+    user.Metadata()["email"] = "john@example.com"
     
     err := registry.Register(ctx, user)
     if err != nil {
@@ -85,7 +85,7 @@ func main() {
         panic(err)
     }
 
-    fmt.Printf("Found user: %s\n", retrieved.GetName())
+    fmt.Printf("Found user: %s\n", retrieved.Name())
 }
 ```
 
@@ -125,8 +125,8 @@ func NewProduct(id, name string, price float64, category string) *Product {
     }
 }
 
-func (p *Product) GetMetadata() map[string]string {
-    metadata := p.BaseEntity.GetMetadata()
+func (p *Product) Metadata() map[string]string {
+    metadata := p.BaseEntity.Metadata()
     metadata["price"] = fmt.Sprintf("%.2f", p.Price)
     metadata["category"] = p.Category
     metadata["in_stock"] = fmt.Sprintf("%t", p.InStock)
@@ -142,12 +142,12 @@ All entities must implement the `Entity` interface:
 
 ```go
 type Entity interface {
-    GetID() string
-    GetName() string
-    IsActive() bool
-    GetMetadata() map[string]string
-    GetCreatedAt() time.Time
-    GetUpdatedAt() time.Time
+    ID() string
+    Name() string
+    Active() bool
+    Metadata() map[string]string
+    CreatedAt() time.Time
+    UpdatedAt() time.Time
 }
 ```
 
@@ -267,7 +267,7 @@ registry := registry.NewEnhancedRegistry(config)
 type MyObserver struct{}
 
 func (o *MyObserver) OnEntityRegistered(ctx context.Context, entity registry.Entity) {
-    fmt.Printf("Entity registered: %s\n", entity.GetName())
+    fmt.Printf("Entity registered: %s\n", entity.Name())
 }
 
 func (o *MyObserver) OnEntityUnregistered(ctx context.Context, id string) {

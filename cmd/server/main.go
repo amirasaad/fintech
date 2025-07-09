@@ -27,7 +27,7 @@ import (
 // @BasePath /
 func main() {
 	// Setup structured logging
-	logger := slog.New(slog.NewTextHandler(log.Writer(), nil))
+	logger := slog.New(slog.NewTextHandler(log.Writer(), &slog.HandlerOptions{Level: slog.LevelDebug}))
 	slog.SetDefault(logger)
 
 	// Load application configuration
@@ -57,7 +57,7 @@ func main() {
 	}
 
 	// Create exchange rate system
-	currencyConverter, err := infra.NewExchangeRateSystem(logger, cfg.Exchange)
+	currencyConverter, err := infra.NewExchangeRateSystem(logger, *cfg)
 	if err != nil {
 		logger.Error("Failed to initialize exchange rate system", "error", err)
 		log.Fatal(err)
