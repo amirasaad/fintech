@@ -4,17 +4,16 @@ import (
 	"context"
 	"io"
 	"log/slog"
-	"runtime"
-	"strings"
 	"testing"
 
 	"github.com/amirasaad/fintech/internal/fixtures"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 
 	"os"
 	"path/filepath"
+	"runtime"
 
+	fixturescurrency "github.com/amirasaad/fintech/internal/fixtures/currency"
 	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain"
@@ -26,54 +25,6 @@ import (
 
 type E2ETestSuite struct {
 	suite.Suite
-	ts map[string]*testing.T // Map of test names > *testing.T
-}
-
-func (suite *E2ETestSuite) BeforeTest(_, testName string) {
-	t := suite.T()
-	if suite.ts == nil {
-		suite.ts = make(map[string]*testing.T, 1)
-	}
-	suite.ts[testName] = t
-	suite.T().Cleanup(func() {
-		mock.AssertExpectationsForObjects(suite.T())
-	})
-	// Removed t.Parallel() to avoid concurrency issues with mocks
-}
-
-// T() overrides suite.Suite.T() with a way to find the proper *testing.T
-// for the current test.
-// This relies on `BeforeTest` storing the *testing.T pointers in a map
-// before marking them parallel.
-// This is a huge hack to make parallel testing work until
-// https://github.com/stretchr/testify/issues/187 is fixed.
-// There is still a small race:
-// 1. test 1 calls SetT()
-// 2. test 1 calls BeforeTest() with its own T
-// 3. test 1 is marked as parallel and starts executing
-// 4. test 2 calls SetT()
-// 5. test 1 completes and calls SetT() to reset to the parent T
-// 6. test 2 calls BeforeTest() with its parent T instead of its own
-// The time between 4. & 6. is extremely low, enough that this should be really rare on our e2e tests.
-func (suite *E2ETestSuite) T() *testing.T {
-	// Try to find in the call stack a method name that is stored in `ts` (the test method).
-	for i := 1; ; i++ {
-		pc, _, _, ok := runtime.Caller(i)
-		if !ok {
-			break
-		}
-		// Example rawFuncName:
-		// github.com/foo/bar/tests/e2e.(*E2ETestSuite).MyTest
-		rawFuncName := runtime.FuncForPC(pc).Name()
-		splittedFuncName := strings.Split(rawFuncName, ".")
-		funcName := splittedFuncName[len(splittedFuncName)-1]
-		t := suite.ts[funcName]
-		if t != nil {
-			return t
-		}
-	}
-	// Fallback to the globally stored Suite.T()
-	return suite.Suite.T()
 }
 
 func findNearestEnvTest() (current string, err error) {
@@ -146,6 +97,18 @@ func SetupTestApp(
 	currencyRegistry, err = currency.NewCurrencyRegistry(ctx)
 	if err != nil {
 		t.Fatalf("Failed to create currency registry for tests: %v", err)
+	}
+	// Robustly resolve the fixture path
+	_, filename, _, _ := runtime.Caller(0)
+	fixturePath := filepath.Join(filepath.Dir(filename), "../internal/fixtures/currency/meta.csv")
+	metas, err := fixturescurrency.LoadCurrencyMetaCSV(fixturePath)
+	if err != nil {
+		t.Fatalf("Failed to load currency meta fixture: %v", err)
+	}
+	for _, meta := range metas {
+		if err := currencyRegistry.Register(meta); err != nil {
+			t.Fatalf("Failed to register currency meta: %v", err)
+		}
 	}
 	currencySvc := service.NewCurrencyService(currencyRegistry)
 

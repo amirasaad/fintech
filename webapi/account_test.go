@@ -46,7 +46,7 @@ func generateTestToken(t *testing.T,
 	cfg *config.AppConfig,
 ) string {
 	t.Helper()
-	token, err := service.NewJWTAuthStrategy(nil, cfg.Jwt).GenerateToken(user)
+	token, err := authService.GenerateToken(user)
 	if err != nil {
 		t.Fatalf("Failed to generate test JWT: %v", err)
 	}
@@ -54,7 +54,6 @@ func generateTestToken(t *testing.T,
 }
 
 func (s *AccountTestSuite) BeforeTest(_, _s string) {
-	s.E2ETestSuite.BeforeTest("", _s)
 	s.app,
 		s.userRepo,
 		s.accountRepo,
@@ -219,7 +218,7 @@ func (s *AccountTestSuite) TestAccountRoutesTransactionList() {
 func (s *AccountTestSuite) TestAccountRoutesBalance() {
 	s.mockUow.EXPECT().AccountRepository().Return(s.accountRepo, nil)
 	accountID := uuid.New()
-	account := &domain.Account{ID: accountID, UserID: s.testUser.ID, Balance: 100.0}
+	account := &domain.Account{ID: accountID, UserID: s.testUser.ID, Balance: 100.0, Currency: "USD"}
 	s.accountRepo.EXPECT().Get(accountID).Return(account, nil)
 
 	req := httptest.NewRequest("GET", fmt.Sprintf("/account/%s/balance", accountID), nil)
