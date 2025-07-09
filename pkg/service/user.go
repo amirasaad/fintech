@@ -203,6 +203,9 @@ func (s *UserService) UpdateUser(
 		if err != nil {
 			return err
 		}
+		if u == nil {
+			return user.ErrUserNotFound
+		}
 		if err = updateFn(u); err != nil {
 			return err
 		}
