@@ -167,13 +167,13 @@ func CreateAccount(
 		log.Infof("Creating new account")
 		token, ok := c.Locals("user").(*jwt.Token)
 		if !ok {
-			return ErrorResponseJSON(c, fiber.StatusUnauthorized, "unauthorized", "missing user context")
+			return ProblemDetailsJSON(c, fiber.StatusUnauthorized, "unauthorized", "missing user context")
 		}
 		userID, err := authSvc.GetCurrentUserId(token)
 		if err != nil {
 			log.Errorf("Failed to parse user ID from token: %v", err)
 			status := ErrorToStatusCode(err)
-			return ErrorResponseJSON(c, status, "invalid user ID", err.Error())
+			return ProblemDetailsJSON(c, status, "invalid user ID", err.Error())
 		}
 		input, _ := BindAndValidate[CreateAccountRequest](c) // ignore error, currency is optional
 		currency := "USD"
@@ -184,7 +184,7 @@ func CreateAccount(
 		if err != nil {
 			log.Errorf("Failed to create account: %v", err)
 			status := ErrorToStatusCode(err)
-			return ErrorResponseJSON(c, status, "Failed to create account", err.Error())
+			return ProblemDetailsJSON(c, status, "Failed to create account", err.Error())
 		}
 		log.Infof("Account created: %+v", a)
 		return c.Status(fiber.StatusCreated).JSON(Response{Status: fiber.StatusCreated, Message: "Account created", Data: a})
@@ -224,12 +224,12 @@ func Deposit(
 		if err != nil {
 			log.Errorf("Failed to parse user ID from token: %v", err)
 			status := ErrorToStatusCode(err)
-			return ErrorResponseJSON(c, status, "invalid user ID", err.Error())
+			return ProblemDetailsJSON(c, status, "invalid user ID", err.Error())
 		}
 		id, err := uuid.Parse(c.Params("id"))
 		if err != nil {
 			log.Errorf("Invalid account ID for deposit: %v", err)
-			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid account ID", err.Error())
+			return ProblemDetailsJSON(c, fiber.StatusBadRequest, "Invalid account ID", err.Error())
 		}
 		input, err := BindAndValidate[DepositRequest](c)
 		if err != nil {
@@ -240,7 +240,7 @@ func Deposit(
 		if err != nil {
 			log.Errorf("Failed to deposit: %v", err)
 			status := ErrorToStatusCode(err)
-			return ErrorResponseJSON(c, status, "Failed to deposit", err.Error())
+			return ProblemDetailsJSON(c, status, "Failed to deposit", err.Error())
 		}
 		if convInfo != nil {
 			resp := ToConversionResponseDTO(tx, convInfo)
@@ -283,18 +283,18 @@ func Withdraw(
 	return func(c *fiber.Ctx) error {
 		token, ok := c.Locals("user").(*jwt.Token)
 		if !ok {
-			return ErrorResponseJSON(c, fiber.StatusUnauthorized, "unauthorized", "missing user context")
+			return ProblemDetailsJSON(c, fiber.StatusUnauthorized, "unauthorized", "missing user context")
 		}
 		userID, err := authSvc.GetCurrentUserId(token)
 		if err != nil {
 			log.Errorf("Failed to parse user ID from token: %v", err)
 			status := ErrorToStatusCode(err)
-			return ErrorResponseJSON(c, status, "invalid user ID", err.Error())
+			return ProblemDetailsJSON(c, status, "invalid user ID", err.Error())
 		}
 		id, err := uuid.Parse(c.Params("id"))
 		if err != nil {
 			log.Errorf("Invalid account ID for withdrawal: %v", err)
-			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid account ID", err.Error())
+			return ProblemDetailsJSON(c, fiber.StatusBadRequest, "Invalid account ID", err.Error())
 		}
 		input, err := BindAndValidate[WithdrawRequest](c)
 		if err != nil {
@@ -308,7 +308,7 @@ func Withdraw(
 		if err != nil {
 			log.Errorf("Failed to withdraw: %v", err)
 			status := ErrorToStatusCode(err)
-			return ErrorResponseJSON(c, status, "Failed to withdraw", err.Error())
+			return ProblemDetailsJSON(c, status, "Failed to withdraw", err.Error())
 		}
 		if convInfo != nil {
 			resp := ToConversionResponseDTO(tx, convInfo)
@@ -342,25 +342,25 @@ func GetTransactions(
 	return func(c *fiber.Ctx) error {
 		token, ok := c.Locals("user").(*jwt.Token)
 		if !ok {
-			return ErrorResponseJSON(c, fiber.StatusUnauthorized, "unauthorized", "missing user context")
+			return ProblemDetailsJSON(c, fiber.StatusUnauthorized, "unauthorized", "missing user context")
 		}
 		userID, err := authSvc.GetCurrentUserId(token)
 		if err != nil {
 			log.Errorf("Failed to parse user ID from token: %v", err)
 			status := ErrorToStatusCode(err)
-			return ErrorResponseJSON(c, status, "invalid user ID", err.Error())
+			return ProblemDetailsJSON(c, status, "invalid user ID", err.Error())
 		}
 		id, err := uuid.Parse(c.Params("id"))
 		if err != nil {
 			log.Errorf("Invalid account ID for transactions: %v", err)
-			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid account ID", err.Error())
+			return ProblemDetailsJSON(c, fiber.StatusBadRequest, "Invalid account ID", err.Error())
 		}
 
 		tx, err := accountSvc.GetTransactions(userID, id)
 		if err != nil {
 			log.Errorf("Failed to list transactions for account ID %s: %v", id, err)
 			status := ErrorToStatusCode(err)
-			return ErrorResponseJSON(c, status, "Failed to list transactions", err.Error())
+			return ProblemDetailsJSON(c, status, "Failed to list transactions", err.Error())
 		}
 		return c.JSON(Response{Status: fiber.StatusOK, Message: "Transactions fetched", Data: tx})
 	}
@@ -390,25 +390,25 @@ func GetBalance(
 	return func(c *fiber.Ctx) error {
 		token, ok := c.Locals("user").(*jwt.Token)
 		if !ok {
-			return ErrorResponseJSON(c, fiber.StatusUnauthorized, "unauthorized", "missing user context")
+			return ProblemDetailsJSON(c, fiber.StatusUnauthorized, "unauthorized", "missing user context")
 		}
 		userID, err := authSvc.GetCurrentUserId(token)
 		if err != nil {
 			log.Errorf("Failed to parse user ID from token: %v", err)
 			status := ErrorToStatusCode(err)
-			return ErrorResponseJSON(c, status, "invalid user ID", err.Error())
+			return ProblemDetailsJSON(c, status, "invalid user ID", err.Error())
 		}
 		id, err := uuid.Parse(c.Params("id"))
 		if err != nil {
 			log.Errorf("Invalid account ID for balance: %v", err)
-			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid account ID", err.Error())
+			return ProblemDetailsJSON(c, fiber.StatusBadRequest, "Invalid account ID", err.Error())
 		}
 
 		balance, err := accountSvc.GetBalance(userID, id)
 		if err != nil {
 			log.Errorf("Failed to fetch balance for account ID %s: %v", id, err)
 			status := ErrorToStatusCode(err)
-			return ErrorResponseJSON(c, status, "Failed to fetch balance", err.Error())
+			return ProblemDetailsJSON(c, status, "Failed to fetch balance", err.Error())
 		}
 		return c.Status(fiber.StatusOK).JSON(Response{Status: fiber.StatusOK, Message: "Balance fetched", Data: fiber.Map{"balance": balance}})
 	}

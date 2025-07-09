@@ -28,7 +28,7 @@ func NewApp(
 			if e, ok := err.(*fiber.Error); ok {
 				status = e.Code
 			}
-			return ErrorResponseJSON(c, status, "Internal Server Error", err.Error())
+			return ProblemDetailsJSON(c, status, "Internal Server Error", err.Error())
 		},
 	})
 	app.Get("/swagger/*", swagger.New(swagger.Config{
@@ -44,7 +44,7 @@ func NewApp(
 			return c.IP()
 		},
 		LimitReached: func(c *fiber.Ctx) error {
-			return ErrorResponseJSON(c, fiber.StatusTooManyRequests, "Too Many Requests", "Rate limit exceeded")
+			return ProblemDetailsJSON(c, fiber.StatusTooManyRequests, "Too Many Requests", "Rate limit exceeded")
 		},
 	}))
 	app.Use(recover.New())

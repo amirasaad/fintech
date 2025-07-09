@@ -42,14 +42,14 @@ func Login(authSvc *service.AuthService) fiber.Handler {
 			if errors.Is(err, domain.ErrUserUnauthorized) {
 				status = fiber.StatusUnauthorized
 			}
-			return ErrorResponseJSON(c, status, "Internal Server Error", err.Error())
+			return ProblemDetailsJSON(c, status, "Internal Server Error", err.Error())
 		}
 		if user == nil {
-			return ErrorResponseJSON(c, fiber.StatusUnauthorized, "Invalid identity or password", nil)
+			return ProblemDetailsJSON(c, fiber.StatusUnauthorized, "Invalid identity or password", nil)
 		}
 		token, err := authSvc.GenerateToken(user)
 		if err != nil {
-			return ErrorResponseJSON(c, fiber.StatusInternalServerError, "Internal Server Error", err.Error())
+			return ProblemDetailsJSON(c, fiber.StatusInternalServerError, "Internal Server Error", err.Error())
 		}
 		return c.JSON(Response{Status: fiber.StatusOK, Message: "Success login", Data: fiber.Map{"token": token}})
 	}

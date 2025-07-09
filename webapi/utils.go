@@ -25,8 +25,8 @@ type ProblemDetails struct {
 	Errors   any    `json:"errors,omitempty"`   // Optional: additional error details
 }
 
-// ErrorResponseJSON returns a response following RFC 9457 Problem Details
-func ErrorResponseJSON(
+// ProblemDetailsJSON returns a response following RFC 9457 Problem Details
+func ProblemDetailsJSON(
 	c *fiber.Ctx,
 	status int,
 	title string,
@@ -77,7 +77,7 @@ func ErrorToStatusCode(err error) int {
 func BindAndValidate[T any](c *fiber.Ctx) (*T, error) {
 	var input T
 	if err := c.BodyParser(&input); err != nil {
-		ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid request body", err.Error())
+		ProblemDetailsJSON(c, fiber.StatusBadRequest, "Invalid request body", err.Error())
 		return nil, err
 	}
 	validate := validator.New()
@@ -89,10 +89,10 @@ func BindAndValidate[T any](c *fiber.Ctx) (*T, error) {
 				msg := fe.Tag()
 				details[field] = msg
 			}
-			ErrorResponseJSON(c, fiber.StatusBadRequest, "Validation failed", details)
+			ProblemDetailsJSON(c, fiber.StatusBadRequest, "Validation failed", details)
 			return nil, err
 		}
-		ErrorResponseJSON(c, fiber.StatusBadRequest, "Validation failed", err.Error())
+		ProblemDetailsJSON(c, fiber.StatusBadRequest, "Validation failed", err.Error())
 		return nil, err
 	}
 	return &input, nil
