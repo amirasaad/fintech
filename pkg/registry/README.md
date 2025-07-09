@@ -19,7 +19,7 @@ A flexible, extensible registry system for managing entities with support for ca
 
 The registry system follows clean architecture principles with clear separation of concerns:
 
-```
+```ascii
 ┌─────────────────────────────────────────────────────────────┐
 │                    Registry System                          │
 ├─────────────────────────────────────────────────────────────┤

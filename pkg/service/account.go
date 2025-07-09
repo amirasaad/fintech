@@ -109,6 +109,22 @@ func (s *AccountService) CreateAccountWithCurrency(
 	return
 }
 
+// handleCurrencyConversion encapsulates the conversion logic for Deposit and Withdraw
+func (s *AccountService) handleCurrencyConversion(money domain.Money, target currency.Code) (domain.Money, *domain.ConversionInfo, error) {
+	if string(money.Currency()) == string(target) {
+		return money, nil, nil
+	}
+	convInfo, err := s.converter.Convert(money.AmountFloat(), string(money.Currency()), string(target))
+	if err != nil {
+		return domain.Money{}, nil, err
+	}
+	convertedMoney, err := domain.NewMoney(convInfo.ConvertedAmount, target)
+	if err != nil {
+		return domain.Money{}, nil, err
+	}
+	return convertedMoney, convInfo, nil
+}
+
 // Deposit adds funds to the specified account and creates a transaction record.
 // Returns the transaction or an error if the operation fails.
 func (s *AccountService) Deposit(
@@ -118,67 +134,50 @@ func (s *AccountService) Deposit(
 ) (tx *domain.Transaction, convInfo *domain.ConversionInfo, err error) {
 	logger := s.logger
 	logger.Info("Deposit started", "userID", userID, "accountID", accountID, "amount", amount, "currency", currencyCode)
-	money, err := domain.NewMoney(amount, currencyCode)
-	if err != nil {
-		logger.Error("Deposit failed: invalid money", "error", err)
-		tx = nil
-		return
-	}
+
 	uow, err := s.uowFactory()
 	if err != nil {
 		logger.Error("Deposit failed: uowFactory error", "error", err)
-		tx = nil
-		return
+		return nil, nil, err
 	}
-	err = uow.Begin()
-	if err != nil {
+	if err = uow.Begin(); err != nil {
 		logger.Error("Deposit failed: uow.Begin error", "error", err)
-		tx = nil
-		return
+		return nil, nil, err
 	}
+	defer func() {
+		if err != nil {
+			_ = uow.Rollback()
+		}
+	}()
 
 	repo, err := uow.AccountRepository()
 	if err != nil {
 		logger.Error("Deposit failed: AccountRepository error", "error", err)
-		_ = uow.Rollback()
-		tx = nil
-		return
+		return nil, nil, err
 	}
 	a, err := repo.Get(accountID)
 	if err != nil {
 		logger.Error("Deposit failed: account not found", "error", err)
-		_ = uow.Rollback()
-		tx = nil
-		err = domain.ErrAccountNotFound
-		return
+		return nil, nil, domain.ErrAccountNotFound
 	}
 
-	if string(money.Currency()) != string(a.Currency) {
-		logger.Info("Deposit: currency conversion needed", "from", money.Currency(), "to", a.Currency)
-		convInfo, err = s.converter.Convert(money.AmountFloat(), string(money.Currency()), string(a.Currency))
-		if err != nil {
-			logger.Error("Deposit failed: currency conversion error", "error", err)
-			_ = uow.Rollback()
-			tx = nil
-			return
-		}
-		money, err = domain.NewMoney(convInfo.ConvertedAmount, a.Currency)
-		if err != nil {
-			logger.Error("Deposit failed: new money after conversion error", "error", err)
-			_ = uow.Rollback()
-			tx = nil
-			return
-		}
+	money, err := domain.NewMoney(amount, currencyCode)
+	if err != nil {
+		logger.Error("Deposit failed: invalid money", "error", err)
+		return nil, nil, err
+	}
+
+	money, convInfo, err = s.handleCurrencyConversion(money, a.Currency)
+	if err != nil {
+		logger.Error("Deposit failed: currency conversion error", "error", err)
+		return nil, nil, err
 	}
 
 	tx, err = a.Deposit(userID, money)
 	if err != nil {
 		logger.Error("Deposit failed: domain deposit error", "error", err)
-		_ = uow.Rollback()
-		tx = nil
-		return
+		return nil, nil, err
 	}
-
 	if convInfo != nil {
 		logger.Info("Deposit: conversion info stored", "originalAmount", convInfo.OriginalAmount, "originalCurrency", convInfo.OriginalCurrency, "conversionRate", convInfo.ConversionRate)
 		tx.OriginalAmount = &convInfo.OriginalAmount
@@ -186,39 +185,25 @@ func (s *AccountService) Deposit(
 		tx.ConversionRate = &convInfo.ConversionRate
 	}
 
-	err = repo.Update(a)
-	if err != nil {
+	if err = repo.Update(a); err != nil {
 		logger.Error("Deposit failed: repo update error", "error", err)
-		_ = uow.Rollback()
-		tx = nil
-		return
+		return nil, nil, err
 	}
-
 	txRepo, err := uow.TransactionRepository()
 	if err != nil {
 		logger.Error("Deposit failed: TransactionRepository error", "error", err)
-		_ = uow.Rollback()
-		tx = nil
-		return
+		return nil, nil, err
 	}
-	err = txRepo.Create(tx)
-	if err != nil {
+	if err := txRepo.Create(tx); err != nil {
 		logger.Error("Deposit failed: transaction create error", "error", err)
-		_ = uow.Rollback()
-		tx = nil
-		return
+		return nil, nil, err
 	}
-
-	err = uow.Commit()
-	if err != nil {
+	if err := uow.Commit(); err != nil {
 		logger.Error("Deposit failed: commit error", "error", err)
-		_ = uow.Rollback()
-		tx = nil
-		return
+		return nil, nil, err
 	}
-
 	logger.Info("Deposit successful", "userID", userID, "accountID", accountID, "amount", amount, "currency", currencyCode, "transactionID", tx.ID)
-	return
+	return tx, convInfo, nil
 }
 
 // Withdraw removes funds from the specified account and creates a transaction record.
@@ -234,59 +219,50 @@ func (s *AccountService) Withdraw(
 ) {
 	logger := s.logger
 	logger.Info("Withdraw started", "userID", userID, "accountID", accountID, "amount", amount, "currency", currencyCode)
-	money, err := domain.NewMoney(amount, currencyCode)
-	if err != nil {
-		logger.Error("Withdraw failed: invalid money", "error", err)
-		return nil, nil, err
-	}
+
 	uow, err := s.uowFactory()
 	if err != nil {
 		logger.Error("Withdraw failed: uowFactory error", "error", err)
 		return nil, nil, err
 	}
-	err = uow.Begin()
-	if err != nil {
+	if err = uow.Begin(); err != nil {
 		logger.Error("Withdraw failed: uow.Begin error", "error", err)
 		return nil, nil, err
 	}
+	defer func() {
+		if err != nil {
+			_ = uow.Rollback()
+		}
+	}()
 
 	repo, err := uow.AccountRepository()
 	if err != nil {
 		logger.Error("Withdraw failed: AccountRepository error", "error", err)
-		_ = uow.Rollback()
 		return nil, nil, err
 	}
 	a, err := repo.Get(accountID)
 	if err != nil {
 		logger.Error("Withdraw failed: account not found", "error", err)
-		_ = uow.Rollback()
 		return nil, nil, domain.ErrAccountNotFound
 	}
 
-	if string(money.Currency()) != string(a.Currency) {
-		logger.Info("Withdraw: currency conversion needed", "from", money.Currency(), "to", a.Currency)
-		convInfo, err = s.converter.Convert(money.AmountFloat(), string(money.Currency()), string(a.Currency))
-		if err != nil {
-			logger.Error("Withdraw failed: currency conversion error", "error", err)
-			_ = uow.Rollback()
-			return
-		}
+	money, err := domain.NewMoney(amount, currencyCode)
+	if err != nil {
+		logger.Error("Withdraw failed: invalid money", "error", err)
+		return nil, nil, err
+	}
 
-		money, err = domain.NewMoney(convInfo.ConvertedAmount, a.Currency)
-		if err != nil {
-			logger.Error("Withdraw failed: new money after conversion error", "error", err)
-			_ = uow.Rollback()
-			return nil, nil, err
-		}
+	money, convInfo, err = s.handleCurrencyConversion(money, a.Currency)
+	if err != nil {
+		logger.Error("Withdraw failed: currency conversion error", "error", err)
+		return nil, nil, err
 	}
 
 	tx, err = a.Withdraw(userID, money)
 	if err != nil {
 		logger.Error("Withdraw failed: domain withdraw error", "error", err)
-		_ = uow.Rollback()
 		return nil, nil, err
 	}
-
 	if convInfo != nil {
 		logger.Info("Withdraw: conversion info stored", "originalAmount", convInfo.OriginalAmount, "originalCurrency", convInfo.OriginalCurrency, "conversionRate", convInfo.ConversionRate)
 		tx.OriginalAmount = &convInfo.OriginalAmount
@@ -294,33 +270,23 @@ func (s *AccountService) Withdraw(
 		tx.ConversionRate = &convInfo.ConversionRate
 	}
 
-	err = repo.Update(a)
-	if err != nil {
+	if err = repo.Update(a); err != nil {
 		logger.Error("Withdraw failed: repo update error", "error", err)
-		_ = uow.Rollback()
 		return nil, nil, err
 	}
-
 	txRepo, err := uow.TransactionRepository()
 	if err != nil {
 		logger.Error("Withdraw failed: TransactionRepository error", "error", err)
-		_ = uow.Rollback()
 		return nil, nil, err
 	}
-	err = txRepo.Create(tx)
-	if err != nil {
+	if err := txRepo.Create(tx); err != nil {
 		logger.Error("Withdraw failed: transaction create error", "error", err)
-		_ = uow.Rollback()
 		return nil, nil, err
 	}
-
-	err = uow.Commit()
-	if err != nil {
+	if err := uow.Commit(); err != nil {
 		logger.Error("Withdraw failed: commit error", "error", err)
-		_ = uow.Rollback()
 		return nil, nil, err
 	}
-
 	logger.Info("Withdraw successful", "userID", userID, "accountID", accountID, "amount", amount, "currency", currencyCode, "transactionID", tx.ID)
 	return tx, convInfo, nil
 }

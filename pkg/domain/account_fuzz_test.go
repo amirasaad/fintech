@@ -75,7 +75,7 @@ func FuzzAccountWithdraw(f *testing.F) {
 		}
 		// Invariant: currency format is always valid
 		// Explicitly convert currency.Code to string for validation
-		if !domain.IsValidCurrencyFormat(cc) {
+		if !domain.IsValidCurrencyFormat(currency.Code(cc)) {
 			t.Errorf("Account currency is invalid: %q", acc.Currency)
 		}
 	})

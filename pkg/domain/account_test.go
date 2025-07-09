@@ -318,16 +318,16 @@ func TestSimultaneous(t *testing.T) {
 	for range numOperations {
 		go func() {
 			defer wg.Done()
-			money, err := domain.NewMoney(depositAmount, "USD")
-			require.NoError(err)
+			money, errMoney := domain.NewMoney(depositAmount, "USD")
+			require.NoError(errMoney)
 			_, depositErr := account.Deposit(userID, money)
 			assert.NoError(depositErr, "Deposit operation should not return an error")
 		}()
 
 		go func() {
 			defer wg.Done()
-			withdrawMoney, err := domain.NewMoney(withdrawAmount, "USD")
-			require.NoError(err)
+			withdrawMoney, errWithdraw := domain.NewMoney(withdrawAmount, "USD")
+			require.NoError(errWithdraw)
 			_, withdrawErr := account.Withdraw(userID, withdrawMoney)
 			assert.NoError(withdrawErr, "Withdrawal operation should not return an error")
 		}()

@@ -21,7 +21,7 @@ func FuzzNewMoney(f *testing.F) {
 		}()
 		money, err := domain.NewMoney(amount, currency.Code(cc))
 		if err == nil {
-			if !domain.IsValidCurrencyFormat(string(money.Currency())) {
+			if !domain.IsValidCurrencyFormat(money.Currency()) {
 				t.Errorf("Money currency is invalid: %q", money.Currency())
 			}
 		}

@@ -3,6 +3,7 @@ package repository
 import (
 	"time"
 
+	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/google/uuid"
@@ -81,7 +82,7 @@ func (r *transactionRepository) Create(transaction *domain.Transaction) error {
 		AccountID:        transaction.AccountID,
 		UserID:           transaction.UserID,
 		Amount:           transaction.Amount,
-		Currency:         transaction.Currency,
+		Currency:         string(transaction.Currency),
 		Balance:          transaction.Balance,
 		OriginalAmount:   transaction.OriginalAmount,
 		OriginalCurrency: transaction.OriginalCurrency,
@@ -95,16 +96,23 @@ func (r *transactionRepository) Create(transaction *domain.Transaction) error {
 	return nil
 }
 
-func (r *transactionRepository) Get(id uuid.UUID) (*domain.Transaction, error) {
+func (r *transactionRepository) Get(
+	id uuid.UUID,
+) (
+	*domain.Transaction,
+	error,
+) {
 	var t Transaction
 	result := r.db.First(&t, id)
 	if result.Error != nil {
 		return nil, result.Error
 	}
-	return domain.NewTransactionFromData(t.ID, t.UserID, t.AccountID, t.Amount, t.Balance, t.Currency, t.CreatedAt, t.OriginalAmount, t.OriginalCurrency, t.ConversionRate), nil
+	return domain.NewTransactionFromData(t.ID, t.UserID, t.AccountID, t.Amount, t.Balance, currency.Code(t.Currency), t.CreatedAt, t.OriginalAmount, t.OriginalCurrency, t.ConversionRate), nil
 }
 
-func (r *transactionRepository) List(userID, accountID uuid.UUID) ([]*domain.Transaction, error) {
+func (r *transactionRepository) List(
+	userID, accountID uuid.UUID,
+) ([]*domain.Transaction, error) {
 	var dbTransactions []*Transaction
 	result := r.db.Where("account_id = ? and user_id = ?", accountID, userID).Order("created_at desc").Limit(100).Find(&dbTransactions)
 	if result.Error != nil {
@@ -112,7 +120,7 @@ func (r *transactionRepository) List(userID, accountID uuid.UUID) ([]*domain.Tra
 	}
 	tx := make([]*domain.Transaction, 0, len(dbTransactions))
 	for _, t := range dbTransactions {
-		tx = append(tx, domain.NewTransactionFromData(t.ID, t.UserID, t.AccountID, t.Amount, t.Balance, t.Currency, t.CreatedAt, t.OriginalAmount, t.OriginalCurrency, t.ConversionRate))
+		tx = append(tx, domain.NewTransactionFromData(t.ID, t.UserID, t.AccountID, t.Amount, t.Balance, currency.Code(t.Currency), t.CreatedAt, t.OriginalAmount, t.OriginalCurrency, t.ConversionRate))
 	}
 	return tx, nil
 }

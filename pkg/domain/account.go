@@ -63,9 +63,9 @@ type Transaction struct {
 	UserID    uuid.UUID
 	AccountID uuid.UUID
 	Amount    int64
-	Balance   int64 // Account balance snapshot
+	Currency  currency.Code // Transaction Currency
+	Balance   int64         // Account balance snapshot
 	CreatedAt time.Time
-	Currency  string // ISO 4217 currency code
 
 	// Conversion fields (nullable when no conversion occurs)
 	OriginalAmount   *float64 // Amount in original currency
@@ -74,9 +74,9 @@ type Transaction struct {
 }
 
 // IsValidCurrencyFormat returns true if the code is a well-formed ISO 4217 currency code (3 uppercase letters).
-func IsValidCurrencyFormat(code string) bool {
+func IsValidCurrencyFormat(code currency.Code) bool {
 	re := regexp.MustCompile(`^[A-Z]{3}$`)
-	return re.MatchString(code)
+	return re.MatchString(string(code))
 }
 
 // NewAccount creates a new account with the default currency.
@@ -132,7 +132,7 @@ func NewAccountFromData(
 func NewTransactionFromData(
 	id, userID, accountID uuid.UUID,
 	amount, balance int64,
-	currencyCode string,
+	currencyCode currency.Code,
 	created time.Time,
 	originalAmount *float64,
 	originalCurrency *string,
@@ -157,7 +157,7 @@ func NewTransactionFromData(
 //   - Currency code must be valid ISO 4217 (3 uppercase letters).
 //
 // Returns a Transaction.
-func NewTransactionWithCurrency(id, userID, accountID uuid.UUID, amount, balance int64, currencyCode string) *Transaction {
+func NewTransactionWithCurrency(id, userID, accountID uuid.UUID, amount, balance int64, currencyCode currency.Code) *Transaction {
 	if !IsValidCurrencyFormat(currencyCode) {
 		currencyCode = currency.DefaultCurrency
 	}
@@ -259,9 +259,9 @@ func (a *Account) Deposit(userID uuid.UUID, money Money) (*Transaction, error) {
 		UserID:    userID,
 		AccountID: a.ID,
 		Amount:    depositAmount,
+		Currency:  money.Currency(),
 		Balance:   a.Balance,
 		CreatedAt: time.Now().UTC(),
-		Currency:  string(money.Currency()),
 	}
 
 	return &transaction, nil
@@ -315,9 +315,9 @@ func (a *Account) Withdraw(userID uuid.UUID, money Money) (*Transaction, error) 
 		UserID:    userID,
 		AccountID: a.ID,
 		Amount:    -int64(money.Amount()),
+		Currency:  money.Currency(),
 		Balance:   a.Balance,
 		CreatedAt: time.Now().UTC(),
-		Currency:  string(money.Currency()),
 	}
 
 	return &transaction, nil

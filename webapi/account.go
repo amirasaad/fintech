@@ -89,7 +89,7 @@ func ToTransactionDTO(tx *domain.Transaction) *TransactionDTO {
 		Amount:    float64(tx.Amount) / 100.0, // assuming cents
 		Balance:   float64(tx.Balance) / 100.0,
 		CreatedAt: tx.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
-		Currency:  tx.Currency,
+		Currency:  string(tx.Currency),
 	}
 
 	// Include conversion fields if they exist
@@ -127,7 +127,7 @@ func ToConversionResponseDTO(tx *domain.Transaction, convInfo *domain.Conversion
 			OriginalAmount:    *tx.OriginalAmount,
 			OriginalCurrency:  *tx.OriginalCurrency,
 			ConvertedAmount:   float64(tx.Amount) / 100.0, // Convert from cents
-			ConvertedCurrency: tx.Currency,
+			ConvertedCurrency: string(tx.Currency),
 			ConversionRate:    *tx.ConversionRate,
 		}
 	}

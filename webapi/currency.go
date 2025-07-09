@@ -293,7 +293,7 @@ func RegisterCurrency(currencySvc *service.CurrencyService) fiber.Handler {
 		}
 
 		// Validate currency code format
-		if err := currencySvc.ValidateCurrencyCode(c.Context(), input.Code); err != nil {
+		if err = currencySvc.ValidateCurrencyCode(c.Context(), input.Code); err != nil {
 			return ProblemDetailsJSON(c, fiber.StatusBadRequest, "Invalid currency code", err.Error())
 		}
 
@@ -308,7 +308,7 @@ func RegisterCurrency(currencySvc *service.CurrencyService) fiber.Handler {
 			Metadata: input.Metadata,
 		}
 
-		if err := currencySvc.RegisterCurrency(c.Context(), currencyMeta); err != nil {
+		if err = currencySvc.RegisterCurrency(c.Context(), currencyMeta); err != nil {
 			status := fiber.StatusInternalServerError
 			if err == currency.ErrCurrencyExists {
 				status = fiber.StatusConflict
