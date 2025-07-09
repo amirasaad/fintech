@@ -150,8 +150,10 @@ func (s *UserTestSuite) TestUpdateUserInvalidBody() {
 }
 
 func (s *UserTestSuite) TestUpdateUserNotFound() {
+	s.mockUow.EXPECT().Begin().Return(nil)
+	s.mockUow.EXPECT().Rollback().Return(nil)
 	s.mockUow.EXPECT().UserRepository().Return(s.userRepo, nil)
-	s.userRepo.EXPECT().Get(s.testUser.ID).Return(nil, errors.New("not found"))
+	s.userRepo.EXPECT().Get(s.testUser.ID).Return(nil, nil)
 
 	body := bytes.NewBuffer([]byte(`{"names":"newname"}`))
 	req := httptest.NewRequest("PUT", fmt.Sprintf("/user/%s", s.testUser.ID), body)

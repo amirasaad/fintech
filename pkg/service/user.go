@@ -98,12 +98,10 @@ func (s *UserService) GetUser(
 	}
 	uow, err := s.uowFactory()
 	if err != nil {
-		err = err
 		return
 	}
 	repo, err := uow.UserRepository()
 	if err != nil {
-		err = err
 		return
 	}
 	u, err = repo.Get(uid)
@@ -192,22 +190,25 @@ func (s *UserService) UpdateUser(
 		err = parseErr
 		return
 	}
-	uow, err := s.uowFactory()
-	if err != nil {
-		return
-	}
-	repo, err := uow.UserRepository()
-	if err != nil {
-		return
-	}
-	u, err := repo.Get(uid)
-	if err != nil {
-		return
-	}
-	if err = updateFn(u); err != nil {
-		return
-	}
-	err = repo.Update(u)
+	err = s.transaction.Execute(func() error {
+		uow, err := s.uowFactory()
+		if err != nil {
+			return err
+		}
+		repo, err := uow.UserRepository()
+		if err != nil {
+			return err
+		}
+		u, err := repo.Get(uid)
+		if err != nil {
+			return err
+		}
+		if err = updateFn(u); err != nil {
+			return err
+		}
+		err = repo.Update(u)
+		return err
+	})
 	return
 }
 
@@ -227,15 +228,18 @@ func (s *UserService) DeleteUser(
 		err = parseErr
 		return
 	}
-	uow, err := s.uowFactory()
-	if err != nil {
-		return
-	}
-	repo, err := uow.UserRepository()
-	if err != nil {
-		return
-	}
-	err = repo.Delete(uid)
+	err = s.transaction.Execute(func() error {
+		uow, err := s.uowFactory()
+		if err != nil {
+			return err
+		}
+		repo, err := uow.UserRepository()
+		if err != nil {
+			return err
+		}
+		err = repo.Delete(uid)
+		return err
+	})
 	return
 }
 
