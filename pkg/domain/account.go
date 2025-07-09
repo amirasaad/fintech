@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/google/uuid"
 )
 
@@ -29,29 +30,6 @@ var (
 	// ErrInvalidCurrencyCode is returned when a currency code is invalid.
 	ErrInvalidCurrencyCode = errors.New("invalid currency code") // Currency code not recognized
 )
-
-// CurrencyMeta holds metadata for a currency, such as decimals and symbol.
-type CurrencyMeta struct {
-	Decimals int
-	Symbol   string
-}
-
-const (
-	// DefaultCurrency is the fallback currency code (USD)
-	DefaultCurrency = "USD"
-	// DefaultDecimals is the default number of decimal places for currencies
-	DefaultDecimals = 2
-)
-
-// CurrencyInfo maps ISO 4217 currency codes to their metadata.
-var CurrencyInfo = map[string]CurrencyMeta{
-	"USD": {Decimals: DefaultDecimals, Symbol: "$"},
-	"EUR": {Decimals: DefaultDecimals, Symbol: "€"},
-	"JPY": {Decimals: 0, Symbol: "¥"},
-	"KWD": {Decimals: 3, Symbol: "د.ك"},
-	"EGP": {Decimals: DefaultDecimals, Symbol: "£"},
-	// Add more as needed
-}
 
 // ConversionInfo holds details about a currency conversion performed during a transaction.
 type ConversionInfo struct {
@@ -97,14 +75,14 @@ func IsValidCurrencyFormat(code string) bool {
 
 // NewTransactionWithCurrency creates a new transaction with the specified currency.
 func NewAccount(userID uuid.UUID) (acc *Account) {
-	acc, _ = NewAccountWithCurrency(userID, DefaultCurrency)
+	acc, _ = NewAccountWithCurrency(userID, currency.DefaultCurrency)
 	return
 }
 
 // NewAccountWithCurrency creates a new account with the specified currency.
 // If the currency is invalid or empty, defaults to USD.
-func NewAccountWithCurrency(userID uuid.UUID, currency string) (acc *Account, err error) {
-	if !IsValidCurrencyFormat(currency) {
+func NewAccountWithCurrency(userID uuid.UUID, currencyCode string) (acc *Account, err error) {
+	if !IsValidCurrencyFormat(currencyCode) {
 		return nil, ErrInvalidCurrencyCode
 	}
 	return &Account{
@@ -112,7 +90,7 @@ func NewAccountWithCurrency(userID uuid.UUID, currency string) (acc *Account, er
 		UserID:    userID,
 		CreatedAt: time.Now(),
 		Balance:   0,
-		Currency:  currency,
+		Currency:  currencyCode,
 		mu:        sync.Mutex{},
 	}, nil
 }
@@ -121,14 +99,14 @@ func NewAccountWithCurrency(userID uuid.UUID, currency string) (acc *Account, er
 func NewAccountFromData(
 	id, userID uuid.UUID,
 	balance int64,
-	currency string,
+	currencyCode string,
 	created, updated time.Time,
 ) *Account {
 	return &Account{
 		ID:        id,
 		UserID:    userID,
 		Balance:   balance,
-		Currency:  currency,
+		Currency:  currencyCode,
 		CreatedAt: created,
 		UpdatedAt: updated,
 		mu:        sync.Mutex{},
@@ -141,7 +119,7 @@ func NewAccountFromData(
 func NewTransactionFromData(
 	id, userID, accountID uuid.UUID,
 	amount, balance int64,
-	currency string,
+	currencyCode string,
 	created time.Time,
 	originalAmount *float64,
 	originalCurrency *string,
@@ -153,7 +131,7 @@ func NewTransactionFromData(
 		AccountID:        accountID,
 		Amount:           amount,
 		Balance:          balance,
-		Currency:         currency,
+		Currency:         currencyCode,
 		CreatedAt:        created,
 		OriginalAmount:   originalAmount,
 		OriginalCurrency: originalCurrency,
@@ -164,9 +142,9 @@ func NewTransactionFromData(
 // NewTransactionWithCurrency creates a new transaction with the specified currency.
 // This is intended for internal use by the Account aggregate, or for test setup.
 // Do NOT use this directly in services, API, or other domain logic—use Account methods instead.
-func NewTransactionWithCurrency(id, userID, accountID uuid.UUID, amount, balance int64, currency string) *Transaction {
-	if !IsValidCurrencyFormat(currency) {
-		currency = DefaultCurrency
+func NewTransactionWithCurrency(id, userID, accountID uuid.UUID, amount, balance int64, currencyCode string) *Transaction {
+	if !IsValidCurrencyFormat(currencyCode) {
+		currencyCode = currency.DefaultCurrency
 	}
 	return &Transaction{
 		ID:               id,
@@ -175,7 +153,7 @@ func NewTransactionWithCurrency(id, userID, accountID uuid.UUID, amount, balance
 		Amount:           amount,
 		Balance:          balance,
 		CreatedAt:        time.Now(),
-		Currency:         currency,
+		Currency:         currencyCode,
 		OriginalAmount:   nil,
 		OriginalCurrency: nil,
 		ConversionRate:   nil,
@@ -189,10 +167,7 @@ func (a *Account) GetBalance(userID uuid.UUID) (balance float64, err error) {
 		err = ErrUserUnauthorized
 		return
 	}
-	meta, ok := CurrencyInfo[a.Currency]
-	if !ok {
-		meta.Decimals = DefaultDecimals
-	}
+	meta := currency.Get(a.Currency)
 	divisor := math.Pow10(meta.Decimals)
 	balance = float64(a.Balance) / divisor
 	return
@@ -223,7 +198,7 @@ func (a *Account) Deposit(userID uuid.UUID, money Money) (*Transaction, error) {
 
 	// Check for overflow before performing the addition
 	depositAmount := int64(money.Amount())
-	if depositAmount > 0 && a.Balance > math.MaxInt64-depositAmount {
+	if depositAmount > 0 && a.Balance > 0 && depositAmount > math.MaxInt64-a.Balance {
 		return nil, ErrDepositAmountExceedsMaxSafeInt
 	}
 

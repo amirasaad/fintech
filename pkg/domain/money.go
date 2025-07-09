@@ -5,6 +5,8 @@ import (
 	"math"
 	"math/big"
 	"strings"
+
+	"github.com/amirasaad/fintech/pkg/currency"
 )
 
 // Amount represents a monetary amount as an integer in the smallest currency unit (e.g., cents for USD).
@@ -19,51 +21,50 @@ type Money struct {
 	currency CurrencyCode
 }
 
-// NewMoney creates a new Money value object, validating the currency and amount.
+// NewMoney creates a new Money object from a float64 amount and currency code.
 // The amount is converted to the smallest currency unit (e.g., cents for USD).
 func NewMoney(
 	amount float64,
-	currency string,
+	currencyCode string,
 ) (
 	money Money,
 	err error,
 ) {
-	if currency == "" {
-		currency = DefaultCurrency
+	if currencyCode == "" {
+		currencyCode = currency.DefaultCurrency
 	}
-	if !IsValidCurrencyFormat(currency) {
+	if !IsValidCurrencyFormat(currencyCode) {
 		err = ErrInvalidCurrencyCode
 		return
 	}
 
-	// Convert to smallest currency unit (e.g., cents)
-	amountInSmallestUnit, err := convertToSmallestUnit(amount, currency)
+	smallestUnit, err := convertToSmallestUnit(amount, currencyCode)
 	if err != nil {
-		return Money{}, err
+		return
 	}
 
-	money = Money{amount: Amount(amountInSmallestUnit), currency: CurrencyCode(currency)}
+	money = Money{amount: Amount(smallestUnit), currency: CurrencyCode(currencyCode)}
 	return
 }
 
-// NewMoneyFromSmallestUnit creates a new Money value object from the smallest currency unit.
+// NewMoneyFromSmallestUnit creates a new Money object from the smallest currency unit.
 // This is useful for internal operations where precision is already handled.
 func NewMoneyFromSmallestUnit(
 	amount int64,
-	currency string,
+	currencyCode string,
 ) (
 	money Money,
 	err error,
 ) {
-	if currency == "" {
-		currency = DefaultCurrency
+	if currencyCode == "" {
+		currencyCode = currency.DefaultCurrency
 	}
-	if !IsValidCurrencyFormat(currency) {
+	if !IsValidCurrencyFormat(currencyCode) {
 		err = ErrInvalidCurrencyCode
 		return
 	}
 
-	money = Money{amount: Amount(amount), currency: CurrencyCode(currency)}
+	money = Money{amount: Amount(amount), currency: CurrencyCode(currencyCode)}
 	return
 }
 
@@ -74,10 +75,7 @@ func (m Money) Amount() Amount {
 
 // AmountFloat returns the amount as a float64 in the main currency unit (e.g., dollars for USD).
 func (m Money) AmountFloat() float64 {
-	meta, ok := CurrencyInfo[string(m.currency)]
-	if !ok {
-		meta.Decimals = DefaultDecimals
-	}
+	meta := currency.Get(string(m.currency))
 	divisor := math.Pow10(meta.Decimals)
 	return float64(m.amount) / divisor
 }
@@ -216,20 +214,14 @@ func (m Money) Divide(divisor float64) (Money, error) {
 
 // String returns a string representation of the Money object.
 func (m Money) String() string {
-	meta, ok := CurrencyInfo[string(m.currency)]
-	if !ok {
-		meta.Decimals = DefaultDecimals
-	}
+	meta := currency.Get(string(m.currency))
 	return fmt.Sprintf("%.*f %s", meta.Decimals, m.AmountFloat(), m.currency)
 }
 
 // convertToSmallestUnit converts a float64 amount to the smallest currency unit.
 // This ensures precision by avoiding floating-point arithmetic issues.
-func convertToSmallestUnit(amount float64, currency string) (int64, error) {
-	meta, ok := CurrencyInfo[currency]
-	if !ok {
-		meta.Decimals = DefaultDecimals
-	}
+func convertToSmallestUnit(amount float64, currencyCode string) (int64, error) {
+	meta := currency.Get(currencyCode)
 
 	// First, check if the amount has too many decimal places
 	amountStr := fmt.Sprintf("%.10f", amount) // Use high precision for checking
