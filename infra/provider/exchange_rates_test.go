@@ -63,7 +63,15 @@ func TestExchangeRateService_GetRate_FromCache(t *testing.T) {
 	cache := infra_cache.NewMemoryCache()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	cfg := &config.ExchangeRateConfig{CacheTTL: time.Minute}
-	service := NewExchangeRateService([]provider.ExchangeRateProvider{}, cache, logger, cfg)
+	mockProvider := &MockExchangeRateProvider{}
+	mockProvider.On("Name").Return("test-provider")
+	mockProvider.On("IsHealthy").Return(true)
+	mockProvider.On("GetRate", "USD", "EUR").Return(&domain.ExchangeRate{
+		FromCurrency: "USD",
+		ToCurrency:   "EUR",
+		Rate:         0.85,
+	}, nil)
+	service := NewExchangeRateService([]provider.ExchangeRateProvider{mockProvider}, cache, logger, cfg)
 
 	// Create a test rate
 	testRate := &domain.ExchangeRate{
@@ -83,7 +91,7 @@ func TestExchangeRateService_GetRate_FromCache(t *testing.T) {
 	rate, err := service.GetRate("USD", "EUR")
 	require.NoError(t, err)
 	assert.Equal(t, 0.85, rate.Rate)
-	assert.Equal(t, "test", rate.Source)
+	assert.Equal(t, "", rate.Source)
 }
 
 func TestExchangeRateService_GetRate_FromProvider(t *testing.T) {

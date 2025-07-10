@@ -16,8 +16,6 @@ import (
 
 	"log/slog"
 
-	"math"
-
 	"github.com/amirasaad/fintech/pkg/decorator"
 	"github.com/google/uuid"
 )
@@ -335,14 +333,7 @@ func (s *AccountService) Deposit(
 				logger.Error("Deposit failed: currency conversion error", "error", err)
 				return err
 			}
-			meta, metaErr := currency.Get(string(a.Currency))
-			if metaErr != nil {
-				logger.Error("Deposit failed: currency metadata error", "error", metaErr)
-				return metaErr
-			}
-			factor := math.Pow10(meta.Decimals)
-			rounded := math.Round(convInfoLocal.ConvertedAmount*factor) / factor
-			amountDeposit, err = mon.NewMoney(rounded, a.Currency)
+			amountDeposit, err = mon.NewMoney(convInfoLocal.ConvertedAmount, a.Currency)
 			if err != nil {
 				logger.Error("Deposit failed: converted money creation error", "error", err)
 				return err
@@ -446,14 +437,7 @@ func (s *AccountService) Withdraw(
 				logger.Error("Withdraw failed: currency conversion error", "error", err)
 				return err
 			}
-			meta, metaErr := currency.Get(string(a.Currency))
-			if metaErr != nil {
-				logger.Error("Withdraw failed: currency metadata error", "error", metaErr)
-				return metaErr
-			}
-			factor := math.Pow10(meta.Decimals)
-			rounded := math.Round(convInfoLocal.ConvertedAmount*factor) / factor
-			m, err = mon.NewMoney(rounded, a.Currency)
+			m, err = mon.NewMoney(convInfoLocal.ConvertedAmount, a.Currency)
 			if err != nil {
 				logger.Error("Withdraw failed: converted money creation error", "error", err)
 				return err

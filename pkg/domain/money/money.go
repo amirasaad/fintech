@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"math"
 	"math/big"
-	"strings"
 
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/common"
@@ -272,34 +271,18 @@ func convertToSmallestUnit(amount float64, currencyCode string) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	// First, check if the amount has too many decimal places
-	amountStr := fmt.Sprintf("%.10f", amount) // Use high precision for checking
-	parts := strings.Split(amountStr, ".")
-	if len(parts) > 1 {
-		decimals := strings.TrimRight(parts[1], "0") // Remove trailing zeros
-		if len(decimals) > meta.Decimals {
-			return 0, common.ErrInvalidDecimalPlaces
-		}
+	factor := new(big.Rat).SetFloat64(math.Pow10(meta.Decimals))
+	amountRat := new(big.Rat).SetFloat64(amount)
+	if amountRat == nil {
+		return 0, fmt.Errorf("invalid amount float")
 	}
-
-	// Use big.Rat for precise decimal arithmetic
-	amountStr = fmt.Sprintf("%.*f", meta.Decimals, amount)
-	amountRat, ok := new(big.Rat).SetString(amountStr)
-	if !ok {
-		return 0, fmt.Errorf("invalid amount format: %f", amount)
-	}
-
-	multiplier := math.Pow10(meta.Decimals)
-	smallestUnitRat := new(big.Rat).Mul(amountRat, big.NewRat(int64(multiplier), 1))
-
-	if !smallestUnitRat.IsInt() {
-		return 0, common.ErrInvalidDecimalPlaces
-	}
-
-	smallestUnit := smallestUnitRat.Num()
-	if !smallestUnit.IsInt64() {
+	// Multiply amount by factor
+	scaled := new(big.Rat).Mul(amountRat, factor)
+	// Convert to float64 for rounding
+	scaledFloat, _ := scaled.Float64()
+	rounded := int64(math.Round(scaledFloat))
+	if float64(rounded) > float64(math.MaxInt64) || float64(rounded) < float64(math.MinInt64) {
 		return 0, fmt.Errorf("amount exceeds maximum safe integer value")
 	}
-
-	return smallestUnit.Int64(), nil
+	return rounded, nil
 }

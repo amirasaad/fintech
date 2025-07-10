@@ -85,22 +85,21 @@ func (s *UserService) GetUser(userID string) (u *user.User, err error) {
 		err = parseErr
 		return
 	}
+
 	var uLocal *user.User
-	err = s.transaction.Execute(func() error {
-		uow, err := s.uowFactory()
-		if err != nil {
-			return err
-		}
-		repo, err := uow.UserRepository()
-		if err != nil {
-			return err
-		}
-		uLocal, err = repo.Get(uid)
-		return err
-	})
+	uow, err := s.uowFactory()
+	if err != nil {
+		return
+	}
+	repo, err := uow.UserRepository()
+	if err != nil {
+		return
+	}
+	uLocal, err = repo.Get(uid)
+
 	if err != nil {
 		s.logger.Error("GetUser failed: transaction error", "userID", userID, "error", err)
-		return nil, err
+		return
 	}
 	u = uLocal
 	return
@@ -264,18 +263,15 @@ func (s *UserService) ValidUser(userID string, password string) (valid bool, err
 		return
 	}
 	var validLocal bool
-	err = s.transaction.Execute(func() error {
-		uow, err := s.uowFactory()
-		if err != nil {
-			return err
-		}
-		repo, err := uow.UserRepository()
-		if err != nil {
-			return err
-		}
-		validLocal = repo.Valid(uid, password)
-		return nil
-	})
+	uow, err := s.uowFactory()
+	if err != nil {
+		return
+	}
+	repo, err := uow.UserRepository()
+	if err != nil {
+		return
+	}
+	validLocal = repo.Valid(uid, password)
 	if err != nil {
 		s.logger.Error("ValidUser failed: transaction error", "userID", userID, "error", err)
 		return false, err

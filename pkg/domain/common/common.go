@@ -8,6 +8,8 @@ var ErrInvalidCurrencyCode = errors.New("invalid currency code") // Use error ty
 // ErrInvalidDecimalPlaces is returned when a monetary amount has more decimal places than allowed by the currency.
 var ErrInvalidDecimalPlaces = errors.New("amount has more decimal places than allowed by the currency")
 
+var ErrAmountExceedsMaxSafeInt = errors.New("amount exceeds maximum safe integer value") // Deposit would overflow balance
+
 // ConversionInfo holds details about a currency conversion performed during a transaction.
 type ConversionInfo struct {
 	OriginalAmount    float64

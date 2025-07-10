@@ -15,15 +15,16 @@ func TestNewMoney_Precision(t *testing.T) {
 		name     string
 		amount   float64
 		currency currency.Code
+		expected float64
 		wantErr  bool
 	}{
-		{"USD with cents", 100.50, "USD", false},
-		{"EUR with cents", 99.99, "EUR", false},
-		{"JPY whole numbers", 1000.0, "JPY", false},
-		{"KWD with 3 decimals", 100.123, "KWD", false},
-		{"Too many decimals for USD", 100.123, "USD", true},
-		{"Too many decimals for JPY", 100.5, "JPY", true},
-		{"Invalid currency", 100.0, "INVALID", true},
+		{"USD with cents", 100.50, "USD", 100.50, false},
+		{"EUR with cents", 99.99, "EUR", 99.99, false},
+		{"JPY whole numbers", 1000.0, "JPY", 1000.0, false},
+		{"KWD with 3 decimals", 100.123, "KWD", 100.123, false},
+		{"Too many decimals for USD", 100.123, "USD", 100.12, false},
+		{"Too many decimals for JPY", 100.5, "JPY", 101.0, false},
+		{"Invalid currency", 100.0, "INVALID", 0, true},
 	}
 
 	for _, tt := range tests {
@@ -35,7 +36,7 @@ func TestNewMoney_Precision(t *testing.T) {
 			}
 			require.NoError(t, err)
 			assert.Equal(t, tt.currency, money.Currency())
-			assert.InDelta(t, tt.amount, money.AmountFloat(), 0.001)
+			assert.InDelta(t, tt.expected, money.AmountFloat(), 0.001)
 		})
 	}
 }
@@ -308,16 +309,20 @@ func TestNewMoney_JPY(t *testing.T) {
 		assert.InDelta(t, 5000.0, m.AmountFloat(), 0.001)
 	})
 
-	t.Run("JPY with decimals invalid", func(t *testing.T) {
-		_, err := money.NewMoney(1000.5, "JPY")
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "decimal places")
+	t.Run("JPY with decimals rounds up", func(t *testing.T) {
+		m, err := money.NewMoney(1000.5, "JPY")
+		require.NoError(t, err)
+		assert.Equal(t, int64(1001), m.Amount())
+		assert.Equal(t, "JPY", string(m.Currency()))
+		assert.InDelta(t, 1001.0, m.AmountFloat(), 0.001)
 	})
 
-	t.Run("JPY with two decimals invalid", func(t *testing.T) {
-		_, err := money.NewMoney(1234.56, "JPY")
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "decimal places")
+	t.Run("JPY with two decimals rounds", func(t *testing.T) {
+		m, err := money.NewMoney(1234.56, "JPY")
+		require.NoError(t, err)
+		assert.Equal(t, int64(1235), m.Amount())
+		assert.Equal(t, "JPY", string(m.Currency()))
+		assert.InDelta(t, 1235.0, m.AmountFloat(), 0.001)
 	})
 
 	t.Run("JPY negative whole number valid", func(t *testing.T) {
