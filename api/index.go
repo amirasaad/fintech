@@ -50,9 +50,16 @@ func handler() http.HandlerFunc {
 	logger.Info("Currency registry initialized successfully")
 	currencySvc := service.NewCurrencyService(currencyRegistry, logger)
 
-	// Create UOW factory
+	// Initialize DB connection ONCE
+	db, err := infra.NewDBConnection(cfg.DB, cfg.Env)
+	if err != nil {
+		logger.Error("Failed to initialize database", "error", err)
+		log.Fatal(err)
+	}
+
+	// Create UOW factory using the shared db
 	uowFactory := func() (repository.UnitOfWork, error) {
-		return infra_repository.NewGormUoW(cfg.DB, cfg.Env)
+		return infra_repository.NewGormUoW(db), nil
 	}
 
 	app := webapi.NewApp(

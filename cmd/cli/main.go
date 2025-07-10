@@ -52,8 +52,16 @@ func main() {
 	}
 
 	appEnv := os.Getenv("APP_ENV")
+	// Initialize DB connection ONCE
+	db, err := infra.NewDBConnection(cfg.DB, appEnv)
+	if err != nil {
+		_, _ = color.New(color.FgRed).Fprintln(os.Stderr, "Failed to initialize database:", err)
+		return
+	}
+
+	// Create UOW factory using the shared db
 	uowFactory := func() (repository.UnitOfWork, error) {
-		return infra_repository.NewGormUoW(cfg.DB, appEnv)
+		return infra_repository.NewGormUoW(db), nil
 	}
 	// Create exchange rate system
 	currencyConverter, err := infra.NewExchangeRateSystem(logger, *cfg)

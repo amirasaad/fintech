@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/amirasaad/fintech/infra"
 	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"gorm.io/gorm"
@@ -18,18 +17,13 @@ type UoW struct {
 	appEnv  string
 }
 
-func NewGormUoW(cfg config.DBConfig, appEnv string) (*UoW, error) {
-	db, err := infra.NewDBConnection(cfg, appEnv)
-	if err != nil {
-		return nil, err
-	}
+// NewGormUoW now accepts a *gorm.DB instance and does not create a new connection
+func NewGormUoW(db *gorm.DB) *UoW {
 	return &UoW{
 		baseDB:  db,
 		session: db,
 		started: false,
-		cfg:     cfg,
-		appEnv:  appEnv,
-	}, nil
+	}
 }
 
 func (u *UoW) Begin() error {
