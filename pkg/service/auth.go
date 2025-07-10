@@ -46,34 +46,56 @@ func NewBasicAuthService(uowFactory func() (repository.UnitOfWork, error), logge
 func (s *AuthService) CheckPasswordHash(
 	password, hash string,
 ) bool {
+	s.logger.Info("CheckPasswordHash called")
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+	if err != nil {
+		s.logger.Error("Password hash check failed", "error", err)
+	}
 	return err == nil
 }
 
 func (s *AuthService) ValidEmail(email string) bool {
+	s.logger.Info("ValidEmail called", "email", email)
 	_, err := mail.ParseAddress(email)
+	if err != nil {
+		s.logger.Error("Email validation failed", "email", email, "error", err)
+	}
 	return err == nil
 }
 
 func (s *AuthService) GetCurrentUserId(
 	token *jwt.Token,
 ) (userID uuid.UUID, err error) {
+	s.logger.Info("GetCurrentUserId called")
 	userID, err = s.strategy.GetCurrentUserID(context.WithValue(context.TODO(), userContextKey, token))
+	if err != nil {
+		s.logger.Error("GetCurrentUserId failed", "error", err)
+	}
 	return
 }
 
 func (s *AuthService) Login(
 	identity, password string,
 ) (user *domain.User, err error) {
+	s.logger.Info("Login called", "identity", identity)
 	user, err = s.strategy.Login(identity, password)
 	if err != nil {
+		s.logger.Error("Login failed", "identity", identity, "error", err)
 		return
 	}
+	s.logger.Info("Login successful", "userID", user.ID)
 	return
 }
 
 func (s *AuthService) GenerateToken(user *domain.User) (string, error) {
-	return s.strategy.GenerateToken(user)
+	s.logger.Info("GenerateToken called", "userID", user.ID)
+	token, err := s.strategy.GenerateToken(user)
+	if err != nil {
+		s.logger.Error("GenerateToken failed", "userID", user.ID, "error", err)
+		return "", err
+	}
+	s.logger.Info("GenerateToken successful", "userID", user.ID)
+	return token, nil
 }
 
 // JWTAuthStrategy implements AuthStrategy for JWT-based authentication
@@ -91,13 +113,20 @@ func NewJWTAuthStrategy(
 	return &JWTAuthStrategy{uowFactory: uowFactory, cfg: cfg, logger: logger}
 }
 func (s *JWTAuthStrategy) GenerateToken(user *domain.User) (string, error) {
+	s.logger.Info("GenerateToken called", "userID", user.ID)
 	token := jwt.New(jwt.SigningMethodHS256)
 	claims := token.Claims.(jwt.MapClaims)
 	claims["username"] = user.Username
 	claims["email"] = user.Email
 	claims["user_id"] = user.ID.String()
 	claims["exp"] = time.Now().Add(s.cfg.Expiry).Unix()
-	return token.SignedString([]byte(s.cfg.Secret))
+	tokenString, err := token.SignedString([]byte(s.cfg.Secret))
+	if err != nil {
+		s.logger.Error("GenerateToken failed", "userID", user.ID, "error", err)
+		return "", err
+	}
+	s.logger.Info("GenerateToken successful", "userID", user.ID)
+	return tokenString, nil
 }
 
 func (s *JWTAuthStrategy) Login(
@@ -106,13 +135,16 @@ func (s *JWTAuthStrategy) Login(
 	user *domain.User,
 	err error,
 ) {
+	s.logger.Info("Login called", "identity", identity)
 	uow, err := s.uowFactory()
 	if err != nil {
+		s.logger.Error("Login failed", "identity", identity, "error", err)
 		return
 	}
 
 	userRepo, err := uow.UserRepository()
 	if err != nil {
+		s.logger.Error("Login failed", "identity", identity, "error", err)
 		return
 	}
 
@@ -123,35 +155,41 @@ func (s *JWTAuthStrategy) Login(
 	}
 	const dummyHash = "$2a$10$7zFqzDbD3RrlkMTczbXG9OWZ0FLOXjIxXzSZ.QZxkVXjXcx7QZQiC"
 	if err != nil {
+		s.logger.Error("Login failed", "identity", identity, "error", err)
 		return
 	}
 	if user == nil {
-		err = domain.ErrUserUnauthorized
+		s.logger.Error("Login failed", "identity", identity, "error", domain.ErrUserUnauthorized)
 		checkPasswordHash(password, dummyHash)
 		return
 	}
 	if !checkPasswordHash(password, user.Password) {
-		err = domain.ErrUserUnauthorized
+		s.logger.Error("Login failed", "identity", identity, "error", domain.ErrUserUnauthorized)
 		return
 	}
+	s.logger.Info("Login successful", "userID", user.ID)
 	return
 }
 
 func (s *JWTAuthStrategy) GetCurrentUserID(
 	ctx context.Context,
 ) (userID uuid.UUID, err error) {
+	s.logger.Info("GetCurrentUserID called")
 	token := ctx.Value(userContextKey).(*jwt.Token)
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok {
-		err = domain.ErrUserUnauthorized
+		s.logger.Error("GetCurrentUserID failed", "error", domain.ErrUserUnauthorized)
 		return
 	}
 	userIDRaw, ok := claims["user_id"].(string)
 	if !ok {
-		err = domain.ErrUserUnauthorized
+		s.logger.Error("GetCurrentUserID failed", "error", domain.ErrUserUnauthorized)
 		return
 	}
 	userID, err = uuid.Parse(userIDRaw)
+	if err != nil {
+		s.logger.Error("GetCurrentUserID failed", "error", err)
+	}
 	return
 }
 
@@ -167,12 +205,15 @@ func (s *BasicAuthStrategy) Login(
 	user *domain.User,
 	err error,
 ) {
+	s.logger.Info("Login called", "identity", identity)
 	uow, err := s.uowFactory()
 	if err != nil {
+		s.logger.Error("Login failed", "identity", identity, "error", err)
 		return
 	}
 	userRepo, err := uow.UserRepository()
 	if err != nil {
+		s.logger.Error("Login failed", "identity", identity, "error", err)
 		return
 	}
 	if isEmail(identity) {
@@ -182,25 +223,29 @@ func (s *BasicAuthStrategy) Login(
 	}
 	const dummyHash = "$2a$10$7zFqzDbD3RrlkMTczbXG9OWZ0FLOXjIxXzSZ.QZxkVXjXcx7QZQiC"
 	if err != nil {
+		s.logger.Error("Login failed", "identity", identity, "error", err)
 		return
 	}
 	if user == nil {
+		s.logger.Error("Login failed", "identity", identity, "error", errors.New("invalid credentials"))
 		checkPasswordHash(password, dummyHash)
-		err = errors.New("invalid credentials")
 		return
 	}
 	if !checkPasswordHash(password, user.Password) {
-		err = errors.New("invalid credentials")
+		s.logger.Error("Login failed", "identity", identity, "error", errors.New("invalid credentials"))
 		return
 	}
+	s.logger.Info("Login successful", "userID", user.ID)
 	return
 }
 
 func (s *BasicAuthStrategy) GetCurrentUserID(ctx context.Context) (uuid.UUID, error) {
+	s.logger.Info("GetCurrentUserID called")
 	return uuid.Nil, nil
 }
 
 func (s *BasicAuthStrategy) GenerateToken(user *domain.User) (string, error) {
+	s.logger.Info("GenerateToken called", "userID", user.ID)
 	return "", nil // No token for basic auth
 }
 
