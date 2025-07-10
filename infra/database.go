@@ -2,22 +2,23 @@ package infra
 
 import (
 	"errors"
-	"os"
 	"time"
 
+	"github.com/amirasaad/fintech/pkg/config"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
 
-func NewDBConnection() (*gorm.DB, error) {
-	databaseUrl := os.Getenv("DATABASE_URL")
+// Add appEnv as a parameter for dependency-injected environment
+func NewDBConnection(cnf config.DBConfig, appEnv string) (*gorm.DB, error) {
+	databaseUrl := cnf.Url
 	if databaseUrl == "" {
 		return nil, errors.New("DATABASE_URL is not set")
 	}
 
 	var logMode logger.LogLevel
-	if os.Getenv("APP_ENV") == "development" {
+	if appEnv == "development" {
 		logMode = logger.Info
 	} else {
 		logMode = logger.Silent

@@ -5,6 +5,11 @@ import (
 	"testing"
 	"time"
 
+	infra_provider "github.com/amirasaad/fintech/infra/provider"
+	"github.com/amirasaad/fintech/pkg/config"
+
+	"log/slog"
+
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/amirasaad/fintech/pkg/service"
 	"github.com/gofiber/fiber/v2"
@@ -19,11 +24,11 @@ type RateLimitTestSuite struct {
 func (s *RateLimitTestSuite) SetupTest() {
 	// Provide dummy services for required arguments
 	dummyUow := func() (repository.UnitOfWork, error) { return nil, nil }
-	accountSvc := service.NewAccountService(dummyUow)
-	userSvc := service.NewUserService(dummyUow)
+	accountSvc := service.NewAccountService(dummyUow, infra_provider.NewStubCurrencyConverter(), slog.Default())
+	userSvc := service.NewUserService(dummyUow, slog.Default())
 	authSvc := &service.AuthService{} // Use zero value or a mock if available
 
-	s.app = NewApp(accountSvc, userSvc, authSvc)
+	s.app = NewApp(accountSvc, userSvc, authSvc, &service.CurrencyService{}, &config.AppConfig{})
 }
 
 func (s *RateLimitTestSuite) TestRateLimit() {

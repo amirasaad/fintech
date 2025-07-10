@@ -1,8 +1,10 @@
 package webapi
 
 import (
+	"errors"
 	"time"
 
+	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/service"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/limiter"
@@ -17,15 +19,12 @@ func NewApp(
 	accountSvc *service.AccountService,
 	userSvc *service.UserService,
 	authSvc *service.AuthService,
+	currencySvc *service.CurrencyService,
+	cfg *config.AppConfig,
 ) *fiber.App {
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
-			// Default to 500 if status code cannot be determined
-			status := fiber.StatusInternalServerError
-			if e, ok := err.(*fiber.Error); ok {
-				status = e.Code
-			}
-			return ErrorResponseJSON(c, status, "Internal Server Error", err.Error())
+			return ProblemDetailsJSON(c, "Internal Server Error", err)
 		},
 	})
 	app.Get("/swagger/*", swagger.New(swagger.Config{
@@ -41,7 +40,7 @@ func NewApp(
 			return c.IP()
 		},
 		LimitReached: func(c *fiber.Ctx) error {
-			return ErrorResponseJSON(c, fiber.StatusTooManyRequests, "Too Many Requests", "Rate limit exceeded")
+			return ProblemDetailsJSON(c, "Too Many Requests", errors.New("rate limit exceeded"), fiber.StatusTooManyRequests)
 		},
 	}))
 	app.Use(recover.New())
@@ -50,9 +49,10 @@ func NewApp(
 		return c.SendString("App is working! 🚀")
 	})
 
-	AccountRoutes(app, accountSvc, authSvc)
-	UserRoutes(app, userSvc, authSvc)
+	AccountRoutes(app, accountSvc, authSvc, cfg)
+	UserRoutes(app, userSvc, authSvc, cfg)
 	AuthRoutes(app, authSvc)
+	CurrencyRoutes(app, currencySvc, authSvc, cfg)
 
 	return app
 }

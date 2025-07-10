@@ -4,7 +4,7 @@ type UnitOfWork interface {
 	Begin() error
 	Commit() error
 	Rollback() error
-	AccountRepository() AccountRepository
-	TransactionRepository() TransactionRepository
-	UserRepository() UserRepository
+	AccountRepository() (AccountRepository, error)
+	TransactionRepository() (TransactionRepository, error)
+	UserRepository() (UserRepository, error)
 }

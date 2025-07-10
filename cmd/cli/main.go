@@ -6,11 +6,14 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"log/slog"
 	"os"
 	"strconv"
 	"strings"
 
 	"github.com/amirasaad/fintech/infra"
+	infra_repository "github.com/amirasaad/fintech/infra/repository"
+	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/amirasaad/fintech/pkg/service"
 	"github.com/fatih/color"
@@ -23,19 +26,52 @@ var userID uuid.UUID
 func main() {
 	verbose := flag.Bool("v", false, "enable verbose output")
 	flag.Parse()
+
+	// Setup logging
+	var logger *slog.Logger
 	if !*verbose {
 		log.SetOutput(io.Discard)
+		logger = slog.New(slog.NewTextHandler(io.Discard, nil))
+	} else {
+		logger = slog.New(slog.NewTextHandler(os.Stdout, nil))
 	}
-	db, err := infra.NewDBConnection()
+
+	// Load application configuration
+	cfg, err := config.LoadAppConfig(logger)
 	if err != nil {
-		_, _ = color.New(color.FgRed).Fprintln(os.Stderr, "Failed to connect to database:", err)
+		_, _ = color.New(color.FgRed).Fprintln(os.Stderr, "Failed to load application configuration:", err)
 		return
 	}
-	uowFactory := func() (repository.UnitOfWork, error) {
-		return infra.NewGormUoW(db)
+
+	// Log configuration details if verbose
+	if *verbose {
+		logger.Info("Configuration loaded successfully",
+			"database_url", cfg.DB.Url,
+			"jwt_expiry", cfg.Auth,
+			"exchange_rate_api_configured", cfg.Exchange.ApiKey != "")
 	}
-	scv := service.NewAccountService(uowFactory)
-	authSvc := service.NewBasicAuthService(uowFactory)
+
+	appEnv := os.Getenv("APP_ENV")
+	// Initialize DB connection ONCE
+	db, err := infra.NewDBConnection(cfg.DB, appEnv)
+	if err != nil {
+		_, _ = color.New(color.FgRed).Fprintln(os.Stderr, "Failed to initialize database:", err)
+		return
+	}
+
+	// Create UOW factory using the shared db
+	uowFactory := func() (repository.UnitOfWork, error) {
+		return infra_repository.NewGormUoW(db), nil
+	}
+	// Create exchange rate system
+	currencyConverter, err := infra.NewExchangeRateSystem(logger, *cfg)
+	if err != nil {
+		_, _ = color.New(color.FgRed).Fprintln(os.Stderr, "Failed to initialize exchange rate system:", err)
+		return
+	}
+
+	scv := service.NewAccountService(uowFactory, currencyConverter, logger)
+	authSvc := service.NewBasicAuthService(uowFactory, logger)
 
 	cliApp(scv, authSvc)
 }
@@ -65,7 +101,7 @@ func cliApp(scv *service.AccountService, authSvc *service.AuthService) {
 			bytePassword, _ := term.ReadPassword(int(os.Stdin.Fd()))
 			fmt.Println()
 			password := string(bytePassword)
-			user, _, err := authSvc.Login(identity, password)
+			user, err := authSvc.Login(identity, password)
 			if err != nil {
 				fmt.Println(errorMsg("Login error:"), err)
 				continue
@@ -119,7 +155,7 @@ func cliApp(scv *service.AccountService, authSvc *service.AuthService) {
 				fmt.Println(errorMsg("Invalid amount:"), err)
 				continue
 			}
-			account, err := scv.Deposit(userID, uuid.MustParse(accountID), amount)
+			account, _, err := scv.Deposit(userID, uuid.MustParse(accountID), amount, "USD")
 			if err != nil {
 				fmt.Println(errorMsg("Error depositing:"), err)
 				continue
@@ -141,7 +177,7 @@ func cliApp(scv *service.AccountService, authSvc *service.AuthService) {
 				fmt.Println(errorMsg("Invalid amount:"), err)
 				continue
 			}
-			account, err := scv.Withdraw(userID, uuid.MustParse(accountID), amount)
+			account, _, err := scv.Withdraw(userID, uuid.MustParse(accountID), amount, "USD")
 			if err != nil {
 				fmt.Println(errorMsg("Error withdrawing:"), err)
 				continue

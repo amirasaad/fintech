@@ -10,7 +10,9 @@ import (
 	"testing"
 
 	"github.com/amirasaad/fintech/internal/fixtures"
+	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/domain"
+	"github.com/amirasaad/fintech/pkg/domain/user"
 	"github.com/amirasaad/fintech/pkg/service"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -26,18 +28,26 @@ type UserTestSuite struct {
 	testUser    *domain.User
 	testToken   string
 	authService *service.AuthService
+	cfg         *config.AppConfig
 }
 
 func (s *UserTestSuite) SetupTest() {
-	s.app, s.userRepo, _, _, s.mockUow, s.testUser, s.authService = SetupTestApp(s.T())
+	s.app,
+		s.userRepo,
+		_,
+		_,
+		s.mockUow,
+		s.testUser,
+		s.authService,
+		_,
+		_,
+		s.cfg = SetupTestApp(s.T())
 	// Setup mock for login request
-	s.mockUow.EXPECT().UserRepository().Return(s.userRepo).Maybe()
-	s.userRepo.EXPECT().GetByUsername("testuser").Return(s.testUser, nil).Maybe()
-	s.testToken = getTestToken(s.T(), s.app, s.testUser)
+	s.testToken = generateTestToken(s.T(), s.authService, s.testUser, s.cfg)
 }
 
 func (s *UserTestSuite) TestCreateUser() {
-	s.mockUow.EXPECT().UserRepository().Return(s.userRepo)
+	s.mockUow.EXPECT().UserRepository().Return(s.userRepo, nil)
 	s.userRepo.EXPECT().Create(mock.Anything).Return(nil)
 	s.mockUow.EXPECT().Begin().Return(nil)
 	s.mockUow.EXPECT().Commit().Return(nil)
@@ -64,10 +74,10 @@ func (s *UserTestSuite) TestCreateUserInvalidBody() {
 }
 
 func (s *UserTestSuite) TestGetUserNotFound() {
-	s.mockUow.EXPECT().UserRepository().Return(s.userRepo)
+	s.mockUow.EXPECT().UserRepository().Return(s.userRepo, nil)
 
 	id := uuid.New()
-	s.userRepo.EXPECT().Get(id).Return(&domain.User{}, domain.ErrUserNotFound)
+	s.userRepo.EXPECT().Get(id).Return(&domain.User{}, user.ErrUserNotFound)
 
 	req := httptest.NewRequest("GET", fmt.Sprintf("/user/%s", id), nil)
 	req.Header.Set("Content-Type", "application/json")
@@ -80,7 +90,7 @@ func (s *UserTestSuite) TestGetUserNotFound() {
 }
 
 func (s *UserTestSuite) TestGetUserSuccess() {
-	s.mockUow.EXPECT().UserRepository().Return(s.userRepo)
+	s.mockUow.EXPECT().UserRepository().Return(s.userRepo, nil)
 	s.userRepo.EXPECT().Get(s.testUser.ID).Return(s.testUser, nil)
 
 	req := httptest.NewRequest("GET", fmt.Sprintf("/user/%s", s.testUser.ID), nil)
@@ -112,7 +122,7 @@ func (s *UserTestSuite) TestUpdateUserUnauthorized() {
 }
 
 func (s *UserTestSuite) TestUpdateUserSuccess() {
-	s.mockUow.EXPECT().UserRepository().Return(s.userRepo)
+	s.mockUow.EXPECT().UserRepository().Return(s.userRepo, nil)
 	s.userRepo.EXPECT().Get(s.testUser.ID).Return(s.testUser, nil)
 	s.userRepo.EXPECT().Update(mock.Anything).Return(nil)
 	s.mockUow.EXPECT().Begin().Return(nil)
@@ -129,8 +139,6 @@ func (s *UserTestSuite) TestUpdateUserSuccess() {
 }
 
 func (s *UserTestSuite) TestUpdateUserInvalidBody() {
-	s.mockUow.EXPECT().UserRepository().Return(s.userRepo)
-
 	body := bytes.NewBuffer([]byte(`{"names":123}`)) // Invalid body
 	req := httptest.NewRequest("PUT", fmt.Sprintf("/user/%s", s.testUser.ID), body)
 	req.Header.Set("Content-Type", "application/json")
@@ -142,8 +150,10 @@ func (s *UserTestSuite) TestUpdateUserInvalidBody() {
 }
 
 func (s *UserTestSuite) TestUpdateUserNotFound() {
-	s.mockUow.EXPECT().UserRepository().Return(s.userRepo)
-	s.userRepo.EXPECT().Get(s.testUser.ID).Return(nil, errors.New("not found"))
+	s.mockUow.EXPECT().Begin().Return(nil)
+	s.mockUow.EXPECT().Rollback().Return(nil)
+	s.mockUow.EXPECT().UserRepository().Return(s.userRepo, nil)
+	s.userRepo.EXPECT().Get(s.testUser.ID).Return(nil, nil)
 
 	body := bytes.NewBuffer([]byte(`{"names":"newname"}`))
 	req := httptest.NewRequest("PUT", fmt.Sprintf("/user/%s", s.testUser.ID), body)
@@ -157,7 +167,7 @@ func (s *UserTestSuite) TestUpdateUserNotFound() {
 }
 
 func (s *UserTestSuite) TestUpdateUserInternalError() {
-	s.mockUow.EXPECT().UserRepository().Return(s.userRepo)
+	s.mockUow.EXPECT().UserRepository().Return(s.userRepo, nil)
 	s.userRepo.EXPECT().Get(s.testUser.ID).Return(s.testUser, nil)
 	s.userRepo.EXPECT().Update(mock.Anything).Return(errors.New("internal error"))
 	s.mockUow.EXPECT().Begin().Return(nil)
@@ -186,7 +196,7 @@ func (s *UserTestSuite) TestDeleteUserUnauthorized() {
 }
 
 func (s *UserTestSuite) TestDeleteUserSuccess() {
-	s.mockUow.EXPECT().UserRepository().Return(s.userRepo)
+	s.mockUow.EXPECT().UserRepository().Return(s.userRepo, nil)
 	s.userRepo.EXPECT().Valid(s.testUser.ID, "password123").Return(true)
 	s.userRepo.EXPECT().Delete(s.testUser.ID).Return(nil)
 	s.mockUow.EXPECT().Begin().Return(nil)
@@ -204,9 +214,6 @@ func (s *UserTestSuite) TestDeleteUserSuccess() {
 }
 
 func (s *UserTestSuite) TestDeleteUserInvalidBody() {
-	s.mockUow.EXPECT().UserRepository().Return(s.userRepo)
-	s.userRepo.EXPECT().Valid(s.testUser.ID, "").Return(false)
-
 	body := bytes.NewBuffer([]byte(`{"pass":123}`)) // Invalid body
 	req := httptest.NewRequest("DELETE", fmt.Sprintf("/user/%s", s.testUser.ID), body)
 	req.Header.Set("Content-Type", "application/json")
@@ -215,11 +222,11 @@ func (s *UserTestSuite) TestDeleteUserInvalidBody() {
 	resp, err := s.app.Test(req, 10000)
 	s.Require().NoError(err)
 	defer resp.Body.Close() //nolint: errcheck
-	s.Assert().Equal(fiber.StatusUnauthorized, resp.StatusCode)
+	s.Assert().Equal(fiber.StatusBadRequest, resp.StatusCode)
 }
 
 func (s *UserTestSuite) TestDeleteUserInvalidPassword() {
-	s.mockUow.EXPECT().UserRepository().Return(s.userRepo)
+	s.mockUow.EXPECT().UserRepository().Return(s.userRepo, nil)
 	s.userRepo.EXPECT().Valid(s.testUser.ID, "wrongpass").Return(false)
 
 	body := bytes.NewBuffer([]byte(`{"password":"wrongpass"}`))
@@ -234,7 +241,7 @@ func (s *UserTestSuite) TestDeleteUserInvalidPassword() {
 }
 
 func (s *UserTestSuite) TestDeleteUserInternalError() {
-	s.mockUow.EXPECT().UserRepository().Return(s.userRepo)
+	s.mockUow.EXPECT().UserRepository().Return(s.userRepo, nil)
 	s.userRepo.EXPECT().Valid(s.testUser.ID, "password123").Return(true)
 	s.userRepo.EXPECT().Delete(s.testUser.ID).Return(errors.New("internal error"))
 	s.mockUow.EXPECT().Begin().Return(nil)

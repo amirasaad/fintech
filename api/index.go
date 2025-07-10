@@ -1,9 +1,16 @@
 package handler
 
 import (
+	"context"
+	"log"
+	"log/slog"
 	"net/http"
 
 	"github.com/amirasaad/fintech/infra"
+	"github.com/amirasaad/fintech/pkg/config"
+	"github.com/amirasaad/fintech/pkg/currency"
+
+	infra_repository "github.com/amirasaad/fintech/infra/repository"
 
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/amirasaad/fintech/pkg/service"
@@ -21,22 +28,49 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 
 // building the fiber application
 func handler() http.HandlerFunc {
-	db, err := infra.NewDBConnection()
+	logger := slog.New(slog.NewTextHandler(log.Writer(), &slog.HandlerOptions{Level: slog.LevelDebug}))
+	slog.SetDefault(logger)
+	cfg, err := config.LoadAppConfig(logger)
 	if err != nil {
-		panic(err)
+		logger.Error("Failed to load application configuration", "error", err)
+		log.Fatal(err)
 	}
+	currencyConverter, err := infra.NewExchangeRateSystem(logger, *cfg)
+	if err != nil {
+		logger.Error("Failed to initialize exchange rate system", "error", err)
+		log.Fatal(err)
+	}
+	// Initialize currency registry
+	ctx := context.Background()
+	currencyRegistry, err := currency.NewCurrencyRegistry(ctx)
+	if err != nil {
+		logger.Error("Failed to initialize currency registry", "error", err)
+		log.Fatal(err)
+	}
+	logger.Info("Currency registry initialized successfully")
+	currencySvc := service.NewCurrencyService(currencyRegistry, logger)
+
+	// Initialize DB connection ONCE
+	db, err := infra.NewDBConnection(cfg.DB, cfg.Env)
+	if err != nil {
+		logger.Error("Failed to initialize database", "error", err)
+		log.Fatal(err)
+	}
+
+	// Create UOW factory using the shared db
+	uowFactory := func() (repository.UnitOfWork, error) {
+		return infra_repository.NewGormUoW(db), nil
+	}
+
 	app := webapi.NewApp(
-		service.NewAccountService(func() (repository.UnitOfWork, error) {
-			return infra.NewGormUoW(db)
-		}),
-		service.NewUserService(func() (repository.UnitOfWork, error) {
-			return infra.NewGormUoW(db)
-		}),
-		service.NewAuthService(func() (repository.UnitOfWork, error) {
-			return infra.NewGormUoW(db)
-		}, service.NewJWTAuthStrategy(func() (repository.UnitOfWork, error) {
-			return infra.NewGormUoW(db)
-		})),
+		service.NewAccountService(uowFactory, currencyConverter, logger),
+		service.NewUserService(uowFactory, logger),
+		service.NewAuthService(uowFactory,
+			service.NewJWTAuthStrategy(
+				uowFactory, cfg.Jwt, logger,
+			), logger),
+		currencySvc,
+		cfg,
 	)
 	return adaptor.FiberApp(app)
 }

@@ -16,6 +16,9 @@
 package webapi
 
 import (
+	"github.com/amirasaad/fintech/pkg/config"
+	"github.com/amirasaad/fintech/pkg/currency"
+	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/middleware"
 	"github.com/amirasaad/fintech/pkg/service"
 	"github.com/gofiber/fiber/v2"
@@ -25,25 +28,120 @@ import (
 )
 
 type CreateAccountRequest struct {
-	Currency string `json:"currency"`
+	Currency string `json:"currency" validate:"omitempty,len=3,uppercase"`
 }
 
 type DepositRequest struct {
-	Amount   float64 `json:"amount" xml:"amount" form:"amount"`
-	Currency string  `json:"currency"`
+	Amount   float64 `json:"amount" xml:"amount" form:"amount" validate:"required,gt=0"`
+	Currency string  `json:"currency" validate:"omitempty,len=3,uppercase"`
 }
 
 type WithdrawRequest struct {
-	Amount   float64 `json:"amount" xml:"amount" form:"amount"`
-	Currency string  `json:"currency"`
+	Amount   float64 `json:"amount" xml:"amount" form:"amount" validate:"required,gt=0"`
+	Currency string  `json:"currency" validate:"omitempty,len=3,uppercase"`
 }
 
-func AccountRoutes(app *fiber.App, accountSvc *service.AccountService, authSvc *service.AuthService) {
-	app.Post("/account", middleware.Protected(), CreateAccount(accountSvc, authSvc))
-	app.Post("/account/:id/deposit", middleware.Protected(), Deposit(accountSvc, authSvc))
-	app.Post("/account/:id/withdraw", middleware.Protected(), Withdraw(accountSvc, authSvc))
-	app.Get("/account/:id/balance", middleware.Protected(), GetBalance(accountSvc, authSvc))
-	app.Get("/account/:id/transactions", middleware.Protected(), GetTransactions(accountSvc, authSvc))
+// ConversionResponse wraps a transaction and conversion details if a currency conversion occurred.
+type ConversionResponse struct {
+	Transaction       *domain.Transaction `json:"transaction"`
+	OriginalAmount    float64             `json:"original_amount,omitempty"`
+	OriginalCurrency  string              `json:"original_currency,omitempty"`
+	ConvertedAmount   float64             `json:"converted_amount,omitempty"`
+	ConvertedCurrency string              `json:"converted_currency,omitempty"`
+	ConversionRate    float64             `json:"conversion_rate,omitempty"`
+}
+
+// TransactionDTO is the API response representation of a transaction.
+type TransactionDTO struct {
+	ID        string  `json:"id"`
+	UserID    string  `json:"user_id"`
+	AccountID string  `json:"account_id"`
+	Amount    float64 `json:"amount"`
+	Balance   float64 `json:"balance"`
+	CreatedAt string  `json:"created_at"`
+	Currency  string  `json:"currency"`
+
+	// Conversion fields (only present if conversion occurred)
+	OriginalAmount   *float64 `json:"original_amount,omitempty"`
+	OriginalCurrency *string  `json:"original_currency,omitempty"`
+	ConversionRate   *float64 `json:"conversion_rate,omitempty"`
+}
+
+// ConversionResponseDTO wraps a transaction and conversion details for API responses.
+type ConversionResponseDTO struct {
+	Transaction       *TransactionDTO `json:"transaction"`
+	OriginalAmount    float64         `json:"original_amount,omitempty"`
+	OriginalCurrency  string          `json:"original_currency,omitempty"`
+	ConvertedAmount   float64         `json:"converted_amount,omitempty"`
+	ConvertedCurrency string          `json:"converted_currency,omitempty"`
+	ConversionRate    float64         `json:"conversion_rate,omitempty"`
+}
+
+// ToTransactionDTO maps a domain.Transaction to a TransactionDTO.
+func ToTransactionDTO(tx *domain.Transaction) *TransactionDTO {
+	if tx == nil {
+		return nil
+	}
+	dto := &TransactionDTO{
+		ID:        tx.ID.String(),
+		UserID:    tx.UserID.String(),
+		AccountID: tx.AccountID.String(),
+		Amount:    float64(tx.Amount) / 100.0, // assuming cents
+		Balance:   float64(tx.Balance) / 100.0,
+		CreatedAt: tx.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		Currency:  string(tx.Currency),
+	}
+
+	// Include conversion fields if they exist
+	if tx.OriginalAmount != nil {
+		dto.OriginalAmount = tx.OriginalAmount
+	}
+	if tx.OriginalCurrency != nil {
+		dto.OriginalCurrency = tx.OriginalCurrency
+	}
+	if tx.ConversionRate != nil {
+		dto.ConversionRate = tx.ConversionRate
+	}
+
+	return dto
+}
+
+// ToConversionResponseDTO maps a transaction and conversion info to a ConversionResponseDTO.
+func ToConversionResponseDTO(tx *domain.Transaction, convInfo *domain.ConversionInfo) *ConversionResponseDTO {
+	// If conversion info is provided (from service layer), use it
+	if convInfo != nil {
+		return &ConversionResponseDTO{
+			Transaction:       ToTransactionDTO(tx),
+			OriginalAmount:    convInfo.OriginalAmount,
+			OriginalCurrency:  convInfo.OriginalCurrency,
+			ConvertedAmount:   convInfo.ConvertedAmount,
+			ConvertedCurrency: convInfo.ConvertedCurrency,
+			ConversionRate:    convInfo.ConversionRate,
+		}
+	}
+
+	// If no conversion info provided but transaction has stored conversion data, use that
+	if tx.OriginalAmount != nil && tx.OriginalCurrency != nil && tx.ConversionRate != nil {
+		return &ConversionResponseDTO{
+			Transaction:       ToTransactionDTO(tx),
+			OriginalAmount:    *tx.OriginalAmount,
+			OriginalCurrency:  *tx.OriginalCurrency,
+			ConvertedAmount:   float64(tx.Amount) / 100.0, // Convert from cents
+			ConvertedCurrency: string(tx.Currency),
+			ConversionRate:    *tx.ConversionRate,
+		}
+	}
+
+	// No conversion occurred
+	return nil
+}
+
+func AccountRoutes(app *fiber.App, accountSvc *service.AccountService, authSvc *service.AuthService, cfg *config.AppConfig) {
+	app.Post("/account", middleware.JwtProtected(cfg.Jwt), CreateAccount(accountSvc, authSvc))
+	app.Post("/account/:id/deposit", middleware.JwtProtected(cfg.Jwt), Deposit(accountSvc, authSvc))
+	app.Post("/account/:id/withdraw", middleware.JwtProtected(cfg.Jwt), Withdraw(accountSvc, authSvc))
+	app.Get("/account/:id/balance", middleware.JwtProtected(cfg.Jwt), GetBalance(accountSvc, authSvc))
+	app.Get("/account/:id/transactions", middleware.JwtProtected(cfg.Jwt), GetTransactions(accountSvc, authSvc))
 }
 
 // CreateAccount returns a Fiber handler for creating a new account for the current user.
@@ -70,28 +168,25 @@ func CreateAccount(
 		log.Infof("Creating new account")
 		token, ok := c.Locals("user").(*jwt.Token)
 		if !ok {
-			return ErrorResponseJSON(c, fiber.StatusUnauthorized, "unauthorized", "missing user context")
+			return ProblemDetailsJSON(c, "Unauthorized", nil, "missing user context")
 		}
 		userID, err := authSvc.GetCurrentUserId(token)
 		if err != nil {
 			log.Errorf("Failed to parse user ID from token: %v", err)
-			status := ErrorToStatusCode(err)
-			return ErrorResponseJSON(c, status, "invalid user ID", err.Error())
+			return ProblemDetailsJSON(c, "Invalid user ID", err)
 		}
-		var req CreateAccountRequest
-		_ = c.BodyParser(&req)
-		currency := req.Currency
-		if currency == "" {
-			currency = "USD"
+		input, _ := BindAndValidate[CreateAccountRequest](c) // ignore error, currency is optional
+		currencyCode := currency.Code("USD")
+		if input != nil && input.Currency != "" {
+			currencyCode = currency.Code(input.Currency)
 		}
-		a, err := accountSvc.CreateAccountWithCurrency(userID, currency)
+		a, err := accountSvc.CreateAccountWithCurrency(userID, currencyCode)
 		if err != nil {
 			log.Errorf("Failed to create account: %v", err)
-			status := ErrorToStatusCode(err)
-			return ErrorResponseJSON(c, status, "Failed to create account", err.Error())
+			return ProblemDetailsJSON(c, "Failed to create account", err)
 		}
 		log.Infof("Account created: %+v", a)
-		return c.Status(fiber.StatusCreated).JSON(Response{Status: fiber.StatusCreated, Message: "Account created", Data: a})
+		return SuccessResponseJSON(c, fiber.StatusCreated, "Account created", a)
 	}
 }
 
@@ -122,36 +217,36 @@ func Deposit(
 	return func(c *fiber.Ctx) error {
 		token, ok := c.Locals("user").(*jwt.Token)
 		if !ok {
-			return ErrorResponseJSON(c, fiber.StatusUnauthorized, "unauthorized", "missing user context")
+			return ProblemDetailsJSON(c, "Unauthorized", nil, "missing user context")
 		}
 		userID, err := authSvc.GetCurrentUserId(token)
 		if err != nil {
 			log.Errorf("Failed to parse user ID from token: %v", err)
-			status := ErrorToStatusCode(err)
-			return ErrorResponseJSON(c, status, "invalid user ID", err.Error())
+			return ProblemDetailsJSON(c, "Invalid user ID", err)
 		}
-		id, err := uuid.Parse(c.Params("id"))
+		accountID, err := uuid.Parse(c.Params("id"))
 		if err != nil {
 			log.Errorf("Invalid account ID for deposit: %v", err)
-			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid account ID", err.Error())
+			return ProblemDetailsJSON(c, "Invalid account ID", err, "Account ID must be a valid UUID", fiber.StatusBadRequest)
 		}
-		var request DepositRequest
-
-		err = c.BodyParser(&request)
+		input, err := BindAndValidate[DepositRequest](c)
 		if err != nil {
-			log.Errorf("Failed to parse deposit request: %v", err)
-			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Failed to parse deposit request", err.Error())
+			return nil // Error already written by BindAndValidate
 		}
-		if request.Currency == "" {
-			request.Currency = "USD"
+		currencyCode := currency.Code("USD")
+		if input.Currency != "" {
+			currencyCode = currency.Code(input.Currency)
 		}
-		tx, err := accountSvc.DepositWithCurrency(userID, id, request.Amount, request.Currency)
+		tx, convInfo, err := accountSvc.Deposit(userID, accountID, input.Amount, currencyCode)
 		if err != nil {
 			log.Errorf("Failed to deposit: %v", err)
-			status := ErrorToStatusCode(err)
-			return ErrorResponseJSON(c, status, "Failed to deposit", err.Error())
+			return ProblemDetailsJSON(c, "Failed to deposit", err)
 		}
-		return c.JSON(Response{Status: fiber.StatusOK, Message: "Deposit successful", Data: tx})
+		if convInfo != nil {
+			resp := ToConversionResponseDTO(tx, convInfo)
+			return SuccessResponseJSON(c, fiber.StatusOK, "Deposit successful (converted)", resp)
+		}
+		return SuccessResponseJSON(c, fiber.StatusOK, "Deposit successful", ToTransactionDTO(tx))
 	}
 }
 
@@ -188,35 +283,36 @@ func Withdraw(
 	return func(c *fiber.Ctx) error {
 		token, ok := c.Locals("user").(*jwt.Token)
 		if !ok {
-			return ErrorResponseJSON(c, fiber.StatusUnauthorized, "unauthorized", "missing user context")
+			return ProblemDetailsJSON(c, "Unauthorized", nil, "missing user context")
 		}
 		userID, err := authSvc.GetCurrentUserId(token)
 		if err != nil {
 			log.Errorf("Failed to parse user ID from token: %v", err)
-			status := ErrorToStatusCode(err)
-			return ErrorResponseJSON(c, status, "invalid user ID", err.Error())
+			return ProblemDetailsJSON(c, "Invalid user ID", err)
 		}
-		id, err := uuid.Parse(c.Params("id"))
+		accountID, err := uuid.Parse(c.Params("id"))
 		if err != nil {
 			log.Errorf("Invalid account ID for withdrawal: %v", err)
-			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid account ID", err.Error())
+			return ProblemDetailsJSON(c, "Invalid account ID", err, "Account ID must be a valid UUID", fiber.StatusBadRequest)
 		}
-		var request WithdrawRequest
-		err = c.BodyParser(&request)
+		input, err := BindAndValidate[WithdrawRequest](c)
 		if err != nil {
-			log.Errorf("Failed to parse withdrawal request: %v", err)
-			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Failed to parse withdrawal request", err.Error())
+			return nil // Error already written by BindAndValidate
 		}
-		if request.Currency == "" {
-			request.Currency = "USD"
+		currencyCode := currency.Code("USD")
+		if input.Currency != "" {
+			currencyCode = currency.Code(input.Currency)
 		}
-		tx, err := accountSvc.WithdrawWithCurrency(userID, id, request.Amount, request.Currency)
+		tx, convInfo, err := accountSvc.Withdraw(userID, accountID, input.Amount, currencyCode)
 		if err != nil {
 			log.Errorf("Failed to withdraw: %v", err)
-			status := ErrorToStatusCode(err)
-			return ErrorResponseJSON(c, status, "Failed to withdraw", err.Error())
+			return ProblemDetailsJSON(c, "Failed to withdraw", err)
 		}
-		return c.JSON(Response{Status: fiber.StatusOK, Message: "Withdrawal successful", Data: tx})
+		if convInfo != nil {
+			resp := ToConversionResponseDTO(tx, convInfo)
+			return SuccessResponseJSON(c, fiber.StatusOK, "Withdrawal successful (converted)", resp)
+		}
+		return SuccessResponseJSON(c, fiber.StatusOK, "Withdrawal successful", ToTransactionDTO(tx))
 	}
 }
 
@@ -244,27 +340,25 @@ func GetTransactions(
 	return func(c *fiber.Ctx) error {
 		token, ok := c.Locals("user").(*jwt.Token)
 		if !ok {
-			return ErrorResponseJSON(c, fiber.StatusUnauthorized, "unauthorized", "missing user context")
+			return ProblemDetailsJSON(c, "Unauthorized", nil, "missing user context")
 		}
 		userID, err := authSvc.GetCurrentUserId(token)
 		if err != nil {
 			log.Errorf("Failed to parse user ID from token: %v", err)
-			status := ErrorToStatusCode(err)
-			return ErrorResponseJSON(c, status, "invalid user ID", err.Error())
+			return ProblemDetailsJSON(c, "Invalid user ID", err)
 		}
 		id, err := uuid.Parse(c.Params("id"))
 		if err != nil {
 			log.Errorf("Invalid account ID for transactions: %v", err)
-			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid account ID", err.Error())
+			return ProblemDetailsJSON(c, "Invalid account ID", err, "Account ID must be a valid UUID", fiber.StatusBadRequest)
 		}
 
 		tx, err := accountSvc.GetTransactions(userID, id)
 		if err != nil {
 			log.Errorf("Failed to list transactions for account ID %s: %v", id, err)
-			status := ErrorToStatusCode(err)
-			return ErrorResponseJSON(c, status, "Failed to list transactions", err.Error())
+			return ProblemDetailsJSON(c, "Failed to list transactions", err)
 		}
-		return c.JSON(Response{Status: fiber.StatusOK, Message: "Transactions fetched", Data: tx})
+		return SuccessResponseJSON(c, fiber.StatusOK, "Transactions fetched", tx)
 	}
 }
 
@@ -292,26 +386,24 @@ func GetBalance(
 	return func(c *fiber.Ctx) error {
 		token, ok := c.Locals("user").(*jwt.Token)
 		if !ok {
-			return ErrorResponseJSON(c, fiber.StatusUnauthorized, "unauthorized", "missing user context")
+			return ProblemDetailsJSON(c, "Unauthorized", nil, "missing user context")
 		}
 		userID, err := authSvc.GetCurrentUserId(token)
 		if err != nil {
 			log.Errorf("Failed to parse user ID from token: %v", err)
-			status := ErrorToStatusCode(err)
-			return ErrorResponseJSON(c, status, "invalid user ID", err.Error())
+			return ProblemDetailsJSON(c, "Invalid user ID", err)
 		}
 		id, err := uuid.Parse(c.Params("id"))
 		if err != nil {
 			log.Errorf("Invalid account ID for balance: %v", err)
-			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Invalid account ID", err.Error())
+			return ProblemDetailsJSON(c, "Invalid account ID", err, "Account ID must be a valid UUID", fiber.StatusBadRequest)
 		}
 
 		balance, err := accountSvc.GetBalance(userID, id)
 		if err != nil {
 			log.Errorf("Failed to fetch balance for account ID %s: %v", id, err)
-			status := ErrorToStatusCode(err)
-			return ErrorResponseJSON(c, status, "Failed to fetch balance", err.Error())
+			return ProblemDetailsJSON(c, "Failed to fetch balance", err)
 		}
-		return c.Status(fiber.StatusOK).JSON(Response{Status: fiber.StatusOK, Message: "Balance fetched", Data: fiber.Map{"balance": balance}})
+		return SuccessResponseJSON(c, fiber.StatusOK, "Balance fetched", fiber.Map{"balance": balance})
 	}
 }

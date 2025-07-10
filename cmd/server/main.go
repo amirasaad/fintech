@@ -1,10 +1,15 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"log"
+	"log/slog"
 
 	"github.com/amirasaad/fintech/infra"
-
+	infra_repository "github.com/amirasaad/fintech/infra/repository"
+	"github.com/amirasaad/fintech/pkg/config"
+	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/amirasaad/fintech/pkg/service"
 	"github.com/amirasaad/fintech/webapi"
@@ -21,20 +26,63 @@ import (
 // @host fintech-beryl-beta.vercel.app
 // @BasePath /
 func main() {
-	db, err := infra.NewDBConnection()
+	// Setup structured logging
+	logger := slog.New(slog.NewTextHandler(log.Writer(), &slog.HandlerOptions{Level: slog.LevelDebug}))
+	slog.SetDefault(logger)
+
+	// Load application configuration
+	cfg, err := config.LoadAppConfig(logger)
 	if err != nil {
+		logger.Error("Failed to load application configuration", "error", err)
 		log.Fatal(err)
 	}
-	// Create UOW factory
+
+	logger.Info("Configuration loaded successfully",
+		"database_url_configured", cfg.DB.Url != "",
+		"jwt_expiry", cfg.Jwt.Expiry,
+		"exchange_rate_api_configured", cfg.Exchange.ApiKey != "")
+
+	// Initialize currency registry
+	ctx := context.Background()
+	currencyRegistry, err := currency.NewCurrencyRegistry(ctx)
+	if err != nil {
+		logger.Error("Failed to initialize currency registry", "error", err)
+		log.Fatal(err)
+	}
+	logger.Info("Currency registry initialized successfully")
+
+	// Initialize DB connection ONCE
+	db, err := infra.NewDBConnection(cfg.DB, cfg.Env)
+	if err != nil {
+		logger.Error("Failed to initialize database", "error", err)
+		log.Fatal(err)
+	}
+
+	// Create UOW factory using the shared db
 	uowFactory := func() (repository.UnitOfWork, error) {
-		return infra.NewGormUoW(db)
+		return infra_repository.NewGormUoW(db), nil
+	}
+
+	// Create exchange rate system
+	currencyConverter, err := infra.NewExchangeRateSystem(logger, *cfg)
+	if err != nil {
+		logger.Error("Failed to initialize exchange rate system", "error", err)
+		log.Fatal(err)
 	}
 
 	// Create services
-	accountSvc := service.NewAccountService(uowFactory)
-	userSvc := service.NewUserService(uowFactory)
-	authSvc := service.NewAuthService(uowFactory, service.NewJWTAuthStrategy(uowFactory))
+	accountSvc := service.NewAccountService(uowFactory, currencyConverter, logger)
+	userSvc := service.NewUserService(uowFactory, logger)
+	authStrategy := service.NewJWTAuthStrategy(uowFactory, cfg.Jwt, logger)
+	authSvc := service.NewAuthService(uowFactory, authStrategy, logger)
+	currencySvc := service.NewCurrencyService(currencyRegistry, logger)
 
-	log.Fatal(webapi.NewApp(accountSvc, userSvc, authSvc).Listen(":3000"))
-
+	logger.Info("Starting fintech server", "port", ":3000")
+	log.Fatal(webapi.NewApp(
+		accountSvc,
+		userSvc,
+		authSvc,
+		currencySvc,
+		cfg,
+	).Listen(fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)))
 }

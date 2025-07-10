@@ -1,0 +1,2 @@
+ALTER TABLE users
+ADD COLUMN names VARCHAR(100);

@@ -1,11 +1,38 @@
 basePath: /
 definitions:
+  currency.CurrencyMeta:
+    properties:
+      active:
+        type: boolean
+      code:
+        type: string
+      country:
+        type: string
+      created:
+        type: string
+      decimals:
+        type: integer
+      metadata:
+        additionalProperties:
+          type: string
+        type: object
+      name:
+        type: string
+      region:
+        type: string
+      symbol:
+        type: string
+      updated:
+        type: string
+    type: object
   webapi.DepositRequest:
     properties:
       amount:
         type: number
       currency:
         type: string
+    required:
+    - amount
     type: object
   webapi.LoginInput:
     properties:
@@ -13,6 +40,9 @@ definitions:
         type: string
       password:
         type: string
+    required:
+    - identity
+    - password
     type: object
   webapi.NewUser:
     properties:
@@ -20,10 +50,12 @@ definitions:
         maxLength: 50
         type: string
       password:
+        maxLength: 72
         minLength: 6
         type: string
       username:
         maxLength: 50
+        minLength: 3
         type: string
     required:
     - email
@@ -34,6 +66,8 @@ definitions:
     properties:
       password:
         type: string
+    required:
+    - password
     type: object
   webapi.ProblemDetails:
     properties:
@@ -55,6 +89,34 @@ definitions:
         description: A URI reference that identifies the problem type
         type: string
     type: object
+  webapi.RegisterCurrencyRequest:
+    properties:
+      active:
+        type: boolean
+      code:
+        type: string
+      country:
+        type: string
+      decimals:
+        maximum: 8
+        minimum: 0
+        type: integer
+      metadata:
+        additionalProperties:
+          type: string
+        type: object
+      name:
+        type: string
+      region:
+        type: string
+      symbol:
+        type: string
+    required:
+    - code
+    - decimals
+    - name
+    - symbol
+    type: object
   webapi.Response:
     properties:
       data:
@@ -69,6 +131,7 @@ definitions:
   webapi.UpdateUserInput:
     properties:
       names:
+        maxLength: 100
         type: string
     type: object
   webapi.WithdrawRequest:
@@ -77,6 +140,8 @@ definitions:
         type: number
       currency:
         type: string
+    required:
+    - amount
     type: object
 host: fintech-beryl-beta.vercel.app
 info:
@@ -292,6 +357,355 @@ paths:
       summary: Withdraw funds from an account
       tags:
       - accounts
+  /api/currencies:
+    get:
+      consumes:
+      - application/json
+      description: Get all registered currencies with full metadata
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/currency.CurrencyMeta'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+      summary: List all currencies
+      tags:
+      - currencies
+  /api/currencies/{code}:
+    get:
+      consumes:
+      - application/json
+      description: Get currency information by ISO 4217 code
+      parameters:
+      - description: Currency code (e.g., USD, EUR)
+        in: path
+        name: code
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/currency.CurrencyMeta'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+      summary: Get currency by code
+      tags:
+      - currencies
+  /api/currencies/{code}/supported:
+    get:
+      consumes:
+      - application/json
+      description: Check if a currency code is supported
+      parameters:
+      - description: Currency code (e.g., USD, EUR)
+        in: path
+        name: code
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/webapi.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+      summary: Check if currency is supported
+      tags:
+      - currencies
+  /api/currencies/admin:
+    post:
+      consumes:
+      - application/json
+      description: Register a new currency (admin only)
+      parameters:
+      - description: Currency information
+        in: body
+        name: currency
+        required: true
+        schema:
+          $ref: '#/definitions/webapi.RegisterCurrencyRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/currency.CurrencyMeta'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+      summary: Register currency
+      tags:
+      - currencies
+  /api/currencies/admin/{code}:
+    delete:
+      consumes:
+      - application/json
+      description: Remove a currency from the registry (admin only)
+      parameters:
+      - description: Currency code
+        in: path
+        name: code
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/webapi.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+      summary: Unregister currency
+      tags:
+      - currencies
+  /api/currencies/admin/{code}/activate:
+    put:
+      consumes:
+      - application/json
+      description: Activate a currency (admin only)
+      parameters:
+      - description: Currency code
+        in: path
+        name: code
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/webapi.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+      summary: Activate currency
+      tags:
+      - currencies
+  /api/currencies/admin/{code}/deactivate:
+    put:
+      consumes:
+      - application/json
+      description: Deactivate a currency (admin only)
+      parameters:
+      - description: Currency code
+        in: path
+        name: code
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/webapi.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+      summary: Deactivate currency
+      tags:
+      - currencies
+  /api/currencies/default:
+    get:
+      consumes:
+      - application/json
+      description: Get the default currency information
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/currency.CurrencyMeta'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+      summary: Get default currency
+      tags:
+      - currencies
+  /api/currencies/region/{region}:
+    get:
+      consumes:
+      - application/json
+      description: Search for currencies by region
+      parameters:
+      - description: Region name
+        in: path
+        name: region
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/currency.CurrencyMeta'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+      summary: Search currencies by region
+      tags:
+      - currencies
+  /api/currencies/search:
+    get:
+      consumes:
+      - application/json
+      description: Search for currencies by name
+      parameters:
+      - description: Search query
+        in: query
+        name: q
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/currency.CurrencyMeta'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+      summary: Search currencies
+      tags:
+      - currencies
+  /api/currencies/statistics:
+    get:
+      consumes:
+      - application/json
+      description: Get currency registry statistics
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/webapi.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+      summary: Get currency statistics
+      tags:
+      - currencies
+  /api/currencies/supported:
+    get:
+      consumes:
+      - application/json
+      description: Get all supported currency codes
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              type: string
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/webapi.ProblemDetails'
+      summary: List supported currencies
+      tags:
+      - currencies
   /login:
     post:
       consumes:
@@ -433,11 +847,11 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/webapi.Response'
+            $ref: '#/definitions/webapi.ProblemDetails'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/webapi.Response'
+            $ref: '#/definitions/webapi.ProblemDetails'
       security:
       - Bearer: []
       summary: Get user by ID

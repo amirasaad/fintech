@@ -1,9 +1,11 @@
-package infra
+package repository
 
 import (
 	"time"
 
+	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain"
+	"github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -23,7 +25,7 @@ func (r *accountRepository) Get(id uuid.UUID) (*domain.Account, error) {
 	if result.Error != nil {
 		return nil, result.Error
 	}
-	return domain.NewAccountFromData(a.ID, a.UserID, a.Balance, a.Currency, a.CreatedAt, a.UpdatedAt), nil
+	return account.NewAccountFromData(a.ID, a.UserID, a.Balance, a.Currency, a.CreatedAt, a.UpdatedAt), nil
 }
 
 func (r *accountRepository) Create(a *domain.Account) error {
@@ -45,7 +47,7 @@ func (r *accountRepository) Update(a *domain.Account) error {
 		ID:       a.ID,
 		UserID:   a.UserID,
 		Balance:  a.Balance,
-		Currency: a.Currency,
+		Currency: string(a.Currency),
 	}
 	result := r.db.Save(&dbModel)
 	if result.Error != nil {
@@ -71,24 +73,47 @@ func NewTransactionRepository(db *gorm.DB) repository.TransactionRepository {
 }
 
 func (r *transactionRepository) Create(transaction *domain.Transaction) error {
+	// Convert domain transaction to GORM model
+	dbTransaction := Transaction{
+		Model: gorm.Model{
+			CreatedAt: transaction.CreatedAt,
+			UpdatedAt: transaction.CreatedAt,
+		},
+		ID:               transaction.ID,
+		AccountID:        transaction.AccountID,
+		UserID:           transaction.UserID,
+		Amount:           transaction.Amount,
+		Currency:         string(transaction.Currency),
+		Balance:          transaction.Balance,
+		OriginalAmount:   transaction.OriginalAmount,
+		OriginalCurrency: transaction.OriginalCurrency,
+		ConversionRate:   transaction.ConversionRate,
+	}
 
-	result := r.db.Create(transaction)
+	result := r.db.Create(&dbTransaction)
 	if result.Error != nil {
 		return result.Error
 	}
 	return nil
 }
 
-func (r *transactionRepository) Get(id uuid.UUID) (*domain.Transaction, error) {
+func (r *transactionRepository) Get(
+	id uuid.UUID,
+) (
+	*domain.Transaction,
+	error,
+) {
 	var t Transaction
 	result := r.db.First(&t, id)
 	if result.Error != nil {
 		return nil, result.Error
 	}
-	return domain.NewTransactionFromData(t.ID, t.UserID, t.AccountID, t.Amount, t.Balance, t.Currency, t.CreatedAt), nil
+	return account.NewTransactionFromData(t.ID, t.UserID, t.AccountID, t.Amount, t.Balance, currency.Code(t.Currency), t.CreatedAt, t.OriginalAmount, t.OriginalCurrency, t.ConversionRate), nil
 }
 
-func (r *transactionRepository) List(userID, accountID uuid.UUID) ([]*domain.Transaction, error) {
+func (r *transactionRepository) List(
+	userID, accountID uuid.UUID,
+) ([]*domain.Transaction, error) {
 	var dbTransactions []*Transaction
 	result := r.db.Where("account_id = ? and user_id = ?", accountID, userID).Order("created_at desc").Limit(100).Find(&dbTransactions)
 	if result.Error != nil {
@@ -96,7 +121,7 @@ func (r *transactionRepository) List(userID, accountID uuid.UUID) ([]*domain.Tra
 	}
 	tx := make([]*domain.Transaction, 0, len(dbTransactions))
 	for _, t := range dbTransactions {
-		tx = append(tx, domain.NewTransactionFromData(t.ID, t.UserID, t.AccountID, t.Amount, t.Balance, t.Currency, t.CreatedAt))
+		tx = append(tx, account.NewTransactionFromData(t.ID, t.UserID, t.AccountID, t.Amount, t.Balance, currency.Code(t.Currency), t.CreatedAt, t.OriginalAmount, t.OriginalCurrency, t.ConversionRate))
 	}
 	return tx, nil
 }

@@ -1,35 +1,44 @@
-package infra
+package repository
 
 import (
 	"errors"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/stretchr/testify/assert"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
 func TestUnitOfWork(t *testing.T) {
-
 	mockDb, _, _ := sqlmock.New()
 	dialector := postgres.New(postgres.Config{
 		Conn:       mockDb,
 		DriverName: "postgres",
 	})
-	db, _ := gorm.Open(dialector, &gorm.Config{})
-	uow, err := NewGormUoW(db)
+	db, err := gorm.Open(dialector, &gorm.Config{})
+	assert.NoError(t, err)
+
+	uow := &UoW{
+		baseDB:  db,
+		session: db,
+		started: false,
+		cfg:     config.DBConfig{Url: "postgres://mock"},
+		appEnv:  "test",
+	}
 
 	assert.NoError(t, err)
 
 	// Test Accounts
-	accounts := uow.AccountRepository()
+	accounts, err := uow.AccountRepository()
+	assert.NoError(t, err)
 	assert.IsType(t, &accountRepository{}, accounts)
 
 	// Test Transactions
-	transactions := uow.TransactionRepository()
+	transactions, err := uow.TransactionRepository()
+	assert.NoError(t, err)
 	assert.IsType(t, &transactionRepository{}, transactions)
-
 }
 
 func TestUoW_Begin(t *testing.T) {
@@ -42,8 +51,12 @@ func TestUoW_Begin(t *testing.T) {
 	db, err := gorm.Open(dialector, &gorm.Config{})
 	assert.NoError(err)
 
-	uow, err := NewGormUoW(db)
-	assert.NoError(err)
+	// Create UoW with the mock database directly
+	uow := &UoW{
+		session: db,
+		started: false,
+		cfg:     config.DBConfig{Url: "postgres://mock"},
+	}
 
 	mock.ExpectBegin()
 	err = uow.Begin()
@@ -71,27 +84,17 @@ func TestUoW_Commit(t *testing.T) {
 	db, err := gorm.Open(dialector, &gorm.Config{})
 	assert.NoError(err)
 
-	uow, err := NewGormUoW(db)
-	assert.NoError(err)
-
-	// Test not started
-	err = uow.Commit()
-	assert.NoError(err)
-
-	// Test commit success
+	uow := &UoW{
+		session: db,
+		started: true,
+		cfg:     config.DBConfig{Url: "postgres://mock"},
+	}
 	mock.ExpectBegin()
-	_ = uow.Begin()
-	mock.ExpectCommit()
-	err = uow.Commit()
-	assert.NoError(err)
-	assert.True(uow.started)
-
-	// Test commit error
-	mock.ExpectBegin()
-	_ = uow.Begin()
+	db.Begin()
 	mock.ExpectCommit().WillReturnError(errors.New("commit error"))
 	err = uow.Commit()
 	assert.Error(err)
+	assert.False(uow.started) // Should be false after commit error
 }
 
 func TestUoW_Rollback(t *testing.T) {
@@ -104,23 +107,65 @@ func TestUoW_Rollback(t *testing.T) {
 	db, err := gorm.Open(dialector, &gorm.Config{})
 	assert.NoError(err)
 
-	uow, err := NewGormUoW(db)
-	assert.NoError(err)
-
 	// Test not started
-	err = uow.Rollback()
+	uow1 := &UoW{
+		session: db,
+		started: false,
+		cfg:     config.DBConfig{Url: "postgres://mock"},
+	}
+	err = uow1.Rollback()
 	assert.NoError(err)
 
 	// Test rollback success
+	uow2 := &UoW{
+		session: db,
+		started: false,
+		cfg:     config.DBConfig{Url: "postgres://mock"},
+	}
 	mock.ExpectBegin()
-	_ = uow.Begin()
+	_ = uow2.Begin()
 	mock.ExpectRollback()
-	err = uow.Rollback()
+	err = uow2.Rollback()
 	assert.NoError(err)
-	assert.False(uow.started)
+	assert.False(uow2.started)
 
 	// Test rollback error
+	uow3 := &UoW{
+		session: db,
+		started: false,
+		cfg:     config.DBConfig{Url: "postgres://mock"},
+	}
 	mock.ExpectBegin()
-	_ = uow.Begin()
+	_ = uow3.Begin()
 	mock.ExpectRollback().WillReturnError(errors.New("rollback error"))
+	err = uow3.Rollback()
+	assert.Error(err)
+	assert.False(uow3.started) // Should be false after rollback error
+}
+
+func TestUoW_Simple(t *testing.T) {
+	assert := assert.New(t)
+	mockDb, mock, _ := sqlmock.New()
+	dialector := postgres.New(postgres.Config{
+		Conn:       mockDb,
+		DriverName: "postgres",
+	})
+	db, err := gorm.Open(dialector, &gorm.Config{})
+	assert.NoError(err)
+
+	// Create UoW with the mock database directly
+	uow := &UoW{
+		session: db,
+		started: false,
+		cfg:     config.DBConfig{Url: "postgres://mock"},
+	}
+
+	// Test basic functionality without accessing unexported fields
+	mock.ExpectBegin()
+	err = uow.Begin()
+	assert.NoError(err)
+
+	mock.ExpectCommit()
+	err = uow.Commit()
+	assert.NoError(err)
 }

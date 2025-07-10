@@ -29,7 +29,10 @@ This project's vision is to build a foundational backend service for financial o
 - **Multi-Currency Support:** 💸
   - Accounts and transactions support multiple currencies (e.g., USD, EUR, GBP).
   - All operations are currency-aware, ensuring consistency.
-  - For more details, see the [Multi-Currency Documentation](./docs/multi_currency.md).
+  - **Real Exchange Rates:** Integration with external APIs for accurate currency conversion.
+  - **Intelligent Caching:** Performance optimization with TTL-based caching.
+  - **Fallback Strategy:** Graceful degradation when external services are unavailable.
+  - For more details, see the [Multi-Currency Documentation](./docs/multi_currency.md) and [Real Exchange Rates Documentation](./docs/real_exchange_rates.md).
 - **Real-time Balances:** Instantly query and display the current balance of any account, crucial for immediate financial oversight. ⏱️
 - **Transaction History:** Access a detailed, chronological record of all financial movements associated with an account, providing transparency and auditability. 📜
 - **User Authentication & Authorization:** 🤝
@@ -38,6 +41,25 @@ This project's vision is to build a foundational backend service for financial o
   - Role-based access control ensures that users can only perform operations relevant to their accounts. 🛡️
 - **Concurrency Safety:** Implemented using Go's native concurrency primitives (`sync.Mutex`) to prevent race conditions and ensure atomic operations during simultaneous deposits and withdrawals, guaranteeing data integrity. 🚦
 - **Unit of Work Pattern:** A core design pattern that ensures all operations within a single business transaction are treated as a single, atomic unit. This guarantees data consistency and integrity, especially during complex sequences of database operations. 📦
+
+### Exchange Rate System 💱
+
+The application includes a robust real-time exchange rate system with the following features:
+
+- **Real-time Rates:** Integration with external APIs for accurate currency conversion
+- **Intelligent Caching:** Performance optimization with TTL-based caching (default: 15 minutes)
+- **Fallback Strategy:** Graceful degradation when external services are unavailable
+- **Rate Limiting:** Built-in protection against API rate limits
+- **Health Checks:** Automatic monitoring of provider health
+- **Multiple Providers:** Support for multiple exchange rate providers
+
+**Getting Started with Exchange Rates:**
+
+1. Get a free API key from [exchangerate-api.com](https://exchangerate-api.com/)
+2. Add the API key to your `.env` file: `EXCHANGE_RATE_API_KEY=your_key_here`
+3. The system will automatically use real rates when available, with fallback to stub rates
+
+For detailed configuration options, see the [Real Exchange Rates Documentation](./docs/real_exchange_rates.md).
 
 ### Breaking Changes ⚠️
 
@@ -68,15 +90,21 @@ Before you begin, ensure you have the following software installed:
     ```
 
 2. **Set up Environment Variables:**
-    The application relies on environment variables for configuration, particularly for database connection and JWT secrets. Create a file named `.env` in the root directory of the project and populate it with the following:
+    The application automatically loads environment variables from a `.env` file in the root directory. Copy the sample file and configure it:
 
-    ```dotenv
-    DATABASE_URL=postgres://postgres:password@localhost:5432/fintech?sslmode=disable
-    JWT_SECRET_KEY=your_super_secret_jwt_key_replace_this_in_production
+    ```bash
+    cp .env_sample .env
     ```
 
-    - `DATABASE_URL`: Specifies the connection string for your PostgreSQL database. The provided value is suitable for local development using Docker Compose. 🗄️
-    - `JWT_SECRET_KEY`: A secret key used for signing and verifying JWTs. **For production environments, it is critical to use a strong, randomly generated key and manage it securely (e.g., via Kubernetes secrets, AWS Secrets Manager, or similar services). Never hardcode sensitive keys.** ⚠️
+    Then edit the `.env` file with your configuration. At a minimum, you **must** set a strong value for `AUTH_JWT_SECRET`:
+
+    ```dotenv
+    AUTH_JWT_SECRET=your_super_secret_jwt_key
+    ```
+
+    See `.env_sample` for all available configuration options and their defaults. Other variables (such as database URL, API keys, etc.) can be left as defaults or customized as needed.
+
+    **Note:** The application uses the `godotenv` package to automatically load environment variables from a `.env` file. If no `.env` file is found, the application will use system environment variables. 🔧
 
 ### Running the Application ▶️
 
@@ -355,6 +383,131 @@ The Fintech App exposes a comprehensive RESTful API for all its functionalities.
 - `POST /account/:id/withdraw`: Processes a withdrawal of funds from the specified account, subject to balance availability. **(Protected)** ⬇️
 - `GET /account/:id/balance`: Fetches the current balance of the specified account. **(Protected)** 💲
 - `GET /account/:id/transactions`: Retrieves a list of all transactions associated with the specified account. **(Protected)** 📜
+
+### Error Handling 🚨
+
+The API follows RESTful conventions for error responses and uses consistent error handling patterns:
+
+#### HTTP Status Codes
+
+- **200 OK**: Request successful
+- **201 Created**: Resource created successfully
+- **204 No Content**: Request successful, no content to return
+- **400 Bad Request**: Invalid request data or validation errors
+- **401 Unauthorized**: Authentication required or invalid credentials
+- **403 Forbidden**: Authenticated but not authorized for the resource
+- **404 Not Found**: Resource not found
+- **422 Unprocessable Entity**: Business rule violations (e.g., insufficient funds)
+- **429 Too Many Requests**: Rate limit exceeded
+- **500 Internal Server Error**: Unexpected server error
+
+#### Error Response Format
+
+All error responses follow the RFC 9457 Problem Details format:
+
+```json
+{
+  "type": "about:blank",
+  "title": "Error Title",
+  "status": 404,
+  "detail": "Detailed error message",
+  "instance": "/user/123"
+}
+```
+
+#### Common Error Scenarios
+
+- **User Not Found**: Returns 404 when attempting to update/delete a non-existent user
+- **Account Not Found**: Returns 404 when accessing non-existent accounts
+- **Insufficient Funds**: Returns 422 when withdrawal amount exceeds balance
+- **Invalid Currency**: Returns 422 for unsupported currency codes
+- **Unauthorized Access**: Returns 403 when users try to access other users' resources
+- **Validation Errors**: Returns 400 with detailed field-specific error messages
+
+## Multi-Currency & Money Value Object
+
+- All monetary operations (deposit, withdraw) are now currency-aware and validated using the `Money` value object in the domain layer.
+- The service layer (`AccountService`) exposes methods that accept `amount` and `currency` as primitives, and constructs/validates `Money` internally.
+- This eliminates the need for separate `DepositWithCurrency`/`WithdrawWithCurrency` methods and reduces code duplication.
+
+### Example Usage
+
+```go
+// In your handler or service consumer:
+tx, err := accountService.Deposit(userID, accountID, 100.0, "EUR")
+if err != nil {
+    // handle error (e.g., invalid currency, amount, or business rule)
+}
+```
+
+- All validation (currency code, amount positivity) is performed in the domain layer via `NewMoney`.
+- This pattern ensures consistency, security, and extensibility for future features like currency conversion.
+
+## Service ↔ Domain Layer Communication
+
+This project follows clean architecture principles, with clear separation between the service and domain layers.
+
+### Diagram: Service ↔ Domain Communication
+
+```mermaid
+flowchart TD
+    A["API Handler / Controller"] --> B["Service Layer<br/>(e.g., AccountService)"]
+    B -->|"Constructs/Calls"| C["Domain Entity<br/>(e.g., Account, User)"]
+    B -->|"Uses"| D["Domain Service<br/>(e.g., CurrencyConverter)"]
+    B -->|"Persists/Loads"| E["Repository Interface"]
+    E -->|"Implements"| F["Infrastructure Repo<br/>(DB, Cache, etc.)"]
+    C <--> D
+```
+
+- **API Handler**: Receives request, calls service.
+- **Service Layer**: Orchestrates use case, manages transactions, calls domain logic.
+- **Domain Entity/Service**: Contains business rules, invariants.
+- **Repository**: Abstracts persistence, injected into service.
+- **Infrastructure**: Actual DB/cache implementation.
+
+### Example: Account Deposit
+
+**Domain Layer (`pkg/domain/account.go`):**
+
+```go
+func (a *Account) Deposit(userID uuid.UUID, money Money) (*Transaction, error) {
+    if userID != a.UserID {
+        return nil, ErrUserUnauthorized
+    }
+    if money.Amount <= 0 {
+        return nil, ErrInvalidAmount
+    }
+    a.Balance += money.Amount
+    tx := NewTransaction(a.ID, userID, money)
+    return tx, nil
+}
+```
+
+**Service Layer (`pkg/service/account.go`):**
+
+```go
+func (s *AccountService) Deposit(userID, accountID uuid.UUID, amount float64, currencyCode currency.Code) (*domain.Transaction, *domain.ConversionInfo, error) {
+    // --- Rest of code  ---
+    // --- Domain logic ---
+    tx, err := account.Deposit(userID, money)
+    if err != nil {
+        _ = uow.Rollback()
+        return nil, nil, err
+    }
+    // --- Persist changes ---
+    err = repo.Update(account)
+    if err != nil {
+        _ = uow.Rollback()
+        return nil, nil, err
+    }
+    // --- Rest of code ---
+}
+```
+
+- **Service Layer**: Orchestrates the use case, manages transactions, and coordinates repositories.
+- **Domain Layer**: Enforces business rules and invariants (e.g., only the account owner can deposit, amount must be positive).
+- **Repositories**: Abstract persistence, injected into services.
+- **Unit of Work**: Ensures atomicity of operations.
 
 ## Project Structure 📁
 

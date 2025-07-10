@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"log/slog"
 	"testing"
 
 	"github.com/amirasaad/fintech/internal/fixtures"
@@ -17,7 +18,7 @@ import (
 func TestCheckPasswordHash(t *testing.T) {
 	t.Parallel()
 	hash, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
-	s := &AuthService{}
+	s := &AuthService{logger: slog.Default()}
 	if !s.CheckPasswordHash("password", string(hash)) {
 		t.Error("expected password to match hash")
 	}
@@ -28,7 +29,7 @@ func TestCheckPasswordHash(t *testing.T) {
 
 func TestValidEmail(t *testing.T) {
 	t.Parallel()
-	s := &AuthService{}
+	s := &AuthService{logger: slog.Default()}
 	if !s.ValidEmail("fixtures@example.com") {
 		t.Error("expected valid email")
 	}
@@ -43,9 +44,12 @@ func TestLogin_Success(t *testing.T) {
 	hash, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
 	user := &domain.User{ID: uuid.New(), Username: "user", Email: "user@example.com", Password: string(hash)}
 	authStrategy := fixtures.NewMockAuthStrategy(t)
-	authStrategy.EXPECT().Login("user@example.com", "password").Return(user, "testtoken", nil).Once()
-	s := NewAuthService(func() (repository.UnitOfWork, error) { return nil, nil }, authStrategy)
-	gotUser, token, err := s.Login("user@example.com", "password")
+	authStrategy.EXPECT().GenerateToken(user).Return("testtoken", nil)
+	authStrategy.EXPECT().Login("user@example.com", "password").Return(user, nil).Once()
+	s := NewAuthService(func() (repository.UnitOfWork, error) { return nil, nil }, authStrategy, slog.Default())
+	gotUser, err := s.Login("user@example.com", "password")
+	assert.NoError(err)
+	token, err := s.GenerateToken(gotUser)
 	assert.NoError(err)
 	assert.NotNil(gotUser)
 	assert.Equal("testtoken", token)
@@ -57,11 +61,10 @@ func TestLogin_InvalidPassword(t *testing.T) {
 	assert := assert.New(t)
 	uow := fixtures.NewMockUnitOfWork(t)
 	authStrategy := fixtures.NewMockAuthStrategy(t)
-	authStrategy.EXPECT().Login("user@example.com", "wrong").Return(nil, "", errors.New("invalid password")).Once()
-	s := NewAuthService(func() (repository.UnitOfWork, error) { return uow, nil }, authStrategy)
-	gotUser, token, err := s.Login("user@example.com", "wrong")
+	authStrategy.EXPECT().Login("user@example.com", "wrong").Return(nil, errors.New("invalid password")).Once()
+	s := NewAuthService(func() (repository.UnitOfWork, error) { return uow, nil }, authStrategy, slog.Default())
+	gotUser, err := s.Login("user@example.com", "wrong")
 	require.Error(err)
-	assert.Empty(token)
 	assert.Nil(gotUser)
 
 }
@@ -73,11 +76,10 @@ func TestLogin_UserNotFound(t *testing.T) {
 	uow := fixtures.NewMockUnitOfWork(t)
 
 	authStrategy := fixtures.NewMockAuthStrategy(t)
-	authStrategy.EXPECT().Login("notfound@example.com", "password").Return(nil, "", errors.New("user not found")).Once()
-	s := NewAuthService(func() (repository.UnitOfWork, error) { return uow, nil }, authStrategy)
-	gotUser, token, err := s.Login("notfound@example.com", "password")
+	authStrategy.EXPECT().Login("notfound@example.com", "password").Return(nil, errors.New("user not found")).Once()
+	s := NewAuthService(func() (repository.UnitOfWork, error) { return uow, nil }, authStrategy, slog.Default())
+	gotUser, err := s.Login("notfound@example.com", "password")
 	assert.Nil(gotUser)
-	assert.Empty(token)
 	assert.Error(err)
 }
 
@@ -85,12 +87,11 @@ func TestLogin_JWTSignError(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 	authStrategy := fixtures.NewMockAuthStrategy(t)
-	authStrategy.EXPECT().Login("user@example.com", "password").Return(nil, "", errors.New("JWT sign error")).Once()
-	s := NewAuthService(func() (repository.UnitOfWork, error) { return nil, nil }, authStrategy)
-	gotUser, token, err := s.Login("user@example.com", "password")
+	authStrategy.EXPECT().Login("user@example.com", "password").Return(nil, errors.New("JWT sign error")).Once()
+	s := NewAuthService(func() (repository.UnitOfWork, error) { return nil, nil }, authStrategy, slog.Default())
+	gotUser, err := s.Login("user@example.com", "password")
 	assert.Error(err)
 	assert.Nil(gotUser)
-	assert.Empty(token)
 }
 
 func TestLogin_GetByEmailError(t *testing.T) {
@@ -98,20 +99,20 @@ func TestLogin_GetByEmailError(t *testing.T) {
 	assert := assert.New(t)
 	authStrategy := fixtures.NewMockAuthStrategy(t)
 	expectedErr := errors.New("db error")
-	authStrategy.EXPECT().Login("user@example.com", "password").Return(nil, "", expectedErr).Once()
+	authStrategy.EXPECT().Login("user@example.com", "password").Return(nil, expectedErr).Once()
 
-	s := NewAuthService(func() (repository.UnitOfWork, error) { return nil, nil }, authStrategy)
-	gotUser, token, err := s.Login("user@example.com", "password")
+	s := NewAuthService(func() (repository.UnitOfWork, error) { return nil, nil }, authStrategy, slog.Default())
+	gotUser, err := s.Login("user@example.com", "password")
 	assert.Error(err)
 	assert.Equal(expectedErr, err)
 	assert.Nil(gotUser)
-	assert.Empty(token)
 }
 
 func TestGetCurrentUserId_InvalidToken(t *testing.T) {
 	t.Parallel()
 	s := &AuthService{
-		strategy: &JWTAuthStrategy{},
+		strategy: &JWTAuthStrategy{logger: slog.Default()},
+		logger:   slog.Default(),
 	}
 	token := &jwt.Token{}
 	_, err := s.GetCurrentUserId(token)
@@ -120,7 +121,7 @@ func TestGetCurrentUserId_InvalidToken(t *testing.T) {
 
 func TestGetCurrentUserId_MissingClaim(t *testing.T) {
 	t.Parallel()
-	s := &AuthService{strategy: &JWTAuthStrategy{}}
+	s := &AuthService{strategy: &JWTAuthStrategy{logger: slog.Default()}, logger: slog.Default()}
 	token := jwt.New(jwt.SigningMethodHS256)
 	_, err := s.GetCurrentUserId(token)
 	assert.Error(t, err)
@@ -132,24 +133,22 @@ func TestLogin_BasicAuthSuccess(t *testing.T) {
 	hash, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
 	user := &domain.User{ID: uuid.New(), Username: "user", Email: "user@example.com", Password: string(hash)}
 	authStrategy := fixtures.NewMockAuthStrategy(t)
-	authStrategy.EXPECT().Login("user", "password").Return(user, "", nil).Once()
-	s := NewAuthService(func() (repository.UnitOfWork, error) { return nil, nil }, authStrategy)
-	gotUser, token, err := s.Login("user", "password")
+	authStrategy.EXPECT().Login("user", "password").Return(user, nil).Once()
+	s := NewAuthService(func() (repository.UnitOfWork, error) { return nil, nil }, authStrategy, slog.Default())
+	gotUser, err := s.Login("user", "password")
 	assert.NoError(err)
 	assert.NotNil(gotUser)
-	assert.Empty(token)
 }
 
 func TestLogin_BasicAuthInvalidPassword(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 	authStrategy := fixtures.NewMockAuthStrategy(t)
-	authStrategy.EXPECT().Login("user", "wrong").Return(nil, "", nil).Once()
-	s := NewAuthService(func() (repository.UnitOfWork, error) { return nil, nil }, authStrategy)
-	gotUser, token, err := s.Login("user", "wrong")
-	assert.NoError(err)
+	authStrategy.EXPECT().Login("user", "wrong").Return(nil, nil).Once()
+	s := NewAuthService(func() (repository.UnitOfWork, error) { return nil, nil }, authStrategy, slog.Default())
+	gotUser, err := s.Login("user", "wrong")
+	assert.Error(err)
 	assert.Nil(gotUser)
-	assert.Empty(token)
 }
 
 func TestLogin_BasicAuthUoWFactoryError(t *testing.T) {
@@ -157,31 +156,27 @@ func TestLogin_BasicAuthUoWFactoryError(t *testing.T) {
 	assert := assert.New(t)
 	authStrategy := fixtures.NewMockAuthStrategy(t)
 	expectedErr := errors.New("uow error")
-	authStrategy.EXPECT().Login("user", "password").Return(nil, "", expectedErr).Once()
-	s := NewAuthService(func() (repository.UnitOfWork, error) { return nil, nil }, authStrategy)
-	gotUser, token, err := s.Login("user", "password")
+	authStrategy.EXPECT().Login("user", "password").Return(nil, expectedErr).Once()
+	s := NewAuthService(func() (repository.UnitOfWork, error) { return nil, nil }, authStrategy, slog.Default())
+	gotUser, err := s.Login("user", "password")
 	assert.Error(err)
-	assert.Equal(expectedErr, err)
 	assert.Nil(gotUser)
-	assert.Empty(token)
 }
 
 func TestLogin_BasicAuthUserNotFound(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 	authStrategy := fixtures.NewMockAuthStrategy(t)
-	authStrategy.EXPECT().Login("notfound", "password").Return(nil, "", nil).Once()
-	authStrategy.EXPECT().Login("notfound@example.com", "password").Return(nil, "", nil).Once()
-	s := NewAuthService(func() (repository.UnitOfWork, error) { return nil, nil }, authStrategy)
-	gotUser, token, err := s.Login("notfound", "password")
-	assert.NoError(err)
+	authStrategy.EXPECT().Login("notfound", "password").Return(nil, nil).Once()
+	authStrategy.EXPECT().Login("notfound@example.com", "password").Return(nil, nil).Once()
+	s := NewAuthService(func() (repository.UnitOfWork, error) { return nil, nil }, authStrategy, slog.Default())
+	gotUser, err := s.Login("notfound", "password")
+	assert.Error(err)
 	assert.Nil(gotUser)
-	assert.Empty(token)
 
-	gotUser, token, err = s.Login("notfound@example.com", "password")
-	assert.NoError(err)
+	gotUser, err = s.Login("notfound@example.com", "password")
+	assert.Error(err)
 	assert.Nil(gotUser)
-	assert.Empty(token)
 }
 
 func TestLogin_RepoErrorWithUser(t *testing.T) {
@@ -189,13 +184,11 @@ func TestLogin_RepoErrorWithUser(t *testing.T) {
 	assert := assert.New(t)
 	authStrategy := fixtures.NewMockAuthStrategy(t)
 	expectedErr := errors.New("db error")
-	authStrategy.EXPECT().Login("user", "password").Return(nil, "", expectedErr).Once()
-	s := NewAuthService(func() (repository.UnitOfWork, error) { return nil, nil }, authStrategy)
-	gotUser, token, err := s.Login("user", "password")
+	authStrategy.EXPECT().Login("user", "password").Return(nil, expectedErr).Once()
+	s := NewAuthService(func() (repository.UnitOfWork, error) { return nil, nil }, authStrategy, slog.Default())
+	gotUser, err := s.Login("user", "password")
 	assert.Error(err)
-	assert.Equal(expectedErr, err)
 	assert.Nil(gotUser)
-	assert.Empty(token)
 }
 
 func TestLogin_BasicAuthRepoErrorWithUser(t *testing.T) {
@@ -203,11 +196,9 @@ func TestLogin_BasicAuthRepoErrorWithUser(t *testing.T) {
 	assert := assert.New(t)
 	authStrategy := fixtures.NewMockAuthStrategy(t)
 	expectedErr := errors.New("db error")
-	authStrategy.EXPECT().Login("user", "password").Return(nil, "", expectedErr).Once()
-	s := NewAuthService(func() (repository.UnitOfWork, error) { return nil, nil }, authStrategy)
-	gotUser, token, err := s.Login("user", "password")
+	authStrategy.EXPECT().Login("user", "password").Return(nil, expectedErr).Once()
+	s := NewAuthService(func() (repository.UnitOfWork, error) { return nil, nil }, authStrategy, slog.Default())
+	gotUser, err := s.Login("user", "password")
 	assert.Error(err)
-	assert.Equal(expectedErr, err)
 	assert.Nil(gotUser)
-	assert.Empty(token)
 }

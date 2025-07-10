@@ -36,7 +36,8 @@ Authorization: Bearer {{login.response.body.$.data.$.token}}
 
 
 {
-    "amount": 100
+    "amount": 1000000000,
+    "currency": "JPY"
 }
 
 ### Withdraw from account
@@ -58,5 +59,68 @@ Authorization: Bearer {{login.response.body.$.data.$.token}}
 
 ### Get Account Balance
 # @name balance
+GET {{host}}/account/{{account.response.body.$.data.$.ID}}/balance
+Authorization: Bearer {{login.response.body.$.data.$.token}}
+
+### Error Handling Examples
+
+### 1. User Not Found (404)
+PUT {{host}}/user/00000000-0000-0000-0000-000000000000 HTTP/1.1
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.$.data.$.token}}
+
+{
+    "names": "Updated Name"
+}
+
+### 2. Account Not Found (404)
+GET {{host}}/account/00000000-0000-0000-0000-000000000000/balance
+Authorization: Bearer {{login.response.body.$.data.$.token}}
+
+### 3. Insufficient Funds (422)
+POST {{host}}/account/{{account.response.body.$.data.$.ID}}/withdraw HTTP/1.1
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.$.data.$.token}}
+
+{
+    "amount": 999999999,
+    "currency": "JPY"
+}
+
+### 4. Invalid Currency (422)
+POST {{host}}/account/{{account.response.body.$.data.$.ID}}/deposit HTTP/1.1
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.$.data.$.token}}
+
+{
+    "amount": 100,
+    "currency": "INVALID"
+}
+
+### 5. Validation Error (400) - Invalid Email
+POST {{host}}/user HTTP/1.1
+Content-Type: application/json
+
+{
+    "email": "invalid-email",
+    "username": "testuser",
+    "password": "password123"
+}
+
+### 6. Unauthorized Access (401) - No Token
+GET {{host}}/account/{{account.response.body.$.data.$.ID}}/balance
+
+### 7. Forbidden Access (403) - Wrong User
+# This would require a different user's token to demonstrate
+PUT {{host}}/user/{{login.response.body.$.data.$.user_id}} HTTP/1.1
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.$.data.$.token}}
+
+{
+    "names": "Updated Name"
+}
+
+### 8. Rate Limiting (429)
+# This would require multiple rapid requests to trigger
 GET {{host}}/account/{{account.response.body.$.data.$.ID}}/balance
 Authorization: Bearer {{login.response.body.$.data.$.token}}

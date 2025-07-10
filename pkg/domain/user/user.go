@@ -1,4 +1,4 @@
-package domain
+package user
 
 import (
 	"errors"
@@ -8,13 +8,20 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-var ErrUserNotFound = errors.New("user not found")
+var (
+	// ErrUserNotFound is returned when a user cannot be found in the repository.
+	ErrUserNotFound = errors.New("user not found")
+	// ErrUserUnauthorized is return when user
+	ErrUserUnauthorized = errors.New("user unauthorized")
+)
 
+// User represents a user in the system.
 type User struct {
 	ID        uuid.UUID `json:"id"`
 	Username  string    `json:"username"`
 	Email     string    `json:"email"`
 	Password  string    `json:"password"`
+	Names     string    `json:"names"`
 	CreatedAt time.Time `json:"created"`
 	UpdatedAt time.Time `json:"updated"`
 }
@@ -23,9 +30,15 @@ func hashPassword(password string) (string, error) {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
 	return string(bytes), err
 }
-func NewUser(
-	username, email, password string,
-) (*User, error) {
+
+// NewUser creates a new User with a hashed password and current timestamps.
+func NewUser(username, email, password string) (*User, error) {
+	if username == "" {
+		return nil, errors.New("username cannot be empty")
+	}
+	if email == "" {
+		return nil, errors.New("email cannot be empty")
+	}
 	hashedPassword, err := hashPassword(password)
 	if err != nil {
 		return nil, err
@@ -40,6 +53,7 @@ func NewUser(
 	}, nil
 }
 
+// NewUserFromData creates a User from raw data (used for DB hydration).
 func NewUserFromData(
 	id uuid.UUID,
 	username, email, password string,

@@ -7,6 +7,293 @@ info:
 
     **Rate Limiting:** All endpoints are subject to rate limiting. By default, a user can make a certain number of requests within a given time window. If the limit is exceeded, a `429 Too Many Requests` status code will be returned.
 paths:
+  /user:
+    post:
+      summary: Create a new user
+      description: Create a new user account with username, email, and password
+      tags:
+        - users
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                  description: Username (3-50 characters)
+                  example: "john_doe"
+                email:
+                  type: string
+                  format: email
+                  description: Email address
+                  example: "john@example.com"
+                password:
+                  type: string
+                  description: Password (6-72 characters)
+                  example: "securepassword123"
+              required:
+                - username
+                - email
+                - password
+      responses:
+        201:
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Response"
+        400:
+          description: Bad request (validation errors)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        429:
+          description: Too Many Requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        500:
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+
+  /user/{id}:
+    get:
+      summary: Get user by ID
+      description: Get a user by their unique identifier
+      tags:
+        - users
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: User ID
+      security:
+        - Bearer: []
+      responses:
+        200:
+          description: User found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Response"
+        400:
+          description: Bad request (invalid user ID)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        401:
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        404:
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+    
+    put:
+      summary: Update user
+      description: Update user information by ID
+      tags:
+        - users
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: User ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                names:
+                  type: string
+                  description: User's display name
+                  example: "John Doe"
+                  maxLength: 100
+      security:
+        - Bearer: []
+      responses:
+        200:
+          description: User updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Response"
+        400:
+          description: Bad request (validation errors)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        401:
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        403:
+          description: Forbidden (user can only update their own profile)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        404:
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        429:
+          description: Too Many Requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        500:
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+    
+    delete:
+      summary: Delete user
+      description: Delete a user account by ID with password confirmation
+      tags:
+        - users
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: User ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                password:
+                  type: string
+                  description: Password confirmation
+                  example: "securepassword123"
+              required:
+                - password
+      security:
+        - Bearer: []
+      responses:
+        204:
+          description: User deleted successfully
+        400:
+          description: Bad request (validation errors)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        401:
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        403:
+          description: Forbidden (user can only delete their own account)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        429:
+          description: Too Many Requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        500:
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+
+  /login:
+    post:
+      summary: User login
+      description: Authenticate user with identity (username or email) and password
+      tags:
+        - auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                identity:
+                  type: string
+                  description: Username or email
+                  example: "john_doe"
+                password:
+                  type: string
+                  description: Password
+                  example: "securepassword123"
+              required:
+                - identity
+                - password
+      responses:
+        200:
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Response"
+        400:
+          description: Bad request (validation errors)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        401:
+          description: Unauthorized (invalid credentials)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        429:
+          description: Too Many Requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        500:
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+
   /account:
     post:
       summary: Create a new account
@@ -27,7 +314,7 @@ paths:
                 value: { "currency": "EUR" }
               default:
                 summary: Create account with default currency
-                value: { }
+                value: {}
       responses:
         201:
           description: Account created
@@ -78,7 +365,10 @@ paths:
 
   /account/{id}/deposit:
     post:
-      summary: Deposit money to an account
+      summary: Deposit funds into an account
+      description: Deposit a specified amount into the user's account. If the currency differs from the account's, conversion will be performed.
+      tags:
+        - accounts
       parameters:
         - in: path
           name: id
@@ -96,226 +386,146 @@ paths:
               properties:
                 amount:
                   type: number
-                  format: float
-                  description: Amount to deposit
-            examples:
-              valid:
-                summary: valid deposit request
-                value: { "amount": 100.0 }
-              invalid:
-                summary: invalid deposit request
-                value: { "amount": -100.0 }
+                  format: integer
+                  example: 100.0
+                currency:
+                  type: string
+                  example: EUR
       responses:
-        200:
-          description: Money deposited
+        "200":
+          description: Deposit successful
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Response"
+                status:
+                  type: integer
+                message:
+                  type: string
+                data:
+                  type:
+                    oneOf:
+                      - $ref: "#/components/schemas/TransactionDTO"
+                      - $ref: "#/components/schemas/ConversionResponseDTO"
               examples:
-                success:
-                  summary: Successful deposit
+                direct:
+                  summary: Direct deposit (no conversion)
                   value:
                     status: 200
                     message: Deposit successful
                     data:
-                      id: "123e4567-e89b-12d3-a456-426614174001"
-                      amount: 10000
-                      balance: 10000
-                      created: "2023-10-27T10:05:00Z"
-        400:
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              examples:
-                badRequest:
-                  summary: Invalid amount
+                      id: "123e4567-e89b-12d3-a456-426614174000"
+                      user_id: "user-uuid"
+                      account_id: "account-uuid"
+                      amount: 100.0
+                      balance: 200.0
+                      created_at: "2024-05-01T12:00:00Z"
+                      currency: "USD"
+                converted:
+                  summary: Deposit with conversion
                   value:
-                    type: "/errors/bad-request"
-                    title: "Bad Request"
-                    status: 400
-                    detail: "Transaction amount must be positive"
-                    instance: "/account/{id}/deposit"
-        422:
-          description: Unprocessable Entity
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              examples:
-                unprocessableEntity:
-                  summary: Unprocessable Entity
-                  value:
-                    type: "/errors/unprocessable-entity"
-                    title: "Unprocessable Entity"
-                    status: 422
-                    detail: "Insufficient funds for withdrawal"
-                    instance: "/account/{id}/deposit"
-        404:
-          description: Account not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              examples:
-                notFound:
-                  summary: Account not found
-                  value:
-                    type: "/errors/not-found"
-                    title: "Not Found"
-                    status: 404
-                    detail: "Account not found"
-                    instance: "/account/{id}/deposit"
-        500:
+                    status: 200
+                    message: Deposit successful (converted)
+                    data:
+                      transaction:
+                        id: "123e4567-e89b-12d3-a456-426614174000"
+                        user_id: "user-uuid"
+                        account_id: "account-uuid"
+                        amount: 120.0
+                        balance: 220.0
+                        created_at: "2024-05-01T12:00:00Z"
+                        currency: "USD"
+                      original_amount: 100.0
+                      original_currency: "EUR"
+                      converted_amount: 120.0
+                      converted_currency: "USD"
+                      conversion_rate: 1.2
+        "400":
+          description: Bad request
+        "422":
+          description: Unprocessable entity (e.g., invalid currency)
+        "500":
           description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              examples:
-                internalServerError:
-                  summary: Internal server error
-                  value:
-                    type: "/errors/internal-server-error"
-                    title: "Internal Server Error"
-                    status: 500
-                    detail: "An unexpected error occurred."
-                    instance: "/account/{id}/deposit"
-        429:
-          description: Too Many Requests
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              examples:
-                tooManyRequests:
-                  summary: Too Many Requests
-                  value:
-                    type: "/errors/too-many-requests"
-                    title: "Too Many Requests"
-                    status: 429
-                    detail: "Rate limit exceeded"
-                    instance: "/account/{id}/deposit"
 
   /account/{id}/withdraw:
     post:
-      summary: Withdraw money from an account
+      summary: Withdraw funds from an account
+      description: Withdraw a specified amount from the user's account. If the currency differs from the account's, conversion will be performed.
+      tags:
+        - accounts
       parameters:
-        - in: path
-          name: id
+        - name: id
+          in: path
           required: true
           schema:
             type: string
-            format: uuid
-            description: Account ID
+          description: Account ID
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/DepositRequest"
-            examples:
-              valid:
-                summary: valid withdrawal request
-                value: { "amount": 100.0 }
-              invalid:
-                summary: invalid withdrawal request
-                value: { "amount": -100.0 }
+              type: object
+              properties:
+                amount:
+                  type: number
+                  example: 50.0
+                currency:
+                  type: string
+                  example: EUR
       responses:
-        200:
-          description: Money withdrawn
+        "200":
+          description: Withdrawal successful
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Response"
+                status:
+                  type: integer
+                message:
+                  type: string
+                data:
+                  type:
+                    oneOf:
+                      - $ref: "#/components/schemas/TransactionDTO"
+                      - $ref: "#/components/schemas/ConversionResponseDTO"
               examples:
-                success:
-                  summary: Successful withdrawal
+                direct:
+                  summary: Direct withdrawal (no conversion)
                   value:
                     status: 200
                     message: Withdrawal successful
                     data:
-                      id: "123e4567-e89b-12d3-a456-426614174002"
-                      amount: -10000
-                      balance: 990000
-                      created: "2023-10-27T10:10:00Z"
-        400:
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              examples:
-                badRequest:
-                  summary: Invalid amount
+                      id: "123e4567-e89b-12d3-a456-426614174001"
+                      user_id: "user-uuid"
+                      account_id: "account-uuid"
+                      amount: -50.0
+                      balance: 150.0
+                      created_at: "2024-05-01T12:10:00Z"
+                      currency: "USD"
+                converted:
+                  summary: Withdrawal with conversion
                   value:
-                    type: "/errors/bad-request"
-                    title: "Bad Request"
-                    status: 400
-                    detail: "Withdrawal amount must be positive"
-                    instance: "/account/{id}/withdraw"
-        404:
-          description: Account not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              examples:
-                notFound:
-                  summary: Account not found
-                  value:
-                    type: "/errors/not-found"
-                    title: "Not Found"
-                    status: 404
-                    detail: "Account not found"
-                    instance: "/account/{id}/withdraw"
-        422:
-          description: Unprocessable Entity
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              examples:
-                unprocessableEntity:
-                  summary: Insufficient funds
-                  value:
-                    type: "/errors/unprocessable-entity"
-                    title: "Unprocessable Entity"
-                    status: 422
-                    detail: "Insufficient funds for withdrawal"
-                    instance: "/account/{id}/withdraw"
-        500:
+                    status: 200
+                    message: Withdrawal successful (converted)
+                    data:
+                      transaction:
+                        id: "123e4567-e89b-12d3-a456-426614174001"
+                        user_id: "user-uuid"
+                        account_id: "account-uuid"
+                        amount: -60.0
+                        balance: 140.0
+                        created_at: "2024-05-01T12:10:00Z"
+                        currency: "USD"
+                      original_amount: 50.0
+                      original_currency: "EUR"
+                      converted_amount: 60.0
+                      converted_currency: "USD"
+                      conversion_rate: 1.2
+        "400":
+          description: Bad request
+        "422":
+          description: Unprocessable entity (e.g., invalid currency)
+        "500":
           description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              examples:
-                internalServerError:
-                  summary: Internal server error
-                  value:
-                    type: "/errors/internal-server-error"
-                    title: "Internal Server Error"
-                    status: 500
-                    detail: "An unexpected error occurred."
-                    instance: "/account/{id}/withdraw"
-        429:
-          description: Too Many Requests
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              examples:
-                tooManyRequests:
-                  summary: Too Many Requests
-                  value:
-                    type: "/errors/too-many-requests"
-                    title: "Too Many Requests"
-                    status: 429
-                    detail: "Rate limit exceeded"
-                    instance: "/account/{id}/withdraw"
 
   /account/{id}/balance:
     get:
@@ -540,7 +750,39 @@ components:
           description: Response data
           nullable: true
 
-    Error:
+    TransactionDTO:
+      type: object
+      properties:
+        id:
+          type: string
+        user_id:
+          type: string
+        account_id:
+          type: string
+        amount:
+          type: number
+        balance:
+          type: number
+        created_at:
+          type: string
+        currency:
+          type: string
+    ConversionResponseDTO:
+      type: object
+      properties:
+        transaction:
+          $ref: "#/components/schemas/TransactionDTO"
+        original_amount:
+          type: number
+        original_currency:
+          type: string
+        converted_amount:
+          type: number
+        converted_currency:
+          type: string
+        conversion_rate:
+          type: number
+    ProblemDetails:
       type: object
       properties:
         type:

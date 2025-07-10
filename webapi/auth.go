@@ -6,8 +6,8 @@ import (
 )
 
 type LoginInput struct {
-	Identity string `json:"identity"`
-	Password string `json:"password"`
+	Identity string `json:"identity" validate:"required"`
+	Password string `json:"password" validate:"required"`
 }
 
 func AuthRoutes(app *fiber.App, authSvc *service.AuthService) {
@@ -29,17 +29,21 @@ func AuthRoutes(app *fiber.App, authSvc *service.AuthService) {
 // @Router /login [post]
 func Login(authSvc *service.AuthService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		input := new(LoginInput)
-		if err := c.BodyParser(input); err != nil {
-			return ErrorResponseJSON(c, fiber.StatusBadRequest, "Error on login request", err.Error())
-		}
-		user, token, err := authSvc.Login(input.Identity, input.Password)
+		input, err := BindAndValidate[LoginInput](c)
 		if err != nil {
-			return ErrorResponseJSON(c, fiber.StatusInternalServerError, "Internal Server Error", err.Error())
+			return nil // Error already written by BindAndValidate
 		}
-		if user == nil || token == "" {
-			return ErrorResponseJSON(c, fiber.StatusUnauthorized, "Invalid identity or password", nil)
+		user, err := authSvc.Login(input.Identity, input.Password)
+		if err != nil {
+			return ProblemDetailsJSON(c, "Internal Server Error", err)
 		}
-		return c.JSON(Response{Status: fiber.StatusOK, Message: "Success login", Data: fiber.Map{"token": token}})
+		if user == nil {
+			return ProblemDetailsJSON(c, "Invalid identity or password", nil, "Identity or password is incorrect", fiber.StatusUnauthorized)
+		}
+		token, err := authSvc.GenerateToken(user)
+		if err != nil {
+			return ProblemDetailsJSON(c, "Internal Server Error", err)
+		}
+		return SuccessResponseJSON(c, fiber.StatusOK, "Success login", fiber.Map{"token": token})
 	}
 }

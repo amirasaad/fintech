@@ -2,67 +2,41 @@
 
 ## Overview
 
-This document outlines the multi-currency support feature in the Fintech application. Multi-currency is implemented at both the **account and transaction levels**.
+The fintech platform supports multi-currency accounts and transactions with robust, precise, and domain-driven conversion and rounding logic. All currency conversion and rounding is handled in the domain layer, ensuring:
 
-- Each account is assigned a specific currency (e.g., "USD", "EUR") upon creation.
-- All financial operations (deposits, withdrawals) for an account **must** be performed in that account's designated currency.
-- Each transaction records the currency in which it was performed.
-- The currency is specified using the ISO 4217 code. If not provided during account creation, it defaults to "USD".
+- Any float64 value can be safely converted and stored.
+- Rounding is always performed to the correct number of decimals for the target currency using big.Rat.
+- The domain layer is responsible for all rounding and validation, not the service or API layers.
 
-## API Changes
+## How It Works
 
-### Account Creation
+- Users can deposit, withdraw, and transfer in any supported currency.
+- The system fetches real-time exchange rates and performs conversion in the domain layer.
+- The result is rounded to the correct number of decimals for the target currency.
+- All values are stored in the smallest unit (e.g., cents for USD) as BIGINT.
+- Conversion details (original amount, rate, etc.) are stored as DECIMAL(30,15) for full float64 compatibility.
 
-To create an account with a specific currency, provide the `currency` code in the request body.
+## Database Schema
 
-- **Request:**
+- Money values: BIGINT (smallest unit)
+- Conversion fields: DECIMAL(30,15)
 
-  ```json
-  { "currency": "EUR" }
-  ```
+## Best Practices
 
-- **Response:** The new account object will include the specified currency.
+- Pass raw float64 values to the domain layer; do not round in the service or API layers.
+- The domain will round and validate as needed.
+- All conversion and rounding logic is centralized for consistency and safety.
 
-  ```json
-  { "id": "...", "currency": "EUR", ... }
-  ```
+## Example
 
-### Deposit & Withdraw Operations
+- Deposit 1,000,000,000 JPY to a USD account:
+  - The system fetches the exchange rate, converts, and rounds to 2 decimals for USD.
+  - The result is stored as an integer (cents) in the DB.
+  - The original amount, rate, and conversion details are stored as DECIMAL(30,15).
 
-When depositing or withdrawing funds, the request body **must** include the `currency`, which must match the account's currency.
+## Recent Improvements
 
-- **Request:**
-
-  ```json
-  { "amount": 100.0, "currency": "EUR" }
-  ```
-
-- **Validation:**
-  - If the `currency` in the request does not match the account's currency, the API will return a `400 Bad Request` error.
-  - **Error Message:** `"currency mismatch: account has EUR, operation is USD"`
-
-## Implementation Summary
-
-- **Account and Transaction-Level Currency:** The `Account` and `Transaction` domain models, database schema, and repositories have been updated to include a `currency` field.
-- **Service-Layer Validation:** Application services now enforce currency consistency for all transactions.
-- **API Enforcement:** The web API validates currency codes in requests and ensures they match the account's currency for all operations.
-- **Testing:** Unit and integration tests have been added to cover multi-currency scenarios, including validation and error handling.
-
-## Future Work
-
-- **Currency Conversion:** The system does not currently support currency conversion. Future work could include integrating with an exchange rate API to allow for cross-currency transactions.
-- **Reporting:** Enhanced financial reporting that leverages the multi-currency data could be developed.
-
-## Error Handling
-
-- **`400 Bad Request`**: Returned for invalid or unsupported currency codes.
-- **`400 Bad Request`**: Returned for currency mismatches between the operation and the account.
-
-## Extending Currency Support
-
-To support a new currency, update the `iso4217` map located in the domain layer and ensure it is a valid ISO 4217 code.
-
-## Security Considerations
-
-- All currency values are validated against a predefined list of supported codes.
-- The system does not perform any currency conversion at this stage, preventing complexities related to exchange rate management.
+- Domain-driven rounding and validation using big.Rat
+- Full float64 compatibility for conversion fields
+- DB schema updated for DECIMAL(30,15) on conversion fields
+- All overflow and decimal errors are now handled before DB writes
