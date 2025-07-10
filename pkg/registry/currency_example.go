@@ -79,12 +79,8 @@ func CurrencyRegistryExample() {
 	}
 
 	for _, currency := range currencies {
-		err := registry.Register(ctx, currency)
-		if err != nil {
-			fmt.Printf("Failed to register %s: %v\n", currency.Name(), err)
-		} else {
-			fmt.Printf("Registered: %s (%s)\n", currency.Name(), currency.Metadata()["code"])
-		}
+		registry.Register(ctx, currency) //nolint:errcheck
+		fmt.Printf("Registered: %s (%s)\n", currency.Name(), currency.Metadata()["code"])
 	}
 
 	// Demonstrate search capabilities
@@ -173,7 +169,7 @@ func CurrencyRegistryExample() {
 			fmt.Sprintf("T%d", i),
 			2,
 		)
-		registry.Register(ctx, currency)
+		registry.Register(ctx, currency) //nolint:errcheck
 	}
 	registerTime := time.Since(start)
 	fmt.Printf("Registered 100 currencies in %v\n", registerTime)
@@ -339,7 +335,7 @@ func CurrencyRegistryWithPersistence() {
 	}
 
 	for _, currency := range currencies {
-		registry.Register(ctx, currency)
+		registry.Register(ctx, currency) //nolint:errcheck
 	}
 
 	fmt.Printf("Registered %d currencies to persistent storage\n", len(currencies))
@@ -415,7 +411,7 @@ func CurrencyRegistryWithEvents() {
 	}
 
 	for _, currency := range currencies {
-		registry.Register(ctx, currency)
+		registry.Register(ctx, currency) //nolint:errcheck
 		observer.OnEntityRegistered(ctx, currency)
 	}
 

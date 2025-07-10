@@ -105,11 +105,11 @@ func ExampleMonitoredRegistry() {
 
 	// Simulate some lookups and errors
 	for i := 1; i <= 5; i++ {
-		registry.Get(ctx, fmt.Sprintf("user-%d", i))
+		registry.Get(ctx, fmt.Sprintf("user-%d", i)) //nolint:errcheck
 	}
 
 	// Try to get non-existent user (will increment error count)
-	registry.Get(ctx, "non-existent")
+	registry.Get(ctx, "non-existent") //nolint:errcheck
 
 	// The registry automatically tracks metrics
 	fmt.Println("Registry operations completed with metrics tracking")

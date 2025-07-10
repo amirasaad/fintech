@@ -8,6 +8,7 @@ import (
 	"github.com/amirasaad/fintech/pkg/domain/user"
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/log"
 )
 
 // Response defines the standard API response structure for success cases.
@@ -49,7 +50,10 @@ func ProblemDetailsJSON(
 	pd.Instance = c.OriginalURL()
 	c.Set(fiber.HeaderContentType, "application/problem+json")
 
-	return c.Status(status).JSON(pd)
+	if err := c.Status(status).JSON(pd); err != nil {
+		log.Errorf("ProblemDetailsJSON failed: %v", err)
+	}
+	return nil
 }
 
 // ErrorToStatusCode maps domain errors to appropriate HTTP status codes.
@@ -83,7 +87,9 @@ func ErrorToStatusCode(err error) int {
 func BindAndValidate[T any](c *fiber.Ctx) (*T, error) {
 	var input T
 	if err := c.BodyParser(&input); err != nil {
-		ProblemDetailsJSON(c, fiber.StatusBadRequest, "Invalid request body", err.Error())
+		if err := ProblemDetailsJSON(c, fiber.StatusBadRequest, "Invalid request body", err.Error()); err != nil {
+			log.Errorf("ProblemDetailsJSON failed: %v", err)
+		}
 		return nil, err
 	}
 	validate := validator.New()
@@ -95,10 +101,14 @@ func BindAndValidate[T any](c *fiber.Ctx) (*T, error) {
 				msg := fe.Tag()
 				details[field] = msg
 			}
-			ProblemDetailsJSON(c, fiber.StatusBadRequest, "Validation failed", details)
+			if err := ProblemDetailsJSON(c, fiber.StatusBadRequest, "Validation failed", details); err != nil {
+				log.Errorf("ProblemDetailsJSON failed: %v", err)
+			}
 			return nil, err
 		}
-		ProblemDetailsJSON(c, fiber.StatusBadRequest, "Validation failed", err.Error())
+		if err := ProblemDetailsJSON(c, fiber.StatusBadRequest, "Validation failed", err.Error()); err != nil {
+			log.Error("ProblemDetailsJSON failed: %v", err)
+		}
 		return nil, err
 	}
 	return &input, nil

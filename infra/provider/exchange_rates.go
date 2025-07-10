@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
-	"regexp"
 	"time"
 
 	infra_cache "github.com/amirasaad/fintech/infra/cache"
@@ -13,18 +12,6 @@ import (
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/provider"
 )
-
-// maskApiKeyInUrl masks API keys in both /v6/<key>/ path segments and api_key query parameters.
-// Usage: s.logger.Info("Fetching rates", "url", maskApiKeyInUrl(apiUrl))
-func maskApiKeyInUrl(url string) string {
-	// Mask /v6/<key> in path
-	re := regexp.MustCompile(`(v6/)[^/]+`)
-	masked := re.ReplaceAllString(url, `${1}[MASKED]`)
-	// Mask api_key in query string
-	qre := regexp.MustCompile(`([?&]api_key=)[^&]+`)
-	masked = qre.ReplaceAllString(masked, `${1}[MASKED]`)
-	return masked
-}
 
 // ExchangeRateService provides real-time exchange rates with caching and fallback providers.
 type ExchangeRateService struct {
