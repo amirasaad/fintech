@@ -43,14 +43,9 @@ func ListCurrencies(currencySvc *service.CurrencyService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		currencies, err := currencySvc.ListAllCurrencies(c.Context())
 		if err != nil {
-			return ProblemDetailsJSON(c, fiber.StatusInternalServerError, "Failed to list currencies", err.Error())
+			return ProblemDetailsJSON(c, "Failed to list currencies", err)
 		}
-
-		return c.JSON(Response{
-			Status:  fiber.StatusOK,
-			Message: "Currencies fetched successfully",
-			Data:    currencies,
-		})
+		return SuccessResponseJSON(c, fiber.StatusOK, "Currencies fetched successfully", currencies)
 	}
 }
 
@@ -67,14 +62,9 @@ func ListSupportedCurrencies(currencySvc *service.CurrencyService) fiber.Handler
 	return func(c *fiber.Ctx) error {
 		currencies, err := currencySvc.ListSupportedCurrencies(c.Context())
 		if err != nil {
-			return ProblemDetailsJSON(c, fiber.StatusInternalServerError, "Failed to list supported currencies", err.Error())
+			return ProblemDetailsJSON(c, "Failed to list supported currencies", err)
 		}
-
-		return c.JSON(Response{
-			Status:  fiber.StatusOK,
-			Message: "Supported currencies fetched successfully",
-			Data:    currencies,
-		})
+		return SuccessResponseJSON(c, fiber.StatusOK, "Supported currencies fetched successfully", currencies)
 	}
 }
 
@@ -94,24 +84,19 @@ func GetCurrency(currencySvc *service.CurrencyService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		code := c.Params("code")
 		if code == "" {
-			return ProblemDetailsJSON(c, fiber.StatusBadRequest, "Currency code is required", "Missing currency code")
+			return ProblemDetailsJSON(c, "Currency code is required", nil, "Missing currency code", fiber.StatusBadRequest)
 		}
 
 		// Validate currency code format
 		if err := currencySvc.ValidateCurrencyCode(c.Context(), code); err != nil {
-			return ProblemDetailsJSON(c, fiber.StatusBadRequest, "Invalid currency code", err.Error())
+			return ProblemDetailsJSON(c, "Invalid currency code", err, "Currency code must be a valid ISO 4217 code", fiber.StatusBadRequest)
 		}
 
 		currency, err := currencySvc.GetCurrency(c.Context(), code)
 		if err != nil {
-			return ProblemDetailsJSON(c, fiber.StatusNotFound, "Currency not found", err.Error())
+			return ProblemDetailsJSON(c, "Currency not found", err)
 		}
-
-		return c.JSON(Response{
-			Status:  fiber.StatusOK,
-			Message: "Currency fetched successfully",
-			Data:    currency,
-		})
+		return SuccessResponseJSON(c, fiber.StatusOK, "Currency fetched successfully", currency)
 	}
 }
 
@@ -129,24 +114,16 @@ func CheckCurrencySupported(currencySvc *service.CurrencyService) fiber.Handler 
 	return func(c *fiber.Ctx) error {
 		code := c.Params("code")
 		if code == "" {
-			return ProblemDetailsJSON(c, fiber.StatusBadRequest, "Currency code is required", "Missing currency code")
+			return ProblemDetailsJSON(c, "Currency code is required", nil)
 		}
 
 		// Validate currency code format
 		if err := currencySvc.ValidateCurrencyCode(c.Context(), code); err != nil {
-			return ProblemDetailsJSON(c, fiber.StatusBadRequest, "Invalid currency code", err.Error())
+			return ProblemDetailsJSON(c, "Invalid currency code", err)
 		}
 
 		supported := currencySvc.IsCurrencySupported(c.Context(), code)
-
-		return c.JSON(Response{
-			Status:  fiber.StatusOK,
-			Message: "Currency support checked successfully",
-			Data: fiber.Map{
-				"code":      code,
-				"supported": supported,
-			},
-		})
+		return SuccessResponseJSON(c, fiber.StatusOK, "Currency support checked successfully", fiber.Map{"code": code, "supported": supported})
 	}
 }
 
@@ -165,19 +142,14 @@ func SearchCurrencies(currencySvc *service.CurrencyService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		query := c.Query("q")
 		if query == "" {
-			return ProblemDetailsJSON(c, fiber.StatusBadRequest, "Search query is required", "Missing search query")
+			return ProblemDetailsJSON(c, "Search query is required", nil, "Missing search query", fiber.StatusBadRequest)
 		}
 
 		currencies, err := currencySvc.SearchCurrencies(c.Context(), query)
 		if err != nil {
-			return ProblemDetailsJSON(c, fiber.StatusInternalServerError, "Failed to search currencies", err.Error())
+			return ProblemDetailsJSON(c, "Failed to search currencies", err)
 		}
-
-		return c.JSON(Response{
-			Status:  fiber.StatusOK,
-			Message: "Currencies searched successfully",
-			Data:    currencies,
-		})
+		return SuccessResponseJSON(c, fiber.StatusOK, "Currencies searched successfully", currencies)
 	}
 }
 
@@ -196,19 +168,14 @@ func SearchCurrenciesByRegion(currencySvc *service.CurrencyService) fiber.Handle
 	return func(c *fiber.Ctx) error {
 		region := c.Params("region")
 		if region == "" {
-			return ProblemDetailsJSON(c, fiber.StatusBadRequest, "Region is required", "Missing region")
+			return ProblemDetailsJSON(c, "Region is required", nil, "Missing region", fiber.StatusBadRequest)
 		}
 
 		currencies, err := currencySvc.SearchCurrenciesByRegion(c.Context(), region)
 		if err != nil {
-			return ProblemDetailsJSON(c, fiber.StatusInternalServerError, "Failed to search currencies by region", err.Error())
+			return ProblemDetailsJSON(c, "Failed to search currencies by region", err)
 		}
-
-		return c.JSON(Response{
-			Status:  fiber.StatusOK,
-			Message: "Currencies by region fetched successfully",
-			Data:    currencies,
-		})
+		return SuccessResponseJSON(c, fiber.StatusOK, "Currencies by region fetched successfully", currencies)
 	}
 }
 
@@ -225,14 +192,9 @@ func GetCurrencyStatistics(currencySvc *service.CurrencyService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		stats, err := currencySvc.GetCurrencyStatistics(c.Context())
 		if err != nil {
-			return ProblemDetailsJSON(c, fiber.StatusInternalServerError, "Failed to get currency statistics", err.Error())
+			return ProblemDetailsJSON(c, "Failed to get currency statistics", err)
 		}
-
-		return c.JSON(Response{
-			Status:  fiber.StatusOK,
-			Message: "Currency statistics fetched successfully",
-			Data:    stats,
-		})
+		return SuccessResponseJSON(c, fiber.StatusOK, "Currency statistics fetched successfully", stats)
 	}
 }
 
@@ -249,14 +211,9 @@ func GetDefaultCurrency(currencySvc *service.CurrencyService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		defaultCurrency, err := currencySvc.GetDefaultCurrency(c.Context())
 		if err != nil {
-			return ProblemDetailsJSON(c, fiber.StatusInternalServerError, "Failed to get default currency", err.Error())
+			return ProblemDetailsJSON(c, "Failed to get default currency", err)
 		}
-
-		return c.JSON(Response{
-			Status:  fiber.StatusOK,
-			Message: "Default currency fetched successfully",
-			Data:    defaultCurrency,
-		})
+		return SuccessResponseJSON(c, fiber.StatusOK, "Default currency fetched successfully", defaultCurrency)
 	}
 }
 
@@ -289,12 +246,12 @@ func RegisterCurrency(currencySvc *service.CurrencyService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		input, err := BindAndValidate[RegisterCurrencyRequest](c)
 		if err != nil {
-			return nil // Error already written by helper
+			return nil // Error already written by BindAndValidate
 		}
 
 		// Validate currency code format
 		if err = currencySvc.ValidateCurrencyCode(c.Context(), input.Code); err != nil {
-			return ProblemDetailsJSON(c, fiber.StatusBadRequest, "Invalid currency code", err.Error())
+			return ProblemDetailsJSON(c, "Invalid currency code", err)
 		}
 
 		currencyMeta := currency.CurrencyMeta{
@@ -309,24 +266,18 @@ func RegisterCurrency(currencySvc *service.CurrencyService) fiber.Handler {
 		}
 
 		if err = currencySvc.RegisterCurrency(c.Context(), currencyMeta); err != nil {
-			status := fiber.StatusInternalServerError
 			if err == currency.ErrCurrencyExists {
-				status = fiber.StatusConflict
+				return ProblemDetailsJSON(c, "Failed to register currency", err)
 			}
-			return ProblemDetailsJSON(c, status, "Failed to register currency", err.Error())
+			return ProblemDetailsJSON(c, "Failed to register currency", err)
 		}
 
 		// Get the registered currency
 		registered, err := currencySvc.GetCurrency(c.Context(), input.Code)
 		if err != nil {
-			return ProblemDetailsJSON(c, fiber.StatusInternalServerError, "Failed to retrieve registered currency", err.Error())
+			return ProblemDetailsJSON(c, "Failed to retrieve registered currency", err)
 		}
-
-		return c.Status(fiber.StatusCreated).JSON(Response{
-			Status:  fiber.StatusCreated,
-			Message: "Currency registered successfully",
-			Data:    registered,
-		})
+		return SuccessResponseJSON(c, fiber.StatusCreated, "Currency registered successfully", registered)
 	}
 }
 
@@ -347,29 +298,21 @@ func UnregisterCurrency(currencySvc *service.CurrencyService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		code := c.Params("code")
 		if code == "" {
-			return ProblemDetailsJSON(c, fiber.StatusBadRequest, "Currency code is required", "Missing currency code")
+			return ProblemDetailsJSON(c, "Currency code is required", nil)
 		}
 
 		// Validate currency code format
 		if err := currencySvc.ValidateCurrencyCode(c.Context(), code); err != nil {
-			return ProblemDetailsJSON(c, fiber.StatusBadRequest, "Invalid currency code", err.Error())
+			return ProblemDetailsJSON(c, "Invalid currency code", err)
 		}
 
 		if err := currencySvc.UnregisterCurrency(c.Context(), code); err != nil {
-			status := fiber.StatusInternalServerError
 			if err == currency.ErrCurrencyNotFound {
-				status = fiber.StatusNotFound
+				return ProblemDetailsJSON(c, "Failed to unregister currency", err)
 			}
-			return ProblemDetailsJSON(c, status, "Failed to unregister currency", err.Error())
+			return ProblemDetailsJSON(c, "Failed to unregister currency", err)
 		}
-
-		return c.JSON(Response{
-			Status:  fiber.StatusOK,
-			Message: "Currency unregistered successfully",
-			Data: fiber.Map{
-				"code": code,
-			},
-		})
+		return SuccessResponseJSON(c, fiber.StatusOK, "Currency unregistered successfully", fiber.Map{"code": code})
 	}
 }
 
@@ -390,29 +333,21 @@ func ActivateCurrency(currencySvc *service.CurrencyService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		code := c.Params("code")
 		if code == "" {
-			return ProblemDetailsJSON(c, fiber.StatusBadRequest, "Currency code is required", "Missing currency code")
+			return ProblemDetailsJSON(c, "Currency code is required", nil)
 		}
 
 		// Validate currency code format
 		if err := currencySvc.ValidateCurrencyCode(c.Context(), code); err != nil {
-			return ProblemDetailsJSON(c, fiber.StatusBadRequest, "Invalid currency code", err.Error())
+			return ProblemDetailsJSON(c, "Invalid currency code", err)
 		}
 
 		if err := currencySvc.ActivateCurrency(c.Context(), code); err != nil {
-			status := fiber.StatusInternalServerError
 			if err == currency.ErrCurrencyNotFound {
-				status = fiber.StatusNotFound
+				return ProblemDetailsJSON(c, "Failed to activate currency", err)
 			}
-			return ProblemDetailsJSON(c, status, "Failed to activate currency", err.Error())
+			return ProblemDetailsJSON(c, "Failed to activate currency", err)
 		}
-
-		return c.JSON(Response{
-			Status:  fiber.StatusOK,
-			Message: "Currency activated successfully",
-			Data: fiber.Map{
-				"code": code,
-			},
-		})
+		return SuccessResponseJSON(c, fiber.StatusOK, "Currency activated successfully", fiber.Map{"code": code})
 	}
 }
 
@@ -433,28 +368,20 @@ func DeactivateCurrency(currencySvc *service.CurrencyService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		code := c.Params("code")
 		if code == "" {
-			return ProblemDetailsJSON(c, fiber.StatusBadRequest, "Currency code is required", "Missing currency code")
+			return ProblemDetailsJSON(c, "Currency code is required", nil)
 		}
 
 		// Validate currency code format
 		if err := currencySvc.ValidateCurrencyCode(c.Context(), code); err != nil {
-			return ProblemDetailsJSON(c, fiber.StatusBadRequest, "Invalid currency code", err.Error())
+			return ProblemDetailsJSON(c, "Invalid currency code", err)
 		}
 
 		if err := currencySvc.DeactivateCurrency(c.Context(), code); err != nil {
-			status := fiber.StatusInternalServerError
 			if err == currency.ErrCurrencyNotFound {
-				status = fiber.StatusNotFound
+				return ProblemDetailsJSON(c, "Failed to deactivate currency", err)
 			}
-			return ProblemDetailsJSON(c, status, "Failed to deactivate currency", err.Error())
+			return ProblemDetailsJSON(c, "Failed to deactivate currency", err)
 		}
-
-		return c.JSON(Response{
-			Status:  fiber.StatusOK,
-			Message: "Currency deactivated successfully",
-			Data: fiber.Map{
-				"code": code,
-			},
-		})
+		return SuccessResponseJSON(c, fiber.StatusOK, "Currency deactivated successfully", fiber.Map{"code": code})
 	}
 }

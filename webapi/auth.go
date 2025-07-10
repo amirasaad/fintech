@@ -1,9 +1,6 @@
 package webapi
 
 import (
-	"errors"
-
-	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/service"
 	"github.com/gofiber/fiber/v2"
 )
@@ -34,23 +31,19 @@ func Login(authSvc *service.AuthService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		input, err := BindAndValidate[LoginInput](c)
 		if err != nil {
-			return nil // Error already written by helper
+			return nil // Error already written by BindAndValidate
 		}
 		user, err := authSvc.Login(input.Identity, input.Password)
 		if err != nil {
-			status := fiber.StatusInternalServerError
-			if errors.Is(err, domain.ErrUserUnauthorized) {
-				status = fiber.StatusUnauthorized
-			}
-			return ProblemDetailsJSON(c, status, "Internal Server Error", err.Error())
+			return ProblemDetailsJSON(c, "Internal Server Error", err)
 		}
 		if user == nil {
-			return ProblemDetailsJSON(c, fiber.StatusUnauthorized, "Invalid identity or password", nil)
+			return ProblemDetailsJSON(c, "Invalid identity or password", nil, "Identity or password is incorrect", fiber.StatusUnauthorized)
 		}
 		token, err := authSvc.GenerateToken(user)
 		if err != nil {
-			return ProblemDetailsJSON(c, fiber.StatusInternalServerError, "Internal Server Error", err.Error())
+			return ProblemDetailsJSON(c, "Internal Server Error", err)
 		}
-		return c.JSON(Response{Status: fiber.StatusOK, Message: "Success login", Data: fiber.Map{"token": token}})
+		return SuccessResponseJSON(c, fiber.StatusOK, "Success login", fiber.Map{"token": token})
 	}
 }

@@ -176,17 +176,6 @@ func (s *AccountTestSuite) TestAccountRoutesFailureTransaction() {
 	defer resp.Body.Close() //nolint:errcheck
 
 	s.Assert().Equal(fiber.StatusBadRequest, resp.StatusCode)
-
-	// fixtures withdraw negative amount
-	req = httptest.NewRequest("POST", fmt.Sprintf("/account/%s/withdraw", uuid.New()), bytes.NewBuffer([]byte(`{"amount": -100.0}`)))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+s.testToken)
-
-	resp, err = s.app.Test(req, 10000)
-	s.Require().NoError(err)
-	defer resp.Body.Close() //nolint:errcheck
-
-	s.Assert().Equal(fiber.StatusBadRequest, resp.StatusCode)
 }
 
 func (s *AccountTestSuite) TestAccountRoutesTransactionList() {

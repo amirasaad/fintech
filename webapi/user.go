@@ -49,13 +49,13 @@ func GetUser(userSvc *service.UserService) fiber.Handler {
 		id, err := uuid.Parse(c.Params("id"))
 		if err != nil {
 			log.Errorf("Invalid user ID: %v", err)
-			return ProblemDetailsJSON(c, fiber.StatusBadRequest, "Invalid user ID", err.Error())
+			return ProblemDetailsJSON(c, "Invalid user ID", err, "User ID must be a valid UUID", fiber.StatusBadRequest)
 		}
 		user, err := userSvc.GetUser(id.String())
 		if err != nil {
-			return ProblemDetailsJSON(c, fiber.StatusNotFound, "No user found with ID", nil)
+			return ProblemDetailsJSON(c, "No user found with ID", err)
 		}
-		return c.JSON(Response{Status: fiber.StatusCreated, Message: "User found", Data: user})
+		return SuccessResponseJSON(c, fiber.StatusOK, "User found", user)
 	}
 }
 
@@ -76,16 +76,16 @@ func CreateUser(userSvc *service.UserService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		input, err := BindAndValidate[NewUser](c)
 		if err != nil {
-			return nil // Error already written by helper
+			return nil // Error already written by BindAndValidate
 		}
 		if len(input.Password) > 72 {
-			return ProblemDetailsJSON(c, fiber.StatusBadRequest, "Invalid request body", "Password too long")
+			return ProblemDetailsJSON(c, "Invalid request body", nil, "Password too long")
 		}
 		user, err := userSvc.CreateUser(input.Username, input.Email, input.Password)
 		if err != nil {
-			return ProblemDetailsJSON(c, fiber.StatusInternalServerError, "Couldn't create user", err.Error())
+			return ProblemDetailsJSON(c, "Couldn't create user", err)
 		}
-		return c.Status(fiber.StatusCreated).JSON(Response{Status: fiber.StatusCreated, Message: "Created user", Data: user})
+		return SuccessResponseJSON(c, fiber.StatusCreated, "Created user", user)
 	}
 }
 
@@ -111,40 +111,38 @@ func UpdateUser(
 	return func(c *fiber.Ctx) error {
 		input, err := BindAndValidate[UpdateUserInput](c)
 		if err != nil {
-			return nil // Error already written by helper
+			return nil // Error already written by BindAndValidate
 		}
 		id, err := uuid.Parse(c.Params("id"))
 		if err != nil {
 			log.Errorf("Invalid user ID: %v", err)
-			return ProblemDetailsJSON(c, fiber.StatusBadRequest, "Invalid user ID", err.Error())
+			return ProblemDetailsJSON(c, "Invalid user ID", err, "User ID must be a valid UUID", fiber.StatusBadRequest)
 		}
 		token, ok := c.Locals("user").(*jwt.Token)
 		if !ok {
-			return ProblemDetailsJSON(c, fiber.StatusUnauthorized, "unauthorized", "missing user context")
+			return ProblemDetailsJSON(c, "Unauthorized", nil, "missing user context")
 		}
 		userID, err := authSvc.GetCurrentUserId(token)
 		if err != nil {
 			log.Errorf("Failed to parse user ID from token: %v", err)
-			status := ErrorToStatusCode(err)
-			return ProblemDetailsJSON(c, status, "invalid user ID", err.Error())
+			return ProblemDetailsJSON(c, "invalid user ID", err)
 		}
 		if id != userID {
-			return ProblemDetailsJSON(c, fiber.StatusForbidden, "You are not allowed to update this user", nil)
+			return ProblemDetailsJSON(c, "Forbidden", nil, "You are not allowed to update this user")
 		}
 		err = userSvc.UpdateUser(id.String(), func(u *user.User) error {
 			u.Names = input.Names
 			return nil
 		})
 		if err != nil {
-			status := ErrorToStatusCode(err)
-			return ProblemDetailsJSON(c, status, "Failed to update user", err.Error())
+			return ProblemDetailsJSON(c, "Failed to update user", err)
 		}
 		// Get the updated user to return in response
 		updatedUser, err := userSvc.GetUser(id.String())
 		if err != nil {
-			return ProblemDetailsJSON(c, fiber.StatusInternalServerError, "Failed to get updated user", err.Error())
+			return ProblemDetailsJSON(c, "Failed to get updated user", err)
 		}
-		return c.JSON(Response{Status: fiber.StatusOK, Message: "User updated successfully", Data: updatedUser})
+		return SuccessResponseJSON(c, fiber.StatusOK, "User updated successfully", updatedUser)
 	}
 }
 
@@ -170,37 +168,36 @@ func DeleteUser(
 	return func(c *fiber.Ctx) error {
 		input, err := BindAndValidate[PasswordInput](c)
 		if err != nil {
-			return nil // Error already written by helper
+			return nil // Error already written by BindAndValidate
 		}
 		id, err := uuid.Parse(c.Params("id"))
 		if err != nil {
 			log.Errorf("Invalid user ID: %v", err)
-			return ProblemDetailsJSON(c, fiber.StatusBadRequest, "Invalid user ID", err.Error())
+			return ProblemDetailsJSON(c, "Invalid user ID", err, "User ID must be a valid UUID", fiber.StatusBadRequest)
 		}
 		token, ok := c.Locals("user").(*jwt.Token)
 		if !ok {
-			return ProblemDetailsJSON(c, fiber.StatusUnauthorized, "unauthorized", "missing user context")
+			return ProblemDetailsJSON(c, "Unauthorized", nil, "missing user context")
 		}
 		userID, err := authSvc.GetCurrentUserId(token)
 		if err != nil {
 			log.Errorf("Failed to parse user ID from token: %v", err)
-			status := ErrorToStatusCode(err)
-			return ProblemDetailsJSON(c, status, "invalid user ID", err.Error())
+			return ProblemDetailsJSON(c, "invalid user ID", err)
 		}
 		if id != userID {
-			return ProblemDetailsJSON(c, fiber.StatusForbidden, "You are not allowed to update this user", nil)
+			return ProblemDetailsJSON(c, "Forbidden", nil, "You are not allowed to update this user")
 		}
 		isValid, err := userSvc.ValidUser(id.String(), input.Password)
 		if err != nil {
-			return ProblemDetailsJSON(c, fiber.StatusInternalServerError, "Failed to validate user", err.Error())
+			return ProblemDetailsJSON(c, "Failed to validate user", err)
 		}
 		if !isValid {
-			return ProblemDetailsJSON(c, fiber.StatusUnauthorized, "Not valid user", nil)
+			return ProblemDetailsJSON(c, "Not valid user", nil)
 		}
 		err = userSvc.DeleteUser(id.String())
 		if err != nil {
-			return ProblemDetailsJSON(c, fiber.StatusInternalServerError, "Failed to delete user", err.Error())
+			return ProblemDetailsJSON(c, "Failed to delete user", err)
 		}
-		return c.Status(fiber.StatusNoContent).JSON(Response{Status: fiber.StatusNoContent, Message: "User successfully deleted", Data: nil})
+		return SuccessResponseJSON(c, fiber.StatusNoContent, "User successfully deleted", nil)
 	}
 }

@@ -1,6 +1,7 @@
 package webapi
 
 import (
+	"errors"
 	"time"
 
 	"github.com/amirasaad/fintech/pkg/config"
@@ -23,12 +24,7 @@ func NewApp(
 ) *fiber.App {
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
-			// Default to 500 if status code cannot be determined
-			status := fiber.StatusInternalServerError
-			if e, ok := err.(*fiber.Error); ok {
-				status = e.Code
-			}
-			return ProblemDetailsJSON(c, status, "Internal Server Error", err.Error())
+			return ProblemDetailsJSON(c, "Internal Server Error", err)
 		},
 	})
 	app.Get("/swagger/*", swagger.New(swagger.Config{
@@ -44,7 +40,7 @@ func NewApp(
 			return c.IP()
 		},
 		LimitReached: func(c *fiber.Ctx) error {
-			return ProblemDetailsJSON(c, fiber.StatusTooManyRequests, "Too Many Requests", "Rate limit exceeded")
+			return ProblemDetailsJSON(c, "Too Many Requests", errors.New("rate limit exceeded"), fiber.StatusTooManyRequests)
 		},
 	}))
 	app.Use(recover.New())
