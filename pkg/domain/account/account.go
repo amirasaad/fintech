@@ -31,7 +31,6 @@ var (
 	ErrAccountNotFound = errors.New("account not found") // Account does not exist
 )
 
-// Use common.ConversionInfo and common.ErrInvalidCurrencyCode
 // Account represents a user's financial account, supporting multi-currency.
 // Invariants:
 //   - Only the account owner can perform actions.
