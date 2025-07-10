@@ -165,13 +165,13 @@ func (s *JWTAuthStrategy) Login(
 		return
 	}
 	if u == nil {
-		err = user.ErrUserNotFound
+		err = user.ErrUserUnauthorized
 		s.logger.Error("Login failed", "identity", identity, "error", domain.ErrUserUnauthorized)
 		checkPasswordHash(password, dummyHash)
 		return
 	}
 	if !checkPasswordHash(password, u.Password) {
-		err = user.ErrUserNotFound
+		err = user.ErrUserUnauthorized
 		s.logger.Error("Login failed", "identity", identity, "error", domain.ErrUserUnauthorized)
 		return
 	}

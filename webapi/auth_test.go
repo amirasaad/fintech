@@ -52,7 +52,7 @@ func (s *AuthTestSuite) TestLoginRoute_Unauthorized() {
 	req := httptest.NewRequest("POST", "/login", bytes.NewBuffer([]byte(`{"identity":"nonexistent","password":"password"}`)))
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := s.app.Test(req, 10000)
+	resp, err := s.app.Test(req)
 	s.Require().NoError(err)
 	defer resp.Body.Close() //nolint: errcheck
 
