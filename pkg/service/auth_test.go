@@ -18,7 +18,7 @@ import (
 func TestCheckPasswordHash(t *testing.T) {
 	t.Parallel()
 	hash, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
-	s := &AuthService{}
+	s := &AuthService{logger: slog.Default()}
 	if !s.CheckPasswordHash("password", string(hash)) {
 		t.Error("expected password to match hash")
 	}
@@ -29,7 +29,7 @@ func TestCheckPasswordHash(t *testing.T) {
 
 func TestValidEmail(t *testing.T) {
 	t.Parallel()
-	s := &AuthService{}
+	s := &AuthService{logger: slog.Default()}
 	if !s.ValidEmail("fixtures@example.com") {
 		t.Error("expected valid email")
 	}
@@ -111,7 +111,8 @@ func TestLogin_GetByEmailError(t *testing.T) {
 func TestGetCurrentUserId_InvalidToken(t *testing.T) {
 	t.Parallel()
 	s := &AuthService{
-		strategy: &JWTAuthStrategy{},
+		strategy: &JWTAuthStrategy{logger: slog.Default()},
+		logger:   slog.Default(),
 	}
 	token := &jwt.Token{}
 	_, err := s.GetCurrentUserId(token)
@@ -120,7 +121,7 @@ func TestGetCurrentUserId_InvalidToken(t *testing.T) {
 
 func TestGetCurrentUserId_MissingClaim(t *testing.T) {
 	t.Parallel()
-	s := &AuthService{strategy: &JWTAuthStrategy{}}
+	s := &AuthService{strategy: &JWTAuthStrategy{logger: slog.Default()}, logger: slog.Default()}
 	token := jwt.New(jwt.SigningMethodHS256)
 	_, err := s.GetCurrentUserId(token)
 	assert.Error(t, err)

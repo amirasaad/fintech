@@ -83,6 +83,10 @@ func (s *AuthService) Login(
 		s.logger.Error("Login failed", "identity", identity, "error", err)
 		return
 	}
+	if user == nil {
+		s.logger.Error("Login failed", "identity", identity, "error", "user is nil")
+		return
+	}
 	s.logger.Info("Login successful", "userID", user.ID)
 	return
 }
@@ -174,16 +178,22 @@ func (s *JWTAuthStrategy) Login(
 func (s *JWTAuthStrategy) GetCurrentUserID(
 	ctx context.Context,
 ) (userID uuid.UUID, err error) {
-	s.logger.Info("GetCurrentUserID called")
-	token := ctx.Value(userContextKey).(*jwt.Token)
+	token, ok := ctx.Value(userContextKey).(*jwt.Token)
+	if !ok || token == nil {
+		s.logger.Error("GetCurrentUserID failed", "error", domain.ErrUserUnauthorized)
+		err = domain.ErrUserUnauthorized
+		return
+	}
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok {
 		s.logger.Error("GetCurrentUserID failed", "error", domain.ErrUserUnauthorized)
+		err = domain.ErrUserUnauthorized
 		return
 	}
 	userIDRaw, ok := claims["user_id"].(string)
 	if !ok {
 		s.logger.Error("GetCurrentUserID failed", "error", domain.ErrUserUnauthorized)
+		err = domain.ErrUserUnauthorized
 		return
 	}
 	userID, err = uuid.Parse(userIDRaw)

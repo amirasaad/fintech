@@ -493,6 +493,13 @@ func (s *AccountTestSuite) TestAccountDepositWithCurrency() {
 	s.accountRepo.EXPECT().Update(mock.Anything).Return(nil)
 	s.mockUow.EXPECT().Begin().Return(nil)
 	s.mockUow.EXPECT().Commit().Return(nil)
+	s.mockConverter.EXPECT().Convert(float64(100), "EUR", "USD").Return(&domain.ConversionInfo{
+		OriginalAmount:    float64(100),
+		OriginalCurrency:  "USD",
+		ConvertedAmount:   float64(110),
+		ConvertedCurrency: "USD",
+		ConversionRate:    1.1,
+	}, nil)
 
 	depositBody := bytes.NewBuffer([]byte(`{"amount": 100.0, "currency": "EUR"}`))
 	req := httptest.NewRequest("POST", fmt.Sprintf("/account/%s/deposit", testAccount.ID), depositBody)
@@ -507,7 +514,7 @@ func (s *AccountTestSuite) TestAccountDepositWithCurrency() {
 	var response Response
 	_ = json.NewDecoder(resp.Body).Decode(&response)
 	txData, _ := response.Data.(map[string]any)
-	s.Assert().Equal("EUR", txData["currency"])
+	s.Assert().Equal("USD", txData["converted_currency"])
 }
 
 func (s *AccountTestSuite) TestDepositWithConversion_Integration() {
