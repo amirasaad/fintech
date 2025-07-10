@@ -77,7 +77,7 @@ func ProblemDetailsJSON(c *fiber.Ctx, title string, err error, detailOrStatus ..
 func BindAndValidate[T any](c *fiber.Ctx) (*T, error) {
 	var input T
 	if err := c.BodyParser(&input); err != nil {
-		ProblemDetailsJSON(c, "Invalid request body", err, "Request body could not be parsed or has invalid types", fiber.StatusBadRequest)
+		ProblemDetailsJSON(c, "Invalid request body", err, "Request body could not be parsed or has invalid types", fiber.StatusBadRequest) //nolint:errcheck
 		return nil, err
 	}
 	validate := validator.New()
@@ -89,10 +89,10 @@ func BindAndValidate[T any](c *fiber.Ctx) (*T, error) {
 				msg := fe.Tag()
 				details[field] = msg
 			}
-			ProblemDetailsJSON(c, "Validation failed", nil, details, fiber.StatusBadRequest)
+			ProblemDetailsJSON(c, "Validation failed", nil, details, fiber.StatusBadRequest) //nolint:errcheck
 			return nil, err
 		}
-		ProblemDetailsJSON(c, "Validation failed", err, "Request validation failed", fiber.StatusBadRequest)
+		ProblemDetailsJSON(c, "Validation failed", err, "Request validation failed", fiber.StatusBadRequest) //nolint:errcheck
 		return nil, err
 	}
 	return &input, nil

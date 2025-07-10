@@ -124,18 +124,18 @@ func (s *AccountTestSuite) TestAccountWithdraw() {
 	s.mockUow.EXPECT().AccountRepository().Return(s.accountRepo, nil)
 	s.mockUow.EXPECT().TransactionRepository().Return(s.transRepo, nil)
 
-	testAccount := account.NewAccount(s.testUser.ID)
+	account, _ := account.New().WithUserID(s.testUser.ID).Build() //nolint:errcheck
 	money, err := money.NewMoney(1000.0, currency.Code("USD"))
 	assert.NoError(s.T(), err)
-	_, _ = testAccount.Deposit(s.testUser.ID, money)
-	s.accountRepo.EXPECT().Get(mock.Anything).Return(testAccount, nil)
+	_, _ = account.Deposit(s.testUser.ID, money)
+	s.accountRepo.EXPECT().Get(mock.Anything).Return(account, nil)
 	s.transRepo.EXPECT().Create(mock.Anything).Return(nil)
 	s.accountRepo.EXPECT().Update(mock.Anything).Return(nil)
 	s.mockUow.EXPECT().Begin().Return(nil)
 	s.mockUow.EXPECT().Commit().Return(nil)
 
 	withdrawBody := bytes.NewBuffer([]byte(`{"amount": 100.0}`))
-	req := httptest.NewRequest("POST", fmt.Sprintf("/account/%s/withdraw", testAccount.ID), withdrawBody)
+	req := httptest.NewRequest("POST", fmt.Sprintf("/account/%s/withdraw", account.ID), withdrawBody)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+s.testToken)
 
@@ -180,7 +180,7 @@ func (s *AccountTestSuite) TestAccountRoutesFailureTransaction() {
 
 func (s *AccountTestSuite) TestAccountRoutesTransactionList() {
 	s.mockUow.EXPECT().TransactionRepository().Return(s.transRepo, nil)
-	account := account.NewAccount(s.testUser.ID)
+	account, _ := account.New().WithUserID(s.testUser.ID).Build() //nolint:errcheck
 	created1, _ := time.Parse(time.RFC3339, "2023-10-01T00:00:00Z")
 	created2, _ := time.Parse(time.RFC3339, "2023-10-02T00:00:00Z")
 	s.transRepo.EXPECT().List(s.testUser.ID, account.ID).Return([]*domain.Transaction{
@@ -300,7 +300,7 @@ func (s *AccountTestSuite) TestAccountRoutesRollbackWhenDepositFails() {
 	s.mockUow.EXPECT().TransactionRepository().Return(s.transRepo, nil)
 	s.mockUow.EXPECT().Begin().Return(nil)
 	s.mockUow.EXPECT().Rollback().Return(nil)
-	account := account.NewAccount(s.testUser.ID)
+	account, _ := account.New().WithUserID(s.testUser.ID).Build() //nolint:errcheck
 	s.accountRepo.EXPECT().Get(account.ID).Return(account, nil)
 	s.accountRepo.EXPECT().Update(account).Return(nil)
 	s.transRepo.EXPECT().Create(mock.Anything).Return(errors.New("failed to create transaction"))
