@@ -9,6 +9,7 @@ import (
 
 	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/domain"
+	"github.com/amirasaad/fintech/pkg/domain/user"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
@@ -76,18 +77,19 @@ func (s *AuthService) GetCurrentUserId(
 
 func (s *AuthService) Login(
 	identity, password string,
-) (user *domain.User, err error) {
+) (u *domain.User, err error) {
 	s.logger.Info("Login called", "identity", identity)
-	user, err = s.strategy.Login(identity, password)
+	u, err = s.strategy.Login(identity, password)
 	if err != nil {
 		s.logger.Error("Login failed", "identity", identity, "error", err)
 		return
 	}
-	if user == nil {
+	if u == nil {
+		err = user.ErrUserUnauthorized
 		s.logger.Error("Login failed", "identity", identity, "error", "user is nil")
 		return
 	}
-	s.logger.Info("Login successful", "userID", user.ID)
+	s.logger.Info("Login successful", "userID", u.ID)
 	return
 }
 
@@ -136,7 +138,7 @@ func (s *JWTAuthStrategy) GenerateToken(user *domain.User) (string, error) {
 func (s *JWTAuthStrategy) Login(
 	identity, password string,
 ) (
-	user *domain.User,
+	u *domain.User,
 	err error,
 ) {
 	s.logger.Info("Login called", "identity", identity)
@@ -153,25 +155,27 @@ func (s *JWTAuthStrategy) Login(
 	}
 
 	if isEmail(identity) {
-		user, err = userRepo.GetByEmail(identity)
+		u, err = userRepo.GetByEmail(identity)
 	} else {
-		user, err = userRepo.GetByUsername(identity)
+		u, err = userRepo.GetByUsername(identity)
 	}
 	const dummyHash = "$2a$10$7zFqzDbD3RrlkMTczbXG9OWZ0FLOXjIxXzSZ.QZxkVXjXcx7QZQiC"
 	if err != nil {
 		s.logger.Error("Login failed", "identity", identity, "error", err)
 		return
 	}
-	if user == nil {
+	if u == nil {
+		err = user.ErrUserNotFound
 		s.logger.Error("Login failed", "identity", identity, "error", domain.ErrUserUnauthorized)
 		checkPasswordHash(password, dummyHash)
 		return
 	}
-	if !checkPasswordHash(password, user.Password) {
+	if !checkPasswordHash(password, u.Password) {
+		err = user.ErrUserNotFound
 		s.logger.Error("Login failed", "identity", identity, "error", domain.ErrUserUnauthorized)
 		return
 	}
-	s.logger.Info("Login successful", "userID", user.ID)
+	s.logger.Info("Login successful", "userID", u.ID)
 	return
 }
 

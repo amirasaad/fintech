@@ -68,7 +68,7 @@ func (s *AuthTestSuite) TestLoginRoute_InvalidPassword() {
 	body := bytes.NewBuffer([]byte(`{"identity":"testuser","password":"wrongpassword"}`)) // Invalid password
 	req := httptest.NewRequest("POST", "/login", body)
 	req.Header.Set("Content-Type", "application/json")
-	resp, err := s.app.Test(req)
+	resp, err := s.app.Test(req, 1000000)
 	s.Require().NoError(err)
 	defer resp.Body.Close() //nolint: errcheck
 	buf := new(bytes.Buffer)

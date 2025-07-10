@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/amirasaad/fintech/pkg/domain/user"
@@ -59,7 +60,7 @@ func TestDepositNegativeAmount(t *testing.T) {
 	require := require.New(t)
 	userID := uuid.New()
 
-	account := account.NewAccount(userID)
+	account, _ := account.New().WithUserID(userID).WithCurrency(currency.USD).Build() //nolint:errcheck
 	// Attempt to deposit a negative amount
 	money, err := money.NewMoney(-50.0, "USD")
 	require.NoError(err)
@@ -76,7 +77,7 @@ func TestDepositZeroAmount(t *testing.T) {
 	require := require.New(t)
 	userID := uuid.New()
 
-	account := account.NewAccount(userID)
+	account, _ := account.New().WithUserID(userID).WithCurrency(currency.USD).Build() //nolint:errcheck
 	// Attempt to deposit zero amount
 	money, err := money.NewMoney(0.0, "USD")
 	require.NoError(err)
@@ -92,7 +93,7 @@ func TestDepositMultipleTimes(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 	userID := uuid.New()
-	account := account.NewAccount(userID)
+	account, _ := account.New().WithUserID(userID).WithCurrency(currency.USD).Build() //nolint:errcheck
 	// Deposit multiple times
 	money1, err := money.NewMoney(50.0, "USD")
 	require.NoError(err)
@@ -113,7 +114,7 @@ func TestDepositOverflow(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 	userID := uuid.New()
-	a := account.NewAccount(userID)
+	a, _ := account.New().WithUserID(userID).WithCurrency(currency.USD).Build() //nolint:errcheck
 
 	// Use just under the max safe amount with margin
 	safeAmount := float64((math.MaxInt64 - 10000) / 100) // leave margin
@@ -127,7 +128,7 @@ func TestDepositOverflowFails(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 	userID := uuid.New()
-	a := account.NewAccount(userID)
+	a, _ := account.New().WithUserID(userID).WithCurrency(currency.USD).Build() //nolint:errcheck
 
 	// Use an amount that can be created as Money but will cause overflow when added
 	// to an account that already has a large balance
@@ -149,7 +150,7 @@ func TestDepositOverflowBoundary(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 	userID := uuid.New()
-	acc := account.NewAccount(userID)
+	acc, _ := account.New().WithUserID(userID).WithCurrency(currency.USD).Build() //nolint:errcheck
 	// Deposit up to just below the max safe int
 	m, err := money.NewMoney(float64(math.MaxInt64/200), "USD")
 	require.NoError(err)
@@ -169,7 +170,7 @@ func TestDepositWithPrecision(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 	userID := uuid.New()
-	account := account.NewAccount(userID)
+	account, _ := account.New().WithUserID(userID).WithCurrency(currency.USD).Build() //nolint:errcheck
 	// Deposit with precision
 	money, err := money.NewMoney(99.99, "USD")
 	require.NoError(err)
@@ -187,7 +188,7 @@ func TestDepositWithLargeAmount(t *testing.T) {
 	require := require.New(t)
 
 	userID := uuid.New()
-	account := account.NewAccount(userID)
+	account, _ := account.New().WithUserID(userID).WithCurrency(currency.USD).Build() //nolint:errcheck
 	// Deposit a large amount
 	money, err := money.NewMoney(1000000.0, "USD") // 1 million dollars
 	require.NoError(err)
@@ -204,7 +205,7 @@ func TestWithdraw(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 	userID := uuid.New()
-	account := account.NewAccount(userID)
+	account, _ := account.New().WithUserID(userID).WithCurrency(currency.USD).Build() //nolint:errcheck
 	// Deposit some funds first
 	m, err := money.NewMoney(200.0, "USD") // 200 dollars
 	require.NoError(err)
@@ -229,7 +230,7 @@ func TestWithdrawInsufficientFunds(t *testing.T) {
 	require := require.New(t)
 	userID := uuid.New()
 
-	acc := account.NewAccount(userID)
+	acc, _ := account.New().WithUserID(userID).WithCurrency(currency.USD).Build() //nolint:errcheck
 	// Attempt to withdraw more than the balance
 	m, err := money.NewMoney(100.0, "USD") // 100 dollars
 	require.NoError(err)
@@ -246,7 +247,7 @@ func TestWithdrawNegativeAmount(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 	userID := uuid.New()
-	account := account.NewAccount(userID)
+	account, _ := account.New().WithUserID(userID).WithCurrency(currency.USD).Build() //nolint:errcheck
 	// Attempt to withdraw a negative amount
 	negativeMoney, err := money.NewMoney(-50.0, "USD")
 	require.NoError(err)
@@ -264,7 +265,7 @@ func TestWithdrawZeroAmount(t *testing.T) {
 	require := require.New(t)
 	userID := uuid.New()
 
-	account := account.NewAccount(userID)
+	account, _ := account.New().WithUserID(userID).WithCurrency(currency.USD).Build() //nolint:errcheck
 	// Attempt to withdraw zero amount
 	zeroMoney, err := money.NewMoney(0.0, "USD")
 	require.NoError(err)
@@ -282,7 +283,7 @@ func TestGetBalance(t *testing.T) {
 
 	userID := uuid.New()
 
-	account := account.NewAccount(userID)
+	account, _ := account.New().WithUserID(userID).WithCurrency(currency.USD).Build() //nolint:errcheck
 	// Deposit some funds
 	money, err := money.NewMoney(300.0, "USD") // 300 dollars
 	require.NoError(err)
@@ -302,7 +303,7 @@ func TestSimultaneous(t *testing.T) {
 
 	userID := uuid.New()
 
-	account := account.NewAccount(userID)
+	account, _ := account.New().WithUserID(userID).WithCurrency(currency.USD).Build() //nolint:errcheck
 	initialBalance := 1000.0
 	m, err := money.NewMoney(initialBalance, "USD")
 	require.NoError(err)
@@ -345,7 +346,7 @@ func TestSimultaneous(t *testing.T) {
 func TestAccount_DepositUnauthorized(t *testing.T) {
 	assert := assert.New(t)
 	userID := uuid.New()
-	account := account.NewAccount(userID)
+	account, _ := account.New().WithUserID(userID).WithCurrency(currency.USD).Build() //nolint:errcheck
 	money, err := money.NewMoney(1000.0, "USD")
 	require.NoError(t, err)
 	_, err = account.Deposit(uuid.New(), money)
@@ -356,7 +357,7 @@ func TestAccount_DepositUnauthorized(t *testing.T) {
 func TestAccount_WithdrawUnauthorized(t *testing.T) {
 	assert := assert.New(t)
 	userID := uuid.New()
-	account := account.NewAccount(userID)
+	account, _ := account.New().WithUserID(userID).WithCurrency(currency.USD).Build() //nolint:errcheck
 	unauthorizedMoney, err := money.NewMoney(1000.0, "USD")
 	require.NoError(t, err)
 	_, err = account.Withdraw(uuid.New(), unauthorizedMoney)
@@ -367,7 +368,7 @@ func TestAccount_WithdrawUnauthorized(t *testing.T) {
 func TestAccount_GetBalanceUnauthorized(t *testing.T) {
 	assert := assert.New(t)
 	userID := uuid.New()
-	account := account.NewAccount(userID)
+	account, _ := account.New().WithUserID(userID).WithCurrency(currency.USD).Build() //nolint:errcheck
 	_, err := account.GetBalance(uuid.New())
 	assert.Error(err, "Deposit with different user id should return error")
 	assert.ErrorIs(err, user.ErrUserUnauthorized)
@@ -402,7 +403,7 @@ func TestAccount_GetBalanceAsMoney(t *testing.T) {
 	require := require.New(t)
 
 	userID := uuid.New()
-	account := account.NewAccount(userID)
+	account, _ := account.New().WithUserID(userID).WithCurrency(currency.USD).Build() //nolint:errcheck
 
 	// Initial balance should be zero
 	balanceMoney, err := account.GetBalanceAsMoney(userID)
@@ -435,7 +436,7 @@ func TestAccount_DepositWithMoneyOperations(t *testing.T) {
 	require := require.New(t)
 
 	userID := uuid.New()
-	account := account.NewAccount(userID)
+	account, _ := account.New().WithUserID(userID).WithCurrency(currency.USD).Build() //nolint:errcheck
 
 	// Deposit using Money operations
 	depositMoney, err := money.NewMoney(100.0, "USD")
@@ -468,7 +469,7 @@ func TestAccount_WithdrawWithMoneyOperations(t *testing.T) {
 	require := require.New(t)
 
 	userID := uuid.New()
-	acc := account.NewAccount(userID)
+	acc, _ := account.New().WithUserID(userID).WithCurrency(currency.USD).Build() //nolint:errcheck
 
 	// Deposit initial funds
 	depositMoney, err := money.NewMoney(200.0, "USD")

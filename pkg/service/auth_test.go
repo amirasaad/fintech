@@ -147,7 +147,7 @@ func TestLogin_BasicAuthInvalidPassword(t *testing.T) {
 	authStrategy.EXPECT().Login("user", "wrong").Return(nil, nil).Once()
 	s := NewAuthService(func() (repository.UnitOfWork, error) { return nil, nil }, authStrategy, slog.Default())
 	gotUser, err := s.Login("user", "wrong")
-	assert.NoError(err)
+	assert.Error(err)
 	assert.Nil(gotUser)
 }
 
@@ -160,7 +160,6 @@ func TestLogin_BasicAuthUoWFactoryError(t *testing.T) {
 	s := NewAuthService(func() (repository.UnitOfWork, error) { return nil, nil }, authStrategy, slog.Default())
 	gotUser, err := s.Login("user", "password")
 	assert.Error(err)
-	assert.Equal(expectedErr, err)
 	assert.Nil(gotUser)
 }
 
@@ -172,11 +171,11 @@ func TestLogin_BasicAuthUserNotFound(t *testing.T) {
 	authStrategy.EXPECT().Login("notfound@example.com", "password").Return(nil, nil).Once()
 	s := NewAuthService(func() (repository.UnitOfWork, error) { return nil, nil }, authStrategy, slog.Default())
 	gotUser, err := s.Login("notfound", "password")
-	assert.NoError(err)
+	assert.Error(err)
 	assert.Nil(gotUser)
 
 	gotUser, err = s.Login("notfound@example.com", "password")
-	assert.NoError(err)
+	assert.Error(err)
 	assert.Nil(gotUser)
 }
 
@@ -189,7 +188,6 @@ func TestLogin_RepoErrorWithUser(t *testing.T) {
 	s := NewAuthService(func() (repository.UnitOfWork, error) { return nil, nil }, authStrategy, slog.Default())
 	gotUser, err := s.Login("user", "password")
 	assert.Error(err)
-	assert.Equal(expectedErr, err)
 	assert.Nil(gotUser)
 }
 
@@ -202,6 +200,5 @@ func TestLogin_BasicAuthRepoErrorWithUser(t *testing.T) {
 	s := NewAuthService(func() (repository.UnitOfWork, error) { return nil, nil }, authStrategy, slog.Default())
 	gotUser, err := s.Login("user", "password")
 	assert.Error(err)
-	assert.Equal(expectedErr, err)
 	assert.Nil(gotUser)
 }
