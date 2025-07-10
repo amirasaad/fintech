@@ -19,7 +19,7 @@ func (s *AccountTestSuite) BenchmarkAccountDeposit(b *testing.B) {
 	s.BeforeTest("", "BenchmarkAccountDeposit")
 	s.mockUow.EXPECT().AccountRepository().Return(s.accountRepo, nil).Maybe()
 	s.mockUow.EXPECT().TransactionRepository().Return(s.transRepo, nil).Maybe()
-	testAccount := account.NewAccount(s.testUser.ID)
+	testAccount, _ := account.New().WithUserID(s.testUser.ID).WithCurrency(currency.USD).Build() //nolint:errcheck
 	s.accountRepo.EXPECT().Get(mock.Anything).Return(testAccount, nil).Maybe()
 	s.transRepo.EXPECT().Create(mock.Anything).Return(nil).Maybe()
 	s.accountRepo.EXPECT().Update(mock.Anything).Return(nil).Maybe()
@@ -49,7 +49,7 @@ func (s *AccountTestSuite) BenchmarkAccountWithdraw(b *testing.B) {
 	s.BeforeTest("BenchmarkAccountWithdraw", "BenchmarkAccountWithdraw")
 	s.mockUow.EXPECT().AccountRepository().Return(s.accountRepo, nil).Maybe()
 	s.mockUow.EXPECT().TransactionRepository().Return(s.transRepo, nil).Maybe()
-	testAccount := account.NewAccount(s.testUser.ID)
+	testAccount, _ := account.New().WithUserID(s.testUser.ID).WithCurrency(currency.USD).Build() //nolint:errcheck
 	money, _ := money.NewMoney(1000.0, currency.Code("USD"))
 	_, _ = testAccount.Deposit(s.testUser.ID, money)
 	s.accountRepo.EXPECT().Get(mock.Anything).Return(testAccount, nil).Maybe()

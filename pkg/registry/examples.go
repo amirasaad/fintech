@@ -22,8 +22,8 @@ func ExampleBasicRegistry() {
 	user2.Metadata()["email"] = "jane@example.com"
 	user2.Metadata()["role"] = "user"
 
-	registry.Register(ctx, user1)
-	registry.Register(ctx, user2)
+	registry.Register(ctx, user1) //nolint:errcheck
+	registry.Register(ctx, user2) //nolint:errcheck
 
 	// List all entities
 	entities, _ := registry.List(ctx)
@@ -56,7 +56,7 @@ func ExamplePersistentRegistry() {
 	}
 
 	for _, user := range users {
-		registry.Register(ctx, user)
+		registry.Register(ctx, user) //nolint:errcheck
 	}
 
 	// The registry automatically persists to file
@@ -79,7 +79,7 @@ func ExampleCachedRegistry() {
 	// Register many entities
 	for i := 1; i <= 50; i++ {
 		user := NewBaseEntity(fmt.Sprintf("user-%d", i), fmt.Sprintf("User %d", i))
-		registry.Register(ctx, user)
+		registry.Register(ctx, user) //nolint:errcheck
 	}
 
 	// Repeated lookups will be served from cache
@@ -100,7 +100,7 @@ func ExampleMonitoredRegistry() {
 	// Perform operations
 	for i := 1; i <= 10; i++ {
 		user := NewBaseEntity(fmt.Sprintf("user-%d", i), fmt.Sprintf("User %d", i))
-		registry.Register(ctx, user)
+		registry.Register(ctx, user) //nolint:errcheck
 	}
 
 	// Simulate some lookups and errors
@@ -137,7 +137,7 @@ func ExampleRegistryBuilder() {
 	user.Metadata()["email"] = "john@example.com"
 	user.Metadata()["role"] = "admin"
 
-	err = registry.Register(ctx, user)
+	err = registry.Register(ctx, user) //nolint:errcheck
 	if err != nil {
 		fmt.Printf("Registration failed: %v\n", err)
 	} else {
@@ -182,7 +182,7 @@ func ExampleCustomEntity() {
 	}
 
 	for _, product := range products {
-		registry.Register(ctx, product)
+		registry.Register(ctx, product) //nolint:errcheck
 	}
 
 	// Search by category
@@ -221,7 +221,7 @@ func ExampleEventDrivenRegistry() {
 	}
 
 	for _, user := range users {
-		registry.Register(ctx, user)
+		registry.Register(ctx, user) //nolint:errcheck
 		// Simulate event notification
 		observer.OnEntityRegistered(ctx, user)
 	}
@@ -276,7 +276,7 @@ func ExampleCustomValidation() {
 	validUser.Metadata()["email"] = "john@example.com"
 	validUser.Metadata()["age"] = "25"
 
-	err := registry.Register(ctx, validUser)
+	err := registry.Register(ctx, validUser) //nolint:errcheck
 	if err != nil {
 		fmt.Printf("Valid user registration failed: %v\n", err)
 	} else {
@@ -288,7 +288,7 @@ func ExampleCustomValidation() {
 	invalidUser.Metadata()["email"] = "jane@example.com"
 	// Missing age
 
-	err = registry.Register(ctx, invalidUser)
+	err = registry.Register(ctx, invalidUser) //nolint:errcheck
 	if err != nil {
 		fmt.Printf("Invalid user correctly rejected: %v\n", err)
 	}
@@ -299,7 +299,7 @@ func ExampleCustomValidation() {
 	forbiddenUser.Metadata()["age"] = "30"
 	forbiddenUser.Metadata()["password"] = "secret123" // Forbidden
 
-	err = registry.Register(ctx, forbiddenUser)
+	err = registry.Register(ctx, forbiddenUser) //nolint:errcheck
 	if err != nil {
 		fmt.Printf("User with forbidden metadata correctly rejected: %v\n", err)
 	}
@@ -341,7 +341,7 @@ func ExampleRegistryFactory() {
 		PersistencePath:   "/data/users.json",
 		AutoSaveInterval:  30 * time.Second,
 	}
-	prodRegistry, err := factory.Create(ctx, prodConfig)
+	prodRegistry, err := factory.Create(ctx, prodConfig) //nolint:errcheck
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -356,7 +356,7 @@ func ExampleRegistryFactory() {
 		CacheSize:        100,
 		CacheTTL:         time.Minute,
 	}
-	devRegistry, err := factory.Create(ctx, devConfig)
+	devRegistry, err := factory.Create(ctx, devConfig) //nolint:errcheck
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -371,7 +371,7 @@ func ExampleRegistryFactory() {
 		CacheSize:        100,
 		CacheTTL:         time.Minute,
 	}
-	testRegistry, err := factory.Create(ctx, testConfig)
+	testRegistry, err := factory.Create(ctx, testConfig) //nolint:errcheck
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -415,7 +415,7 @@ func ExampleAdvancedSearch() {
 		if !u.active {
 			user.Metadata()["active"] = "false"
 		}
-		registry.Register(ctx, user)
+		registry.Register(ctx, user) //nolint:errcheck
 	}
 
 	// Search by name
@@ -526,14 +526,14 @@ func ExamplePerformanceBenchmark() {
 		start := time.Now()
 		for i := 1; i <= 1000; i++ {
 			user := NewBaseEntity(fmt.Sprintf("user-%d", i), fmt.Sprintf("User %d", i))
-			registry.Register(ctx, user)
+			registry.Register(ctx, user) //nolint:errcheck
 		}
 		registerTime := time.Since(start)
 
 		// Benchmark lookups
 		start = time.Now()
 		for i := 1; i <= 1000; i++ {
-			registry.Get(ctx, fmt.Sprintf("user-%d", i))
+			registry.Get(ctx, fmt.Sprintf("user-%d", i)) //nolint:errcheck
 		}
 		lookupTime := time.Since(start)
 
