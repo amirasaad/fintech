@@ -278,7 +278,7 @@ func convertToSmallestUnit(amount float64, currencyCode string) (int64, error) {
 	if len(parts) > 1 {
 		decimals := strings.TrimRight(parts[1], "0") // Remove trailing zeros
 		if len(decimals) > meta.Decimals {
-			return 0, fmt.Errorf("amount has more than %d decimal places", meta.Decimals)
+			return 0, common.ErrInvalidDecimalPlaces
 		}
 	}
 
@@ -293,7 +293,7 @@ func convertToSmallestUnit(amount float64, currencyCode string) (int64, error) {
 	smallestUnitRat := new(big.Rat).Mul(amountRat, big.NewRat(int64(multiplier), 1))
 
 	if !smallestUnitRat.IsInt() {
-		return 0, fmt.Errorf("amount has more than %d decimal places", meta.Decimals)
+		return 0, common.ErrInvalidDecimalPlaces
 	}
 
 	smallestUnit := smallestUnitRat.Num()

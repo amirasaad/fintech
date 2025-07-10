@@ -11,4 +11,6 @@ type ExchangeRateCache interface {
 	Get(key string) (*domain.ExchangeRate, error)
 	Set(key string, rate *domain.ExchangeRate, ttl time.Duration) error
 	Delete(key string) error
+	GetLastUpdate(key string) (time.Time, error)
+	SetLastUpdate(key string, t time.Time) error
 }

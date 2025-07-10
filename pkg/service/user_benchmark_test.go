@@ -24,6 +24,6 @@ func BenchmarkValidUser(b *testing.B) {
 	userRepo.EXPECT().Valid(id, "password").Return(true).Maybe()
 	b.ResetTimer()
 	for b.Loop() {
-		_, _ = svc.ValidUser(id, "password")
+		_, _ = svc.ValidUser(id.String(), "password")
 	}
 }

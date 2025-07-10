@@ -240,7 +240,7 @@ func TestValidUser_True(t *testing.T) {
 	id := uuid.New()
 	userRepo.EXPECT().Valid(id, "password").Return(true)
 
-	ok, _ := svc.ValidUser(id, "password")
+	ok, _ := svc.ValidUser(id.String(), "password")
 	assert.True(t, ok)
 }
 
@@ -250,13 +250,13 @@ func TestValidUser_False(t *testing.T) {
 	id := uuid.New()
 	userRepo.EXPECT().Valid(id, "wrongpass").Return(false)
 
-	ok, _ := svc.ValidUser(id, "wrongpass")
+	ok, _ := svc.ValidUser(id.String(), "wrongpass")
 	assert.False(t, ok)
 }
 
 func TestValidUser_UoWFactoryError(t *testing.T) {
 	t.Parallel()
 	svc := NewUserService(func() (repository.UnitOfWork, error) { return nil, errors.New("uow error") }, slog.Default())
-	ok, _ := svc.ValidUser(uuid.New(), "password")
+	ok, _ := svc.ValidUser(uuid.New().String(), "password")
 	assert.False(t, ok)
 }

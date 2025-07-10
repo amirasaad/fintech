@@ -2,6 +2,7 @@ package config
 
 import (
 	"log/slog"
+	"regexp"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -48,6 +49,23 @@ type AppConfig struct {
 	Redis    RedisConfig        `envconfig:"REDIS"`
 }
 
+func maskApiKey(key string) string {
+	if len(key) <= 6 {
+		return "****"
+	}
+	return key[:2] + "****" + key[len(key)-4:]
+}
+
+func maskApiKeyInUrl(url string) string {
+	// Mask /v6/<key> in path
+	re := regexp.MustCompile(`(v6/)[^/]+`)
+	masked := re.ReplaceAllString(url, `${1}[MASKED]`)
+	// Mask api_key in query string
+	qre := regexp.MustCompile(`([?&]api_key=)[^&]+`)
+	masked = qre.ReplaceAllString(masked, `${1}[MASKED]`)
+	return masked
+}
+
 func LoadAppConfig(logger *slog.Logger, envFilePath ...string) (*AppConfig, error) {
 	var err error
 	if len(envFilePath) > 0 && envFilePath[0] != "" {
@@ -65,6 +83,12 @@ func LoadAppConfig(logger *slog.Logger, envFilePath ...string) (*AppConfig, erro
 	if err := envconfig.Process("", &cfg); err != nil {
 		return nil, err
 	}
-	logger.Info("App config loaded", "db", cfg.DB.Url, "jwt_expiry", cfg, "exchange_cache_ttl", cfg.Exchange.CacheTTL)
+	logger.Info("App config loaded",
+		"db", cfg.DB.Url,
+		"jwt_expiry", cfg.Jwt.Expiry,
+		"exchange_cache_ttl", cfg.Exchange.CacheTTL,
+		"exchange_api_url", maskApiKeyInUrl(cfg.Exchange.ApiUrl),
+		"exchange_api_key", maskApiKey(cfg.Exchange.ApiKey),
+	)
 	return &cfg, nil
 }

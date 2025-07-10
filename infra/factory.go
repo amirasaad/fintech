@@ -51,12 +51,11 @@ func NewExchangeRateSystem(logger *slog.Logger, cfg config.AppConfig) (domain.Cu
 		err := exchangeRateProvider.FetchAndCacheRates(baseCurrency, rateCache, cfg.Exchange.CacheTTL)
 		if err != nil {
 			logger.Error("Failed to fetch and cache exchange rates at startup", "error", err)
-			// Optionally: return nil, err
 		}
 	}
 
 	// Create exchange rate service
-	exchangeRateService := infra_provider.NewExchangeRateService(exchangeRateProviders, rateCache, logger)
+	exchangeRateService := infra_provider.NewExchangeRateService(exchangeRateProviders, rateCache, logger, &cfg.Exchange)
 
 	// Create fallback converter
 	var fallback domain.CurrencyConverter

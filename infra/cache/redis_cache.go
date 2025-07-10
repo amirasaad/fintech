@@ -84,3 +84,32 @@ func (r *RedisExchangeRateCache) Delete(key string) error {
 	r.logger.Debug("Redis cache delete", "key", key)
 	return nil
 }
+
+func (r *RedisExchangeRateCache) GetLastUpdate(key string) (time.Time, error) {
+	ctx := context.Background()
+	val, err := r.client.Get(ctx, r.key("last_update:"+key)).Result()
+	if err == redis.Nil {
+		return time.Time{}, nil // not set
+	}
+	if err != nil {
+		r.logger.Error("Redis cache get last update error", "key", key, "error", err)
+		return time.Time{}, err
+	}
+	ts, err := time.Parse(time.RFC3339Nano, val)
+	if err != nil {
+		r.logger.Error("Redis cache parse last update error", "key", key, "error", err)
+		return time.Time{}, err
+	}
+	return ts, nil
+}
+
+func (r *RedisExchangeRateCache) SetLastUpdate(key string, t time.Time) error {
+	ctx := context.Background()
+	err := r.client.Set(ctx, r.key("last_update:"+key), t.Format(time.RFC3339Nano), 0).Err()
+	if err != nil {
+		r.logger.Error("Redis cache set last update error", "key", key, "error", err)
+		return err
+	}
+	r.logger.Debug("Redis cache set last update", "key", key, "timestamp", t)
+	return nil
+}

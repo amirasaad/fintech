@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/amirasaad/fintech/pkg/domain"
+	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/amirasaad/fintech/pkg/domain/user"
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
@@ -70,6 +71,8 @@ func ErrorToStatusCode(err error) int {
 		return fiber.StatusUnprocessableEntity
 	case errors.Is(err, domain.ErrUserUnauthorized):
 		return fiber.StatusUnauthorized
+	case errors.Is(err, common.ErrInvalidDecimalPlaces):
+		return fiber.StatusBadRequest
 	default:
 		return fiber.StatusInternalServerError
 	}

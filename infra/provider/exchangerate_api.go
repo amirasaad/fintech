@@ -56,8 +56,18 @@ func NewExchangeRateAPIProvider(cfg config.ExchangeRateConfig, logger *slog.Logg
 
 // FetchAndCacheRates fetches all rates for the base currency and caches them
 func (p *ExchangeRateAPIProvider) FetchAndCacheRates(base string, cache cache.ExchangeRateCache, ttl time.Duration) error {
+	// Check last update before fetching
+	lastUpdate, err := cache.GetLastUpdate(base)
+	if err != nil {
+		p.logger.Warn("Could not check last update for exchange rates", "error", err)
+	}
+	if !lastUpdate.IsZero() && time.Since(lastUpdate) < ttl {
+		p.logger.Info("Exchange rates cache is still valid, skipping fetch", "base", base, "lastUpdate", lastUpdate)
+		return nil
+	}
+
 	url := fmt.Sprintf("%s/%s/latest/%s", p.baseURL, p.apiKey, base)
-	p.logger.Info("Fetching exchange rates from API", "url", url)
+	p.logger.Info("Fetching exchange rates from", "baseUrl", p.baseURL)
 
 	resp, err := p.httpClient.Get(url)
 	if err != nil {
@@ -98,6 +108,8 @@ func (p *ExchangeRateAPIProvider) FetchAndCacheRates(base string, cache cache.Ex
 			p.logger.Warn("Failed to cache exchange rate", "key", key, "error", err)
 		}
 	}
+	// Set last update for this base
+	_ = cache.SetLastUpdate(base, time.Now())
 	p.logger.Info("Exchange rates cached successfully", "base", base, "count", len(apiResp.ConversionRates))
 	return nil
 }

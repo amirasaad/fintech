@@ -190,7 +190,7 @@ func DeleteUser(
 		if id != userID {
 			return ProblemDetailsJSON(c, fiber.StatusForbidden, "You are not allowed to update this user", nil)
 		}
-		isValid, err := userSvc.ValidUser(id, input.Password)
+		isValid, err := userSvc.ValidUser(id.String(), input.Password)
 		if err != nil {
 			return ProblemDetailsJSON(c, fiber.StatusInternalServerError, "Failed to validate user", err.Error())
 		}

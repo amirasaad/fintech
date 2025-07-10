@@ -4,32 +4,50 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
+	"regexp"
 	"time"
 
+	infra_cache "github.com/amirasaad/fintech/infra/cache"
 	"github.com/amirasaad/fintech/pkg/cache"
+	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/provider"
 )
+
+// maskApiKeyInUrl masks API keys in both /v6/<key>/ path segments and api_key query parameters.
+// Usage: s.logger.Info("Fetching rates", "url", maskApiKeyInUrl(apiUrl))
+func maskApiKeyInUrl(url string) string {
+	// Mask /v6/<key> in path
+	re := regexp.MustCompile(`(v6/)[^/]+`)
+	masked := re.ReplaceAllString(url, `${1}[MASKED]`)
+	// Mask api_key in query string
+	qre := regexp.MustCompile(`([?&]api_key=)[^&]+`)
+	masked = qre.ReplaceAllString(masked, `${1}[MASKED]`)
+	return masked
+}
 
 // ExchangeRateService provides real-time exchange rates with caching and fallback providers.
 type ExchangeRateService struct {
 	providers []provider.ExchangeRateProvider
 	cache     cache.ExchangeRateCache
 	logger    *slog.Logger
+	cfg       *config.ExchangeRateConfig
 	// mu        sync.RWMutex
 }
 
-// NewExchangeRateService creates a new exchange rate service with the given providers and cache.
-func NewExchangeRateService(providers []provider.ExchangeRateProvider, cache cache.ExchangeRateCache, logger *slog.Logger) *ExchangeRateService {
+// NewExchangeRateService creates a new exchange rate service with the given providers, cache, and exchange rate config.
+func NewExchangeRateService(providers []provider.ExchangeRateProvider, cache cache.ExchangeRateCache, logger *slog.Logger, cfg *config.ExchangeRateConfig) *ExchangeRateService {
 	return &ExchangeRateService{
 		providers: providers,
 		cache:     cache,
 		logger:    logger,
+		cfg:       cfg,
 	}
 }
 
 // GetRate retrieves an exchange rate, trying cache first, then providers in order.
 func (s *ExchangeRateService) GetRate(from, to string) (*domain.ExchangeRate, error) {
+	s.logger.Info("[DIAG] Cache type", "type", fmt.Sprintf("%T", s.cache))
 	if from == to {
 		return &domain.ExchangeRate{
 			FromCurrency: from,
@@ -41,15 +59,27 @@ func (s *ExchangeRateService) GetRate(from, to string) (*domain.ExchangeRate, er
 		}, nil
 	}
 
-	// Try cache first
 	cacheKey := fmt.Sprintf("%s:%s", from, to)
-	if cached, err := s.cache.Get(cacheKey); err == nil && cached != nil {
-		if time.Now().Before(cached.ExpiresAt) {
-			s.logger.Debug("Exchange rate retrieved from cache", "from", from, "to", to, "rate", cached.Rate)
-			return cached, nil
+
+	// Check last update timestamp
+	if redisCache, ok := s.cache.(*infra_cache.RedisExchangeRateCache); ok {
+		s.logger.Info("[DIAG] Checking last update timestamp in Redis", "key", cacheKey)
+		lastUpdate, err := redisCache.GetLastUpdate(cacheKey)
+		if err != nil {
+			s.logger.Warn("[DIAG] Failed to get last update from Redis", "key", cacheKey, "error", err)
 		}
-		// Rate expired, remove from cache
-		_ = s.cache.Delete(cacheKey)
+		if err == nil && !lastUpdate.IsZero() {
+			s.logger.Info("[DIAG] Last update timestamp found", "key", cacheKey, "lastUpdate", lastUpdate, "age", time.Since(lastUpdate), "ttl", s.cfg.CacheTTL)
+		}
+		if err == nil && !lastUpdate.IsZero() && time.Since(lastUpdate) < s.cfg.CacheTTL {
+			// Try cache first
+			if cached, err := s.cache.Get(cacheKey); err == nil && cached != nil {
+				if time.Now().Before(cached.ExpiresAt) {
+					s.logger.Info("[DIAG] Exchange rate retrieved from cache (last update valid)", "from", from, "to", to, "rate", cached.Rate)
+					return cached, nil
+				}
+			}
+		}
 	}
 
 	// Try reverse pair in cache and invert
@@ -91,6 +121,9 @@ func (s *ExchangeRateService) GetRate(from, to string) (*domain.ExchangeRate, er
 		ttl := time.Until(rate.ExpiresAt)
 		if ttl > 0 {
 			_ = s.cache.Set(cacheKey, rate, ttl)
+			if redisCache, ok := s.cache.(*infra_cache.RedisExchangeRateCache); ok {
+				_ = redisCache.SetLastUpdate(cacheKey, time.Now())
+			}
 		}
 
 		s.logger.Info("Exchange rate retrieved from provider", "provider", provider.Name(), "from", from, "to", to, "rate", rate.Rate)

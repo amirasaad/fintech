@@ -9,14 +9,16 @@ import (
 
 // MemoryCache implements ExchangeRateCache using in-memory storage
 type MemoryCache struct {
-	cache map[string]*cacheEntry
-	mu    sync.RWMutex
+	cache      map[string]*cacheEntry
+	lastUpdate map[string]time.Time
+	mu         sync.RWMutex
 }
 
 // NewMemoryCache creates a new in-memory cache
 func NewMemoryCache() *MemoryCache {
 	cache := &MemoryCache{
-		cache: make(map[string]*cacheEntry),
+		cache:      make(map[string]*cacheEntry),
+		lastUpdate: make(map[string]time.Time),
 	}
 
 	// Start cleanup goroutine
@@ -61,6 +63,25 @@ func (c *MemoryCache) Delete(key string) error {
 	defer c.mu.Unlock()
 
 	delete(c.cache, key)
+	return nil
+}
+
+// GetLastUpdate returns the last update timestamp for a key
+func (c *MemoryCache) GetLastUpdate(key string) (time.Time, error) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	ts, ok := c.lastUpdate[key]
+	if !ok {
+		return time.Time{}, nil
+	}
+	return ts, nil
+}
+
+// SetLastUpdate sets the last update timestamp for a key
+func (c *MemoryCache) SetLastUpdate(key string, t time.Time) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.lastUpdate[key] = t
 	return nil
 }
 
