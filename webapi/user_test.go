@@ -46,7 +46,7 @@ func (s *UserTestSuite) SetupTest() {
 	// Setup mock for login request
 	s.testToken = generateTestToken(s.T(), s.authService, s.testUser, s.cfg)
 	mockUow := &fixtures.MockUnitOfWork{}
-	mockUow.On("Do", mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+	mockUow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
 		fn := args.Get(1).(func(repository.UnitOfWork) error)
 		_ = fn(mockUow)
 	})

@@ -49,7 +49,10 @@ func TestLogin_Success(t *testing.T) {
 	authStrategy.EXPECT().GenerateToken(user).Return("testtoken", nil)
 	authStrategy.EXPECT().Login(gomock.Any(), "user@example.com", "password").Return(user, nil).Once()
 	uow := fixtures.NewMockUnitOfWork(t)
-	uow.EXPECT().Do(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, fn func(uow repository.UnitOfWork) error) error { return fn(uow) })
+	uow.EXPECT().Do(gomock.Any(), gomock.Any()).Return(nil).Run(func(args gomock.Arguments) {
+		fn := args.Get(1).(func(repository.UnitOfWork) error)
+		_ = fn(uow)
+	})
 	s := NewAuthService(uow, authStrategy, slog.Default())
 	gotUser, err := s.Login(context.Background(), "user@example.com", "password")
 	assert.NoError(err)

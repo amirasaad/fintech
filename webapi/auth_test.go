@@ -38,7 +38,7 @@ func (s *AuthTestSuite) SetupTest() {
 		_,
 		s.cfg = SetupTestApp(s.T())
 
-	s.mockUow.On("Do", mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+	s.mockUow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
 		fn := args.Get(1).(func(repository.UnitOfWork) error)
 		_ = fn(s.mockUow)
 	})
