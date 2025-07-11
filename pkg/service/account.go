@@ -8,21 +8,23 @@ package service
 
 import (
 	"context"
+	"log/slog"
+	"reflect"
+
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/domain/common"
 	mon "github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/amirasaad/fintech/pkg/domain/user"
 	"github.com/amirasaad/fintech/pkg/repository"
-	"log/slog"
 	"github.com/google/uuid"
 )
 
 // AccountService provides business logic for account operations including creation, deposits, withdrawals, and balance inquiries.
 type AccountService struct {
-	uow        repository.UnitOfWork
-	converter  mon.CurrencyConverter
-	logger     *slog.Logger
+	uow       repository.UnitOfWork
+	converter mon.CurrencyConverter
+	logger    *slog.Logger
 }
 
 // NewAccountService creates a new AccountService with a UnitOfWork, CurrencyConverter, and logger.
@@ -41,10 +43,11 @@ func NewAccountService(
 // CreateAccount creates a new account for the specified user in a transaction.
 func (s *AccountService) CreateAccount(ctx context.Context, userID uuid.UUID) (a *account.Account, err error) {
 	err = s.uow.Do(ctx, func(uow repository.UnitOfWork) error {
-		repo, err := uow.GetRepository[repository.AccountRepository]()
+		repoAny, err := uow.GetRepository(reflect.TypeOf((*repository.AccountRepository)(nil)).Elem())
 		if err != nil {
 			return err
 		}
+		repo := repoAny.(repository.AccountRepository)
 		a, err = account.New().WithUserID(userID).Build()
 		if err != nil {
 			return err
@@ -90,11 +93,12 @@ func (s *AccountService) CreateAccountWithCurrency(
 	logger := s.logger.With("userID", userID, "currency", currencyCode)
 	logger.Info("CreateAccountWithCurrency started")
 	err = s.uow.Do(context.Background(), func(uow repository.UnitOfWork) error {
-		repo, err := uow.GetRepository[repository.AccountRepository]()
+		repoAny, err := uow.GetRepository(reflect.TypeOf((*repository.AccountRepository)(nil)).Elem())
 		if err != nil {
 			logger.Error("CreateAccountWithCurrency failed: AccountRepository error", "error", err)
 			return err
 		}
+		repo := repoAny.(repository.AccountRepository)
 		acct, err = account.New().
 			WithUserID(userID).
 			WithCurrency(currencyCode).
@@ -190,11 +194,12 @@ func (s *AccountService) Deposit(
 	var txLocal *account.Transaction
 	var convInfoLocal *common.ConversionInfo
 	err = s.uow.Do(context.Background(), func(uow repository.UnitOfWork) error {
-		repo, err := uow.GetRepository[repository.AccountRepository]()
+		repoAny, err := uow.GetRepository(reflect.TypeOf((*repository.AccountRepository)(nil)).Elem())
 		if err != nil {
 			logger.Error("Deposit failed: AccountRepository error", "error", err)
 			return err
 		}
+		repo := repoAny.(repository.AccountRepository)
 		a, err := repo.Get(accountID)
 		if err != nil {
 			logger.Error("Deposit failed: account not found", "error", err)
@@ -242,11 +247,12 @@ func (s *AccountService) Deposit(
 			logger.Error("Deposit failed: repo update error", "error", err)
 			return err
 		}
-		txRepo, err := uow.GetRepository[repository.TransactionRepository]()
+		txRepoAny, err := uow.GetRepository(reflect.TypeOf((*repository.TransactionRepository)(nil)).Elem())
 		if err != nil {
 			logger.Error("Deposit failed: TransactionRepository error", "error", err)
 			return err
 		}
+		txRepo := txRepoAny.(repository.TransactionRepository)
 		if err = txRepo.Create(txLocal); err != nil {
 			logger.Error("Deposit failed: transaction create error", "error", err)
 			return err
@@ -289,11 +295,12 @@ func (s *AccountService) Withdraw(
 	var txLocal *account.Transaction
 	var convInfoLocal *common.ConversionInfo
 	err = s.uow.Do(context.Background(), func(uow repository.UnitOfWork) error {
-		repo, err := uow.GetRepository[repository.AccountRepository]()
+		repoAny, err := uow.GetRepository(reflect.TypeOf((*repository.AccountRepository)(nil)).Elem())
 		if err != nil {
 			logger.Error("Withdraw failed: AccountRepository error", "error", err)
 			return err
 		}
+		repo := repoAny.(repository.AccountRepository)
 		a, err := repo.Get(accountID)
 		if err != nil {
 			logger.Error("Withdraw failed: account not found", "error", err)
@@ -341,11 +348,12 @@ func (s *AccountService) Withdraw(
 			logger.Error("Withdraw failed: repo update error", "error", err)
 			return err
 		}
-		txRepo, err := uow.GetRepository[repository.TransactionRepository]()
+		txRepoAny, err := uow.GetRepository(reflect.TypeOf((*repository.TransactionRepository)(nil)).Elem())
 		if err != nil {
 			logger.Error("Withdraw failed: TransactionRepository error", "error", err)
 			return err
 		}
+		txRepo := txRepoAny.(repository.TransactionRepository)
 		if err = txRepo.Create(txLocal); err != nil {
 			logger.Error("Withdraw failed: transaction create error", "error", err)
 			return err
@@ -379,11 +387,12 @@ func (s *AccountService) GetAccount(
 	logger := s.logger.With("userID", userID, "accountID", accountID)
 	logger.Info("GetAccount started")
 	err = s.uow.Do(context.Background(), func(uow repository.UnitOfWork) error {
-		repo, err := uow.GetRepository[repository.AccountRepository]()
+		repoAny, err := uow.GetRepository(reflect.TypeOf((*repository.AccountRepository)(nil)).Elem())
 		if err != nil {
 			logger.Error("GetAccount failed: AccountRepository error", "error", err)
 			return err
 		}
+		repo := repoAny.(repository.AccountRepository)
 		aLocal, err := repo.Get(accountID)
 		if err != nil {
 			logger.Error("GetAccount failed: account not found", "error", err)
@@ -420,11 +429,12 @@ func (s *AccountService) GetTransactions(
 	logger := s.logger.With("userID", userID, "accountID", accountID)
 	logger.Info("GetTransactions started")
 	err = s.uow.Do(context.Background(), func(uow repository.UnitOfWork) error {
-		txRepo, err := uow.GetRepository[repository.TransactionRepository]()
+		txRepoAny, err := uow.GetRepository(reflect.TypeOf((*repository.TransactionRepository)(nil)).Elem())
 		if err != nil {
 			logger.Error("GetTransactions failed: TransactionRepository error", "error", err)
 			return err
 		}
+		txRepo := txRepoAny.(repository.TransactionRepository)
 		txs, err = txRepo.List(userID, accountID)
 		if err != nil {
 			logger.Error("GetTransactions failed: repo list error", "error", err)
@@ -454,11 +464,12 @@ func (s *AccountService) GetBalance(
 	logger := s.logger.With("userID", userID, "accountID", accountID)
 	logger.Info("GetBalance started")
 	err = s.uow.Do(context.Background(), func(uow repository.UnitOfWork) error {
-		repo, err := uow.GetRepository[repository.AccountRepository]()
+		repoAny, err := uow.GetRepository(reflect.TypeOf((*repository.AccountRepository)(nil)).Elem())
 		if err != nil {
 			logger.Error("GetBalance failed: AccountRepository error", "error", err)
 			return err
 		}
+		repo := repoAny.(repository.AccountRepository)
 		a, err := repo.Get(accountID)
 		if err != nil {
 			logger.Error("GetBalance failed: account not found", "error", err)

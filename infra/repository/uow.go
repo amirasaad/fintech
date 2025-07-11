@@ -17,8 +17,8 @@ import (
 // - Prevents accidental use of the wrong DB session (which would break transactionality).
 // - Is idiomatic for Go UoW patterns and easy to mock in tests.
 type UoW struct {
-	db          *gorm.DB
-	tx          *gorm.DB
+	db           *gorm.DB
+	tx           *gorm.DB
 	repoRegistry map[reflect.Type]func(*gorm.DB) interface{}
 }
 
@@ -27,9 +27,9 @@ func NewUoW(db *gorm.DB) *UoW {
 	return &UoW{
 		db: db,
 		repoRegistry: map[reflect.Type]func(*gorm.DB) interface{}{
-			reflect.TypeOf((*AccountRepository)(nil)).Elem(): func(db *gorm.DB) interface{} { return NewAccountRepository(db) },
+			reflect.TypeOf((*AccountRepository)(nil)).Elem():     func(db *gorm.DB) interface{} { return NewAccountRepository(db) },
 			reflect.TypeOf((*TransactionRepository)(nil)).Elem(): func(db *gorm.DB) interface{} { return NewTransactionRepository(db) },
-			reflect.TypeOf((*UserRepository)(nil)).Elem(): func(db *gorm.DB) interface{} { return NewUserRepository(db) },
+			reflect.TypeOf((*UserRepository)(nil)).Elem():        func(db *gorm.DB) interface{} { return NewUserRepository(db) },
 		},
 	}
 }
@@ -47,15 +47,13 @@ func (u *UoW) Do(ctx context.Context, fn func(uow UnitOfWork) error) error {
 // This method is part of UoW to guarantee that all repository operations within a transaction
 // use the same DB session, ensuring atomicity and consistency. It also centralizes repository
 // construction and makes testing and extension easier.
-func (u *UoW) GetRepository[T any]() (T, error) {
-	var zero T
-	t := reflect.TypeOf((*T)(nil)).Elem()
-	constructor, ok := u.repoRegistry[t]
+func (u *UoW) GetRepository(repoType reflect.Type) (any, error) {
+	constructor, ok := u.repoRegistry[repoType]
 	if !ok {
-		return zero, fmt.Errorf("unsupported repository type: %v", t)
+		return nil, fmt.Errorf("unsupported repository type: %v", repoType)
 	}
 	repo := constructor(u.tx)
-	return repo.(T), nil
+	return repo, nil
 }
 
 // ---
@@ -63,18 +61,16 @@ func (u *UoW) GetRepository[T any]() (T, error) {
 //
 // type MockUnitOfWork struct {
 //     DoFunc func(ctx context.Context, fn func(uow UnitOfWork) error) error
-//     GetRepositoryFunc func(any) (any, error)
+//     GetRepositoryFunc func(repoType any) (any, error)
 // }
 //
 // func (m *MockUnitOfWork) Do(ctx context.Context, fn func(uow UnitOfWork) error) error {
 //     if m.DoFunc != nil { return m.DoFunc(ctx, fn) }
 //     return fn(m)
 // }
-// func (m *MockUnitOfWork) GetRepository[T any]() (T, error) {
+// func (m *MockUnitOfWork) GetRepository(repoType reflect.Type) (any, error) {
 //     if m.GetRepositoryFunc != nil {
-//         repo, err := m.GetRepositoryFunc(new(T))
-//         return repo.(T), err
+//         return m.GetRepositoryFunc(repoType)
 //     }
-//     var zero T
-//     return zero, nil
+//     return nil, nil
 // }

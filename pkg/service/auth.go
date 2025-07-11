@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/mail"
+	"reflect"
 	"time"
 
 	"github.com/amirasaad/fintech/pkg/config"
@@ -28,8 +29,8 @@ type AuthStrategy interface {
 
 type AuthService struct {
 	uow      repository.UnitOfWork
-	strategy   AuthStrategy
-	logger     *slog.Logger
+	strategy AuthStrategy
+	logger   *slog.Logger
 }
 
 func NewAuthService(
@@ -108,8 +109,8 @@ func (s *AuthService) GenerateToken(user *domain.User) (string, error) {
 // JWTAuthStrategy implements AuthStrategy for JWT-based authentication
 type JWTAuthStrategy struct {
 	uow    repository.UnitOfWork
-	cfg        config.JwtConfig
-	logger     *slog.Logger
+	cfg    config.JwtConfig
+	logger *slog.Logger
 }
 
 func NewJWTAuthStrategy(
@@ -145,10 +146,11 @@ func (s *JWTAuthStrategy) Login(
 ) {
 	s.logger.Info("Login called", "identity", identity)
 	err = s.uow.Do(ctx, func(uow repository.UnitOfWork) error {
-		repo, err := uow.GetRepository[repository.UserRepository]()
+		repoAny, err := uow.GetRepository(reflect.TypeOf((*repository.UserRepository)(nil)).Elem())
 		if err != nil {
 			return err
 		}
+		repo := repoAny.(repository.UserRepository)
 		if isEmail(identity) {
 			u, err = repo.GetByEmail(identity)
 		} else {
@@ -201,7 +203,7 @@ func (s *JWTAuthStrategy) GetCurrentUserID(
 // BasicAuthStrategy implements AuthStrategy for CLI (no JWT, just password check)
 type BasicAuthStrategy struct {
 	uow    repository.UnitOfWork
-	logger     *slog.Logger
+	logger *slog.Logger
 }
 
 func (s *BasicAuthStrategy) Login(
@@ -213,10 +215,11 @@ func (s *BasicAuthStrategy) Login(
 ) {
 	s.logger.Info("Login called", "identity", identity)
 	err = s.uow.Do(ctx, func(uow repository.UnitOfWork) error {
-		repo, err := uow.GetRepository[repository.UserRepository]()
+		repoAny, err := uow.GetRepository(reflect.TypeOf((*repository.UserRepository)(nil)).Elem())
 		if err != nil {
 			return err
 		}
+		repo := repoAny.(repository.UserRepository)
 		if isEmail(identity) {
 			user, err = repo.GetByEmail(identity)
 		} else {
