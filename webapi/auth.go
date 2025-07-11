@@ -33,7 +33,7 @@ func Login(authSvc *service.AuthService) fiber.Handler {
 		if err != nil {
 			return nil // Error already written by BindAndValidate
 		}
-		user, err := authSvc.Login(input.Identity, input.Password)
+		user, err := authSvc.Login(c.Context(), input.Identity, input.Password)
 		if err != nil {
 			return ProblemDetailsJSON(c, "Internal Server Error", err)
 		}

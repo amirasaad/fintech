@@ -7,8 +7,8 @@ import (
 
 	"github.com/amirasaad/fintech/internal/fixtures"
 	"github.com/amirasaad/fintech/pkg/domain"
-	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/mock"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -25,16 +25,16 @@ func BenchmarkLogin_Success(b *testing.B) {
 	user := &domain.User{ID: uuid.New(), Username: "user", Email: "user@example.com", Password: string(hash)}
 	repo := fixtures.NewMockUserRepository(b)
 
-	repo.EXPECT().GetByEmail("user@example.com").Return(user, nil).Maybe()
+	repo.EXPECT().GetByEmail("user@example.com").Return(user, nil).Once()
 	uow := fixtures.NewMockUnitOfWork(b)
-	uow.EXPECT().UserRepository().Return(repo, nil).Maybe()
+	uow.EXPECT().GetRepository(mock.Anything).Return(repo, nil).Once()
 	authStrategy := fixtures.NewMockAuthStrategy(b)
-	authStrategy.EXPECT().Login("user@example.com", "password").Return(user, nil).Maybe()
-	s := NewAuthService(func() (repository.UnitOfWork, error) { return uow, nil }, authStrategy, slog.Default())
+	authStrategy.EXPECT().Login(mock.Anything, "user@example.com", "password").Return(user, nil).Maybe()
+	s := NewAuthService(uow, authStrategy, slog.Default())
 
 	b.ResetTimer()
 	for b.Loop() {
-		_, _ = s.Login("user@example.com", "password")
+		_, _ = s.Login(b.Context(), "user@example.com", "password")
 	}
 }
 
@@ -51,15 +51,15 @@ func BenchmarkLogin_InvalidPassword(b *testing.B) {
 	repo := fixtures.NewMockUserRepository(b)
 	repo.EXPECT().GetByEmail("user@example.com").Return(user, nil).Maybe()
 	uow := fixtures.NewMockUnitOfWork(b)
-	uow.EXPECT().UserRepository().Return(repo, nil).Maybe()
+	uow.EXPECT().GetRepository(mock.Anything).Return(repo, nil).Maybe()
 	authStrategy := fixtures.NewMockAuthStrategy(b)
-	authStrategy.EXPECT().Login("user@example.com", "wrong").Return(nil, errors.New("invalid password")).Maybe()
+	authStrategy.EXPECT().Login(mock.Anything, "user@example.com", "wrong").Return(nil, errors.New("invalid password")).Maybe()
 
-	s := NewAuthService(func() (repository.UnitOfWork, error) { return uow, nil }, authStrategy, slog.Default())
+	s := NewAuthService(uow, authStrategy, slog.Default())
 
 	b.ResetTimer()
 	for b.Loop() {
-		_, _ = s.Login("user@example.com", "wrong")
+		_, _ = s.Login(b.Context(), "user@example.com", "wrong")
 	}
 }
 
@@ -67,13 +67,13 @@ func BenchmarkLogin_UserNotFound(b *testing.B) {
 	repo := fixtures.NewMockUserRepository(b)
 	repo.EXPECT().GetByEmail("notfound@example.com").Return(&domain.User{}, errors.New("user not found")).Maybe()
 	uow := fixtures.NewMockUnitOfWork(b)
-	uow.EXPECT().UserRepository().Return(repo, nil).Maybe()
+	uow.EXPECT().GetRepository(mock.Anything).Return(repo, nil).Maybe()
 	authStrategy := fixtures.NewMockAuthStrategy(b)
-	authStrategy.EXPECT().Login("notfound@example.com", "password").Return(nil, nil).Maybe()
+	authStrategy.EXPECT().Login(mock.Anything, "notfound@example.com", "password").Return(nil, nil).Maybe()
 
-	s := NewAuthService(func() (repository.UnitOfWork, error) { return uow, nil }, authStrategy, slog.Default())
+	s := NewAuthService(uow, authStrategy, slog.Default())
 	b.ResetTimer()
 	for b.Loop() {
-		_, _ = s.Login("notfound@example.com", "password")
+		_, _ = s.Login(b.Context(), "notfound@example.com", "password")
 	}
 }

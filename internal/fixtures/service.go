@@ -162,8 +162,8 @@ func (_c *MockAuthStrategy_GetCurrentUserID_Call) RunAndReturn(run func(ctx cont
 }
 
 // Login provides a mock function for the type MockAuthStrategy
-func (_mock *MockAuthStrategy) Login(identity string, password string) (*domain.User, error) {
-	ret := _mock.Called(identity, password)
+func (_mock *MockAuthStrategy) Login(ctx context.Context, identity string, password string) (*domain.User, error) {
+	ret := _mock.Called(ctx, identity, password)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Login")
@@ -171,18 +171,18 @@ func (_mock *MockAuthStrategy) Login(identity string, password string) (*domain.
 
 	var r0 *domain.User
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(string, string) (*domain.User, error)); ok {
-		return returnFunc(identity, password)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) (*domain.User, error)); ok {
+		return returnFunc(ctx, identity, password)
 	}
-	if returnFunc, ok := ret.Get(0).(func(string, string) *domain.User); ok {
-		r0 = returnFunc(identity, password)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) *domain.User); ok {
+		r0 = returnFunc(ctx, identity, password)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*domain.User)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(string, string) error); ok {
-		r1 = returnFunc(identity, password)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = returnFunc(ctx, identity, password)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -195,36 +195,42 @@ type MockAuthStrategy_Login_Call struct {
 }
 
 // Login is a helper method to define mock.On call
+//   - ctx context.Context
 //   - identity string
 //   - password string
-func (_e *MockAuthStrategy_Expecter) Login(identity interface{}, password interface{}) *MockAuthStrategy_Login_Call {
-	return &MockAuthStrategy_Login_Call{Call: _e.mock.On("Login", identity, password)}
+func (_e *MockAuthStrategy_Expecter) Login(ctx interface{}, identity interface{}, password interface{}) *MockAuthStrategy_Login_Call {
+	return &MockAuthStrategy_Login_Call{Call: _e.mock.On("Login", ctx, identity, password)}
 }
 
-func (_c *MockAuthStrategy_Login_Call) Run(run func(identity string, password string)) *MockAuthStrategy_Login_Call {
+func (_c *MockAuthStrategy_Login_Call) Run(run func(ctx context.Context, identity string, password string)) *MockAuthStrategy_Login_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 string
+		var arg0 context.Context
 		if args[0] != nil {
-			arg0 = args[0].(string)
+			arg0 = args[0].(context.Context)
 		}
 		var arg1 string
 		if args[1] != nil {
 			arg1 = args[1].(string)
 		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
 		run(
 			arg0,
 			arg1,
+			arg2,
 		)
 	})
 	return _c
 }
 
-func (_c *MockAuthStrategy_Login_Call) Return(user *domain.User, err error) *MockAuthStrategy_Login_Call {
-	_c.Call.Return(user, err)
+func (_c *MockAuthStrategy_Login_Call) Return(v *domain.User, err error) *MockAuthStrategy_Login_Call {
+	_c.Call.Return(v, err)
 	return _c
 }
 
-func (_c *MockAuthStrategy_Login_Call) RunAndReturn(run func(identity string, password string) (*domain.User, error)) *MockAuthStrategy_Login_Call {
+func (_c *MockAuthStrategy_Login_Call) RunAndReturn(run func(ctx context.Context, identity string, password string) (*domain.User, error)) *MockAuthStrategy_Login_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -18,7 +18,6 @@ import (
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/domain/user"
-	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/amirasaad/fintech/pkg/service"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/log"
@@ -84,14 +83,13 @@ func SetupTestApp(
 	if err != nil {
 		t.Fatalf("Failed to create test user: %v", err)
 	}
-	uow := func() (repository.UnitOfWork, error) { return mockUow, nil }
 	logger := slog.Default()
-	authStrategy := service.NewJWTAuthStrategy(uow, cfg.Jwt, logger)
-	authService = service.NewAuthService(uow, authStrategy, logger)
+	authStrategy := service.NewJWTAuthStrategy(mockUow, cfg.Jwt, logger)
+	authService = service.NewAuthService(mockUow, authStrategy, logger)
 	mockConverter = fixtures.NewMockCurrencyConverter(t)
 	// Create services with the mock UOW factory
-	accountSvc := service.NewAccountService(uow, mockConverter, logger)
-	userSvc := service.NewUserService(uow, logger)
+	accountSvc := service.NewAccountService(mockUow, mockConverter, logger)
+	userSvc := service.NewUserService(mockUow, logger)
 
 	// Initialize currency service with testing registry
 	ctx := context.Background()

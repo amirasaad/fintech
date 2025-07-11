@@ -1,124 +1,77 @@
 package repository
 
 import (
+	"context"
 	"fmt"
-	"log/slog"
+	"reflect"
 
-	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"gorm.io/gorm"
 )
 
+// UoW provides transaction boundary and repository access in one abstraction.
+//
+// Why is GetRepository part of UoW?
+// - Ensures all repositories use the same DB session/transaction for true atomicity.
+// - Keeps service code clean and focused on business logic.
+// - Centralizes repository wiring and registry for maintainability.
+// - Prevents accidental use of the wrong DB session (which would break transactionality).
+// - Is idiomatic for Go UoW patterns and easy to mock in tests.
 type UoW struct {
-	baseDB  *gorm.DB // shared, non-transactional connection
-	session *gorm.DB // transactional session
-	started bool
-	cfg     config.DBConfig
-	appEnv  string
+	db           *gorm.DB
+	tx           *gorm.DB
+	repoRegistry map[reflect.Type]func(*gorm.DB) interface{}
 }
 
-// NewGormUoW now accepts a *gorm.DB instance and does not create a new connection
-func NewGormUoW(db *gorm.DB) *UoW {
+// NewUoW creates a new UoW for the given *gorm.DB.
+func NewUoW(db *gorm.DB) *UoW {
 	return &UoW{
-		baseDB:  db,
-		session: db,
-		started: false,
+		db: db,
+		repoRegistry: map[reflect.Type]func(*gorm.DB) interface{}{
+			reflect.TypeOf((*repository.AccountRepository)(nil)).Elem():     func(db *gorm.DB) interface{} { return NewAccountRepository(db) },
+			reflect.TypeOf((*repository.TransactionRepository)(nil)).Elem(): func(db *gorm.DB) interface{} { return NewTransactionRepository(db) },
+			reflect.TypeOf((*repository.UserRepository)(nil)).Elem():        func(db *gorm.DB) interface{} { return NewUserRepository(db) },
+		},
 	}
 }
 
-func (u *UoW) Begin() error {
-	slog.Info("UoW Begin()")
-	if u.session == nil {
-		slog.Error("Session is nil, cannot start transaction")
-		return fmt.Errorf("session is nil")
-	}
-	if u.started {
-		slog.Info("Transaction already started")
-		return nil // Transaction already started
-	}
-	slog.Info("Starting new transaction")
-	tx := u.session.Begin()
-	if tx.Error != nil {
-		slog.Error("Failed to start transaction", slog.Any("error", tx.Error))
-		return tx.Error
-	}
-	slog.Info("Transaction started successfully")
-	u.session = tx
-	u.started = true
-	return nil
+// Do runs the given function in a transaction boundary, providing a UoW with repository access.
+func (u *UoW) Do(ctx context.Context, fn func(uow repository.UnitOfWork) error) error {
+	return u.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		txnUow := &UoW{db: u.db, tx: tx, repoRegistry: u.repoRegistry}
+		return fn(txnUow)
+	})
 }
 
-func (u *UoW) Commit() error {
-	slog.Info("UoW Commit()")
-	if !u.started {
-		slog.Info("Transaction not started, nothing to commit")
-		return nil // No transaction to commit
+// GetRepository provides generic, type-safe access to repositories using the transaction session.
+//
+// This method is part of UoW to guarantee that all repository operations within a transaction
+// use the same DB session, ensuring atomicity and consistency. It also centralizes repository
+// construction and makes testing and extension easier.
+func (u *UoW) GetRepository(repoType reflect.Type) (any, error) {
+	constructor, ok := u.repoRegistry[repoType]
+	if !ok {
+		return nil, fmt.Errorf("unsupported repository type: %v", repoType)
 	}
-	err := u.session.Commit().Error
-	if err != nil {
-		slog.Error("Failed to commit transaction", slog.Any("error", err))
-	} else {
-		slog.Info("Transaction committed successfully")
-	}
-	u.started = false
-	// After commit, reset session to baseDB
-	u.session = u.baseDB
-	return err
+	repo := constructor(u.tx)
+	return repo, nil
 }
 
-func (u *UoW) Rollback() error {
-	slog.Info("UoW Rollback()")
-	if !u.started {
-		slog.Info("Transaction not started, nothing to rollback")
-		return nil // No transaction to rollback
-	}
-	err := u.session.Rollback().Error
-	if err != nil {
-		slog.Error("Failed to rollback transaction", slog.Any("error", err))
-	} else {
-		slog.Info("Transaction rolled back successfully")
-	}
-	u.started = false // Always reset the flag, regardless of success/failure
-	// After rollback, reset session to baseDB
-	u.session = u.baseDB
-	return err
-}
-
-func (u *UoW) AccountRepository() (repository.AccountRepository, error) {
-	if u.started {
-		if u.session == nil {
-			return nil, fmt.Errorf("transactional session is nil")
-		}
-		return NewAccountRepository(u.session), nil
-	}
-	if u.baseDB == nil {
-		return nil, fmt.Errorf("baseDB is nil")
-	}
-	return NewAccountRepository(u.baseDB), nil
-}
-
-func (u *UoW) TransactionRepository() (repository.TransactionRepository, error) {
-	if u.started {
-		if u.session == nil {
-			return nil, fmt.Errorf("transactional session is nil")
-		}
-		return NewTransactionRepository(u.session), nil
-	}
-	if u.baseDB == nil {
-		return nil, fmt.Errorf("baseDB is nil")
-	}
-	return NewTransactionRepository(u.baseDB), nil
-}
-
-func (u *UoW) UserRepository() (repository.UserRepository, error) {
-	if u.started {
-		if u.session == nil {
-			return nil, fmt.Errorf("transactional session is nil")
-		}
-		return NewUserRepository(u.session), nil
-	}
-	if u.baseDB == nil {
-		return nil, fmt.Errorf("baseDB is nil")
-	}
-	return NewUserRepository(u.baseDB), nil
-}
+// ---
+// Sample mock for tests:
+//
+// type MockUnitOfWork struct {
+//     DoFunc func(ctx context.Context, fn func(uow UnitOfWork) error) error
+//     GetRepositoryFunc func(repoType any) (any, error)
+// }
+//
+// func (m *MockUnitOfWork) Do(ctx context.Context, fn func(uow UnitOfWork) error) error {
+//     if m.DoFunc != nil { return m.DoFunc(ctx, fn) }
+//     return fn(m)
+// }
+// func (m *MockUnitOfWork) GetRepository(repoType reflect.Type) (any, error) {
+//     if m.GetRepositoryFunc != nil {
+//         return m.GetRepositoryFunc(repoType)
+//     }
+//     return nil, nil
+// }

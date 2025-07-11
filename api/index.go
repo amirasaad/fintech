@@ -12,7 +12,6 @@ import (
 
 	infra_repository "github.com/amirasaad/fintech/infra/repository"
 
-	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/amirasaad/fintech/pkg/service"
 	"github.com/amirasaad/fintech/webapi"
 	"github.com/gofiber/fiber/v2/middleware/adaptor"
@@ -57,17 +56,15 @@ func handler() http.HandlerFunc {
 		log.Fatal(err)
 	}
 
-	// Create UOW factory using the shared db
-	uowFactory := func() (repository.UnitOfWork, error) {
-		return infra_repository.NewGormUoW(db), nil
-	}
+	// Create UOW using the shared db
+	uow := infra_repository.NewUoW(db)
 
 	app := webapi.NewApp(
-		service.NewAccountService(uowFactory, currencyConverter, logger),
-		service.NewUserService(uowFactory, logger),
-		service.NewAuthService(uowFactory,
+		service.NewAccountService(uow, currencyConverter, logger),
+		service.NewUserService(uow, logger),
+		service.NewAuthService(uow,
 			service.NewJWTAuthStrategy(
-				uowFactory, cfg.Jwt, logger,
+				uow, cfg.Jwt, logger,
 			), logger),
 		currencySvc,
 		cfg,

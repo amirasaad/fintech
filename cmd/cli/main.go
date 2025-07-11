@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"flag"
 	"fmt"
 	"io"
@@ -14,7 +15,6 @@ import (
 	"github.com/amirasaad/fintech/infra"
 	infra_repository "github.com/amirasaad/fintech/infra/repository"
 	"github.com/amirasaad/fintech/pkg/config"
-	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/amirasaad/fintech/pkg/service"
 	"github.com/fatih/color"
 	"github.com/google/uuid"
@@ -60,9 +60,8 @@ func main() {
 	}
 
 	// Create UOW factory using the shared db
-	uowFactory := func() (repository.UnitOfWork, error) {
-		return infra_repository.NewGormUoW(db), nil
-	}
+	uow := infra_repository.NewUoW(db)
+
 	// Create exchange rate system
 	currencyConverter, err := infra.NewExchangeRateSystem(logger, *cfg)
 	if err != nil {
@@ -70,8 +69,8 @@ func main() {
 		return
 	}
 
-	scv := service.NewAccountService(uowFactory, currencyConverter, logger)
-	authSvc := service.NewBasicAuthService(uowFactory, logger)
+	scv := service.NewAccountService(uow, currencyConverter, logger)
+	authSvc := service.NewBasicAuthService(uow, logger)
 
 	cliApp(scv, authSvc)
 }
@@ -101,7 +100,7 @@ func cliApp(scv *service.AccountService, authSvc *service.AuthService) {
 			bytePassword, _ := term.ReadPassword(int(os.Stdin.Fd()))
 			fmt.Println()
 			password := string(bytePassword)
-			user, err := authSvc.Login(identity, password)
+			user, err := authSvc.Login(context.Background(), identity, password)
 			if err != nil {
 				fmt.Println(errorMsg("Login error:"), err)
 				continue
@@ -133,7 +132,7 @@ func cliApp(scv *service.AccountService, authSvc *service.AuthService) {
 		cmd := args[0]
 		switch cmd {
 		case "create":
-			account, err := scv.CreateAccount(userID)
+			account, err := scv.CreateAccount(context.Background(), userID)
 			if err != nil {
 				fmt.Println(errorMsg("Error creating account:"), err)
 				continue

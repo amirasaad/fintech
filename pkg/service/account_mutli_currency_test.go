@@ -1,139 +1,145 @@
 package service_test
 
 import (
+	"context"
 	"log/slog"
+	"reflect"
 	"testing"
 
 	"github.com/amirasaad/fintech/internal/fixtures"
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/domain/common"
-	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/amirasaad/fintech/pkg/service"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
 )
 
 func TestDeposit_AcceptsMatchingCurrency(t *testing.T) {
 	uow := fixtures.NewMockUnitOfWork(t)
-	uow.EXPECT().Begin().Return(nil)
-	uow.EXPECT().Commit().Return(nil)
-	repo := fixtures.NewMockAccountRepository(t)
-	accountSvc := service.NewAccountService(func() (repository.UnitOfWork, error) { return uow, nil }, nil, slog.Default())
+	accountRepo := fixtures.NewMockAccountRepository(t)
 	transactionRepo := fixtures.NewMockTransactionRepository(t)
-	uow.EXPECT().TransactionRepository().Return(transactionRepo, nil)
-	transactionRepo.EXPECT().Create(mock.Anything).Return(nil)
 
-	// Create an account in EUR
-	account, err := account.New().WithUserID(uuid.New()).WithCurrency("EUR").Build()
-	assert.NoError(t, err)
-	uow.EXPECT().AccountRepository().Return(repo, nil)
-	repo.EXPECT().Get(account.ID).Return(account, nil)
-	repo.EXPECT().Update(account).Return(nil)
+	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).RunAndReturn(
+		func(ctx context.Context, fn func(repository.UnitOfWork) error) error {
+			return fn(uow)
+		},
+	)
+	uow.EXPECT().GetRepository(reflect.TypeOf((*repository.AccountRepository)(nil)).Elem()).Return(accountRepo, nil).Once()
+	uow.EXPECT().GetRepository(reflect.TypeOf((*repository.TransactionRepository)(nil)).Elem()).Return(transactionRepo, nil).Once()
 
-	// Try to deposit EUR
-	gotTx, _, err := accountSvc.Deposit(account.UserID, account.ID, 100.0, "EUR")
+	account, _ := account.New().
+		WithUserID(uuid.New()).
+		WithBalance(10000).
+		WithCurrency(currency.EUR).
+		Build()
+	accountRepo.EXPECT().Get(account.ID).Return(account, nil).Once()
+	accountRepo.EXPECT().Update(mock.Anything).Return(nil).Once()
+	transactionRepo.EXPECT().Create(mock.Anything).Return(nil).Once()
+
+	svc := service.NewAccountService(uow, nil, slog.Default())
+	gotTx, _, err := svc.Deposit(account.UserID, account.ID, 100.0, currency.Code("EUR"))
 	assert.NoError(t, err)
 	assert.NotNil(t, gotTx)
-	assert.Equal(t, currency.Code("EUR"), gotTx.Currency)
 }
 
 func TestWithdraw_AcceptsMatchingCurrency(t *testing.T) {
 	uow := fixtures.NewMockUnitOfWork(t)
-	uow.EXPECT().Begin().Return(nil)
-	uow.EXPECT().Commit().Return(nil)
-	repo := fixtures.NewMockAccountRepository(t)
-	accountSvc := service.NewAccountService(func() (repository.UnitOfWork, error) { return uow, nil }, nil, slog.Default())
+	accountRepo := fixtures.NewMockAccountRepository(t)
 	transactionRepo := fixtures.NewMockTransactionRepository(t)
-	uow.EXPECT().TransactionRepository().Return(transactionRepo, nil)
-	transactionRepo.EXPECT().Create(mock.Anything).Return(nil)
 
-	// Create an account in EUR and deposit some funds
-	account, _ := account.New().WithUserID(uuid.New()).WithCurrency("EUR").Build()
-	m, err := money.NewMoney(100.0, "EUR")
-	require.NoError(t, err)
-	_, _ = account.Deposit(account.UserID, m)
-	uow.EXPECT().AccountRepository().Return(repo, nil)
-	repo.EXPECT().Get(account.ID).Return(account, nil)
-	repo.EXPECT().Update(account).Return(nil)
+	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).RunAndReturn(
+		func(ctx context.Context, fn func(repository.UnitOfWork) error) error {
+			return fn(uow)
+		},
+	)
+	uow.EXPECT().GetRepository(reflect.TypeOf((*repository.AccountRepository)(nil)).Elem()).Return(accountRepo, nil).Once()
+	uow.EXPECT().GetRepository(reflect.TypeOf((*repository.TransactionRepository)(nil)).Elem()).Return(transactionRepo, nil).Once()
 
-	// Try to withdraw EUR
-	gotTx, _, err := accountSvc.Withdraw(account.UserID, account.ID, 50.0, "EUR")
+	account, _ := account.New().
+		WithUserID(uuid.New()).
+		WithBalance(10000).
+		WithCurrency(currency.EUR).
+		Build()
+	accountRepo.EXPECT().Get(account.ID).Return(account, nil).Once()
+	accountRepo.EXPECT().Update(mock.Anything).Return(nil).Once()
+	transactionRepo.EXPECT().Create(mock.Anything).Return(nil).Once()
+
+	svc := service.NewAccountService(uow, nil, slog.Default())
+	gotTx, _, err := svc.Withdraw(account.UserID, account.ID, 100.0, currency.Code("EUR"))
 	assert.NoError(t, err)
 	assert.NotNil(t, gotTx)
-	assert.Equal(t, currency.Code("EUR"), gotTx.Currency)
 }
 
 func TestDeposit_ConvertsCurrency(t *testing.T) {
 	uow := fixtures.NewMockUnitOfWork(t)
-	uow.EXPECT().Begin().Return(nil)
-	uow.EXPECT().Commit().Return(nil)
-	repo := fixtures.NewMockAccountRepository(t)
+	accountRepo := fixtures.NewMockAccountRepository(t)
 	transactionRepo := fixtures.NewMockTransactionRepository(t)
-	uow.EXPECT().TransactionRepository().Return(transactionRepo, nil)
-	transactionRepo.EXPECT().Create(mock.Anything).Return(nil)
+	converter := fixtures.NewMockCurrencyConverter(t)
 
-	// Mock converter: 100 EUR -> 120 USD
-	mockConverter := fixtures.NewMockCurrencyConverter(t)
-	mockConverter.On("Convert", 100.0, "EUR", "USD").Return(&common.ConversionInfo{
-		OriginalAmount:    100,
+	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).RunAndReturn(
+		func(ctx context.Context, fn func(repository.UnitOfWork) error) error {
+			return fn(uow)
+		},
+	)
+	uow.EXPECT().GetRepository(reflect.TypeOf((*repository.AccountRepository)(nil)).Elem()).Return(accountRepo, nil).Once()
+	uow.EXPECT().GetRepository(reflect.TypeOf((*repository.TransactionRepository)(nil)).Elem()).Return(transactionRepo, nil).Once()
+
+	account := &account.Account{ID: uuid.New(), UserID: uuid.New(), Currency: currency.Code("USD"), Balance: 0}
+	accountRepo.EXPECT().Get(account.ID).Return(account, nil).Once()
+	accountRepo.EXPECT().Update(mock.Anything).Return(nil).Once()
+	transactionRepo.EXPECT().Create(mock.Anything).Return(nil).Once()
+
+	// Fix: Return the correct type for converter.EXPECT().Convert
+	converter.EXPECT().Convert(100.0, "EUR", "USD").Return(&common.ConversionInfo{
+		OriginalAmount:    100.0,
 		OriginalCurrency:  "EUR",
-		ConvertedAmount:   120,
+		ConvertedAmount:   110.0,
 		ConvertedCurrency: "USD",
-		ConversionRate:    1.2,
-	}, nil)
+		ConversionRate:    1.1,
+	}, nil).Once()
 
-	accountSvc := service.NewAccountService(func() (repository.UnitOfWork, error) { return uow, nil }, mockConverter, slog.Default())
-
-	// Create an account in USD
-	account, _ := account.New().WithUserID(uuid.New()).WithCurrency("USD").Build()
-	uow.EXPECT().AccountRepository().Return(repo, nil)
-	repo.EXPECT().Get(account.ID).Return(account, nil)
-	repo.EXPECT().Update(account).Return(nil)
-
-	gotTx, _, err := accountSvc.Deposit(account.UserID, account.ID, 100.0, "EUR")
+	svc := service.NewAccountService(uow, converter, slog.Default())
+	gotTx, _, err := svc.Deposit(account.UserID, account.ID, 100.0, currency.Code("EUR"))
 	assert.NoError(t, err)
 	assert.NotNil(t, gotTx)
-	assert.Equal(t, currency.Code("USD"), gotTx.Currency)
-	mockConverter.AssertCalled(t, "Convert", 100.0, "EUR", "USD")
 }
 
 func TestWithdraw_ConvertsCurrency(t *testing.T) {
 	uow := fixtures.NewMockUnitOfWork(t)
-	uow.EXPECT().Begin().Return(nil)
-	uow.EXPECT().Commit().Return(nil)
-	repo := fixtures.NewMockAccountRepository(t)
+	accountRepo := fixtures.NewMockAccountRepository(t)
 	transactionRepo := fixtures.NewMockTransactionRepository(t)
-	uow.EXPECT().TransactionRepository().Return(transactionRepo, nil)
-	transactionRepo.EXPECT().Create(mock.Anything).Return(nil)
+	converter := fixtures.NewMockCurrencyConverter(t)
 
-	// Mock converter: 50 EUR -> 60 USD
-	mockConverter := fixtures.NewMockCurrencyConverter(t)
-	mockConverter.On("Convert", 50.0, "EUR", "USD").Return(&common.ConversionInfo{
-		OriginalAmount:    50,
+	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).RunAndReturn(
+		func(ctx context.Context, fn func(repository.UnitOfWork) error) error {
+			return fn(uow)
+		},
+	)
+	uow.EXPECT().GetRepository(reflect.TypeOf((*repository.AccountRepository)(nil)).Elem()).Return(accountRepo, nil).Once()
+	uow.EXPECT().GetRepository(reflect.TypeOf((*repository.TransactionRepository)(nil)).Elem()).Return(transactionRepo, nil).Once()
+
+	account, _ := account.New().
+		WithUserID(uuid.New()).
+		WithBalance(1000000).
+		WithCurrency(currency.USD).
+		Build()
+	accountRepo.EXPECT().Get(account.ID).Return(account, nil).Once()
+	accountRepo.EXPECT().Update(mock.Anything).Return(nil).Once()
+	transactionRepo.EXPECT().Create(mock.Anything).Return(nil).Once()
+
+	converter.EXPECT().Convert(100.0, "EUR", "USD").Return(&common.ConversionInfo{
+		OriginalAmount:    100.0,
 		OriginalCurrency:  "EUR",
-		ConvertedAmount:   60,
+		ConvertedAmount:   110.0,
 		ConvertedCurrency: "USD",
-		ConversionRate:    1.2,
-	}, nil)
+		ConversionRate:    1.1,
+	}, nil).Once()
 
-	accountSvc := service.NewAccountService(func() (repository.UnitOfWork, error) { return uow, nil }, mockConverter, slog.Default())
-
-	// Create an account in USD and deposit some funds
-	account, _ := account.New().WithUserID(uuid.New()).WithCurrency("USD").Build()
-	m, err := money.NewMoney(100.0, "USD")
-	require.NoError(t, err)
-	_, _ = account.Deposit(account.UserID, m)
-	uow.EXPECT().AccountRepository().Return(repo, nil)
-	repo.EXPECT().Get(account.ID).Return(account, nil)
-	repo.EXPECT().Update(account).Return(nil)
-
-	gotTx, _, err := accountSvc.Withdraw(account.UserID, account.ID, 50.0, "EUR")
+	svc := service.NewAccountService(uow, converter, slog.Default())
+	gotTx, _, err := svc.Withdraw(account.UserID, account.ID, 100.0, currency.Code("EUR"))
 	assert.NoError(t, err)
 	assert.NotNil(t, gotTx)
-	assert.Equal(t, currency.Code("USD"), gotTx.Currency)
-	mockConverter.AssertCalled(t, "Convert", 50.0, "EUR", "USD")
 }

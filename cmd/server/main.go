@@ -10,7 +10,6 @@ import (
 	infra_repository "github.com/amirasaad/fintech/infra/repository"
 	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/currency"
-	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/amirasaad/fintech/pkg/service"
 	"github.com/amirasaad/fintech/webapi"
 )
@@ -59,9 +58,7 @@ func main() {
 	}
 
 	// Create UOW factory using the shared db
-	uowFactory := func() (repository.UnitOfWork, error) {
-		return infra_repository.NewGormUoW(db), nil
-	}
+	uow := infra_repository.NewUoW(db)
 
 	// Create exchange rate system
 	currencyConverter, err := infra.NewExchangeRateSystem(logger, *cfg)
@@ -71,10 +68,10 @@ func main() {
 	}
 
 	// Create services
-	accountSvc := service.NewAccountService(uowFactory, currencyConverter, logger)
-	userSvc := service.NewUserService(uowFactory, logger)
-	authStrategy := service.NewJWTAuthStrategy(uowFactory, cfg.Jwt, logger)
-	authSvc := service.NewAuthService(uowFactory, authStrategy, logger)
+	accountSvc := service.NewAccountService(uow, currencyConverter, logger)
+	userSvc := service.NewUserService(uow, logger)
+	authStrategy := service.NewJWTAuthStrategy(uow, cfg.Jwt, logger)
+	authSvc := service.NewAuthService(uow, authStrategy, logger)
 	currencySvc := service.NewCurrencyService(currencyRegistry, logger)
 
 	logger.Info("Starting fintech server", "port", ":3000")

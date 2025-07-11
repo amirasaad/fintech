@@ -81,7 +81,7 @@ func CreateUser(userSvc *service.UserService) fiber.Handler {
 		if len(input.Password) > 72 {
 			return ProblemDetailsJSON(c, "Invalid request body", nil, "Password too long")
 		}
-		user, err := userSvc.CreateUser(input.Username, input.Email, input.Password)
+		user, err := userSvc.CreateUser(c.Context(), input.Username, input.Email, input.Password)
 		if err != nil {
 			return ProblemDetailsJSON(c, "Couldn't create user", err)
 		}
@@ -130,7 +130,7 @@ func UpdateUser(
 		if id != userID {
 			return ProblemDetailsJSON(c, "Forbidden", nil, "You are not allowed to update this user")
 		}
-		err = userSvc.UpdateUser(id.String(), func(u *user.User) error {
+		err = userSvc.UpdateUser(c.Context(), id.String(), func(u *user.User) error {
 			u.Names = input.Names
 			return nil
 		})
@@ -138,7 +138,7 @@ func UpdateUser(
 			return ProblemDetailsJSON(c, "Failed to update user", err)
 		}
 		// Get the updated user to return in response
-		updatedUser, err := userSvc.GetUser(id.String())
+		updatedUser, err := userSvc.GetUser(c.Context(), id.String())
 		if err != nil {
 			return ProblemDetailsJSON(c, "Failed to get updated user", err)
 		}
@@ -187,14 +187,14 @@ func DeleteUser(
 		if id != userID {
 			return ProblemDetailsJSON(c, "Forbidden", nil, "You are not allowed to update this user")
 		}
-		isValid, err := userSvc.ValidUser(id.String(), input.Password)
+		isValid, err := userSvc.ValidUser(c.Context(), id.String(), input.Password)
 		if err != nil {
 			return ProblemDetailsJSON(c, "Failed to validate user", err)
 		}
 		if !isValid {
 			return ProblemDetailsJSON(c, "Not valid user", nil)
 		}
-		err = userSvc.DeleteUser(id.String())
+		err = userSvc.DeleteUser(c.Context(), id.String())
 		if err != nil {
 			return ProblemDetailsJSON(c, "Failed to delete user", err)
 		}

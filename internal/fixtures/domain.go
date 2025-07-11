@@ -5,7 +5,7 @@
 package fixtures
 
 import (
-	"github.com/amirasaad/fintech/pkg/domain"
+	"github.com/amirasaad/fintech/pkg/domain/common"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -37,23 +37,23 @@ func (_m *MockCurrencyConverter) EXPECT() *MockCurrencyConverter_Expecter {
 }
 
 // Convert provides a mock function for the type MockCurrencyConverter
-func (_mock *MockCurrencyConverter) Convert(amount float64, from string, to string) (*domain.ConversionInfo, error) {
+func (_mock *MockCurrencyConverter) Convert(amount float64, from string, to string) (*common.ConversionInfo, error) {
 	ret := _mock.Called(amount, from, to)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Convert")
 	}
 
-	var r0 *domain.ConversionInfo
+	var r0 *common.ConversionInfo
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(float64, string, string) (*domain.ConversionInfo, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(float64, string, string) (*common.ConversionInfo, error)); ok {
 		return returnFunc(amount, from, to)
 	}
-	if returnFunc, ok := ret.Get(0).(func(float64, string, string) *domain.ConversionInfo); ok {
+	if returnFunc, ok := ret.Get(0).(func(float64, string, string) *common.ConversionInfo); ok {
 		r0 = returnFunc(amount, from, to)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*domain.ConversionInfo)
+			r0 = ret.Get(0).(*common.ConversionInfo)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(float64, string, string) error); ok {
@@ -100,12 +100,12 @@ func (_c *MockCurrencyConverter_Convert_Call) Run(run func(amount float64, from 
 	return _c
 }
 
-func (_c *MockCurrencyConverter_Convert_Call) Return(conversionInfo *domain.ConversionInfo, err error) *MockCurrencyConverter_Convert_Call {
+func (_c *MockCurrencyConverter_Convert_Call) Return(conversionInfo *common.ConversionInfo, err error) *MockCurrencyConverter_Convert_Call {
 	_c.Call.Return(conversionInfo, err)
 	return _c
 }
 
-func (_c *MockCurrencyConverter_Convert_Call) RunAndReturn(run func(amount float64, from string, to string) (*domain.ConversionInfo, error)) *MockCurrencyConverter_Convert_Call {
+func (_c *MockCurrencyConverter_Convert_Call) RunAndReturn(run func(amount float64, from string, to string) (*common.ConversionInfo, error)) *MockCurrencyConverter_Convert_Call {
 	_c.Call.Return(run)
 	return _c
 }

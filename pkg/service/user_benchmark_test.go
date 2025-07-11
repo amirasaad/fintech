@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"testing"
 
 	"github.com/google/uuid"
@@ -9,12 +10,11 @@ import (
 
 func BenchmarkCreateUser(b *testing.B) {
 	svc, userRepo, uow := newUserServiceWithMocks(b)
-	uow.EXPECT().Begin().Return(nil).Maybe()
-	uow.EXPECT().Commit().Return(nil).Maybe()
+	uow.EXPECT().GetRepository(mock.Anything).Return(userRepo, nil).Maybe()
 	userRepo.EXPECT().Create(mock.Anything).Return(nil).Maybe()
 	b.ResetTimer()
 	for b.Loop() {
-		_, _ = svc.CreateUser("benchuser", "bench@example.com", "password")
+		_, _ = svc.CreateUser(context.Background(), "benchuser", "bench@example.com", "password")
 	}
 }
 
@@ -24,6 +24,6 @@ func BenchmarkValidUser(b *testing.B) {
 	userRepo.EXPECT().Valid(id, "password").Return(true).Maybe()
 	b.ResetTimer()
 	for b.Loop() {
-		_, _ = svc.ValidUser(id.String(), "password")
+		_, _ = svc.ValidUser(context.Background(), id.String(), "password")
 	}
 }

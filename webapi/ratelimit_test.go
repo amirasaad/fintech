@@ -23,7 +23,7 @@ type RateLimitTestSuite struct {
 
 func (s *RateLimitTestSuite) SetupTest() {
 	// Provide dummy services for required arguments
-	dummyUow := func() (repository.UnitOfWork, error) { return nil, nil }
+	dummyUow := *new(repository.UnitOfWork)
 	accountSvc := service.NewAccountService(dummyUow, infra_provider.NewStubCurrencyConverter(), slog.Default())
 	userSvc := service.NewUserService(dummyUow, slog.Default())
 	authSvc := &service.AuthService{} // Use zero value or a mock if available

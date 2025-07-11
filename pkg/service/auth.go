@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/mail"
+	"reflect"
 	"time"
 
 	"github.com/amirasaad/fintech/pkg/config"
@@ -21,27 +22,27 @@ type contextKey string
 const userContextKey contextKey = "user"
 
 type AuthStrategy interface {
-	Login(identity, password string) (*domain.User, error)
+	Login(ctx context.Context, identity, password string) (*domain.User, error)
 	GetCurrentUserID(ctx context.Context) (uuid.UUID, error)
 	GenerateToken(user *domain.User) (string, error)
 }
 
 type AuthService struct {
-	uowFactory func() (repository.UnitOfWork, error)
-	strategy   AuthStrategy
-	logger     *slog.Logger
+	uow      repository.UnitOfWork
+	strategy AuthStrategy
+	logger   *slog.Logger
 }
 
 func NewAuthService(
-	uowFactory func() (repository.UnitOfWork, error),
+	uow repository.UnitOfWork,
 	strategy AuthStrategy,
 	logger *slog.Logger,
 ) *AuthService {
-	return &AuthService{uowFactory: uowFactory, strategy: strategy, logger: logger}
+	return &AuthService{uow: uow, strategy: strategy, logger: logger}
 }
 
-func NewBasicAuthService(uowFactory func() (repository.UnitOfWork, error), logger *slog.Logger) *AuthService {
-	return NewAuthService(uowFactory, &BasicAuthStrategy{uowFactory: uowFactory}, logger)
+func NewBasicAuthService(uow repository.UnitOfWork, logger *slog.Logger) *AuthService {
+	return NewAuthService(uow, &BasicAuthStrategy{uow: uow, logger: logger}, logger)
 }
 
 func (s *AuthService) CheckPasswordHash(
@@ -76,10 +77,11 @@ func (s *AuthService) GetCurrentUserId(
 }
 
 func (s *AuthService) Login(
+	ctx context.Context,
 	identity, password string,
 ) (u *domain.User, err error) {
 	s.logger.Info("Login called", "identity", identity)
-	u, err = s.strategy.Login(identity, password)
+	u, err = s.strategy.Login(ctx, identity, password)
 	if err != nil {
 		s.logger.Error("Login failed", "identity", identity, "error", err)
 		return
@@ -106,17 +108,17 @@ func (s *AuthService) GenerateToken(user *domain.User) (string, error) {
 
 // JWTAuthStrategy implements AuthStrategy for JWT-based authentication
 type JWTAuthStrategy struct {
-	uowFactory func() (repository.UnitOfWork, error)
-	cfg        config.JwtConfig
-	logger     *slog.Logger
+	uow    repository.UnitOfWork
+	cfg    config.JwtConfig
+	logger *slog.Logger
 }
 
 func NewJWTAuthStrategy(
-	uowFactory func() (repository.UnitOfWork, error),
+	uow repository.UnitOfWork,
 	cfg config.JwtConfig,
 	logger *slog.Logger,
 ) *JWTAuthStrategy {
-	return &JWTAuthStrategy{uowFactory: uowFactory, cfg: cfg, logger: logger}
+	return &JWTAuthStrategy{uow: uow, cfg: cfg, logger: logger}
 }
 func (s *JWTAuthStrategy) GenerateToken(user *domain.User) (string, error) {
 	s.logger.Info("GenerateToken called", "userID", user.ID)
@@ -136,46 +138,37 @@ func (s *JWTAuthStrategy) GenerateToken(user *domain.User) (string, error) {
 }
 
 func (s *JWTAuthStrategy) Login(
+	ctx context.Context,
 	identity, password string,
 ) (
 	u *domain.User,
 	err error,
 ) {
 	s.logger.Info("Login called", "identity", identity)
-	uow, err := s.uowFactory()
-	if err != nil {
-		s.logger.Error("Login failed", "identity", identity, "error", err)
-		return
-	}
-
-	userRepo, err := uow.UserRepository()
-	if err != nil {
-		s.logger.Error("Login failed", "identity", identity, "error", err)
-		return
-	}
-
-	if isEmail(identity) {
-		u, err = userRepo.GetByEmail(identity)
-	} else {
-		u, err = userRepo.GetByUsername(identity)
-	}
-	const dummyHash = "$2a$10$7zFqzDbD3RrlkMTczbXG9OWZ0FLOXjIxXzSZ.QZxkVXjXcx7QZQiC"
-	if err != nil {
-		s.logger.Error("Login failed", "identity", identity, "error", err)
-		return
-	}
-	if u == nil {
-		err = user.ErrUserUnauthorized
-		s.logger.Error("Login failed", "identity", identity, "error", domain.ErrUserUnauthorized)
-		checkPasswordHash(password, dummyHash)
-		return
-	}
-	if !checkPasswordHash(password, u.Password) {
-		err = user.ErrUserUnauthorized
-		s.logger.Error("Login failed", "identity", identity, "error", domain.ErrUserUnauthorized)
-		return
-	}
-	s.logger.Info("Login successful", "userID", u.ID)
+	err = s.uow.Do(ctx, func(uow repository.UnitOfWork) error {
+		repoAny, err := uow.GetRepository(reflect.TypeOf((*repository.UserRepository)(nil)).Elem())
+		if err != nil {
+			return err
+		}
+		repo := repoAny.(repository.UserRepository)
+		if isEmail(identity) {
+			u, err = repo.GetByEmail(identity)
+		} else {
+			u, err = repo.GetByUsername(identity)
+		}
+		const dummyHash = "$2a$10$7zFqzDbD3RrlkMTczbXG9OWZ0FLOXjIxXzSZ.QZxkVXjXcx7QZQiC"
+		if err != nil {
+			return err
+		}
+		if u == nil {
+			checkPasswordHash(password, dummyHash)
+			return user.ErrUserUnauthorized
+		}
+		if !checkPasswordHash(password, u.Password) {
+			return user.ErrUserUnauthorized
+		}
+		return nil
+	})
 	return
 }
 
@@ -209,47 +202,42 @@ func (s *JWTAuthStrategy) GetCurrentUserID(
 
 // BasicAuthStrategy implements AuthStrategy for CLI (no JWT, just password check)
 type BasicAuthStrategy struct {
-	uowFactory func() (repository.UnitOfWork, error)
-	logger     *slog.Logger
+	uow    repository.UnitOfWork
+	logger *slog.Logger
 }
 
 func (s *BasicAuthStrategy) Login(
+	ctx context.Context,
 	identity, password string,
 ) (
 	user *domain.User,
 	err error,
 ) {
 	s.logger.Info("Login called", "identity", identity)
-	uow, err := s.uowFactory()
-	if err != nil {
-		s.logger.Error("Login failed", "identity", identity, "error", err)
-		return
-	}
-	userRepo, err := uow.UserRepository()
-	if err != nil {
-		s.logger.Error("Login failed", "identity", identity, "error", err)
-		return
-	}
-	if isEmail(identity) {
-		user, err = userRepo.GetByEmail(identity)
-	} else {
-		user, err = userRepo.GetByUsername(identity)
-	}
-	const dummyHash = "$2a$10$7zFqzDbD3RrlkMTczbXG9OWZ0FLOXjIxXzSZ.QZxkVXjXcx7QZQiC"
-	if err != nil {
-		s.logger.Error("Login failed", "identity", identity, "error", err)
-		return
-	}
-	if user == nil {
-		s.logger.Error("Login failed", "identity", identity, "error", errors.New("invalid credentials"))
-		checkPasswordHash(password, dummyHash)
-		return
-	}
-	if !checkPasswordHash(password, user.Password) {
-		s.logger.Error("Login failed", "identity", identity, "error", errors.New("invalid credentials"))
-		return
-	}
-	s.logger.Info("Login successful", "userID", user.ID)
+	err = s.uow.Do(ctx, func(uow repository.UnitOfWork) error {
+		repoAny, err := uow.GetRepository(reflect.TypeOf((*repository.UserRepository)(nil)).Elem())
+		if err != nil {
+			return err
+		}
+		repo := repoAny.(repository.UserRepository)
+		if isEmail(identity) {
+			user, err = repo.GetByEmail(identity)
+		} else {
+			user, err = repo.GetByUsername(identity)
+		}
+		const dummyHash = "$2a$10$7zFqzDbD3RrlkMTczbXG9OWZ0FLOXjIxXzSZ.QZxkVXjXcx7QZQiC"
+		if err != nil {
+			return err
+		}
+		if user == nil {
+			checkPasswordHash(password, dummyHash)
+			return errors.New("invalid credentials")
+		}
+		if !checkPasswordHash(password, user.Password) {
+			return errors.New("invalid credentials")
+		}
+		return nil
+	})
 	return
 }
 
