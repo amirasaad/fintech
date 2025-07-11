@@ -51,135 +51,68 @@ func (s *UserService) CreateUser(
 	return
 }
 
-// GetUser retrieves a user by ID with automatic transaction management.
-// Returns the user or an error if not found.
-func (s *UserService) GetUser(userID string) (u *user.User, err error) {
-	s.logger.Info("GetUser started", "userID", userID)
-	defer func() {
-		if err != nil {
-			s.logger.Error("GetUser failed", "userID", userID, "error", err)
-		} else {
-			s.logger.Info("GetUser successful", "userID", userID, "foundUserID", u.ID)
-		}
-	}()
-	uid, parseErr := uuid.Parse(userID)
-	if parseErr != nil {
-		err = parseErr
-		return
-	}
-
-	var uLocal *user.User
-	uow, err := s.uowFactory()
-	if err != nil {
-		return
-	}
-	repo, err := uow.UserRepository()
-	if err != nil {
-		return
-	}
-	uLocal, err = repo.Get(uid)
-
-	if err != nil {
-		s.logger.Error("GetUser failed: transaction error", "userID", userID, "error", err)
-		return
-	}
-	u = uLocal
-	return
-}
-
-// GetUserByEmail retrieves a user by email with automatic transaction management.
-// Returns the user or an error if not found.
-func (s *UserService) GetUserByEmail(
-	email string,
-) (u *user.User, err error) {
-	s.logger.Info("GetUserByEmail started", "email", email)
-	defer func() {
-		if err != nil {
-			s.logger.Error("GetUserByEmail failed", "email", email, "error", err)
-		} else if u != nil {
-			s.logger.Info("GetUserByEmail successful", "email", email, "userID", u.ID)
-		}
-	}()
-	uow, err := s.uowFactory()
-	if err != nil {
-		u = nil
-		return
-	}
-
-	repo, err := uow.UserRepository()
-	if err != nil {
-		u = nil
-		return
-	}
-
-	u, err = repo.GetByEmail(email)
-	if err != nil {
-		u = nil
-		return
-	}
-	return
-}
-
-// GetUserByUsername retrieves a user by username with automatic transaction management.
-// Returns the user or an error if not found.
-func (s *UserService) GetUserByUsername(
-	username string,
-) (u *user.User, err error) {
-	s.logger.Info("GetUserByUsername started", "username", username)
-	defer func() {
-		if err != nil {
-			s.logger.Error("GetUserByUsername failed", "username", username, "error", err)
-		} else if u != nil {
-			s.logger.Info("GetUserByUsername successful", "username", username, "userID", u.ID)
-		}
-	}()
-	uow, err := s.uowFactory()
-	if err != nil {
-		u = nil
-		return
-	}
-
-	repo, err := uow.UserRepository()
-	if err != nil {
-		u = nil
-		return
-	}
-
-	u, err = repo.GetByUsername(username)
-	if err != nil {
-		u = nil
-		return
-	}
-	return
-}
-
-// UpdateUser updates user information with automatic transaction management.
-// Returns an error if the user is not found or the operation fails.
-func (s *UserService) UpdateUser(
-	userID string,
-	updateFn func(u *user.User) error,
-) (err error) {
-	s.logger.Info("UpdateUser started", "userID", userID)
-	defer func() {
-		if err != nil {
-			s.logger.Error("UpdateUser failed", "userID", userID, "error", err)
-		} else {
-			s.logger.Info("UpdateUser successful", "userID", userID)
-		}
-	}()
-	uid, parseErr := uuid.Parse(userID)
-	if parseErr != nil {
-		err = parseErr
-		return
-	}
-	err = s.transaction.Execute(func() error {
-		uow, err := s.uowFactory()
+// GetUser retrieves a user by ID in a transaction.
+func (s *UserService) GetUser(ctx context.Context, userID string) (u *user.User, err error) {
+	err = s.uow.Do(ctx, func(uow repository.UnitOfWork) error {
+		repo, err := uow.GetRepository[repository.UserRepository]()
 		if err != nil {
 			return err
 		}
-		repo, err := uow.UserRepository()
+		uid, parseErr := uuid.Parse(userID)
+		if parseErr != nil {
+			return parseErr
+		}
+		u, err = repo.Get(uid)
+		return err
+	})
+	if err != nil {
+		u = nil
+	}
+	return
+}
+
+// GetUserByEmail retrieves a user by email in a transaction.
+func (s *UserService) GetUserByEmail(ctx context.Context, email string) (u *user.User, err error) {
+	err = s.uow.Do(ctx, func(uow repository.UnitOfWork) error {
+		repo, err := uow.GetRepository[repository.UserRepository]()
 		if err != nil {
 			return err
+		}
+		u, err = repo.GetByEmail(email)
+		return err
+	})
+	if err != nil {
+		u = nil
+	}
+	return
+}
+
+// GetUserByUsername retrieves a user by username in a transaction.
+func (s *UserService) GetUserByUsername(ctx context.Context, username string) (u *user.User, err error) {
+	err = s.uow.Do(ctx, func(uow repository.UnitOfWork) error {
+		repo, err := uow.GetRepository[repository.UserRepository]()
+		if err != nil {
+			return err
+		}
+		u, err = repo.GetByUsername(username)
+		return err
+	})
+	if err != nil {
+		u = nil
+	}
+	return
+}
+
+// UpdateUser updates user information in a transaction.
+func (s *UserService) UpdateUser(ctx context.Context, userID string, updateFn func(u *user.User) error) (err error) {
+	err = s.uow.Do(ctx, func(uow repository.UnitOfWork) error {
+		repo, err := uow.GetRepository[repository.UserRepository]()
+		if err != nil {
+			return err
+		}
+		uid, parseErr := uuid.Parse(userID)
+		if parseErr != nil {
+			return parseErr
 		}
 		u, err := repo.Get(uid)
 		if err != nil {
@@ -191,73 +124,40 @@ func (s *UserService) UpdateUser(
 		if err = updateFn(u); err != nil {
 			return err
 		}
-		err = repo.Update(u)
-		return err
+		return repo.Update(u)
 	})
 	return
 }
 
-// DeleteUser deletes a user account with automatic transaction management.
-// Returns an error if the operation fails.
-func (s *UserService) DeleteUser(userID string) (err error) {
-	s.logger.Info("DeleteUser started", "userID", userID)
-	defer func() {
-		if err != nil {
-			s.logger.Error("DeleteUser failed", "userID", userID, "error", err)
-		} else {
-			s.logger.Info("DeleteUser successful", "userID", userID)
-		}
-	}()
-	uid, parseErr := uuid.Parse(userID)
-	if parseErr != nil {
-		err = parseErr
-		return
-	}
-	err = s.transaction.Execute(func() error {
-		uow, err := s.uowFactory()
+// DeleteUser deletes a user account in a transaction.
+func (s *UserService) DeleteUser(ctx context.Context, userID string) (err error) {
+	err = s.uow.Do(ctx, func(uow repository.UnitOfWork) error {
+		repo, err := uow.GetRepository[repository.UserRepository]()
 		if err != nil {
 			return err
 		}
-		repo, err := uow.UserRepository()
-		if err != nil {
-			return err
+		uid, parseErr := uuid.Parse(userID)
+		if parseErr != nil {
+			return parseErr
 		}
-		err = repo.Delete(uid)
-		return err
+		return repo.Delete(uid)
 	})
 	return
 }
 
-// ValidUser validates user credentials with automatic transaction management.
-// Returns true if credentials are valid, false otherwise.
-func (s *UserService) ValidUser(userID string, password string) (valid bool, err error) {
-	s.logger.Info("ValidUser started", "userID", userID)
-	defer func() {
+// ValidUser validates user credentials in a transaction.
+func (s *UserService) ValidUser(ctx context.Context, userID string, password string) (valid bool, err error) {
+	err = s.uow.Do(ctx, func(uow repository.UnitOfWork) error {
+		repo, err := uow.GetRepository[repository.UserRepository]()
 		if err != nil {
-			s.logger.Error("ValidUser failed", "userID", userID, "error", err)
-		} else {
-			s.logger.Info("ValidUser completed", "userID", userID, "valid", valid)
+			return err
 		}
-	}()
-	uid, parseErr := uuid.Parse(userID)
-	if parseErr != nil {
-		err = parseErr
-		return
-	}
-	var validLocal bool
-	uow, err := s.uowFactory()
-	if err != nil {
-		return
-	}
-	repo, err := uow.UserRepository()
-	if err != nil {
-		return
-	}
-	validLocal = repo.Valid(uid, password)
-	if err != nil {
-		s.logger.Error("ValidUser failed: transaction error", "userID", userID, "error", err)
-		return false, err
-	}
-	valid = validLocal
+		uid, parseErr := uuid.Parse(userID)
+		if parseErr != nil {
+			return parseErr
+		}
+		valid = repo.Valid(uid, password)
+		return nil
+	})
 	return
 }
