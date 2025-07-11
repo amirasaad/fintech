@@ -8,10 +8,16 @@ import (
 	"gorm.io/gorm"
 )
 
+// UnitOfWork defines the contract for transactional work and repository access.
+type UnitOfWork interface {
+	Do(ctx context.Context, fn func(uow UnitOfWork) error) error
+	GetRepository[T any]() (T, error)
+}
+
 // UoW provides transaction boundary and repository access in one abstraction.
 // Usage:
 //   uow := NewUoW(db)
-//   err := uow.Do(ctx, func(uow *UoW) error {
+//   err := uow.Do(ctx, func(uow UnitOfWork) error {
 //       repo, err := uow.GetRepository[repository.UserRepository]()
 //       ...
 //   })
@@ -34,7 +40,7 @@ func NewUoW(db *gorm.DB) *UoW {
 }
 
 // Do runs the given function in a transaction boundary, providing a UoW with repository access.
-func (u *UoW) Do(ctx context.Context, fn func(uow *UoW) error) error {
+func (u *UoW) Do(ctx context.Context, fn func(uow UnitOfWork) error) error {
 	return u.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		txnUow := &UoW{db: u.db, tx: tx, repoRegistry: u.repoRegistry}
 		return fn(txnUow)
@@ -52,3 +58,24 @@ func (u *UoW) GetRepository[T any]() (T, error) {
 	repo := constructor(u.tx)
 	return repo.(T), nil
 }
+
+// ---
+// Sample mock for tests:
+//
+// type MockUnitOfWork struct {
+//     DoFunc func(ctx context.Context, fn func(uow UnitOfWork) error) error
+//     GetRepositoryFunc func(any) (any, error)
+// }
+//
+// func (m *MockUnitOfWork) Do(ctx context.Context, fn func(uow UnitOfWork) error) error {
+//     if m.DoFunc != nil { return m.DoFunc(ctx, fn) }
+//     return fn(m)
+// }
+// func (m *MockUnitOfWork) GetRepository[T any]() (T, error) {
+//     if m.GetRepositoryFunc != nil {
+//         repo, err := m.GetRepositoryFunc(new(T))
+//         return repo.(T), err
+//     }
+//     var zero T
+//     return zero, nil
+// }
