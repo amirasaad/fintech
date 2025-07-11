@@ -96,6 +96,34 @@ func NewAccountService(
 	}
 }
 
+// withAccountRepoTransaction is a DRY helper for transaction, repository access, and logging.
+func (s *AccountService) withAccountRepoTransaction(
+	opName string,
+	logFields map[string]any,
+	fn func(repo repository.AccountRepository) error,
+) (err error) {
+	s.logger.Info(opName+" started", logFields)
+	defer func() {
+		if err != nil {
+			s.logger.Error(opName+" failed", logFields, "error", err)
+		} else {
+			s.logger.Info(opName+" successful", logFields)
+		}
+	}()
+	err = s.transaction.Execute(func() error {
+		uow, err := s.uowFactory()
+		if err != nil {
+			return err
+		}
+		repo, err := uow.AccountRepository()
+		if err != nil {
+			return err
+		}
+		return fn(repo)
+	})
+	return
+}
+
 // CreateAccount creates a new account for the specified user and persists it using the repository.
 // The account is created with default currency settings and automatically assigned a unique ID.
 //
@@ -126,39 +154,22 @@ func NewAccountService(
 func (s *AccountService) CreateAccount(
 	userID uuid.UUID,
 ) (a *account.Account, err error) {
-	s.logger.Info("CreateAccount started", "userID", userID)
-	defer func() {
-		if err != nil {
-			s.logger.Error("CreateAccount failed", "userID", userID, "error", err)
-		} else {
-			s.logger.Info("CreateAccount successful", "userID", userID, "accountID", a.ID)
-		}
-	}()
 	var aLocal *account.Account
-	err = s.transaction.Execute(func() error {
-		aLocal, err = account.New().WithUserID(userID).Build()
-		if err != nil {
-			return err
-		}
-		uow, err := s.uowFactory()
-		if err != nil {
-			s.logger.Error("CreateAccount failed: uowFactory error", "userID", userID, "error", err)
-			return err
-		}
-		repo, err := uow.AccountRepository()
-		if err != nil {
-			s.logger.Error("CreateAccount failed: AccountRepository error", "userID", userID, "error", err)
-			return err
-		}
-		if err = repo.Create(aLocal); err != nil {
-			s.logger.Error("CreateAccount failed: repo create error", "userID", userID, "error", err)
-			return err
-		}
-		return nil
-	})
+	err = s.withAccountRepoTransaction(
+		"CreateAccount",
+		map[string]any{"userID": userID},
+		func(repo repository.AccountRepository) error {
+			var createErr error
+			aLocal, createErr = account.New().WithUserID(userID).Build()
+			if createErr != nil {
+				return createErr
+			}
+			return repo.Create(aLocal)
+		},
+	)
 	if err != nil {
-		s.logger.Error("CreateAccount failed: transaction error", "userID", userID, "error", err)
-		return nil, err
+		a = nil
+		return
 	}
 	a = aLocal
 	return
