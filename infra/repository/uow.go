@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"reflect"
 
 	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/repository"
@@ -11,19 +12,26 @@ import (
 )
 
 type UoW struct {
-	baseDB  *gorm.DB // shared, non-transactional connection
-	session *gorm.DB // transactional session
-	started bool
-	cfg     config.DBConfig
-	appEnv  string
+	baseDB      *gorm.DB // shared, non-transactional connection
+	session     *gorm.DB // transactional session
+	started     bool
+	cfg         config.DBConfig
+	appEnv      string
+	repoRegistry map[reflect.Type]func(*gorm.DB) interface{}
 }
 
 // NewGormUoW now accepts a *gorm.DB instance and does not create a new connection
+// It also initializes the repository registry for generic GetRepository.
 func NewGormUoW(db *gorm.DB) *UoW {
 	return &UoW{
 		baseDB:  db,
 		session: db,
 		started: false,
+		repoRegistry: map[reflect.Type]func(*gorm.DB) interface{}{
+			reflect.TypeOf((*repository.AccountRepository)(nil)).Elem(): func(db *gorm.DB) interface{} { return NewAccountRepository(db) },
+			reflect.TypeOf((*repository.TransactionRepository)(nil)).Elem(): func(db *gorm.DB) interface{} { return NewTransactionRepository(db) },
+			reflect.TypeOf((*repository.UserRepository)(nil)).Elem(): func(db *gorm.DB) interface{} { return NewUserRepository(db) },
+		},
 	}
 }
 
@@ -124,29 +132,21 @@ func (u *UoW) UserRepository() (repository.UserRepository, error) {
 	return NewUserRepository(u.baseDB), nil
 }
 
-// GetRepository provides generic, type-safe access to repositories. Example: repo, err := u.GetRepository[repository.UserRepository]()
+// GetRepository provides generic, type-safe access to repositories using a registry map.
+// Example: repo, err := u.GetRepository[repository.UserRepository]()
 func (u *UoW) GetRepository[T any]() (T, error) {
 	var zero T
-	switch any(zero).(type) {
-	case repository.AccountRepository:
-		repo, err := u.AccountRepository()
-		if err != nil {
-			return zero, err
-		}
-		return any(repo).(T), nil
-	case repository.TransactionRepository:
-		repo, err := u.TransactionRepository()
-		if err != nil {
-			return zero, err
-		}
-		return any(repo).(T), nil
-	case repository.UserRepository:
-		repo, err := u.UserRepository()
-		if err != nil {
-			return zero, err
-		}
-		return any(repo).(T), nil
-	default:
-		return zero, fmt.Errorf("unsupported repository type: %T", zero)
+	t := reflect.TypeOf((*T)(nil)).Elem()
+	constructor, ok := u.repoRegistry[t]
+	if !ok {
+		return zero, fmt.Errorf("unsupported repository type: %v", t)
 	}
+	var db *gorm.DB
+	if u.started {
+		db = u.session
+	} else {
+		db = u.baseDB
+	}
+	repo := constructor(db)
+	return repo.(T), nil
 }
