@@ -22,11 +22,11 @@ import (
 func newServiceWithMocks(t interface {
 	mock.TestingT
 	Cleanup(func())
-}) (scv *AccountService, accountRepo *fixtures.MockAccountRepository, transactionRepo *fixtures.MockTransactionRepository, uow *fixtures.MockUnitOfWork) {
+}) (svc *AccountService, accountRepo *fixtures.MockAccountRepository, transactionRepo *fixtures.MockTransactionRepository, uow *fixtures.MockUnitOfWork) {
 	accountRepo = fixtures.NewMockAccountRepository(t)
 	transactionRepo = fixtures.NewMockTransactionRepository(t)
 	uow = fixtures.NewMockUnitOfWork(t)
-	svc := NewAccountService(func() (repository.UnitOfWork, error) { return uow, nil }, nil, slog.Default())
+	svc = NewAccountService(uow, nil, slog.Default())
 	return svc, accountRepo, transactionRepo, uow
 }
 
