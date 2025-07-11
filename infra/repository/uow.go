@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/amirasaad/fintech/pkg/repository"
 	"gorm.io/gorm"
 )
 
@@ -27,9 +28,9 @@ func NewUoW(db *gorm.DB) *UoW {
 	return &UoW{
 		db: db,
 		repoRegistry: map[reflect.Type]func(*gorm.DB) interface{}{
-			reflect.TypeOf((*AccountRepository)(nil)).Elem():     func(db *gorm.DB) interface{} { return NewAccountRepository(db) },
-			reflect.TypeOf((*TransactionRepository)(nil)).Elem(): func(db *gorm.DB) interface{} { return NewTransactionRepository(db) },
-			reflect.TypeOf((*UserRepository)(nil)).Elem():        func(db *gorm.DB) interface{} { return NewUserRepository(db) },
+			reflect.TypeOf((*repository.AccountRepository)(nil)).Elem():     func(db *gorm.DB) interface{} { return NewAccountRepository(db) },
+			reflect.TypeOf((*repository.TransactionRepository)(nil)).Elem(): func(db *gorm.DB) interface{} { return NewTransactionRepository(db) },
+			reflect.TypeOf((*repository.UserRepository)(nil)).Elem():        func(db *gorm.DB) interface{} { return NewUserRepository(db) },
 		},
 	}
 }
