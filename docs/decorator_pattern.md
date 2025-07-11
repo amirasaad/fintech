@@ -7,9 +7,11 @@ The fintech application previously used the decorator pattern for automatic tran
 ## Current Transaction Management
 
 ### UnitOfWork Interface
+
 Transaction management is now performed using the `UnitOfWork` interface, which exposes a `Do(ctx, func(uow UnitOfWork) error)` method. This method ensures all repository operations within a transaction use the same DB session, providing atomicity and consistency.
 
 #### Example Usage
+
 ```go
 func (s *AccountService) CreateAccount(ctx context.Context, userID uuid.UUID) (*account.Account, error) {
     var a *account.Account
@@ -44,6 +46,7 @@ func (s *AccountService) CreateAccount(ctx context.Context, userID uuid.UUID) (*
 ## Service Integration
 
 All service methods now follow this pattern:
+
 1. **Logging**: Start operation with context
 2. **Transaction**: Execute business logic within `uow.Do(ctx, ...)`
 3. **Error Handling**: Automatic rollback on errors
@@ -58,6 +61,7 @@ All service methods now follow this pattern:
 ## Testing Strategy
 
 ### Unit Testing
+
 ```go
 func TestCreateAccount_Success(t *testing.T) {
     svc, accountRepo, _, uow := newServiceWithMocks(t)
@@ -74,9 +78,10 @@ func TestCreateAccount_Success(t *testing.T) {
 ```
 
 ### Integration Testing
+
 - **Transaction Scenarios**: Test rollback on errors
 - **Error Propagation**: Test error mapping
 
 ## Summary
 
-Transaction management is now cleanly and safely handled via the UnitOfWork interface, with all business logic executed within transaction boundaries using `uow.Do(ctx, ...)`. This approach is idiomatic, testable, and easy to maintain. 
+Transaction management is now cleanly and safely handled via the UnitOfWork interface, with all business logic executed within transaction boundaries using `uow.Do(ctx, ...)`. This approach is idiomatic, testable, and easy to maintain.

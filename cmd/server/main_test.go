@@ -22,7 +22,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestStartServer_RootRoute(t *testing.T) {
-	app, _, _, _, _, _, _, _, _, _ := webapi.SetupTestApp(t)
+	app, _, _, _, _ := webapi.SetupTestAppWithTestcontainers(t)
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	resp, err := app.Test(req)
@@ -37,7 +37,7 @@ func TestStartServer_RootRoute(t *testing.T) {
 }
 
 func TestProtectedRoute_Unauthorized(t *testing.T) {
-	app, _, _, _, _, _, _, _, _, _ := webapi.SetupTestApp(t)
+	app, _, _, _, _ := webapi.SetupTestAppWithTestcontainers(t)
 	req := httptest.NewRequest(http.MethodGet, "/account", nil)
 	resp, err := app.Test(req)
 	if err != nil {
@@ -50,7 +50,7 @@ func TestProtectedRoute_Unauthorized(t *testing.T) {
 }
 
 func TestNotFoundRoute(t *testing.T) {
-	app, _, _, _, _, _, _, _, _, _ := webapi.SetupTestApp(t)
+	app, _, _, _, _ := webapi.SetupTestAppWithTestcontainers(t)
 	req := httptest.NewRequest(http.MethodGet, "/doesnotexist", nil)
 	resp, err := app.Test(req)
 	if err != nil {
@@ -63,11 +63,11 @@ func TestNotFoundRoute(t *testing.T) {
 }
 
 func TestLoginRoute_BadRequest(t *testing.T) {
-	app, _, _, _, _, _, _, _, _, _ := webapi.SetupTestApp(t)
-	req := httptest.NewRequest(http.MethodPost, "/login", nil)
+	app, _, _, _, _ := webapi.SetupTestAppWithTestcontainers(t)
+	req := httptest.NewRequest(http.MethodPost, "/auth/login", nil)
 	resp, err := app.Test(req)
 	if err != nil {
-		t.Fatalf("POST /login returns err: %s", err)
+		t.Fatalf("POST /auth/login returns err: %s", err)
 	}
 	defer resp.Body.Close() // nolint: errcheck
 	if resp.StatusCode != http.StatusBadRequest {

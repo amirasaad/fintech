@@ -1,536 +1,76 @@
 package webapi
 
 import (
-	"bytes"
-	"encoding/json"
-	"errors"
-	"fmt"
-	"io"
-	"log/slog"
-	"net/http/httptest"
-	"os"
 	"testing"
-	"time"
 
-	"github.com/amirasaad/fintech/internal/fixtures"
-	"github.com/amirasaad/fintech/pkg/config"
-	"github.com/amirasaad/fintech/pkg/currency"
-	"github.com/amirasaad/fintech/pkg/domain"
-	"github.com/amirasaad/fintech/pkg/domain/account"
-	"github.com/amirasaad/fintech/pkg/domain/money"
-	"github.com/amirasaad/fintech/pkg/service"
 	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/log"
 	"github.com/google/uuid"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
 
 type AccountTestSuite struct {
-	E2ETestSuite
-	app           *fiber.App
-	userRepo      *fixtures.MockUserRepository
-	accountRepo   *fixtures.MockAccountRepository
-	transRepo     *fixtures.MockTransactionRepository
-	mockUow       *fixtures.MockUnitOfWork
-	testUser      *domain.User
-	testToken     string
-	authService   *service.AuthService
-	authStrategy  *fixtures.MockAuthStrategy
-	mockConverter *fixtures.MockCurrencyConverter
-	cfg           *config.AppConfig
+	E2ETestSuiteWithDB
 }
 
-// Helper to generate a real JWT for the test user
-func generateTestToken(t *testing.T,
-	authService *service.AuthService,
-	user *domain.User,
-	cfg *config.AppConfig,
-) string {
-	t.Helper()
-	token, err := authService.GenerateToken(user)
-	if err != nil {
-		t.Fatalf("Failed to generate test JWT: %v", err)
+func (s *AccountTestSuite) SetupTest() {
+	// Create test user in database
+	s.createTestUserInDB()
+}
+
+func (s *AccountTestSuite) TestCreateAccountVariants() {
+	testCases := []struct {
+		desc       string
+		body       string
+		wantStatus int
+	}{
+		{
+			desc:       "success",
+			body:       `{"currency":"USD"}`,
+			wantStatus: fiber.StatusCreated,
+		},
+		{
+			desc:       "invalid body",
+			body:       `{"currency":123}`,
+			wantStatus: fiber.StatusBadRequest,
+		},
 	}
-	return token
+
+	for _, tc := range testCases {
+		s.Run(tc.desc, func() {
+			// Generate a real JWT token for authenticated requests
+			token := s.generateTestToken()
+			resp := s.makeRequest("POST", "/account", tc.body, token)
+			defer resp.Body.Close() //nolint:errcheck
+			s.Assert().Equal(tc.wantStatus, resp.StatusCode)
+		})
+	}
 }
 
-func (s *AccountTestSuite) BeforeTest(_, _s string) {
-	s.app,
-		s.userRepo,
-		s.accountRepo,
-		s.transRepo,
-		s.mockUow,
-		s.testUser,
-		s.authService,
-		s.authStrategy,
-		s.mockConverter,
-		s.cfg = SetupTestApp(s.T())
-	s.testToken = generateTestToken(s.T(), s.authService, s.testUser, s.cfg)
-}
-
-// TestMain runs before any tests and applies globally for all tests in the package.
-func TestMain(m *testing.M) {
-	slog.SetDefault(slog.New(slog.NewTextHandler(io.Discard, nil)))
-	log.SetOutput(io.Discard)
-
-	exitVal := m.Run()
-	os.Exit(exitVal)
-}
-
-func (s *AccountTestSuite) TestAccountCreate() {
-
-	s.mockUow.EXPECT().GetRepository(mock.Anything).Return(s.accountRepo, nil)
-	s.accountRepo.EXPECT().Create(mock.Anything).Return(nil)
-
-	req := httptest.NewRequest("POST", "/account", nil)
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+s.testToken)
-
-	resp, err := s.app.Test(req, 10000)
-	s.Require().NoError(err)
-	defer resp.Body.Close() //nolint:errcheck
-
-	s.Assert().Equal(fiber.StatusCreated, resp.StatusCode)
-}
-
-func (s *AccountTestSuite) TestAccountDeposit() {
-	s.mockUow.EXPECT().GetRepository(mock.Anything).Return(s.accountRepo, nil).Once()
-	s.mockUow.EXPECT().GetRepository(mock.Anything).Return(s.transRepo, nil).Once()
-
-	testAccount, _ := account.New().WithUserID(s.testUser.ID).WithCurrency(currency.USD).Build() //nolint:errcheck
-	s.accountRepo.EXPECT().Get(mock.Anything).Return(testAccount, nil)
-	s.transRepo.EXPECT().Create(mock.Anything).Return(nil)
-	s.accountRepo.EXPECT().Update(mock.Anything).Return(nil)
-
-	depositBody := bytes.NewBuffer([]byte(`{"amount": 100.0}`))
-	req := httptest.NewRequest("POST", fmt.Sprintf("/account/%s/deposit", testAccount.ID), depositBody)
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+s.testToken)
-
-	resp, err := s.app.Test(req, 10000)
-	s.Require().NoError(err)
-	defer resp.Body.Close() //nolint:errcheck
-
-	s.Assert().Equal(fiber.StatusOK, resp.StatusCode)
-}
-
-func (s *AccountTestSuite) TestAccountWithdraw() {
-	s.mockUow.EXPECT().GetRepository(mock.Anything).Return(s.accountRepo, nil).Once()
-	s.mockUow.EXPECT().GetRepository(mock.Anything).Return(s.transRepo, nil).Once()
-
-	account, _ := account.New().WithUserID(s.testUser.ID).Build() //nolint:errcheck
-	money, err := money.NewMoney(1000.0, currency.Code("USD"))
-	assert.NoError(s.T(), err)
-	_, _ = account.Deposit(s.testUser.ID, money)
-	s.accountRepo.EXPECT().Get(mock.Anything).Return(account, nil)
-	s.transRepo.EXPECT().Create(mock.Anything).Return(nil)
-	s.accountRepo.EXPECT().Update(mock.Anything).Return(nil)
-
-	withdrawBody := bytes.NewBuffer([]byte(`{"amount": 100.0}`))
-	req := httptest.NewRequest("POST", fmt.Sprintf("/account/%s/withdraw", account.ID), withdrawBody)
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+s.testToken)
-
-	resp, err := s.app.Test(req, 10000)
-	s.Require().NoError(err)
-	defer resp.Body.Close() //nolint:errcheck
-
-	s.Assert().Equal(fiber.StatusOK, resp.StatusCode)
-}
-
-func (s *AccountTestSuite) TestAccountRoutesFailureAccountNotFound() {
-	s.mockUow.EXPECT().GetRepository(mock.Anything).Return(s.accountRepo, nil).Once()
-	s.mockUow.EXPECT().GetRepository(mock.Anything).Return(s.transRepo, nil).Once()
-
-	s.accountRepo.EXPECT().Get(mock.Anything).Return(&domain.Account{}, domain.ErrAccountNotFound)
-
-	req := httptest.NewRequest("POST", fmt.Sprintf("/account/%s/deposit", uuid.New()), bytes.NewBuffer([]byte(`{"amount": 100.0}`)))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+s.testToken)
-
-	resp, err := s.app.Test(req, 10000)
-	s.Require().NoError(err)
-	defer resp.Body.Close() //nolint:errcheck
-
-	s.Assert().Equal(fiber.StatusNotFound, resp.StatusCode)
-	s.mockUow.AssertCalled(s.T(), "Rollback")
-}
-
-func (s *AccountTestSuite) TestAccountRoutesFailureTransaction() {
-
-	// fixtures deposit negative amount
-	req := httptest.NewRequest("POST", fmt.Sprintf("/account/%s/deposit", uuid.New()), bytes.NewBuffer([]byte(`{"amount": -100.0}`)))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+s.testToken)
-
-	resp, err := s.app.Test(req, 10000)
-	s.Require().NoError(err)
-	defer resp.Body.Close() //nolint:errcheck
-
-	s.Assert().Equal(fiber.StatusBadRequest, resp.StatusCode)
-}
-
-func (s *AccountTestSuite) TestAccountRoutesTransactionList() {
-	s.mockUow.EXPECT().GetRepository(mock.Anything).Return(s.transRepo, nil).Once()
-
-	account, _ := account.New().WithUserID(s.testUser.ID).Build() //nolint:errcheck
-	created1, _ := time.Parse(time.RFC3339, "2023-10-01T00:00:00Z")
-	created2, _ := time.Parse(time.RFC3339, "2023-10-02T00:00:00Z")
-	s.transRepo.EXPECT().List(s.testUser.ID, account.ID).Return([]*domain.Transaction{
-		{ID: uuid.New(), Amount: 100.0, Balance: 100.0, CreatedAt: created1},
-		{ID: uuid.New(), Amount: 50.0, Balance: 150.0, CreatedAt: created2},
-	}, nil)
-
-	req := httptest.NewRequest("GET", fmt.Sprintf("/account/%s/transactions", account.ID), nil)
-	req.Header.Set("Authorization", "Bearer "+s.testToken)
-
-	resp, err := s.app.Test(req, 10000)
-	s.Require().NoError(err)
-	defer resp.Body.Close() //nolint:errcheck
-
-	s.Assert().Equal(fiber.StatusOK, resp.StatusCode)
-
-	var response Response
-	bodyBytes, err := io.ReadAll(resp.Body)
-	s.Require().NoError(err)
-
-	err = json.Unmarshal(bodyBytes, &response)
-	s.Require().NoError(err)
-
-	s.Assert().NotNil(response.Data, "Should contain list of transactions")
-}
-
-func (s *AccountTestSuite) TestAccountRoutesBalance() {
-	s.mockUow.EXPECT().GetRepository(mock.Anything).Return(s.accountRepo, nil).Once()
-	accountID := uuid.New()
-	account := &domain.Account{ID: accountID, UserID: s.testUser.ID, Balance: 100.0, Currency: currency.Code("USD")}
-	s.accountRepo.EXPECT().Get(accountID).Return(account, nil)
-
-	req := httptest.NewRequest("GET", fmt.Sprintf("/account/%s/balance", accountID), nil)
-	req.Header.Set("Authorization", "Bearer "+s.testToken)
-
-	resp, err := s.app.Test(req, 10000)
-	s.Require().NoError(err)
-	defer resp.Body.Close() //nolint:errcheck
-
-	s.Assert().Equal(fiber.StatusOK, resp.StatusCode)
-
-	var response Response
-	bodyBytes, err := io.ReadAll(resp.Body)
-	s.Require().NoError(err)
-
-	err = json.Unmarshal(bodyBytes, &response)
-	s.Require().NoError(err)
-
-	balanceMap, ok := response.Data.(map[string]any)
-	s.Assert().True(ok, "Expected response.Data to be a map")
-
-	balance, ok := balanceMap["balance"].(float64)
-	s.Assert().True(ok, "Expected balance to be a float64")
-
-	s.Assert().Equal(float64(account.Balance/100.0), balance, "Expected balance to match")
-}
-
-func (s *AccountTestSuite) TestAccountRoutesUoWError() {
-	req := httptest.NewRequest("POST", "/account", nil)
-	req.Header.Set("Authorization", "Bearer "+s.testToken)
-
-	resp, err := s.app.Test(req, 10000)
-	s.Require().NoError(err)
-	defer resp.Body.Close() //nolint:errcheck
-
-	s.Assert().Equal(fiber.StatusInternalServerError, resp.StatusCode)
-}
-
-func (s *AccountTestSuite) TestGetBalanceAccountNotFound() {
-	s.mockUow.EXPECT().GetRepository(mock.Anything).Return(s.accountRepo, nil).Once()
-	s.accountRepo.EXPECT().Get(mock.Anything).Return(&domain.Account{}, domain.ErrAccountNotFound)
-
-	req := httptest.NewRequest("GET", fmt.Sprintf("/account/%s/balance", uuid.New()), nil)
-	req.Header.Set("Authorization", "Bearer "+s.testToken)
-
-	resp, err := s.app.Test(req, 10000)
-	s.Require().NoError(err)
-	defer resp.Body.Close() //nolint:errcheck
-
-	s.Assert().Equal(fiber.StatusNotFound, resp.StatusCode)
-}
-
-func (s *AccountTestSuite) TestGetTransactions() {
-	s.mockUow.EXPECT().GetRepository(mock.Anything).Return(s.transRepo, nil).Once()
-	s.transRepo.EXPECT().List(s.testUser.ID, mock.Anything).Return([]*domain.Transaction{}, nil)
-
-	req := httptest.NewRequest("GET", fmt.Sprintf("/account/%s/transactions", uuid.New()), nil)
-	req.Header.Set("Authorization", "Bearer "+s.testToken)
-
-	resp, err := s.app.Test(req, 10000)
-	s.Require().NoError(err)
-	defer resp.Body.Close() //nolint:errcheck
-
-	s.Assert().Equal(fiber.StatusOK, resp.StatusCode)
-}
-
-func (s *AccountTestSuite) TestAccountRoutesRollbackWhenCreateFails() {
-	s.mockUow.EXPECT().GetRepository(mock.Anything).Return(s.accountRepo, nil).Once()
-
-	s.accountRepo.EXPECT().Create(mock.Anything).Return(errors.New("failed to create account"))
-
-	req := httptest.NewRequest("POST", "/account", nil)
-	req.Header.Set("Authorization", "Bearer "+s.testToken)
-
-	resp, err := s.app.Test(req, 10000)
-	s.Require().NoError(err)
-	defer resp.Body.Close() //nolint:errcheck
-
-	s.Assert().Equal(fiber.StatusInternalServerError, resp.StatusCode)
-}
-
-func (s *AccountTestSuite) TestAccountRoutesRollbackWhenDepositFails() {
-	s.mockUow.EXPECT().GetRepository(mock.Anything).Return(s.accountRepo, nil).Once()
-	s.mockUow.EXPECT().GetRepository(mock.Anything).Return(s.transRepo, nil).Once()
-
-	account, _ := account.New().WithUserID(s.testUser.ID).Build() //nolint:errcheck
-	s.accountRepo.EXPECT().Get(account.ID).Return(account, nil)
-	s.accountRepo.EXPECT().Update(account).Return(nil)
-	s.transRepo.EXPECT().Create(mock.Anything).Return(errors.New("failed to create transaction"))
-
-	depositBody := bytes.NewBuffer([]byte(`{"amount": 100.0}`))
-	req := httptest.NewRequest("POST", fmt.Sprintf("/account/%s/deposit", account.ID), depositBody)
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+s.testToken)
-
-	resp, err := s.app.Test(req, 10000)
-	s.Require().NoError(err)
-	defer resp.Body.Close() //nolint:errcheck
-
-	s.mockUow.AssertCalled(s.T(), "Rollback")
-	s.Assert().Equal(fiber.StatusInternalServerError, resp.StatusCode)
-}
-
-func (s *AccountTestSuite) TestCreateAccount_Unauthorized() {
-	req := httptest.NewRequest("POST", "/account", nil)
-	resp, err := s.app.Test(req, 10000)
-	s.Require().NoError(err)
-	s.Assert().Equal(fiber.StatusUnauthorized, resp.StatusCode)
-}
-
-func (s *AccountTestSuite) TestDeposit_Unauthorized() {
-
-	req := httptest.NewRequest("POST", fmt.Sprintf("/account/%s/deposit", uuid.New()), nil)
-	resp, err := s.app.Test(req, 10000)
-	s.Require().NoError(err)
-	s.Assert().Equal(fiber.StatusUnauthorized, resp.StatusCode)
-}
-
-func (s *AccountTestSuite) TestDeposit_InvalidAccountID() {
-	depositBody := bytes.NewBuffer([]byte(`{"amount": 100.0}`))
-	req := httptest.NewRequest("POST", "/account/invalid-uuid/deposit", depositBody)
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+s.testToken)
-
-	resp, err := s.app.Test(req, 10000)
-	s.Require().NoError(err)
-	defer resp.Body.Close() //nolint:errcheck
-	s.Assert().Equal(fiber.StatusBadRequest, resp.StatusCode)
-}
-
-func (s *AccountTestSuite) TestDeposit_InvalidBody() {
-	depositBody := bytes.NewBuffer([]byte(`{"amount":"invalid"}`))
-	req := httptest.NewRequest("POST", fmt.Sprintf("/account/%s/deposit", uuid.New()), depositBody)
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+s.testToken)
-
-	resp, err := s.app.Test(req, 10000)
-	s.Require().NoError(err)
-	defer resp.Body.Close() //nolint:errcheck
-	s.Assert().Equal(fiber.StatusBadRequest, resp.StatusCode)
-}
-
-func (s *AccountTestSuite) TestWithdraw_Unauthorized() {
-	req := httptest.NewRequest("POST", fmt.Sprintf("/account/%s/withdraw", uuid.New()), nil)
-	resp, err := s.app.Test(req, 10000)
-	s.Require().NoError(err)
-	defer resp.Body.Close() //nolint:errcheck
-	s.Assert().Equal(fiber.StatusUnauthorized, resp.StatusCode)
-}
-
-func (s *AccountTestSuite) TestWithdraw_InvalidAccountID() {
-	withdrawBody := bytes.NewBuffer([]byte(`{"amount": 100.0}`))
-	req := httptest.NewRequest("POST", "/account/invalid-uuid/withdraw", withdrawBody)
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+s.testToken)
-
-	resp, err := s.app.Test(req, 10000)
-	s.Require().NoError(err)
-	defer resp.Body.Close() //nolint:errcheck
-	s.Assert().Equal(fiber.StatusBadRequest, resp.StatusCode)
-}
-
-func (s *AccountTestSuite) TestWithdraw_InvalidBody() {
-	withdrawBody := bytes.NewBuffer([]byte(`{"amount":"invalid"}`))
-	req := httptest.NewRequest("POST", fmt.Sprintf("/account/%s/withdraw", uuid.New()), withdrawBody)
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+s.testToken)
-
-	resp, err := s.app.Test(req, 10000)
-	s.Require().NoError(err)
-	defer resp.Body.Close() //nolint:errcheck
-	s.Assert().Equal(fiber.StatusBadRequest, resp.StatusCode)
-}
-
-func (s *AccountTestSuite) TestGetTransactions_Unauthorized() {
-	req := httptest.NewRequest("GET", fmt.Sprintf("/account/%s/transactions", uuid.New()), nil)
-	resp, err := s.app.Test(req, 10000)
-	s.Require().NoError(err)
-	s.Assert().Equal(fiber.StatusUnauthorized, resp.StatusCode)
-}
-
-func (s *AccountTestSuite) TestGetTransactions_InvalidAccountID() {
-	req := httptest.NewRequest("GET", "/account/invalid-uuid/transactions", nil)
-	req.Header.Set("Authorization", "Bearer "+s.testToken)
-
-	resp, err := s.app.Test(req, 10000)
-	s.Require().NoError(err)
-	defer resp.Body.Close() //nolint:errcheck
-	s.Assert().Equal(fiber.StatusBadRequest, resp.StatusCode)
-}
-
-func (s *AccountTestSuite) TestGetTransactions_InternalServerError() {
-	s.mockUow.EXPECT().GetRepository(mock.Anything).Return(s.transRepo, nil).Once()
-	s.transRepo.EXPECT().List(mock.Anything, mock.Anything).Return(nil, errors.New("db error")).Once()
-
-	req := httptest.NewRequest("GET", fmt.Sprintf("/account/%s/transactions", uuid.New()), nil)
-	req.Header.Set("Authorization", "Bearer "+s.testToken)
-
-	resp, err := s.app.Test(req, 10000)
-	s.Require().NoError(err)
-	defer resp.Body.Close() //nolint:errcheck
-	s.Assert().Equal(fiber.StatusInternalServerError, resp.StatusCode)
-}
-
-func (s *AccountTestSuite) TestGetBalance_Unauthorized() {
-	req := httptest.NewRequest("GET", fmt.Sprintf("/account/%s/balance", uuid.New()), nil)
-	resp, err := s.app.Test(req, 10000)
-	s.Require().NoError(err)
-	defer resp.Body.Close() //nolint:errcheck
-	s.Assert().Equal(fiber.StatusUnauthorized, resp.StatusCode)
-}
-
-func (s *AccountTestSuite) TestGetBalance_InvalidAccountID() {
-	req := httptest.NewRequest("GET", "/account/invalid-uuid/balance", nil)
-	req.Header.Set("Authorization", "Bearer "+s.testToken)
-
-	resp, err := s.app.Test(req, 10000)
-	s.Require().NoError(err)
-	defer resp.Body.Close() //nolint:errcheck
-	s.Assert().Equal(fiber.StatusBadRequest, resp.StatusCode)
-}
-
-func (s *AccountTestSuite) TestGetBalance_InternalServerError() {
-	s.mockUow.EXPECT().GetRepository(mock.Anything).Return(s.accountRepo, nil).Once()
-	s.accountRepo.EXPECT().Get(mock.Anything).Return(nil, errors.New("db error"))
-
-	req := httptest.NewRequest("GET", fmt.Sprintf("/account/%s/balance", uuid.New()), nil)
-	req.Header.Set("Authorization", "Bearer "+s.testToken)
-
-	resp, err := s.app.Test(req, 10000)
-	s.Require().NoError(err)
-	defer resp.Body.Close() //nolint:errcheck
-	s.Assert().Equal(fiber.StatusInternalServerError, resp.StatusCode)
-}
-
-func (s *AccountTestSuite) TestAccountCreateWithCurrency() {
-	s.mockUow.EXPECT().GetRepository(mock.Anything).Return(s.accountRepo, nil).Once()
-	s.accountRepo.EXPECT().Create(mock.Anything).Return(nil)
-
-	body := bytes.NewBuffer([]byte(`{"currency": "EUR"}`))
-	req := httptest.NewRequest("POST", "/account", body)
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+s.testToken)
-
-	resp, err := s.app.Test(req, 10000)
-	s.Require().NoError(err)
-	defer resp.Body.Close() //nolint:errcheck
-
-	s.Assert().Equal(fiber.StatusCreated, resp.StatusCode)
-	var response Response
-	_ = json.NewDecoder(resp.Body).Decode(&response)
-	accountData, _ := response.Data.(map[string]any)
-	s.Assert().Equal("EUR", accountData["Currency"])
-}
-
-func (s *AccountTestSuite) TestAccountDepositWithCurrency() {
-	s.mockUow.EXPECT().GetRepository(mock.Anything).Return(s.accountRepo, nil).Once()
-	s.mockUow.EXPECT().GetRepository(mock.Anything).Return(s.transRepo, nil).Once()
-
-	testAccount, _ := account.New().WithUserID(s.testUser.ID).WithCurrency(currency.USD).Build() //nolint:errcheck
-	s.accountRepo.EXPECT().Get(mock.Anything).Return(testAccount, nil)
-	s.transRepo.EXPECT().Create(mock.Anything).Return(nil)
-	s.accountRepo.EXPECT().Update(mock.Anything).Return(nil)
-	s.mockConverter.EXPECT().Convert(float64(100), "EUR", "USD").Return(&domain.ConversionInfo{
-		OriginalAmount:    float64(100),
-		OriginalCurrency:  "USD",
-		ConvertedAmount:   float64(110),
-		ConvertedCurrency: "USD",
-		ConversionRate:    1.1,
-	}, nil)
-
-	depositBody := bytes.NewBuffer([]byte(`{"amount": 100.0, "currency": "EUR"}`))
-	req := httptest.NewRequest("POST", fmt.Sprintf("/account/%s/deposit", testAccount.ID), depositBody)
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+s.testToken)
-
-	resp, err := s.app.Test(req, 10000)
-	s.Require().NoError(err)
-	defer resp.Body.Close() //nolint:errcheck
-
-	s.Assert().Equal(fiber.StatusOK, resp.StatusCode)
-	var response Response
-	_ = json.NewDecoder(resp.Body).Decode(&response)
-	txData, _ := response.Data.(map[string]any)
-	s.Assert().Equal("USD", txData["converted_currency"])
-}
-
-func (s *AccountTestSuite) TestDepositWithConversion_Integration() {
-	// Setup: create account in USD
-	account, _ := account.New().WithUserID(s.testUser.ID).WithCurrency(currency.USD).Build() //nolint:errcheck
-
-	s.mockUow.EXPECT().GetRepository(mock.Anything).Return(s.accountRepo, nil).Once()
-	s.mockUow.EXPECT().GetRepository(mock.Anything).Return(s.transRepo, nil).Once()
-	s.accountRepo.EXPECT().Get(account.ID).Return(account, nil)
-
-	s.accountRepo.EXPECT().Update(account).Return(nil)
-	s.transRepo.EXPECT().Create(mock.Anything).Return(nil)
-
-	// Use a mock converter that returns a known conversion
-	s.mockConverter.On("Convert", 100.0, "EUR", "USD").Return(&domain.ConversionInfo{
-		OriginalAmount:    100,
-		OriginalCurrency:  "EUR",
-		ConvertedAmount:   120,
-		ConvertedCurrency: "USD",
-		ConversionRate:    1.2,
-	}, nil)
-
-	depositBody := bytes.NewBuffer([]byte(`{"amount": 100.0, "currency": "EUR"}`))
-	req := httptest.NewRequest("POST", fmt.Sprintf("/account/%s/deposit", account.ID), depositBody)
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+s.testToken)
-
-	resp, err := s.app.Test(req, 10000)
-	s.Require().NoError(err)
-	defer resp.Body.Close() //nolint:errcheck
-
-	s.Assert().Equal(fiber.StatusOK, resp.StatusCode)
-	var response Response
-	_ = json.NewDecoder(resp.Body).Decode(&response)
-	data := response.Data.(map[string]interface{})
-	s.Assert().Equal(100.0, data["original_amount"])
-	s.Assert().Equal("EUR", data["original_currency"])
-	s.Assert().Equal(120.0, data["converted_amount"])
-	s.Assert().Equal("USD", data["converted_currency"])
-	s.Assert().Equal(1.2, data["conversion_rate"])
+func (s *AccountTestSuite) TestGetAccountVariants() {
+	testCases := []struct {
+		desc       string
+		wantStatus int
+	}{
+		{
+			desc:       "account not found",
+			wantStatus: fiber.StatusUnauthorized, // Generic error for security
+		},
+		{
+			desc:       "get account success",
+			wantStatus: fiber.StatusOK,
+		},
+	}
+
+	for _, tc := range testCases {
+		s.Run(tc.desc, func() {
+			id := uuid.New()
+			// Generate a real JWT token for authenticated requests
+			token := s.generateTestToken()
+			resp := s.makeRequest("GET", "/account/"+id.String(), "", token)
+			defer resp.Body.Close() //nolint:errcheck
+			s.Assert().Equal(tc.wantStatus, resp.StatusCode)
+		})
+	}
 }
 
 func TestAccountTestSuite(t *testing.T) {

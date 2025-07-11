@@ -175,7 +175,11 @@ func CreateAccount(
 			log.Errorf("Failed to parse user ID from token: %v", err)
 			return ProblemDetailsJSON(c, "Invalid user ID", err)
 		}
-		input, _ := BindAndValidate[CreateAccountRequest](c) // ignore error, currency is optional
+		input, err := BindAndValidate[CreateAccountRequest](c)
+		if err != nil {
+			log.Errorf("Failed to validate request: %v", err)
+			return ProblemDetailsJSON(c, "Invalid request", err)
+		}
 		currencyCode := currency.Code("USD")
 		if input != nil && input.Currency != "" {
 			currencyCode = currency.Code(input.Currency)
