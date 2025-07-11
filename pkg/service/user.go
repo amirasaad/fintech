@@ -6,7 +6,6 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/amirasaad/fintech/pkg/decorator"
 	"github.com/amirasaad/fintech/pkg/domain/user"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/google/uuid"
@@ -14,47 +13,41 @@ import (
 )
 
 // UserService provides business logic for user operations including creation, updates, and deletion.
-// Uses the decorator pattern for automatic transaction management and structured logging.
 type UserService struct {
-	uowFactory  func() (repository.UnitOfWork, error)
-	logger      *slog.Logger
-	transaction decorator.TransactionDecorator
+	uow    repository.UnitOfWork
+	logger *slog.Logger
 }
 
-// NewUserService creates a new UserService with transaction decorator and logging.
+// NewUserService creates a new UserService with a UnitOfWork and logger.
 func NewUserService(
-	db *gorm.DB,
+	uow repository.UnitOfWork,
 	logger *slog.Logger,
 ) *UserService {
 	return &UserService{
-		logger:      logger,
-		transaction: decorator.NewUnitOfWorkTransactionDecorator(db, logger),
+		uow:    uow,
+		logger: logger,
 	}
 }
 
-// CreateUser creates a new user account with automatic transaction management.
-// Returns the created user or an error if the operation fails.
+// CreateUser creates a new user account in a transaction.
 func (s *UserService) CreateUser(
 	ctx context.Context,
 	username, email, password string,
 ) (u *user.User, err error) {
-	var uLocal *user.User
-	err = s.transaction.Execute(ctx, func(uow repository.UnitOfWork) error {
+	err = s.uow.Do(ctx, func(uow repository.UnitOfWork) error {
 		repo, err := uow.GetRepository[repository.UserRepository]()
 		if err != nil {
 			return err
 		}
-		uLocal, err = user.NewUser(username, email, password)
+		u, err = user.NewUser(username, email, password)
 		if err != nil {
 			return err
 		}
-		return repo.Create(uLocal)
+		return repo.Create(u)
 	})
 	if err != nil {
 		u = nil
-		return
 	}
-	u = uLocal
 	return
 }
 
