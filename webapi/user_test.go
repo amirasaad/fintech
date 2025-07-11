@@ -18,6 +18,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
+	"github.com/amirasaad/fintech/pkg/repository"
 )
 
 type UserTestSuite struct {
@@ -44,6 +45,11 @@ func (s *UserTestSuite) SetupTest() {
 		s.cfg = SetupTestApp(s.T())
 	// Setup mock for login request
 	s.testToken = generateTestToken(s.T(), s.authService, s.testUser, s.cfg)
+	mockUow := &fixtures.MockUnitOfWork{}
+	mockUow.On("Do", mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+		fn := args.Get(1).(func(repository.UnitOfWork) error)
+		_ = fn(mockUow)
+	})
 }
 
 func (s *UserTestSuite) TestCreateUser() {

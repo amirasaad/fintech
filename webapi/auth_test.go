@@ -14,7 +14,6 @@ import (
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/net/context"
-	"github.com/golang/mock/gomock"
 	"github.com/amirasaad/fintech/pkg/repository"
 )
 
@@ -39,11 +38,10 @@ func (s *AuthTestSuite) SetupTest() {
 		_,
 		s.cfg = SetupTestApp(s.T())
 
-	s.mockUow.EXPECT().Do(gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(
-		func(ctx context.Context, fn func(uow interface{}) error) error {
-			return fn(s.mockUow)
-		},
-	)
+	s.mockUow.On("Do", mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+		fn := args.Get(1).(func(repository.UnitOfWork) error)
+		_ = fn(s.mockUow)
+	})
 }
 
 func (s *AuthTestSuite) TestLoginRoute_BadRequest() {
