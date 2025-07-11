@@ -31,6 +31,10 @@ func TestCreateUser_Success(t *testing.T) {
 	svc, userRepo, uow := newUserServiceWithMocks(t)
 	userRepo.EXPECT().Create(mock.Anything).Return(nil)
 	uow.EXPECT().Commit().Return(nil)
+	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+		fn := args.Get(1).(func(repository.UnitOfWork) error)
+		_ = fn(uow)
+	})
 
 	u, err := svc.CreateUser(context.Background(), "alice", "alice@example.com", "password")
 	assert.NoError(t, err)
@@ -43,6 +47,10 @@ func TestCreateUser_RepoError(t *testing.T) {
 	svc, userRepo, uow := newUserServiceWithMocks(t)
 	userRepo.EXPECT().Create(mock.Anything).Return(errors.New("db error"))
 	uow.EXPECT().Commit().Return(nil)
+	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+		fn := args.Get(1).(func(repository.UnitOfWork) error)
+		_ = fn(uow)
+	})
 
 	u, err := svc.CreateUser(context.Background(), "bob", "bob@example.com", "password")
 	assert.Error(t, err)
@@ -62,6 +70,10 @@ func TestCreateUser_CommitError(t *testing.T) {
 	svc, userRepo, uow := newUserServiceWithMocks(t)
 	userRepo.EXPECT().Create(mock.Anything).Return(nil)
 	uow.EXPECT().Commit().Return(errors.New("commit error"))
+	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+		fn := args.Get(1).(func(repository.UnitOfWork) error)
+		_ = fn(uow)
+	})
 
 	u, err := svc.CreateUser(context.Background(), "bob", "bob@example.com", "password")
 	assert.Error(t, err)
@@ -74,6 +86,10 @@ func TestGetUser_Success(t *testing.T) {
 	user := &domain.User{ID: uuid.New(), Username: "alice"}
 	userRepo.On("Get", user.ID).Return(user, nil)
 	uow.EXPECT().Commit().Return(nil)
+	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+		fn := args.Get(1).(func(repository.UnitOfWork) error)
+		_ = fn(uow)
+	})
 
 	got, err := svc.GetUser(user.ID.String())
 	assert.NoError(t, err)
@@ -85,6 +101,10 @@ func TestGetUser_NotFound(t *testing.T) {
 	svc, userRepo, uow := newUserServiceWithMocks(t)
 	userRepo.EXPECT().Get(mock.Anything).Return(&domain.User{}, domain.ErrAccountNotFound)
 	uow.EXPECT().Commit().Return(nil)
+	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+		fn := args.Get(1).(func(repository.UnitOfWork) error)
+		_ = fn(uow)
+	})
 
 	got, err := svc.GetUser(uuid.New().String())
 	assert.Error(t, err)
@@ -105,6 +125,10 @@ func TestGetUserByEmail_Success(t *testing.T) {
 	user := &domain.User{ID: uuid.New(), Email: "alice@example.com"}
 	userRepo.EXPECT().GetByEmail(user.Email).Return(user, nil)
 	uow.EXPECT().Commit().Return(nil)
+	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+		fn := args.Get(1).(func(repository.UnitOfWork) error)
+		_ = fn(uow)
+	})
 
 	got, err := svc.GetUserByEmail(user.Email)
 	assert.NoError(t, err)
@@ -116,6 +140,10 @@ func TestGetUserByEmail_NotFound(t *testing.T) {
 	svc, userRepo, uow := newUserServiceWithMocks(t)
 	userRepo.EXPECT().GetByEmail(mock.Anything).Return((*domain.User)(nil), errors.New("not found"))
 	uow.EXPECT().Commit().Return(nil)
+	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+		fn := args.Get(1).(func(repository.UnitOfWork) error)
+		_ = fn(uow)
+	})
 
 	got, err := svc.GetUserByEmail("notfound@example.com")
 	assert.Error(t, err)
@@ -135,6 +163,10 @@ func TestGetUserByUsername_Success(t *testing.T) {
 	user := &domain.User{ID: uuid.New(), Username: "alice"}
 	userRepo.EXPECT().GetByUsername(user.Username).Return(user, nil)
 	uow.EXPECT().Commit().Return(nil)
+	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+		fn := args.Get(1).(func(repository.UnitOfWork) error)
+		_ = fn(uow)
+	})
 
 	got, err := svc.GetUserByUsername(user.Username)
 	assert.NoError(t, err)
@@ -146,6 +178,10 @@ func TestGetUserByUsername_NotFound(t *testing.T) {
 	svc, userRepo, uow := newUserServiceWithMocks(t)
 	userRepo.EXPECT().GetByUsername(mock.Anything).Return((*domain.User)(nil), errors.New("not found"))
 	uow.EXPECT().Commit().Return(nil)
+	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+		fn := args.Get(1).(func(repository.UnitOfWork) error)
+		_ = fn(uow)
+	})
 
 	got, err := svc.GetUserByUsername("notfound")
 	assert.Error(t, err)
@@ -167,6 +203,10 @@ func TestUpdateUser_Success(t *testing.T) {
 	userRepo.EXPECT().Get(user.ID).Return(user, nil)
 	userRepo.EXPECT().Update(user).Return(nil)
 	uow.EXPECT().Commit().Return(nil)
+	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+		fn := args.Get(1).(func(repository.UnitOfWork) error)
+		_ = fn(uow)
+	})
 
 	err := svc.UpdateUser(uuidStr, func(u *domain.User) error {
 		u.Username = "updated"
@@ -183,6 +223,10 @@ func TestUpdateUser_RepoError(t *testing.T) {
 	userRepo.EXPECT().Get(user.ID).Return(user, nil)
 	userRepo.EXPECT().Update(user).Return(errors.New("db error"))
 	uow.EXPECT().Commit().Return(nil)
+	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+		fn := args.Get(1).(func(repository.UnitOfWork) error)
+		_ = fn(uow)
+	})
 
 	err := svc.UpdateUser(uuidStr, func(u *domain.User) error {
 		u.Username = "updated"
@@ -204,6 +248,10 @@ func TestDeleteUser_Success(t *testing.T) {
 	id := uuid.New()
 	userRepo.EXPECT().Delete(id).Return(nil)
 	uow.EXPECT().Commit().Return(nil)
+	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+		fn := args.Get(1).(func(repository.UnitOfWork) error)
+		_ = fn(uow)
+	})
 
 	err := svc.DeleteUser(id.String())
 	assert.NoError(t, err)
@@ -215,6 +263,10 @@ func TestDeleteUser_RepoError(t *testing.T) {
 	id := uuid.New()
 	userRepo.EXPECT().Delete(id).Return(errors.New("db error"))
 	uow.EXPECT().Commit().Return(nil)
+	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+		fn := args.Get(1).(func(repository.UnitOfWork) error)
+		_ = fn(uow)
+	})
 
 	err := svc.DeleteUser(id.String())
 	assert.Error(t, err)
@@ -233,6 +285,10 @@ func TestValidUser_True(t *testing.T) {
 	id := uuid.New()
 	userRepo.EXPECT().Valid(id, "password").Return(true)
 	uow.EXPECT().Commit().Return(nil)
+	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+		fn := args.Get(1).(func(repository.UnitOfWork) error)
+		_ = fn(uow)
+	})
 
 	ok, _ := svc.ValidUser(id.String(), "password")
 	assert.True(t, ok)
@@ -244,6 +300,10 @@ func TestValidUser_False(t *testing.T) {
 	id := uuid.New()
 	userRepo.EXPECT().Valid(id, "wrongpass").Return(false)
 	uow.EXPECT().Commit().Return(nil)
+	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+		fn := args.Get(1).(func(repository.UnitOfWork) error)
+		_ = fn(uow)
+	})
 
 	ok, _ := svc.ValidUser(id.String(), "wrongpass")
 	assert.False(t, ok)
