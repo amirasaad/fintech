@@ -23,13 +23,12 @@ type UserService struct {
 
 // NewUserService creates a new UserService with transaction decorator and logging.
 func NewUserService(
-	dbFactory func() (*gorm.DB, error),
+	db *gorm.DB,
 	logger *slog.Logger,
 ) *UserService {
 	return &UserService{
-		uowFactory:  nil, // not used anymore
 		logger:      logger,
-		transaction: decorator.NewUnitOfWorkTransactionDecorator(dbFactory, logger),
+		transaction: decorator.NewUnitOfWorkTransactionDecorator(db, logger),
 	}
 }
 

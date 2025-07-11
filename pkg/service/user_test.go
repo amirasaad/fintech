@@ -22,8 +22,8 @@ func newUserServiceWithMocks(t interface {
 	Cleanup(func())
 }) (*UserService, *fixtures.MockUserRepository) {
 	userRepo := fixtures.NewMockUserRepository(t)
-	dbFactory := func() (*gorm.DB, error) { return &gorm.DB{}, nil } // dummy DB for decorator
-	svc := NewUserService(dbFactory, slog.Default())
+	db := &gorm.DB{} // dummy DB for decorator
+	svc := NewUserService(db, slog.Default())
 	return svc, userRepo
 }
 
@@ -50,7 +50,7 @@ func TestCreateUser_RepoError(t *testing.T) {
 
 func TestCreateUser_UoWFactoryError(t *testing.T) {
 	t.Parallel()
-	svc := NewUserService(func() (repository.UnitOfWork, error) { return nil, errors.New("uow error") }, slog.Default())
+	svc := NewUserService(&gorm.DB{}, slog.Default())
 	u, err := svc.CreateUser(context.Background(), "bob", "bob@example.com", "password")
 	assert.Error(t, err)
 	assert.Nil(t, u)
@@ -89,7 +89,7 @@ func TestGetUser_NotFound(t *testing.T) {
 
 func TestGetUser_UoWFactoryError(t *testing.T) {
 	t.Parallel()
-	svc := NewUserService(func() (repository.UnitOfWork, error) { return nil, errors.New("uow error") }, slog.Default())
+	svc := NewUserService(&gorm.DB{}, slog.Default())
 	_, err := svc.GetUser(uuid.New().String())
 	assert.Error(t, err)
 }
@@ -118,7 +118,7 @@ func TestGetUserByEmail_NotFound(t *testing.T) {
 
 func TestGetUserByEmail_UoWFactoryError(t *testing.T) {
 	t.Parallel()
-	svc := NewUserService(func() (repository.UnitOfWork, error) { return nil, errors.New("uow error") }, slog.Default())
+	svc := NewUserService(&gorm.DB{}, slog.Default())
 	_, err := svc.GetUserByEmail("notfound@example.com")
 	assert.Error(t, err)
 }
@@ -146,7 +146,7 @@ func TestGetUserByUsername_NotFound(t *testing.T) {
 
 func TestGetUserByUsername_UoWFactoryError(t *testing.T) {
 	t.Parallel()
-	svc := NewUserService(func() (repository.UnitOfWork, error) { return nil, errors.New("uow error") }, slog.Default())
+	svc := NewUserService(&gorm.DB{}, slog.Default())
 	_, err := svc.GetUserByUsername("notfound")
 	assert.Error(t, err)
 }
@@ -183,7 +183,7 @@ func TestUpdateUser_RepoError(t *testing.T) {
 
 func TestUpdateUser_UoWFactoryError(t *testing.T) {
 	t.Parallel()
-	svc := NewUserService(func() (repository.UnitOfWork, error) { return nil, errors.New("uow error") }, slog.Default())
+	svc := NewUserService(&gorm.DB{}, slog.Default())
 	err := svc.UpdateUser(uuid.New().String(), func(u *domain.User) error { return nil })
 	assert.Error(t, err)
 }
@@ -210,7 +210,7 @@ func TestDeleteUser_RepoError(t *testing.T) {
 
 func TestDeleteUser_UoWFactoryError(t *testing.T) {
 	t.Parallel()
-	svc := NewUserService(func() (repository.UnitOfWork, error) { return nil, errors.New("uow error") }, slog.Default())
+	svc := NewUserService(&gorm.DB{}, slog.Default())
 	err := svc.DeleteUser(uuid.New().String())
 	assert.Error(t, err)
 }
@@ -237,7 +237,7 @@ func TestValidUser_False(t *testing.T) {
 
 func TestValidUser_UoWFactoryError(t *testing.T) {
 	t.Parallel()
-	svc := NewUserService(func() (repository.UnitOfWork, error) { return nil, errors.New("uow error") }, slog.Default())
+	svc := NewUserService(&gorm.DB{}, slog.Default())
 	ok, _ := svc.ValidUser(uuid.New().String(), "password")
 	assert.False(t, ok)
 }

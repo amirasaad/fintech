@@ -23,29 +23,24 @@ type TransactionDecorator interface {
 // UnitOfWorkTransactionDecorator implements TransactionDecorator for the Unit of Work pattern.
 // Now uses GORM's Transaction method for safe transaction management.
 type UnitOfWorkTransactionDecorator struct {
-	dbFactory func() (*gorm.DB, error) // returns a *gorm.DB session
-	logger   *slog.Logger
+	db     *gorm.DB
+	logger *slog.Logger
 }
 
-// NewUnitOfWorkTransactionDecorator creates a new decorator using a dbFactory and logger.
+// NewUnitOfWorkTransactionDecorator creates a new decorator using a *gorm.DB and logger.
 func NewUnitOfWorkTransactionDecorator(
-	dbFactory func() (*gorm.DB, error),
+	db *gorm.DB,
 	logger *slog.Logger,
 ) *UnitOfWorkTransactionDecorator {
 	return &UnitOfWorkTransactionDecorator{
-		dbFactory: dbFactory,
-		logger:   logger,
+		db:     db,
+		logger: logger,
 	}
 }
 
 // Execute runs the operation in a GORM transaction, passing a new UoW for the transaction session.
 func (d *UnitOfWorkTransactionDecorator) Execute(ctx context.Context, operation func(uow repository.UnitOfWork) error) error {
-	db, err := d.dbFactory()
-	if err != nil {
-		d.logger.Error("Failed to get DB from factory", "error", err)
-		return err
-	}
-	return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	return d.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		uow := repository.NewGormUoW(tx)
 		return operation(uow)
 	})
