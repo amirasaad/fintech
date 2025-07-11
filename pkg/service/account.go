@@ -96,34 +96,6 @@ func NewAccountService(
 	}
 }
 
-// withAccountRepoTransaction is a DRY helper for transaction, repository access, and logging.
-func (s *AccountService) withAccountRepoTransaction(
-	opName string,
-	logFields map[string]any,
-	fn func(repo repository.AccountRepository) error,
-) (err error) {
-	s.logger.Info(opName+" started", logFields)
-	defer func() {
-		if err != nil {
-			s.logger.Error(opName+" failed", logFields, "error", err)
-		} else {
-			s.logger.Info(opName+" successful", logFields)
-		}
-	}()
-	err = s.transaction.Execute(func() error {
-		uow, err := s.uowFactory()
-		if err != nil {
-			return err
-		}
-		repo, err := uow.AccountRepository()
-		if err != nil {
-			return err
-		}
-		return fn(repo)
-	})
-	return
-}
-
 // CreateAccount creates a new account for the specified user and persists it using the repository.
 // The account is created with default currency settings and automatically assigned a unique ID.
 //
@@ -155,9 +127,15 @@ func (s *AccountService) CreateAccount(
 	userID uuid.UUID,
 ) (a *account.Account, err error) {
 	var aLocal *account.Account
-	err = s.withAccountRepoTransaction(
+	err = withRepoTransaction(
+		s.logger,
+		s.transaction,
+		s.uowFactory,
 		"CreateAccount",
 		map[string]any{"userID": userID},
+		func(uow repository.UnitOfWork) (repository.AccountRepository, error) {
+			return uow.AccountRepository()
+		},
 		func(repo repository.AccountRepository) error {
 			var createErr error
 			aLocal, createErr = account.New().WithUserID(userID).Build()
