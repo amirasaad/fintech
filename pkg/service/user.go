@@ -31,25 +31,21 @@ func NewUserService(
 	}
 }
 
-// CreateUser creates a new user account with automatic transaction management.
-// Returns the created user or an error if the operation fails.
-func (s *UserService) CreateUser(
-	username, email, password string,
-) (u *user.User, err error) {
-	s.logger.Info("CreateUser started", "username", username, "email", email)
+// withUserRepoTransaction is a DRY helper for transaction, repository access, and logging.
+func (s *UserService) withUserRepoTransaction(
+	opName string,
+	logFields map[string]any,
+	fn func(repo repository.UserRepository) error,
+) (err error) {
+	s.logger.Info(opName+" started", logFields)
 	defer func() {
 		if err != nil {
-			s.logger.Error("CreateUser failed", "username", username, "email", email, "error", err)
+			s.logger.Error(opName+" failed", logFields, "error", err)
 		} else {
-			s.logger.Info("CreateUser successful", "username", username, "email", email, "userID", u.ID)
+			s.logger.Info(opName+" successful", logFields)
 		}
 	}()
-	var uLocal *user.User
 	err = s.transaction.Execute(func() error {
-		uLocal, err = user.NewUser(username, email, password)
-		if err != nil {
-			return err
-		}
 		uow, err := s.uowFactory()
 		if err != nil {
 			return err
@@ -58,12 +54,32 @@ func (s *UserService) CreateUser(
 		if err != nil {
 			return err
 		}
-		err = repo.Create(uLocal)
-		return err
+		return fn(repo)
 	})
+	return
+}
+
+// CreateUser creates a new user account with automatic transaction management.
+// Returns the created user or an error if the operation fails.
+func (s *UserService) CreateUser(
+	username, email, password string,
+) (u *user.User, err error) {
+	var uLocal *user.User
+	err = s.withUserRepoTransaction(
+		"CreateUser",
+		map[string]any{"username": username, "email": email},
+		func(repo repository.UserRepository) error {
+			var createErr error
+			uLocal, createErr = user.NewUser(username, email, password)
+			if createErr != nil {
+				return createErr
+			}
+			return repo.Create(uLocal)
+		},
+	)
 	if err != nil {
-		s.logger.Error("CreateUser failed: transaction error", "username", username, "email", email, "error", err)
-		return nil, err
+		u = nil
+		return
 	}
 	u = uLocal
 	return
