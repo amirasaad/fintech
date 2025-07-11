@@ -9,12 +9,13 @@ import (
 )
 
 // UoW provides transaction boundary and repository access in one abstraction.
-// Usage:
-//   uow := NewUoW(db)
-//   err := uow.Do(ctx, func(uow UnitOfWork) error {
-//       repo, err := uow.GetRepository[repository.UserRepository]()
-//       ...
-//   })
+//
+// Why is GetRepository part of UoW?
+// - Ensures all repositories use the same DB session/transaction for true atomicity.
+// - Keeps service code clean and focused on business logic.
+// - Centralizes repository wiring and registry for maintainability.
+// - Prevents accidental use of the wrong DB session (which would break transactionality).
+// - Is idiomatic for Go UoW patterns and easy to mock in tests.
 type UoW struct {
 	db          *gorm.DB
 	tx          *gorm.DB
@@ -42,6 +43,10 @@ func (u *UoW) Do(ctx context.Context, fn func(uow UnitOfWork) error) error {
 }
 
 // GetRepository provides generic, type-safe access to repositories using the transaction session.
+//
+// This method is part of UoW to guarantee that all repository operations within a transaction
+// use the same DB session, ensuring atomicity and consistency. It also centralizes repository
+// construction and makes testing and extension easier.
 func (u *UoW) GetRepository[T any]() (T, error) {
 	var zero T
 	t := reflect.TypeOf((*T)(nil)).Elem()
