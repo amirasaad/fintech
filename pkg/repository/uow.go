@@ -2,17 +2,17 @@ package repository
 
 import "context"
 
-// UnitOfWork defines the transaction boundary and repository provider for a business operation.
+// UnitOfWork defines the contract for transactional work and type-safe repository access.
 //
-// Migration: Use GetRepository[T any]() for repository access. The old AccountRepository, TransactionRepository, and UserRepository methods are deprecated.
+// Do runs the given function in a transaction boundary, providing a UnitOfWork for repository access.
+// GetRepository provides generic, type-safe access to repositories using the transaction session.
 type UnitOfWork interface {
-	Begin(ctx context.Context) error
-	Commit(ctx context.Context) error
-	Rollback(ctx context.Context) error
-	// Generic repository accessor. Example: repo, err := uow.GetRepository[UserRepository]()
+	// Do executes the given function within a transaction boundary.
+	// The provided function receives a UnitOfWork for repository access.
+	// If the function returns an error, the transaction is rolled back.
+	Do(ctx context.Context, fn func(uow UnitOfWork) error) error
+
+	// GetRepository returns a repository of the requested type, bound to the current transaction/session.
+	// Example: repo, err := uow.GetRepository[UserRepository]()
 	GetRepository[T any]() (T, error)
-	// Deprecated: Use GetRepository[T any]() instead.
-	AccountRepository() (AccountRepository, error)
-	TransactionRepository() (TransactionRepository, error)
-	UserRepository() (UserRepository, error)
 }
