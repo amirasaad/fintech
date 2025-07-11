@@ -3,6 +3,7 @@
 package service
 
 import (
+	"context"
 	"log/slog"
 
 	"github.com/amirasaad/fintech/pkg/decorator"
@@ -34,27 +35,21 @@ func NewUserService(
 // CreateUser creates a new user account with automatic transaction management.
 // Returns the created user or an error if the operation fails.
 func (s *UserService) CreateUser(
+	ctx context.Context,
 	username, email, password string,
 ) (u *user.User, err error) {
 	var uLocal *user.User
-	err = withRepoTransaction(
-		s.logger,
-		s.transaction,
-		s.uowFactory,
-		"CreateUser",
-		map[string]any{"username": username, "email": email},
-		func(uow repository.UnitOfWork) (repository.UserRepository, error) {
-			return uow.UserRepository()
-		},
-		func(repo repository.UserRepository) error {
-			var createErr error
-			uLocal, createErr = user.NewUser(username, email, password)
-			if createErr != nil {
-				return createErr
-			}
-			return repo.Create(uLocal)
-		},
-	)
+	err = s.transaction.Execute(ctx, func(uow repository.UnitOfWork) error {
+		repo, err := uow.GetRepository[repository.UserRepository]()
+		if err != nil {
+			return err
+		}
+		uLocal, err = user.NewUser(username, email, password)
+		if err != nil {
+			return err
+		}
+		return repo.Create(uLocal)
+	})
 	if err != nil {
 		u = nil
 		return
