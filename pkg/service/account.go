@@ -7,149 +7,53 @@
 package service
 
 import (
+	"context"
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/domain/common"
 	mon "github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/amirasaad/fintech/pkg/domain/user"
 	"github.com/amirasaad/fintech/pkg/repository"
-
 	"log/slog"
-
-	"github.com/amirasaad/fintech/pkg/decorator"
 	"github.com/google/uuid"
 )
 
-// AccountService provides business logic for account operations including creation, deposits, withdrawals,
-// and balance inquiries. It implements the application layer of clean architecture and coordinates between
-// domain entities and repositories.
-//
-// The service uses dependency injection for all dependencies and the decorator pattern for transaction
-// management. All operations are automatically wrapped with transaction handling, error recovery, and
-// structured logging.
-//
-// Key Features:
-// - Automatic transaction management using the decorator pattern
-// - Multi-currency support with real-time conversion
-// - Comprehensive error handling and logging
-// - Clean separation of business logic from infrastructure concerns
-// - Thread-safe operations with proper concurrency handling
-//
-// Example usage:
-//
-//	uowFactory := func() (repository.UnitOfWork, error) {
-//	    return infra.NewUnitOfWork(db)
-//	}
-//	converter := currency.NewConverter(apiKey)
-//	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-//
-//	accountService := NewAccountService(uowFactory, converter, logger)
-//
-//	account, err := accountService.CreateAccount(userID)
-//	if err != nil {
-//	    // Handle error - transaction was automatically rolled back
-//	}
+// AccountService provides business logic for account operations including creation, deposits, withdrawals, and balance inquiries.
 type AccountService struct {
-	uowFactory  func() (repository.UnitOfWork, error)
-	converter   mon.CurrencyConverter
-	logger      *slog.Logger
-	transaction decorator.TransactionDecorator
+	uow        repository.UnitOfWork
+	converter  mon.CurrencyConverter
+	logger     *slog.Logger
 }
 
-// NewAccountService creates a new AccountService instance with all required dependencies.
-//
-// The service is configured with:
-// - Unit of Work factory for transaction management
-// - Currency converter for multi-currency operations
-// - Structured logger for observability
-// - Transaction decorator for automatic transaction handling
-//
-// Parameters:
-//   - uowFactory: A function that creates and returns a UnitOfWork instance. This factory
-//     is used by the transaction decorator to manage transaction lifecycles.
-//   - converter: A currency converter that handles real-time exchange rate conversion
-//     for multi-currency operations. Can be nil for single-currency applications.
-//   - logger: A structured logger for recording business operations, errors, and
-//     debugging information. All operations are logged with appropriate context.
-//
-// Returns a fully configured AccountService ready for business operations.
-//
-// Example:
-//
-//	uowFactory := func() (repository.UnitOfWork, error) {
-//	    return infra.NewUnitOfWork(db)
-//	}
-//	converter := currency.NewConverter(apiKey)
-//	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-//
-//	service := NewAccountService(uowFactory, converter, logger)
+// NewAccountService creates a new AccountService with a UnitOfWork, CurrencyConverter, and logger.
 func NewAccountService(
-	uowFactory func() (repository.UnitOfWork, error),
+	uow repository.UnitOfWork,
 	converter mon.CurrencyConverter,
 	logger *slog.Logger,
 ) *AccountService {
 	return &AccountService{
-		uowFactory:  uowFactory,
-		converter:   converter,
-		logger:      logger,
-		transaction: decorator.NewUnitOfWorkTransactionDecorator(uowFactory, logger),
+		uow:       uow,
+		converter: converter,
+		logger:    logger,
 	}
 }
 
-// CreateAccount creates a new account for the specified user and persists it using the repository.
-// The account is created with default currency settings and automatically assigned a unique ID.
-//
-// The operation is wrapped with automatic transaction management using the decorator pattern.
-// If any part of the operation fails, the transaction is automatically rolled back and an
-// appropriate error is returned.
-//
-// Parameters:
-//   - userID: The UUID of the user who will own the account. The user must exist in the system.
-//
-// Returns:
-//   - A pointer to the created account with all fields populated
-//   - An error if the operation fails (e.g., user not found, database error)
-//
-// The method includes comprehensive logging for observability:
-// - Start of operation with user ID
-// - Success with account ID
-// - Failure with error details
-//
-// Example:
-//
-//	account, err := service.CreateAccount(userID)
-//	if err != nil {
-//	    log.Error("Failed to create account", "error", err)
-//	    return
-//	}
-//	log.Info("Account created", "accountID", account.ID, "userID", account.UserID)
-func (s *AccountService) CreateAccount(
-	userID uuid.UUID,
-) (a *account.Account, err error) {
-	var aLocal *account.Account
-	err = withRepoTransaction(
-		s.logger,
-		s.transaction,
-		s.uowFactory,
-		"CreateAccount",
-		map[string]any{"userID": userID},
-		func(uow repository.UnitOfWork) (repository.AccountRepository, error) {
-			return uow.AccountRepository()
-		},
-		func(repo repository.AccountRepository) error {
-			var createErr error
-			aLocal, createErr = account.New().WithUserID(userID).Build()
-			if createErr != nil {
-				return createErr
-			}
-			return repo.Create(aLocal)
-		},
-	)
+// CreateAccount creates a new account for the specified user in a transaction.
+func (s *AccountService) CreateAccount(ctx context.Context, userID uuid.UUID) (a *account.Account, err error) {
+	err = s.uow.Do(ctx, func(uow repository.UnitOfWork) error {
+		repo, err := uow.GetRepository[repository.AccountRepository]()
+		if err != nil {
+			return err
+		}
+		a, err = account.New().WithUserID(userID).Build()
+		if err != nil {
+			return err
+		}
+		return repo.Create(a)
+	})
 	if err != nil {
 		a = nil
-		return
 	}
-	a = aLocal
 	return
 }
 
@@ -185,24 +89,18 @@ func (s *AccountService) CreateAccountWithCurrency(
 ) (acct *account.Account, err error) {
 	logger := s.logger.With("userID", userID, "currency", currencyCode)
 	logger.Info("CreateAccountWithCurrency started")
-	err = s.transaction.Execute(func() error {
-		var createErr error
-		acct, createErr = account.New().
+	err = s.uow.Do(context.Background(), func(uow repository.UnitOfWork) error {
+		repo, err := uow.GetRepository[repository.AccountRepository]()
+		if err != nil {
+			logger.Error("CreateAccountWithCurrency failed: AccountRepository error", "error", err)
+			return err
+		}
+		acct, err = account.New().
 			WithUserID(userID).
 			WithCurrency(currencyCode).
 			Build()
-		if createErr != nil {
-			logger.Error("CreateAccountWithCurrency failed: domain error", "error", createErr)
-			return createErr
-		}
-		uow, err := s.uowFactory()
 		if err != nil {
-			logger.Error("CreateAccountWithCurrency failed: uowFactory error", "error", err)
-			return err
-		}
-		repo, err := uow.AccountRepository()
-		if err != nil {
-			logger.Error("CreateAccountWithCurrency failed: AccountRepository error", "error", err)
+			logger.Error("CreateAccountWithCurrency failed: domain error", "error", err)
 			return err
 		}
 		if err = repo.Create(acct); err != nil {
@@ -291,13 +189,8 @@ func (s *AccountService) Deposit(
 
 	var txLocal *account.Transaction
 	var convInfoLocal *common.ConversionInfo
-	err = s.transaction.Execute(func() error {
-		uow, err := s.uowFactory()
-		if err != nil {
-			logger.Error("Deposit failed: uowFactory error", "error", err)
-			return err
-		}
-		repo, err := uow.AccountRepository()
+	err = s.uow.Do(context.Background(), func(uow repository.UnitOfWork) error {
+		repo, err := uow.GetRepository[repository.AccountRepository]()
 		if err != nil {
 			logger.Error("Deposit failed: AccountRepository error", "error", err)
 			return err
@@ -349,7 +242,7 @@ func (s *AccountService) Deposit(
 			logger.Error("Deposit failed: repo update error", "error", err)
 			return err
 		}
-		txRepo, err := uow.TransactionRepository()
+		txRepo, err := uow.GetRepository[repository.TransactionRepository]()
 		if err != nil {
 			logger.Error("Deposit failed: TransactionRepository error", "error", err)
 			return err
@@ -395,13 +288,8 @@ func (s *AccountService) Withdraw(
 
 	var txLocal *account.Transaction
 	var convInfoLocal *common.ConversionInfo
-	err = s.transaction.Execute(func() error {
-		uow, err := s.uowFactory()
-		if err != nil {
-			logger.Error("Withdraw failed: uowFactory error", "error", err)
-			return err
-		}
-		repo, err := uow.AccountRepository()
+	err = s.uow.Do(context.Background(), func(uow repository.UnitOfWork) error {
+		repo, err := uow.GetRepository[repository.AccountRepository]()
 		if err != nil {
 			logger.Error("Withdraw failed: AccountRepository error", "error", err)
 			return err
@@ -453,7 +341,7 @@ func (s *AccountService) Withdraw(
 			logger.Error("Withdraw failed: repo update error", "error", err)
 			return err
 		}
-		txRepo, err := uow.TransactionRepository()
+		txRepo, err := uow.GetRepository[repository.TransactionRepository]()
 		if err != nil {
 			logger.Error("Withdraw failed: TransactionRepository error", "error", err)
 			return err
@@ -490,28 +378,29 @@ func (s *AccountService) GetAccount(
 	}()
 	logger := s.logger.With("userID", userID, "accountID", accountID)
 	logger.Info("GetAccount started")
-	uow, err := s.uowFactory()
+	err = s.uow.Do(context.Background(), func(uow repository.UnitOfWork) error {
+		repo, err := uow.GetRepository[repository.AccountRepository]()
+		if err != nil {
+			logger.Error("GetAccount failed: AccountRepository error", "error", err)
+			return err
+		}
+		aLocal, err := repo.Get(accountID)
+		if err != nil {
+			logger.Error("GetAccount failed: account not found", "error", err)
+			err = account.ErrAccountNotFound
+			return err
+		}
+		if aLocal.UserID != userID {
+			logger.Error("GetAccount failed: user unauthorized", "accountUserID", aLocal.UserID)
+			err = user.ErrUserUnauthorized
+			return err
+		}
+		a = aLocal
+		return nil
+	})
 	if err != nil {
-		logger.Error("GetAccount failed: uowFactory error", "error", err)
-		return
+		a = nil
 	}
-	repo, err := uow.AccountRepository()
-	if err != nil {
-		logger.Error("GetAccount failed: AccountRepository error", "error", err)
-		return
-	}
-	aLocal, err := repo.Get(accountID)
-	if err != nil {
-		logger.Error("GetAccount failed: account not found", "error", err)
-		err = account.ErrAccountNotFound
-		return
-	}
-	if aLocal.UserID != userID {
-		logger.Error("GetAccount failed: user unauthorized", "accountUserID", aLocal.UserID)
-		err = user.ErrUserUnauthorized
-		return
-	}
-	a = aLocal
 	return
 }
 
@@ -530,23 +419,21 @@ func (s *AccountService) GetTransactions(
 	}()
 	logger := s.logger.With("userID", userID, "accountID", accountID)
 	logger.Info("GetTransactions started")
-	uow, err := s.uowFactory()
+	err = s.uow.Do(context.Background(), func(uow repository.UnitOfWork) error {
+		txRepo, err := uow.GetRepository[repository.TransactionRepository]()
+		if err != nil {
+			logger.Error("GetTransactions failed: TransactionRepository error", "error", err)
+			return err
+		}
+		txs, err = txRepo.List(userID, accountID)
+		if err != nil {
+			logger.Error("GetTransactions failed: repo list error", "error", err)
+			return err
+		}
+		return nil
+	})
 	if err != nil {
 		txs = nil
-		logger.Error("GetTransactions failed: uowFactory error", "error", err)
-		return
-	}
-	txRepo, err := uow.TransactionRepository()
-	if err != nil {
-		txs = nil
-		logger.Error("GetTransactions failed: TransactionRepository error", "error", err)
-		return
-	}
-	txs, err = txRepo.List(userID, accountID)
-	if err != nil {
-		txs = nil
-		logger.Error("GetTransactions failed: repo list error", "error", err)
-		return
 	}
 	return
 }
@@ -566,25 +453,26 @@ func (s *AccountService) GetBalance(
 	}()
 	logger := s.logger.With("userID", userID, "accountID", accountID)
 	logger.Info("GetBalance started")
-	uow, err := s.uowFactory()
+	err = s.uow.Do(context.Background(), func(uow repository.UnitOfWork) error {
+		repo, err := uow.GetRepository[repository.AccountRepository]()
+		if err != nil {
+			logger.Error("GetBalance failed: AccountRepository error", "error", err)
+			return err
+		}
+		a, err := repo.Get(accountID)
+		if err != nil {
+			logger.Error("GetBalance failed: account not found", "error", err)
+			return err
+		}
+		balance, err = a.GetBalance(userID)
+		if err != nil {
+			logger.Error("GetBalance failed: domain error", "error", err)
+			return err
+		}
+		return nil
+	})
 	if err != nil {
-		logger.Error("GetBalance failed: uowFactory error", "error", err)
-		return
-	}
-	repo, err := uow.AccountRepository()
-	if err != nil {
-		logger.Error("GetBalance failed: AccountRepository error", "error", err)
-		return
-	}
-	a, err := repo.Get(accountID)
-	if err != nil {
-		logger.Error("GetBalance failed: account not found", "error", err)
-		return
-	}
-	balance, err = a.GetBalance(userID)
-	if err != nil {
-		logger.Error("GetBalance failed: domain error", "error", err)
-		return
+		balance = 0
 	}
 	return
 }
