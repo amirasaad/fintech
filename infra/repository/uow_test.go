@@ -23,7 +23,7 @@ func TestUoW_DoAndGetRepository(t *testing.T) {
 
 	uow := NewUoW(db)
 
-	err = uow.Do(context.Background(), func(txUow UnitOfWork) error {
+	err = uow.Do(context.Background(), func(txUow repository.UnitOfWork) error {
 		repoAny, err := txUow.GetRepository(reflect.TypeOf((*repository.AccountRepository)(nil)).Elem())
 		assert.NoError(t, err)
 		acctRepo := repoAny.(repository.AccountRepository)

@@ -13,8 +13,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/crypto/bcrypt"
 	"go.uber.org/mock/gomock"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func TestCheckPasswordHash(t *testing.T) {
