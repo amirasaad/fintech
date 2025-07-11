@@ -4,10 +4,13 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"reflect"
 	"testing"
 
 	"github.com/amirasaad/fintech/internal/fixtures"
 	"github.com/amirasaad/fintech/pkg/domain"
+	"github.com/amirasaad/fintech/pkg/domain/user"
+	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -40,22 +43,24 @@ func TestValidEmail(t *testing.T) {
 }
 
 func TestLogin_Success(t *testing.T) {
-	t.Parallel()
-	assert := assert.New(t)
-	hash, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
-	user := &domain.User{ID: uuid.New(), Username: "user", Email: "user@example.com", Password: string(hash)}
-	authStrategy := fixtures.NewMockAuthStrategy(t)
-	authStrategy.EXPECT().GenerateToken(user).Return("testtoken", nil)
-	authStrategy.EXPECT().Login(mock.Anything, "user@example.com", "password").Return(user, nil).Once()
 	uow := fixtures.NewMockUnitOfWork(t)
-	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).Once()
-	s := NewAuthService(uow, authStrategy, slog.Default())
-	gotUser, err := s.Login(context.Background(), "user@example.com", "password")
-	assert.NoError(err)
-	token, err := s.GenerateToken(gotUser)
-	assert.NoError(err)
-	assert.NotNil(gotUser)
-	assert.Equal("testtoken", token)
+	userRepo := fixtures.NewMockUserRepository(t)
+	logger := slog.Default()
+	u, _ := user.NewUser("test", "bob@example.com", "password")
+
+	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).RunAndReturn(
+		func(ctx context.Context, fn func(repository.UnitOfWork) error) error {
+			return fn(uow)
+		},
+	).Once()
+	uow.EXPECT().GetRepository(reflect.TypeOf((*repository.UserRepository)(nil)).Elem()).Return(userRepo, nil).Once()
+	userRepo.EXPECT().GetByUsername(u.Username).Return(u, nil).Once()
+
+	svc := NewAuthService(uow, &BasicAuthStrategy{uow: uow, logger: logger}, logger)
+	loggedInUser, err := svc.Login(context.Background(), u.Username, "password") // password matches hash
+	assert.NoError(t, err)
+	assert.NotNil(t, loggedInUser)
+	assert.Equal(t, u.Username, loggedInUser.Username)
 }
 
 func TestLogin_InvalidPassword(t *testing.T) {

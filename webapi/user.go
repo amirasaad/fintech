@@ -51,7 +51,7 @@ func GetUser(userSvc *service.UserService) fiber.Handler {
 			log.Errorf("Invalid user ID: %v", err)
 			return ProblemDetailsJSON(c, "Invalid user ID", err, "User ID must be a valid UUID", fiber.StatusBadRequest)
 		}
-		user, err := userSvc.GetUser(id.String())
+		user, err := userSvc.GetUser(c.Context(), id.String())
 		if err != nil {
 			return ProblemDetailsJSON(c, "No user found with ID", err)
 		}

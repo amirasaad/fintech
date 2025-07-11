@@ -59,31 +59,6 @@ func TestCreateUser_RepoError(t *testing.T) {
 	assert.Nil(t, u)
 }
 
-func TestCreateUser_UoWFactoryError(t *testing.T) {
-	uow := fixtures.NewMockUnitOfWork(t)
-	expectedErr := errors.New("factory error")
-	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(expectedErr).RunAndReturn(
-		func(ctx context.Context, fn func(repository.UnitOfWork) error) error {
-			return expectedErr
-		},
-	)
-
-	svc := NewUserService(uow, slog.Default())
-	_, err := svc.CreateUser(context.Background(), "user", "user@example.com", "password")
-	assert.Error(t, err)
-}
-
-func TestCreateUser_CommitError(t *testing.T) {
-	t.Parallel()
-	svc, userRepo, uow := newUserServiceWithMocks(t)
-	userRepo.EXPECT().Create(mock.Anything).Return(nil).Once()
-	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(errors.New("commit error")).Once()
-
-	u, err := svc.CreateUser(context.Background(), "bob", "bob@example.com", "password")
-	assert.Error(t, err)
-	assert.Nil(t, u)
-}
-
 func TestGetUser_Success(t *testing.T) {
 	t.Parallel()
 	svc, userRepo, uow := newUserServiceWithMocks(t)

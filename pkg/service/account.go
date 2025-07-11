@@ -200,6 +200,14 @@ func (s *AccountService) Deposit(
 			return err
 		}
 		repo := repoAny.(repository.AccountRepository)
+
+		txRepoAny, err := uow.GetRepository(reflect.TypeOf((*repository.TransactionRepository)(nil)).Elem())
+		if err != nil {
+			logger.Error("Deposit failed: TransactionRepository error", "error", err)
+			return err
+		}
+		txRepo := txRepoAny.(repository.TransactionRepository)
+
 		a, err := repo.Get(accountID)
 		if err != nil {
 			logger.Error("Deposit failed: account not found", "error", err)
@@ -247,12 +255,6 @@ func (s *AccountService) Deposit(
 			logger.Error("Deposit failed: repo update error", "error", err)
 			return err
 		}
-		txRepoAny, err := uow.GetRepository(reflect.TypeOf((*repository.TransactionRepository)(nil)).Elem())
-		if err != nil {
-			logger.Error("Deposit failed: TransactionRepository error", "error", err)
-			return err
-		}
-		txRepo := txRepoAny.(repository.TransactionRepository)
 		if err = txRepo.Create(txLocal); err != nil {
 			logger.Error("Deposit failed: transaction create error", "error", err)
 			return err
@@ -301,6 +303,14 @@ func (s *AccountService) Withdraw(
 			return err
 		}
 		repo := repoAny.(repository.AccountRepository)
+
+		txRepoAny, err := uow.GetRepository(reflect.TypeOf((*repository.TransactionRepository)(nil)).Elem())
+		if err != nil {
+			logger.Error("Withdraw failed: TransactionRepository error", "error", err)
+			return err
+		}
+		txRepo := txRepoAny.(repository.TransactionRepository)
+
 		a, err := repo.Get(accountID)
 		if err != nil {
 			logger.Error("Withdraw failed: account not found", "error", err)
@@ -348,12 +358,6 @@ func (s *AccountService) Withdraw(
 			logger.Error("Withdraw failed: repo update error", "error", err)
 			return err
 		}
-		txRepoAny, err := uow.GetRepository(reflect.TypeOf((*repository.TransactionRepository)(nil)).Elem())
-		if err != nil {
-			logger.Error("Withdraw failed: TransactionRepository error", "error", err)
-			return err
-		}
-		txRepo := txRepoAny.(repository.TransactionRepository)
 		if err = txRepo.Create(txLocal); err != nil {
 			logger.Error("Withdraw failed: transaction create error", "error", err)
 			return err
