@@ -4,6 +4,7 @@
 package decorator
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 
@@ -11,65 +12,15 @@ import (
 )
 
 // TransactionDecorator defines the interface for transaction management decorators.
-// It provides a clean abstraction for wrapping business operations with transaction
-// lifecycle management, including automatic begin, commit, and rollback handling.
-//
-// The decorator pattern allows business logic to focus on domain operations while
-// the decorator handles all transaction-related concerns like:
-// - Transaction lifecycle management (begin/commit/rollback)
-// - Error handling and automatic rollback on failures
-// - Panic recovery with proper cleanup
-// - Structured logging of transaction events
-//
-// Example usage:
-//
-//	type AccountService struct {
-//	    transaction decorator.TransactionDecorator
-//	}
-//
-//	func (s *AccountService) CreateAccount(userID uuid.UUID) (*account.Account, error) {
-//	    var account *account.Account
-//	    err := s.transaction.Execute(func() error {
-//	        // Business logic only - no transaction boilerplate
-//	        account = account.New().WithUserID(userID).Build()
-//	        return repo.Create(account)
-//	    })
-//	    return account, err
-//	}
+// Now passes context and the UnitOfWork into the operation function for explicit repository access.
 type TransactionDecorator interface {
-	// Execute runs the provided operation within a transaction context.
-	// It automatically handles transaction lifecycle including:
-	// - Beginning the transaction
-	// - Executing the operation
-	// - Committing on success or rolling back on error
-	// - Panic recovery with rollback
-	// - Structured logging of all events
-	//
-	// The operation function should contain only business logic and return
-	// an error if the operation fails. The decorator will handle all
-	// transaction management automatically.
-	//
-	// Returns an error if:
-	// - Unit of Work creation fails
-	// - Transaction begin fails
-	// - The operation function returns an error
-	// - Transaction commit fails
-	// - A panic occurs during execution
-	Execute(operation func() error) error
+	// Execute runs the provided operation within a transaction context, passing the UnitOfWork.
+	// The operation function receives the UnitOfWork for repository access.
+	Execute(ctx context.Context, operation func(uow repository.UnitOfWork) error) error
 }
 
 // UnitOfWorkTransactionDecorator implements TransactionDecorator for the Unit of Work pattern.
-// It provides transaction management using a UnitOfWork factory function and includes
-// comprehensive logging and error handling.
-//
-// This decorator is designed to work with the repository pattern and provides:
-// - Automatic transaction lifecycle management
-// - Panic recovery with proper cleanup
-// - Structured logging for observability
-// - Graceful error handling for all failure scenarios
-//
-// The decorator ensures that transactions are properly managed even in edge cases
-// like panics, commit failures, or rollback failures.
+// Now passes context and the UnitOfWork into the operation function.
 type UnitOfWorkTransactionDecorator struct {
 	uowFactory func() (repository.UnitOfWork, error)
 	logger     *slog.Logger
@@ -151,48 +102,36 @@ func NewUnitOfWorkTransactionDecorator(
 //	if err != nil {
 //	    // Handle error - transaction was automatically rolled back
 //	}
-func (d *UnitOfWorkTransactionDecorator) Execute(operation func() error) error {
-	// Create UnitOfWork
+func (d *UnitOfWorkTransactionDecorator) Execute(ctx context.Context, operation func(uow repository.UnitOfWork) error) error {
 	uow, err := d.uowFactory()
 	if err != nil {
 		d.logger.Error("Failed to create unit of work", "error", err)
 		return errors.New("failed to create unit of work")
 	}
-
-	// Begin transaction
-	if err = uow.Begin(); err != nil {
+	if err = uow.Begin(ctx); err != nil {
 		d.logger.Error("Failed to begin transaction", "error", err)
 		return errors.New("failed to begin transaction")
 	}
-
-	// Defer panic recovery and cleanup
 	defer func() {
 		if r := recover(); r != nil {
 			d.logger.Error("Transaction panic recovered", "panic", r)
-			_ = uow.Rollback() //nolint:errcheck
-			panic(r)           // re-panic after rollback
+			_ = uow.Rollback(ctx) //nolint:errcheck
+			panic(r)
 		}
 	}()
-
-	// Execute the business operation
-	if err = operation(); err != nil {
-		// Rollback on operation failure
-		if rbErr := uow.Rollback(); rbErr != nil {
+	if err = operation(uow); err != nil {
+		if rbErr := uow.Rollback(ctx); rbErr != nil {
 			d.logger.Error("Failed to rollback transaction", "error", rbErr)
 		}
 		d.logger.Error("Transaction operation failed", "error", err)
 		return err
 	}
-
-	// Commit transaction
-	if err = uow.Commit(); err != nil {
-		// Rollback when commit fails
-		if rbErr := uow.Rollback(); rbErr != nil {
+	if err = uow.Commit(ctx); err != nil {
+		if rbErr := uow.Rollback(ctx); rbErr != nil {
 			d.logger.Error("Failed to rollback transaction after commit error", "error", rbErr)
 		}
 		d.logger.Error("Failed to commit transaction", "error", err)
 		return errors.New("failed to commit transaction")
 	}
-
 	return nil
 }
