@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"testing"
@@ -13,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
+	"go.uber.org/mock/gomock"
 )
 
 func TestCheckPasswordHash(t *testing.T) {
@@ -45,9 +47,11 @@ func TestLogin_Success(t *testing.T) {
 	user := &domain.User{ID: uuid.New(), Username: "user", Email: "user@example.com", Password: string(hash)}
 	authStrategy := fixtures.NewMockAuthStrategy(t)
 	authStrategy.EXPECT().GenerateToken(user).Return("testtoken", nil)
-	authStrategy.EXPECT().Login("user@example.com", "password").Return(user, nil).Once()
-	s := NewAuthService(func() (repository.UnitOfWork, error) { return nil, nil }, authStrategy, slog.Default())
-	gotUser, err := s.Login("user@example.com", "password")
+	authStrategy.EXPECT().Login(gomock.Any(), "user@example.com", "password").Return(user, nil).Once()
+	uow := fixtures.NewMockUnitOfWork(t)
+	uow.EXPECT().Do(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, fn func(uow repository.UnitOfWork) error) error { return fn(uow) })
+	s := NewAuthService(uow, authStrategy, slog.Default())
+	gotUser, err := s.Login(context.Background(), "user@example.com", "password")
 	assert.NoError(err)
 	token, err := s.GenerateToken(gotUser)
 	assert.NoError(err)

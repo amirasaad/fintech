@@ -13,6 +13,9 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/crypto/bcrypt"
+	"golang.org/x/net/context"
+	"github.com/golang/mock/gomock"
+	"github.com/amirasaad/fintech/pkg/repository"
 )
 
 type AuthTestSuite struct {
@@ -35,6 +38,12 @@ func (s *AuthTestSuite) SetupTest() {
 		_,
 		_,
 		s.cfg = SetupTestApp(s.T())
+
+	s.mockUow.EXPECT().Do(gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(
+		func(ctx context.Context, fn func(uow interface{}) error) error {
+			return fn(s.mockUow)
+		},
+	)
 }
 
 func (s *AuthTestSuite) TestLoginRoute_BadRequest() {
