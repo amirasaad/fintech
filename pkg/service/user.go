@@ -31,43 +31,21 @@ func NewUserService(
 	}
 }
 
-// withUserRepoTransaction is a DRY helper for transaction, repository access, and logging.
-func (s *UserService) withUserRepoTransaction(
-	opName string,
-	logFields map[string]any,
-	fn func(repo repository.UserRepository) error,
-) (err error) {
-	s.logger.Info(opName+" started", logFields)
-	defer func() {
-		if err != nil {
-			s.logger.Error(opName+" failed", logFields, "error", err)
-		} else {
-			s.logger.Info(opName+" successful", logFields)
-		}
-	}()
-	err = s.transaction.Execute(func() error {
-		uow, err := s.uowFactory()
-		if err != nil {
-			return err
-		}
-		repo, err := uow.UserRepository()
-		if err != nil {
-			return err
-		}
-		return fn(repo)
-	})
-	return
-}
-
 // CreateUser creates a new user account with automatic transaction management.
 // Returns the created user or an error if the operation fails.
 func (s *UserService) CreateUser(
 	username, email, password string,
 ) (u *user.User, err error) {
 	var uLocal *user.User
-	err = s.withUserRepoTransaction(
+	err = withRepoTransaction(
+		s.logger,
+		s.transaction,
+		s.uowFactory,
 		"CreateUser",
 		map[string]any{"username": username, "email": email},
+		func(uow repository.UnitOfWork) (repository.UserRepository, error) {
+			return uow.UserRepository()
+		},
 		func(repo repository.UserRepository) error {
 			var createErr error
 			uLocal, createErr = user.NewUser(username, email, password)
