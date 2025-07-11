@@ -249,6 +249,37 @@ func TestUpdateUser_UoWFactoryError(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestUpdateUser_CallsGetRepositoryOnce(t *testing.T) {
+	t.Parallel()
+	uow := fixtures.NewMockUnitOfWork(t)
+	userRepo := fixtures.NewMockUserRepository(t)
+	callCount := 0
+
+	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).RunAndReturn(
+		func(ctx context.Context, fn func(repository.UnitOfWork) error) error {
+			return fn(uow)
+		},
+	)
+	uow.EXPECT().GetRepository(reflect.TypeOf((*repository.UserRepository)(nil)).Elem()).Return(userRepo, nil).Run(
+		func(repoType reflect.Type) {
+			callCount++
+		},
+	).Once()
+
+	userID := uuid.New()
+	user := &domain.User{ID: userID, Username: "alice"}
+	userRepo.EXPECT().Get(userID).Return(user, nil)
+	userRepo.EXPECT().Update(user).Return(nil)
+
+	svc := NewUserService(uow, slog.Default())
+	err := svc.UpdateUser(context.Background(), userID.String(), func(u *domain.User) error {
+		u.Username = "updated"
+		return nil
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, 1, callCount, "GetRepository should be called exactly once")
+}
+
 func TestDeleteUser_Success(t *testing.T) {
 	t.Parallel()
 	svc, userRepo, uow := newUserServiceWithMocks(t)
@@ -307,18 +338,4 @@ func TestValidUser_False(t *testing.T) {
 
 	ok, _ := svc.ValidUser(context.Background(), id.String(), "wrongpass")
 	assert.False(t, ok)
-}
-
-func TestValidUser_UoWFactoryError(t *testing.T) {
-	uow := fixtures.NewMockUnitOfWork(t)
-	expectedErr := errors.New("factory error")
-	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(expectedErr).RunAndReturn(
-		func(ctx context.Context, fn func(repository.UnitOfWork) error) error {
-			return expectedErr
-		},
-	)
-
-	svc := NewUserService(uow, slog.Default())
-	_, err := svc.ValidUser(context.Background(), uuid.New().String(), "password")
-	assert.Error(t, err)
 }

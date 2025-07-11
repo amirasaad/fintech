@@ -55,8 +55,8 @@ func ProblemDetailsJSON(c *fiber.Ctx, title string, err error, detailOrStatus ..
 			pdErrors = v
 		}
 	}
-	// Use custom status if provided and errorToStatusCode returned 500
-	if customStatus != nil && status == fiber.StatusInternalServerError {
+	// Use custom status if provided
+	if customStatus != nil {
 		status = *customStatus
 	}
 	pd := ProblemDetails{
