@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 
@@ -121,4 +122,31 @@ func (u *UoW) UserRepository() (repository.UserRepository, error) {
 		return nil, fmt.Errorf("baseDB is nil")
 	}
 	return NewUserRepository(u.baseDB), nil
+}
+
+// GetRepository provides generic, type-safe access to repositories. Example: repo, err := u.GetRepository[repository.UserRepository]()
+func (u *UoW) GetRepository[T any]() (T, error) {
+	var zero T
+	switch any(zero).(type) {
+	case repository.AccountRepository:
+		repo, err := u.AccountRepository()
+		if err != nil {
+			return zero, err
+		}
+		return any(repo).(T), nil
+	case repository.TransactionRepository:
+		repo, err := u.TransactionRepository()
+		if err != nil {
+			return zero, err
+		}
+		return any(repo).(T), nil
+	case repository.UserRepository:
+		repo, err := u.UserRepository()
+		if err != nil {
+			return zero, err
+		}
+		return any(repo).(T), nil
+	default:
+		return zero, fmt.Errorf("unsupported repository type: %T", zero)
+	}
 }
