@@ -10,6 +10,7 @@ import (
 	"github.com/amirasaad/fintech/pkg/domain/user"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 // UserService provides business logic for user operations including creation, updates, and deletion.
@@ -22,13 +23,13 @@ type UserService struct {
 
 // NewUserService creates a new UserService with transaction decorator and logging.
 func NewUserService(
-	uowFactory func() (repository.UnitOfWork, error),
+	dbFactory func() (*gorm.DB, error),
 	logger *slog.Logger,
 ) *UserService {
 	return &UserService{
-		uowFactory:  uowFactory,
+		uowFactory:  nil, // not used anymore
 		logger:      logger,
-		transaction: decorator.NewUnitOfWorkTransactionDecorator(uowFactory, logger),
+		transaction: decorator.NewUnitOfWorkTransactionDecorator(dbFactory, logger),
 	}
 }
 
