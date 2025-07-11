@@ -13,7 +13,7 @@ import (
 )
 
 func TestUoW_DoAndGetRepository(t *testing.T) {
-	mockDb, _, _ := sqlmock.New()
+	mockDb, mock, _ := sqlmock.New() // get the mock handle
 	dialector := postgres.New(postgres.Config{
 		Conn:       mockDb,
 		DriverName: "postgres",
@@ -22,6 +22,10 @@ func TestUoW_DoAndGetRepository(t *testing.T) {
 	assert.NoError(t, err)
 
 	uow := NewUoW(db)
+
+	// Expect transaction begin and commit
+	mock.ExpectBegin()
+	mock.ExpectCommit()
 
 	err = uow.Do(context.Background(), func(txUow repository.UnitOfWork) error {
 		repoAny, err := txUow.GetRepository(reflect.TypeOf((*repository.AccountRepository)(nil)).Elem())
