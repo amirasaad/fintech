@@ -32,7 +32,7 @@ func newServiceWithMocks(t interface {
 
 func TestCreateAccount_Success(t *testing.T) {
 	svc, accountRepo, _, uow := newServiceWithMocks(t)
-	uow.On("Do", mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
 		fn := args.Get(1).(func(repository.UnitOfWork) error)
 		_ = fn(uow)
 	})
@@ -46,7 +46,7 @@ func TestCreateAccount_Success(t *testing.T) {
 
 func TestCreateAccount_RepoError(t *testing.T) {
 	svc, accountRepo, _, uow := newServiceWithMocks(t)
-	uow.On("Do", mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
 		fn := args.Get(1).(func(repository.UnitOfWork) error)
 		_ = fn(uow)
 	})
@@ -67,7 +67,7 @@ func TestCreateAccount_UoWFactoryError(t *testing.T) {
 
 func TestCreateAccount_CommitError(t *testing.T) {
 	svc, accountRepo, _, uow := newServiceWithMocks(t)
-	uow.On("Do", mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
 		fn := args.Get(1).(func(repository.UnitOfWork) error)
 		_ = fn(uow)
 	})
@@ -82,7 +82,7 @@ func TestCreateAccount_CommitError(t *testing.T) {
 func TestDeposit_Success(t *testing.T) {
 	t.Parallel()
 	svc, accountRepo, transactionRepo, uow := newServiceWithMocks(t)
-	uow.On("Do", mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
 		fn := args.Get(1).(func(repository.UnitOfWork) error)
 		_ = fn(uow)
 	})
@@ -110,7 +110,7 @@ func TestDeposit_Success(t *testing.T) {
 func TestDeposit_AccountNotFound(t *testing.T) {
 	t.Parallel()
 	svc, accountRepo, _, uow := newServiceWithMocks(t)
-	uow.On("Do", mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
 		fn := args.Get(1).(func(repository.UnitOfWork) error)
 		_ = fn(uow)
 	})
@@ -125,7 +125,7 @@ func TestDeposit_AccountNotFound(t *testing.T) {
 func TestDeposit_NegativeAmount(t *testing.T) {
 	t.Parallel()
 	svc, accountRepo, _, uow := newServiceWithMocks(t)
-	uow.On("Do", mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
 		fn := args.Get(1).(func(repository.UnitOfWork) error)
 		_ = fn(uow)
 	})
@@ -235,7 +235,7 @@ func TestDeposit_CommitError(t *testing.T) {
 func TestWithdraw_Success(t *testing.T) {
 	t.Parallel()
 	svc, accountRepo, transactionRepo, uow := newServiceWithMocks(t)
-	uow.On("Do", mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
 		fn := args.Get(1).(func(repository.UnitOfWork) error)
 		_ = fn(uow)
 	})
@@ -259,7 +259,7 @@ func TestWithdraw_Success(t *testing.T) {
 func TestWithdraw_InsufficientFunds(t *testing.T) {
 	t.Parallel()
 	svc, accountRepo, _, uow := newServiceWithMocks(t)
-	uow.On("Do", mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
 		fn := args.Get(1).(func(repository.UnitOfWork) error)
 		_ = fn(uow)
 	})
@@ -282,7 +282,7 @@ func TestWithdraw_UoWFactoryError(t *testing.T) {
 func TestWithdraw_UpdateError(t *testing.T) {
 	t.Parallel()
 	svc, accountRepo, _, uow := newServiceWithMocks(t)
-	uow.On("Do", mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
 		fn := args.Get(1).(func(repository.UnitOfWork) error)
 		_ = fn(uow)
 	})
@@ -302,7 +302,7 @@ func TestWithdraw_UpdateError(t *testing.T) {
 func TestGetAccount_Success(t *testing.T) {
 	t.Parallel()
 	svc, accountRepo, _, uow := newServiceWithMocks(t)
-	uow.On("Do", mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
 		fn := args.Get(1).(func(repository.UnitOfWork) error)
 		_ = fn(uow)
 	})
@@ -319,7 +319,7 @@ func TestGetAccount_Success(t *testing.T) {
 func TestGetAccount_NotFound(t *testing.T) {
 	t.Parallel()
 	svc, accountRepo, _, uow := newServiceWithMocks(t)
-	uow.On("Do", mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
 		fn := args.Get(1).(func(repository.UnitOfWork) error)
 		_ = fn(uow)
 	})
@@ -341,7 +341,7 @@ func TestGetAccount_UoWFactoryError(t *testing.T) {
 func TestGetAccount_Unauthorized(t *testing.T) {
 	t.Parallel()
 	svc, accountRepo, _, uow := newServiceWithMocks(t)
-	uow.On("Do", mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
 		fn := args.Get(1).(func(repository.UnitOfWork) error)
 		_ = fn(uow)
 	})
@@ -358,7 +358,7 @@ func TestGetAccount_Unauthorized(t *testing.T) {
 func TestGetTransactions_Success(t *testing.T) {
 	t.Parallel()
 	svc, _, transactionRepo, uow := newServiceWithMocks(t)
-	uow.On("Do", mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
 		fn := args.Get(1).(func(repository.UnitOfWork) error)
 		_ = fn(uow)
 	})
@@ -378,7 +378,7 @@ func TestGetTransactions_Success(t *testing.T) {
 func TestGetTransactions_Error(t *testing.T) {
 	t.Parallel()
 	svc, _, transactionRepo, uow := newServiceWithMocks(t)
-	uow.On("Do", mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
 		fn := args.Get(1).(func(repository.UnitOfWork) error)
 		_ = fn(uow)
 	})
@@ -402,7 +402,7 @@ func TestGetTransactions_UoWFactoryError(t *testing.T) {
 func TestGetBalance_Success(t *testing.T) {
 	t.Parallel()
 	svc, accountRepo, _, uow := newServiceWithMocks(t)
-	uow.On("Do", mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
 		fn := args.Get(1).(func(repository.UnitOfWork) error)
 		_ = fn(uow)
 	})
@@ -422,7 +422,7 @@ func TestGetBalance_Success(t *testing.T) {
 func TestGetBalance_NotFound(t *testing.T) {
 	t.Parallel()
 	svc, accountRepo, _, uow := newServiceWithMocks(t)
-	uow.On("Do", mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
 		fn := args.Get(1).(func(repository.UnitOfWork) error)
 		_ = fn(uow)
 	})
