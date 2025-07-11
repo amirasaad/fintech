@@ -3,33 +3,45 @@ package repository
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"reflect"
 
-	"github.com/amirasaad/fintech/pkg/config"
-	"github.com/amirasaad/fintech/pkg/repository"
 	"gorm.io/gorm"
 )
 
+// UoW provides transaction boundary and repository access in one abstraction.
+// Usage:
+//   uow := NewUoW(db)
+//   err := uow.Do(ctx, func(uow *UoW) error {
+//       repo, err := uow.GetRepository[repository.UserRepository]()
+//       ...
+//   })
 type UoW struct {
-	session      *gorm.DB
+	db          *gorm.DB
+	tx          *gorm.DB
 	repoRegistry map[reflect.Type]func(*gorm.DB) interface{}
 }
 
-// NewGormUoW creates a new UoW with the given session (db or tx) and initializes the repository registry.
-func NewGormUoW(db *gorm.DB) *UoW {
+// NewUoW creates a new UoW for the given *gorm.DB.
+func NewUoW(db *gorm.DB) *UoW {
 	return &UoW{
-		session: db,
+		db: db,
 		repoRegistry: map[reflect.Type]func(*gorm.DB) interface{}{
-			reflect.TypeOf((*repository.AccountRepository)(nil)).Elem(): func(db *gorm.DB) interface{} { return NewAccountRepository(db) },
-			reflect.TypeOf((*repository.TransactionRepository)(nil)).Elem(): func(db *gorm.DB) interface{} { return NewTransactionRepository(db) },
-			reflect.TypeOf((*repository.UserRepository)(nil)).Elem(): func(db *gorm.DB) interface{} { return NewUserRepository(db) },
+			reflect.TypeOf((*AccountRepository)(nil)).Elem(): func(db *gorm.DB) interface{} { return NewAccountRepository(db) },
+			reflect.TypeOf((*TransactionRepository)(nil)).Elem(): func(db *gorm.DB) interface{} { return NewTransactionRepository(db) },
+			reflect.TypeOf((*UserRepository)(nil)).Elem(): func(db *gorm.DB) interface{} { return NewUserRepository(db) },
 		},
 	}
 }
 
-// GetRepository provides generic, type-safe access to repositories using a registry map.
-// Example: repo, err := u.GetRepository[repository.UserRepository]()
+// Do runs the given function in a transaction boundary, providing a UoW with repository access.
+func (u *UoW) Do(ctx context.Context, fn func(uow *UoW) error) error {
+	return u.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		txnUow := &UoW{db: u.db, tx: tx, repoRegistry: u.repoRegistry}
+		return fn(txnUow)
+	})
+}
+
+// GetRepository provides generic, type-safe access to repositories using the transaction session.
 func (u *UoW) GetRepository[T any]() (T, error) {
 	var zero T
 	t := reflect.TypeOf((*T)(nil)).Elem()
@@ -37,6 +49,6 @@ func (u *UoW) GetRepository[T any]() (T, error) {
 	if !ok {
 		return zero, fmt.Errorf("unsupported repository type: %v", t)
 	}
-	repo := constructor(u.session)
+	repo := constructor(u.tx)
 	return repo.(T), nil
 }
