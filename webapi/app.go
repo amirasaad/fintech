@@ -22,6 +22,18 @@ func NewApp(
 	currencySvc *service.CurrencyService,
 	cfg *config.AppConfig,
 ) *fiber.App {
+	return newAppWithRateLimit(accountSvc, userSvc, authSvc, currencySvc, cfg, 5, 1*time.Second)
+}
+
+func newAppWithRateLimit(
+	accountSvc *service.AccountService,
+	userSvc *service.UserService,
+	authSvc *service.AuthService,
+	currencySvc *service.CurrencyService,
+	cfg *config.AppConfig,
+	maxRequests int,
+	expiration time.Duration,
+) *fiber.App {
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			return ProblemDetailsJSON(c, "Internal Server Error", err)
@@ -34,8 +46,8 @@ func NewApp(
 	}))
 
 	app.Use(limiter.New(limiter.Config{
-		Max:        5,
-		Expiration: 1 * time.Second,
+		Max:        maxRequests,
+		Expiration: expiration,
 		KeyGenerator: func(c *fiber.Ctx) string {
 			return c.IP()
 		},

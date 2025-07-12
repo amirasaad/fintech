@@ -233,8 +233,8 @@ func SetupTestAppWithTestcontainers(t *testing.T) (*fiber.App, *gorm.DB, *domain
 		t.Fatalf("Failed to setup services: %v", err)
 	}
 
-	// Create app
-	app := NewApp(accountSvc, userSvc, authService, currencySvc, cfg)
+	// Create app with higher rate limit for tests
+	app := newAppWithRateLimit(accountSvc, userSvc, authService, currencySvc, cfg, 100, 1*time.Second)
 	log.SetOutput(io.Discard)
 
 	return app, db, testUser, authService, cfg
@@ -278,8 +278,8 @@ func (s *E2ETestSuite) SetupSuite() {
 	s.Require().NoError(err)
 	s.authService = authService
 
-	// Create app
-	s.app = NewApp(accountSvc, userSvc, s.authService, currencySvc, s.cfg)
+	// Create app with higher rate limit for tests
+	s.app = newAppWithRateLimit(accountSvc, userSvc, s.authService, currencySvc, s.cfg, 100, 1*time.Second)
 	log.SetOutput(io.Discard)
 }
 
