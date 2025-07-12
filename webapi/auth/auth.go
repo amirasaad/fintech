@@ -6,11 +6,6 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-type LoginInput struct {
-	Identity string `json:"identity" validate:"required"`
-	Password string `json:"password" validate:"required"`
-}
-
 func AuthRoutes(app *fiber.App, authSvc *authsvc.AuthService) {
 	app.Post("/auth/login", Login(authSvc))
 }

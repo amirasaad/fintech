@@ -13,20 +13,6 @@ import (
 	"github.com/google/uuid"
 )
 
-type NewUser struct {
-	Username string `json:"username" validate:"required,max=50,min=3"`
-	Email    string `json:"email" validate:"required,email,max=50"`
-	Password string `json:"password" validate:"required,min=6,max=72"`
-}
-
-type UpdateUserInput struct {
-	Names string `json:"names" validate:"max=100"`
-}
-
-type PasswordInput struct {
-	Password string `json:"password" validate:"required"`
-}
-
 func UserRoutes(app *fiber.App, userSvc *usersvc.UserService, authSvc *authsvc.AuthService, cfg *config.AppConfig) {
 	app.Get("/user/:id", middleware.JwtProtected(cfg.Jwt), GetUser(userSvc))
 	app.Post("/user", CreateUser(userSvc))
