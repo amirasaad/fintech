@@ -202,28 +202,34 @@ func (h *PersistenceHandler) Handle(ctx context.Context, req *OperationRequest) 
 		req.Transaction.ConversionRate = &req.ConvInfo.ConversionRate
 		logger.Info("PersistenceHandler: conversion info stored")
 	}
+	if err := h.uow.Do(ctx, func(uow repository.UnitOfWork) error {
 
-	// Update account using type-safe method
-	repo, err := h.uow.AccountRepository()
-	if err != nil {
-		logger.Error("PersistenceHandler failed: AccountRepository error", "error", err)
-		return &OperationResponse{Error: err}, nil
-	}
+		// Update account using type-safe method
+		repo, err := uow.AccountRepository()
 
-	if err = repo.Update(req.Account); err != nil {
-		logger.Error("PersistenceHandler failed: account update error", "error", err)
-		return &OperationResponse{Error: err}, nil
-	}
+		if err != nil {
+			logger.Error("PersistenceHandler failed: AccountRepository error", "error", err)
+			return err
+		}
 
-	// Create transaction using type-safe method
-	txRepo, err := h.uow.TransactionRepository()
-	if err != nil {
-		logger.Error("PersistenceHandler failed: TransactionRepository error", "error", err)
-		return &OperationResponse{Error: err}, nil
-	}
+		if err = repo.Update(req.Account); err != nil {
+			logger.Error("PersistenceHandler failed: account update error", "error", err)
+			return err
+		}
 
-	if err = txRepo.Create(req.Transaction); err != nil {
-		logger.Error("PersistenceHandler failed: transaction create error", "error", err)
+		// Create transaction using type-safe method
+		txRepo, err := uow.TransactionRepository()
+		if err != nil {
+			logger.Error("PersistenceHandler failed: TransactionRepository error", "error", err)
+			return err
+		}
+
+		if err = txRepo.Create(req.Transaction); err != nil {
+			logger.Error("PersistenceHandler failed: transaction create error", "error", err)
+			return err
+		}
+		return err
+	}); err != nil {
 		return &OperationResponse{Error: err}, nil
 	}
 
@@ -233,6 +239,7 @@ func (h *PersistenceHandler) Handle(ctx context.Context, req *OperationRequest) 
 		Transaction: req.Transaction,
 		ConvInfo:    req.ConvInfo,
 	}, nil
+
 }
 
 // ChainBuilder builds the operation chain

@@ -395,8 +395,6 @@ func TestChainBuilder_BuildOperationChain(t *testing.T) {
 	accountRepo.EXPECT().Get(mock.Anything).Return(acc, nil)
 	transactionRepo.EXPECT().Create(mock.Anything).Return(nil)
 	accountRepo.EXPECT().Update(acc).Return(nil)
-	converter.EXPECT().Convert(float64(100), "USD", "").Return(&common.ConversionInfo{}, nil)
-
 	logger := newTestLogger()
 	builder := NewChainBuilder(uow, converter, logger)
 	chain := builder.BuildOperationChain()
@@ -410,7 +408,7 @@ func TestChainBuilder_BuildOperationChain(t *testing.T) {
 	}
 	resp, err := chain.Handle(context.Background(), req)
 	assert.NoError(t, err)
-	assert.NotNil(t, resp.Error)
+	assert.Nil(t, resp.Error)
 }
 
 // Helper function to create a test logger

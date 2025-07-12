@@ -69,6 +69,8 @@ func (s *AccountTestSuite) TestDeposit() {
 	s.Run("Deposit successfully", func() {
 		depositBody := `{"amount":100,"currency":"USD"}`
 		resp := s.MakeRequest("POST", fmt.Sprintf("/account/%s/deposit", accountID), depositBody, s.token)
+		body, _ := io.ReadAll(resp.Body)
+		s.T().Logf("Deposit response status: %d, body: %s", resp.StatusCode, string(body))
 		defer resp.Body.Close() //nolint: errcheck
 		s.Assert().Equal(fiber.StatusOK, resp.StatusCode)
 	})
