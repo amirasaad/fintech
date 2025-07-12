@@ -29,14 +29,9 @@ import (
 	"github.com/amirasaad/fintech/pkg/service/auth"
 	currencyservice "github.com/amirasaad/fintech/pkg/service/currency"
 	userservice "github.com/amirasaad/fintech/pkg/service/user"
-	webapiaccount "github.com/amirasaad/fintech/webapi/account"
-	webapiauth "github.com/amirasaad/fintech/webapi/auth"
-	webapicurrency "github.com/amirasaad/fintech/webapi/currency"
-	webapiuser "github.com/amirasaad/fintech/webapi/user"
+	"github.com/amirasaad/fintech/webapi"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/limiter"
-	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/golang-migrate/migrate/v4"
 	migratepostgres "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
@@ -196,52 +191,11 @@ func (s *E2ETestSuite) createTestApp(
 	currencySvc *currencyservice.CurrencyService,
 	cfg *config.AppConfig,
 ) *fiber.App {
-	app := fiber.New(fiber.Config{
-		ErrorHandler: func(c *fiber.Ctx, err error) error {
-			return apiutil.ProblemDetailsJSON(c, "Internal Server Error", err)
-		},
-	})
-
-	// Add middleware
-	app.Use(limiter.New(limiter.Config{
-		Max:        100, // Higher limit for tests
-		Expiration: 1 * time.Second,
-		KeyGenerator: func(c *fiber.Ctx) string {
-			return c.IP()
-		},
-		LimitReached: func(c *fiber.Ctx) error {
-			return apiutil.ProblemDetailsJSON(c, "Too Many Requests", fmt.Errorf("rate limit exceeded"), fiber.StatusTooManyRequests)
-		},
-	}))
-	app.Use(recover.New())
-
-	// Add basic health check
-	app.Get("/", func(c *fiber.Ctx) error {
-		return c.SendString("Test App is working! 🚀")
-	})
-
-	// Setup routes - import the route setup functions directly
-	// This avoids the import cycle by setting up routes inline
-	s.setupTestRoutes(app, accountSvc, userSvc, authSvc, currencySvc, cfg)
+	app := webapi.NewApp(
+		accountSvc, userSvc, authSvc, currencySvc, cfg,
+	)
 
 	return app
-}
-
-// setupTestRoutes sets up all the routes for testing without importing webapi packages
-func (s *E2ETestSuite) setupTestRoutes(
-	app *fiber.App,
-	accountSvc *account.AccountService,
-	userSvc *userservice.UserService,
-	authSvc *auth.AuthService,
-	currencySvc *currencyservice.CurrencyService,
-	cfg *config.AppConfig,
-) {
-	// Import the route setup functions here to avoid import cycles
-	// We'll need to import these packages at the function level
-	webapiaccount.AccountRoutes(app, accountSvc, authSvc, cfg)
-	webapiuser.UserRoutes(app, userSvc, authSvc, cfg)
-	webapiauth.AuthRoutes(app, authSvc)
-	webapicurrency.CurrencyRoutes(app, currencySvc, authSvc, cfg)
 }
 
 // SetupSuite initializes the test suite with a real Postgres database

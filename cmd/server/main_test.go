@@ -5,10 +5,14 @@ import (
 	"log"
 	"log/slog"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"testing"
 
+	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/webapi"
+	"github.com/amirasaad/fintech/webapi/testutils"
+	"github.com/stretchr/testify/suite"
 )
 
 // TestMain runs before any tests and applies globally for all tests in the package.
@@ -20,40 +24,51 @@ func TestMain(m *testing.M) {
 	os.Exit(exitVal)
 }
 
-func TestStartServer_RootRoute(t *testing.T) {
-	app, _, _, _, _ := webapi.SetupTestAppWithTestcontainers(t)
+type MainTestSuite struct {
+	testutils.E2ETestSuite
+}
 
-	resp := webapi.MakeRequestWithApp(app, http.MethodGet, "/", "", "")
-	defer resp.Body.Close() // nolint: errcheck
+func TestMainTestSuite(t *testing.T) {
+	suite.Run(t, new(MainTestSuite))
+}
+
+func (s *MainTestSuite) TestStartServer_RootRoute() {
+	// Create a minimal app for testing
+	app := webapi.NewApp(nil, nil, nil, nil, &config.AppConfig{})
+
+	// Use httptest to make the request
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	resp, err := app.Test(req)
+	if err != nil {
+		s.T().Fatal(err)
+	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("expected status code %d, got %d", http.StatusOK, resp.StatusCode)
+		s.T().Fatalf("expected status code %d, got %d", http.StatusOK, resp.StatusCode)
 	}
 }
 
-func TestProtectedRoute_Unauthorized(t *testing.T) {
-	app, _, _, _, _ := webapi.SetupTestAppWithTestcontainers(t)
-	resp := webapi.MakeRequestWithApp(app, http.MethodGet, "/account", "", "")
-	defer resp.Body.Close() // nolint: errcheck
+func (s *MainTestSuite) TestProtectedRoute_Unauthorized() {
+	resp := s.MakeRequest(http.MethodGet, "/account", "", "")
+	defer resp.Body.Close() //nolint: errcheck
 	if resp.StatusCode != http.StatusUnauthorized {
-		t.Fatalf("expected unauthorized or forbidden, got %d", resp.StatusCode)
+		s.T().Fatalf("expected unauthorized or forbidden, got %d", resp.StatusCode)
 	}
 }
 
-func TestNotFoundRoute(t *testing.T) {
-	app, _, _, _, _ := webapi.SetupTestAppWithTestcontainers(t)
-	resp := webapi.MakeRequestWithApp(app, http.MethodGet, "/doesnotexist", "", "")
-	defer resp.Body.Close() // nolint: errcheck
+func (s *MainTestSuite) TestNotFoundRoute() {
+	resp := s.MakeRequest(http.MethodGet, "/doesnotexist", "", "")
+	defer resp.Body.Close() //nolint: errcheck
 	if resp.StatusCode != http.StatusNotFound {
-		t.Fatalf("expected 404, got %d", resp.StatusCode)
+		s.T().Fatalf("expected 404, got %d", resp.StatusCode)
 	}
 }
 
-func TestLoginRoute_BadRequest(t *testing.T) {
-	app, _, _, _, _ := webapi.SetupTestAppWithTestcontainers(t)
-	resp := webapi.MakeRequestWithApp(app, http.MethodPost, "/auth/login", "", "")
-	defer resp.Body.Close() // nolint: errcheck
+func (s *MainTestSuite) TestLoginRoute_BadRequest() {
+	resp := s.MakeRequest(http.MethodPost, "/auth/login", "", "")
+	defer resp.Body.Close() //nolint: errcheck
 	if resp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d", resp.StatusCode)
+		s.T().Fatalf("expected 400, got %d", resp.StatusCode)
 	}
 }
