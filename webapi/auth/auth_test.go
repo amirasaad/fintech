@@ -1,52 +1,54 @@
-package auth
+package auth_test
 
 import (
 	"encoding/json"
 	"fmt"
 	"testing"
 
+	"github.com/amirasaad/fintech/pkg/apiutil"
 	"github.com/amirasaad/fintech/pkg/domain"
-	. "github.com/amirasaad/fintech/webapi/common"
+	"github.com/amirasaad/fintech/webapi/testutils"
 	"github.com/gofiber/fiber/v2"
 	"github.com/stretchr/testify/suite"
 )
 
 type AuthTestSuite struct {
+	testutils.E2ETestSuite
 	testUser *domain.User
 }
 
 func (s *AuthTestSuite) SetupTest() {
-	// Create test user via POST /user/ endpoint
-	s.testUser = CreateTestUser()
+	// Create test user and login
+	s.testUser = s.CreateTestUser()
 }
 
 func (s *AuthTestSuite) TestLoginRoute_BadRequest() {
-	resp := MakeRequest("POST", "/auth/login", `{"identity":123}`, "")
+	resp := s.MakeRequest("POST", "/auth/login", `{"identity":123}`, "")
 	defer resp.Body.Close() //nolint: errcheck
-	AssertEqual(s.T(), fiber.StatusBadRequest, resp.StatusCode)
+	s.Assert().Equal(fiber.StatusBadRequest, resp.StatusCode)
 }
 
 func (s *AuthTestSuite) TestLoginRoute_Unauthorized() {
-	resp := MakeRequest("POST", "/auth/login", `{"identity":"nonexistent@example.com","password":"password"}`, "")
+	resp := s.MakeRequest("POST", "/auth/login", `{"identity":"nonexistent@example.com","password":"password"}`, "")
 	defer resp.Body.Close() //nolint: errcheck
-	AssertEqual(s.T(), fiber.StatusUnauthorized, resp.StatusCode)
+	s.Assert().Equal(fiber.StatusUnauthorized, resp.StatusCode)
 }
 
 func (s *AuthTestSuite) TestLoginRoute_InvalidPassword() {
 	loginBody := fmt.Sprintf(`{"identity":"%s","password":"wrongpassword"}`, s.testUser.Email)
-	resp := MakeRequest("POST", "/auth/login", loginBody, "")
+	resp := s.MakeRequest("POST", "/auth/login", loginBody, "")
 	defer resp.Body.Close() //nolint: errcheck
-	AssertEqual(s.T(), fiber.StatusUnauthorized, resp.StatusCode)
+	s.Assert().Equal(fiber.StatusUnauthorized, resp.StatusCode)
 }
 
 func (s *AuthTestSuite) TestLoginRoute_Success() {
 	loginBody := fmt.Sprintf(`{"identity":"%s","password":"password123"}`, s.testUser.Email)
-	resp := MakeRequest("POST", "/auth/login", loginBody, "")
+	resp := s.MakeRequest("POST", "/auth/login", loginBody, "")
 	defer resp.Body.Close() //nolint: errcheck
-	AssertEqual(s.T(), fiber.StatusOK, resp.StatusCode)
+	s.Assert().Equal(fiber.StatusOK, resp.StatusCode)
 
 	// Verify response contains token
-	var response Response
+	var response apiutil.Response
 	err := json.NewDecoder(resp.Body).Decode(&response)
 	s.Require().NoError(err)
 	loginResponse := response.Data.(map[string]any)

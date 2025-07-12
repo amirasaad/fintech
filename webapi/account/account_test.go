@@ -1,30 +1,28 @@
-package account
+package account_test
 
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"testing"
 
 	"github.com/amirasaad/fintech/pkg/apiutil"
 	"github.com/amirasaad/fintech/pkg/domain"
-	"github.com/amirasaad/fintech/pkg/testutils"
+	"github.com/amirasaad/fintech/webapi/testutils"
 	"github.com/gofiber/fiber/v2"
 	"github.com/stretchr/testify/suite"
 )
 
 type AccountTestSuite struct {
-	suite.Suite
-	app      *fiber.App
+	testutils.E2ETestSuite
 	testUser *domain.User
 	token    string
 }
 
 func (s *AccountTestSuite) SetupTest() {
-	// Setup test app with real database
-	app, _, testUser, _, _ := testutils.SetupTestAppWithTestcontainers(s.T())
-	s.app = app
-	s.testUser = testUser
-	s.token = testutils.LoginUser(app, testUser)
+	// Create test user and login
+	s.testUser = s.CreateTestUser()
+	s.token = s.LoginUser(s.testUser)
 }
 
 func TestAccountTestSuite(t *testing.T) {
@@ -33,13 +31,19 @@ func TestAccountTestSuite(t *testing.T) {
 
 func (s *AccountTestSuite) TestCreateAccount() {
 	s.Run("Create account successfully", func() {
-		resp := testutils.MakeRequest(s.app, "POST", "/account", "", s.token)
+		// Send a valid JSON body for account creation
+		resp := s.MakeRequest("POST", "/account", `{"currency":"USD"}`, s.token)
 		defer resp.Body.Close() //nolint: errcheck
+
+		// Log the response body for debugging
+		body, _ := io.ReadAll(resp.Body)
+		s.T().Logf("Response status: %d, body: %s", resp.StatusCode, string(body))
+
 		s.Assert().Equal(fiber.StatusCreated, resp.StatusCode)
 	})
 
 	s.Run("Create account without auth", func() {
-		resp := testutils.MakeRequest(s.app, "POST", "/account", "", "")
+		resp := s.MakeRequest("POST", "/account", `{"currency":"USD"}`, "")
 		defer resp.Body.Close() //nolint: errcheck
 		s.Assert().Equal(fiber.StatusUnauthorized, resp.StatusCode)
 	})
@@ -47,7 +51,7 @@ func (s *AccountTestSuite) TestCreateAccount() {
 
 func (s *AccountTestSuite) TestDeposit() {
 	// First create an account
-	createResp := testutils.MakeRequest(s.app, "POST", "/account", "", s.token)
+	createResp := s.MakeRequest("POST", "/account", `{"currency":"USD"}`, s.token)
 	defer createResp.Body.Close() //nolint: errcheck
 	s.Assert().Equal(fiber.StatusCreated, createResp.StatusCode)
 
@@ -56,21 +60,22 @@ func (s *AccountTestSuite) TestDeposit() {
 	err := json.NewDecoder(createResp.Body).Decode(&createResponse)
 	s.Require().NoError(err)
 
+	// The account data is directly in the response data field
 	accountData, ok := createResponse.Data.(map[string]any)
-	s.Require().True(ok)
-	accountID, ok := accountData["id"].(string)
-	s.Require().True(ok)
+	s.Require().True(ok, "Expected account data to be a map")
+	accountID, ok := accountData["ID"].(string)
+	s.Require().True(ok, "Expected account ID to be present")
 
 	s.Run("Deposit successfully", func() {
-		depositBody := fmt.Sprintf(`{"amount":100,"currency":"USD"}`)
-		resp := testutils.MakeRequest(s.app, "POST", fmt.Sprintf("/account/%s/deposit", accountID), depositBody, s.token)
+		depositBody := `{"amount":100,"currency":"USD"}`
+		resp := s.MakeRequest("POST", fmt.Sprintf("/account/%s/deposit", accountID), depositBody, s.token)
 		defer resp.Body.Close() //nolint: errcheck
 		s.Assert().Equal(fiber.StatusOK, resp.StatusCode)
 	})
 
 	s.Run("Deposit without auth", func() {
-		depositBody := fmt.Sprintf(`{"amount":100,"currency":"USD"}`)
-		resp := testutils.MakeRequest(s.app, "POST", fmt.Sprintf("/account/%s/deposit", accountID), depositBody, "")
+		depositBody := `{"amount":100,"currency":"USD"}`
+		resp := s.MakeRequest("POST", fmt.Sprintf("/account/%s/deposit", accountID), depositBody, "")
 		defer resp.Body.Close() //nolint: errcheck
 		s.Assert().Equal(fiber.StatusUnauthorized, resp.StatusCode)
 	})
@@ -78,7 +83,7 @@ func (s *AccountTestSuite) TestDeposit() {
 
 func (s *AccountTestSuite) TestWithdraw() {
 	// First create an account and deposit some money
-	createResp := testutils.MakeRequest(s.app, "POST", "/account", "", s.token)
+	createResp := s.MakeRequest("POST", "/account", `{"currency":"USD"}`, s.token)
 	defer createResp.Body.Close() //nolint: errcheck
 	s.Assert().Equal(fiber.StatusCreated, createResp.StatusCode)
 
@@ -87,26 +92,26 @@ func (s *AccountTestSuite) TestWithdraw() {
 	s.Require().NoError(err)
 
 	accountData, ok := createResponse.Data.(map[string]any)
-	s.Require().True(ok)
-	accountID, ok := accountData["id"].(string)
-	s.Require().True(ok)
+	s.Require().True(ok, "Expected account data to be a map")
+	accountID, ok := accountData["ID"].(string)
+	s.Require().True(ok, "Expected account ID to be present")
 
 	// Deposit some money first
-	depositBody := fmt.Sprintf(`{"amount":100,"currency":"USD"}`)
-	depositResp := testutils.MakeRequest(s.app, "POST", fmt.Sprintf("/account/%s/deposit", accountID), depositBody, s.token)
+	depositBody := `{"amount":100,"currency":"USD"}`
+	depositResp := s.MakeRequest("POST", fmt.Sprintf("/account/%s/deposit", accountID), depositBody, s.token)
 	defer depositResp.Body.Close() //nolint: errcheck
 	s.Assert().Equal(fiber.StatusOK, depositResp.StatusCode)
 
 	s.Run("Withdraw successfully", func() {
-		withdrawBody := fmt.Sprintf(`{"amount":50,"currency":"USD"}`)
-		resp := testutils.MakeRequest(s.app, "POST", fmt.Sprintf("/account/%s/withdraw", accountID), withdrawBody, s.token)
+		withdrawBody := `{"amount":50,"currency":"USD"}`
+		resp := s.MakeRequest("POST", fmt.Sprintf("/account/%s/withdraw", accountID), withdrawBody, s.token)
 		defer resp.Body.Close() //nolint: errcheck
 		s.Assert().Equal(fiber.StatusOK, resp.StatusCode)
 	})
 
 	s.Run("Withdraw without auth", func() {
-		withdrawBody := fmt.Sprintf(`{"amount":50,"currency":"USD"}`)
-		resp := testutils.MakeRequest(s.app, "POST", fmt.Sprintf("/account/%s/withdraw", accountID), withdrawBody, "")
+		withdrawBody := `{"amount":50,"currency":"USD"}`
+		resp := s.MakeRequest("POST", fmt.Sprintf("/account/%s/withdraw", accountID), withdrawBody, "")
 		defer resp.Body.Close() //nolint: errcheck
 		s.Assert().Equal(fiber.StatusUnauthorized, resp.StatusCode)
 	})
@@ -114,7 +119,7 @@ func (s *AccountTestSuite) TestWithdraw() {
 
 func (s *AccountTestSuite) TestGetBalance() {
 	// First create an account
-	createResp := testutils.MakeRequest(s.app, "POST", "/account", "", s.token)
+	createResp := s.MakeRequest("POST", "/account", `{"currency":"USD"}`, s.token)
 	defer createResp.Body.Close() //nolint: errcheck
 	s.Assert().Equal(fiber.StatusCreated, createResp.StatusCode)
 
@@ -123,18 +128,18 @@ func (s *AccountTestSuite) TestGetBalance() {
 	s.Require().NoError(err)
 
 	accountData, ok := createResponse.Data.(map[string]any)
-	s.Require().True(ok)
-	accountID, ok := accountData["id"].(string)
-	s.Require().True(ok)
+	s.Require().True(ok, "Expected account data to be a map")
+	accountID, ok := accountData["ID"].(string)
+	s.Require().True(ok, "Expected account ID to be present")
 
 	s.Run("Get balance successfully", func() {
-		resp := testutils.MakeRequest(s.app, "GET", fmt.Sprintf("/account/%s/balance", accountID), "", s.token)
+		resp := s.MakeRequest("GET", fmt.Sprintf("/account/%s/balance", accountID), "", s.token)
 		defer resp.Body.Close() //nolint: errcheck
 		s.Assert().Equal(fiber.StatusOK, resp.StatusCode)
 	})
 
 	s.Run("Get balance without auth", func() {
-		resp := testutils.MakeRequest(s.app, "GET", fmt.Sprintf("/account/%s/balance", accountID), "", "")
+		resp := s.MakeRequest("GET", fmt.Sprintf("/account/%s/balance", accountID), "", "")
 		defer resp.Body.Close() //nolint: errcheck
 		s.Assert().Equal(fiber.StatusUnauthorized, resp.StatusCode)
 	})

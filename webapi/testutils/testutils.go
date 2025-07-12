@@ -1,11 +1,10 @@
-package common
+package testutils
 
 import (
 	"context"
 	"io"
 	"log"
 	"log/slog"
-	"testing"
 	"time"
 
 	"os"
@@ -30,8 +29,14 @@ import (
 	"github.com/amirasaad/fintech/pkg/service/auth"
 	currencyservice "github.com/amirasaad/fintech/pkg/service/currency"
 	userservice "github.com/amirasaad/fintech/pkg/service/user"
+	webapiaccount "github.com/amirasaad/fintech/webapi/account"
+	webapiauth "github.com/amirasaad/fintech/webapi/auth"
+	webapicurrency "github.com/amirasaad/fintech/webapi/currency"
+	webapiuser "github.com/amirasaad/fintech/webapi/user"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/limiter"
+	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/golang-migrate/migrate/v4"
 	migratepostgres "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
@@ -50,8 +55,6 @@ type E2ETestSuite struct {
 	pgContainer *tcpostgres.PostgresContainer
 	db          *gorm.DB
 	app         *fiber.App
-	testUser    *domain.User
-	authService *auth.AuthService
 	cfg         *config.AppConfig
 }
 
@@ -90,7 +93,7 @@ func findNearestEnvTest() (string, error) {
 }
 
 // startPostgresContainer starts a Postgres container using Testcontainers
-func startPostgresContainer(ctx context.Context) (*tcpostgres.PostgresContainer, error) {
+func (s *E2ETestSuite) startPostgresContainer(ctx context.Context) (*tcpostgres.PostgresContainer, error) {
 	return tcpostgres.Run(
 		ctx,
 		"postgres:15-alpine",
@@ -105,7 +108,7 @@ func startPostgresContainer(ctx context.Context) (*tcpostgres.PostgresContainer,
 }
 
 // runMigrations runs database migrations on the provided database
-func runMigrations(db *gorm.DB) error {
+func (s *E2ETestSuite) runMigrations(db *gorm.DB) error {
 	sqlDB, err := db.DB()
 	if err != nil {
 		return err
@@ -117,7 +120,7 @@ func runMigrations(db *gorm.DB) error {
 	}
 
 	_, filename, _, _ := runtime.Caller(0)
-	migrationsPath := filepath.Join(filepath.Dir(filename), "../internal/migrations")
+	migrationsPath := filepath.Join(filepath.Dir(filename), "../../internal/migrations")
 
 	m, err := migrate.NewWithDatabaseInstance(
 		"file://"+migrationsPath,
@@ -134,7 +137,7 @@ func runMigrations(db *gorm.DB) error {
 }
 
 // setupCurrencyRegistry initializes the currency registry with test fixtures
-func setupCurrencyRegistry(ctx context.Context) (*currency.CurrencyRegistry, error) {
+func (s *E2ETestSuite) setupCurrencyRegistry(ctx context.Context) (*currency.CurrencyRegistry, error) {
 	currencyRegistry, err := currency.NewCurrencyRegistry(ctx)
 	if err != nil {
 		return nil, err
@@ -142,7 +145,7 @@ func setupCurrencyRegistry(ctx context.Context) (*currency.CurrencyRegistry, err
 
 	// Load currency fixtures
 	_, filename, _, _ := runtime.Caller(0)
-	fixturePath := filepath.Join(filepath.Dir(filename), "../internal/fixtures/currency/meta.csv")
+	fixturePath := filepath.Join(filepath.Dir(filename), "../../internal/fixtures/currency/meta.csv")
 	metas, err := fixturescurrency.LoadCurrencyMetaCSV(fixturePath)
 	if err != nil {
 		return nil, err
@@ -158,7 +161,7 @@ func setupCurrencyRegistry(ctx context.Context) (*currency.CurrencyRegistry, err
 }
 
 // setupServices creates all required services for testing
-func setupServices(db *gorm.DB, cfg *config.AppConfig) (*auth.AuthService, *account.AccountService, *userservice.UserService, *currencyservice.CurrencyService, error) {
+func (s *E2ETestSuite) setupServices(db *gorm.DB, cfg *config.AppConfig) (*auth.AuthService, *account.AccountService, *userservice.UserService, *currencyservice.CurrencyService, error) {
 	uow := infrarepo.NewUoW(db)
 	logger := slog.Default()
 
@@ -175,7 +178,7 @@ func setupServices(db *gorm.DB, cfg *config.AppConfig) (*auth.AuthService, *acco
 
 	// Initialize currency service
 	ctx := context.Background()
-	currencyRegistry, err := setupCurrencyRegistry(ctx)
+	currencyRegistry, err := s.setupCurrencyRegistry(ctx)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
@@ -185,64 +188,60 @@ func setupServices(db *gorm.DB, cfg *config.AppConfig) (*auth.AuthService, *acco
 	return authService, accountSvc, userSvc, currencySvc, nil
 }
 
-// SetupTestAppWithTestcontainers creates a test app using real Postgres via Testcontainers
-func SetupTestAppWithTestcontainers(t *testing.T) (*fiber.App, *gorm.DB, *domain.User, *auth.AuthService, *config.AppConfig) {
-	t.Helper()
-	ctx := context.Background()
+// createTestApp creates a minimal Fiber app for testing without importing webapi packages
+func (s *E2ETestSuite) createTestApp(
+	accountSvc *account.AccountService,
+	userSvc *userservice.UserService,
+	authSvc *auth.AuthService,
+	currencySvc *currencyservice.CurrencyService,
+	cfg *config.AppConfig,
+) *fiber.App {
+	app := fiber.New(fiber.Config{
+		ErrorHandler: func(c *fiber.Ctx, err error) error {
+			return apiutil.ProblemDetailsJSON(c, "Internal Server Error", err)
+		},
+	})
 
-	// Start Postgres container
-	pg, err := startPostgresContainer(ctx)
-	if err != nil {
-		t.Fatalf("Failed to start Postgres container: %v", err)
-	}
+	// Add middleware
+	app.Use(limiter.New(limiter.Config{
+		Max:        100, // Higher limit for tests
+		Expiration: 1 * time.Second,
+		KeyGenerator: func(c *fiber.Ctx) string {
+			return c.IP()
+		},
+		LimitReached: func(c *fiber.Ctx) error {
+			return apiutil.ProblemDetailsJSON(c, "Too Many Requests", fmt.Errorf("rate limit exceeded"), fiber.StatusTooManyRequests)
+		},
+	}))
+	app.Use(recover.New())
 
-	// Get connection string
-	dsn, err := pg.ConnectionString(ctx, "sslmode=disable")
-	if err != nil {
-		t.Fatalf("Failed to get Postgres DSN: %v", err)
-	}
+	// Add basic health check
+	app.Get("/", func(c *fiber.Ctx) error {
+		return c.SendString("Test App is working! 🚀")
+	})
 
-	// Connect to database
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
-	if err != nil {
-		t.Fatalf("Failed to connect to Postgres: %v", err)
-	}
+	// Setup routes - import the route setup functions directly
+	// This avoids the import cycle by setting up routes inline
+	s.setupTestRoutes(app, accountSvc, userSvc, authSvc, currencySvc, cfg)
 
-	// Run migrations
-	if err := runMigrations(db); err != nil {
-		t.Fatalf("Failed to run migrations: %v", err)
-	}
+	return app
+}
 
-	// Load config
-	cfgPath, err := findNearestEnvTest()
-	if err != nil {
-		t.Fatalf("Failed to find .env.test for tests: %v", err)
-	}
-	cfg, err := config.LoadAppConfig(slog.Default(), cfgPath)
-	if err != nil {
-		t.Fatalf("Failed to load app config for tests: %v", err)
-	}
-
-	// Override database URL with Testcontainers connection string
-	cfg.DB.Url = dsn
-
-	// Create test user with random credentials
-	testUser, err := generateRandomTestUser()
-	if err != nil {
-		t.Fatalf("Failed to create test user: %v", err)
-	}
-
-	// Setup services
-	authService, accountSvc, userSvc, currencySvc, err := setupServices(db, cfg)
-	if err != nil {
-		t.Fatalf("Failed to setup services: %v", err)
-	}
-
-	// Create app with higher rate limit for tests
-	app := newAppWithRateLimit(accountSvc, userSvc, authService, currencySvc, cfg, 100, 1*time.Second)
-	log.SetOutput(io.Discard)
-
-	return app, db, testUser, authService, cfg
+// setupTestRoutes sets up all the routes for testing without importing webapi packages
+func (s *E2ETestSuite) setupTestRoutes(
+	app *fiber.App,
+	accountSvc *account.AccountService,
+	userSvc *userservice.UserService,
+	authSvc *auth.AuthService,
+	currencySvc *currencyservice.CurrencyService,
+	cfg *config.AppConfig,
+) {
+	// Import the route setup functions here to avoid import cycles
+	// We'll need to import these packages at the function level
+	webapiaccount.AccountRoutes(app, accountSvc, authSvc, cfg)
+	webapiuser.UserRoutes(app, userSvc, authSvc, cfg)
+	webapiauth.AuthRoutes(app, authSvc)
+	webapicurrency.CurrencyRoutes(app, currencySvc, authSvc, cfg)
 }
 
 // SetupSuite initializes the test suite with a real Postgres database
@@ -250,7 +249,7 @@ func (s *E2ETestSuite) SetupSuite() {
 	ctx := context.Background()
 
 	// Start Postgres container
-	pg, err := startPostgresContainer(ctx)
+	pg, err := s.startPostgresContainer(ctx)
 	s.Require().NoError(err)
 	s.pgContainer = pg
 
@@ -263,7 +262,7 @@ func (s *E2ETestSuite) SetupSuite() {
 	s.Require().NoError(err)
 
 	// Run migrations
-	s.Require().NoError(runMigrations(s.db))
+	s.Require().NoError(s.runMigrations(s.db))
 
 	// Load config
 	cfgPath, err := findNearestEnvTest()
@@ -274,17 +273,12 @@ func (s *E2ETestSuite) SetupSuite() {
 	// Override database URL with Testcontainers connection string
 	s.cfg.DB.Url = dsn
 
-	// Create test user with random credentials
-	s.testUser, err = generateRandomTestUser()
-	s.Require().NoError(err)
-
 	// Setup services
-	authService, accountSvc, userSvc, currencySvc, err := setupServices(s.db, s.cfg)
+	authService, accountSvc, userSvc, currencySvc, err := s.setupServices(s.db, s.cfg)
 	s.Require().NoError(err)
-	s.authService = authService
 
-	// Create app with higher rate limit for tests
-	s.app = newAppWithRateLimit(accountSvc, userSvc, s.authService, currencySvc, s.cfg, 100, 1*time.Second)
+	// Create test app
+	s.app = s.createTestApp(accountSvc, userSvc, authService, currencySvc, s.cfg)
 	log.SetOutput(io.Discard)
 }
 
@@ -296,11 +290,30 @@ func (s *E2ETestSuite) TearDownSuite() {
 	}
 }
 
+// MakeRequest is a helper for making HTTP requests in tests
+func (s *E2ETestSuite) MakeRequest(method, path, body, token string) *http.Response {
+	var req *http.Request
+	if body != "" {
+		req = httptest.NewRequest(method, path, bytes.NewBufferString(body))
+		req.Header.Set("Content-Type", "application/json")
+	} else {
+		req = httptest.NewRequest(method, path, nil)
+	}
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+	resp, err := s.app.Test(req, 1000000)
+	if err != nil {
+		panic(err) // For standalone tests, panic on error
+	}
+	return resp
+}
+
 // LoginUser makes an actual HTTP request to login and returns the JWT token
-func LoginUser(app *fiber.App, testUser *domain.User) string {
+func (s *E2ETestSuite) LoginUser(testUser *domain.User) string {
 	// Make login request with the actual user credentials
 	loginBody := fmt.Sprintf(`{"identity":"%s","password":"password123"}`, testUser.Email)
-	resp := MakeRequestWithApp(app, "POST", "/auth/login", loginBody, "")
+	resp := s.MakeRequest("POST", "/auth/login", loginBody, "")
 
 	// Parse response to get token and log response
 	var response apiutil.Response
@@ -325,32 +338,8 @@ func LoginUser(app *fiber.App, testUser *domain.User) string {
 	return token
 }
 
-// MakeRequest is a helper for making HTTP requests in tests
-func MakeRequest(app *fiber.App, method, path, body, token string) *http.Response {
-	return MakeRequestWithApp(app, method, path, body, token)
-}
-
-// MakeRequestWithApp is a helper for making HTTP requests with a standalone app (for non-suite tests)
-func MakeRequestWithApp(app *fiber.App, method, path, body, token string) *http.Response {
-	var req *http.Request
-	if body != "" {
-		req = httptest.NewRequest(method, path, bytes.NewBufferString(body))
-		req.Header.Set("Content-Type", "application/json")
-	} else {
-		req = httptest.NewRequest(method, path, nil)
-	}
-	if token != "" {
-		req.Header.Set("Authorization", "Bearer "+token)
-	}
-	resp, err := app.Test(req, 1000000)
-	if err != nil {
-		panic(err) // For standalone tests, panic on error
-	}
-	return resp
-}
-
 // CreateTestUser creates a unique test user via the POST /user/ endpoint
-func CreateTestUser(app *fiber.App) *domain.User {
+func (s *E2ETestSuite) CreateTestUser() *domain.User {
 	// Create a unique test user for each test
 	testUser, err := generateRandomTestUser()
 	if err != nil {
@@ -359,7 +348,7 @@ func CreateTestUser(app *fiber.App) *domain.User {
 
 	// Create user via HTTP POST request
 	createUserBody := fmt.Sprintf(`{"username":"%s","email":"%s","password":"password123"}`, testUser.Username, testUser.Email)
-	resp := MakeRequestWithApp(app, "POST", "/user", createUserBody, "")
+	resp := s.MakeRequest("POST", "/user", createUserBody, "")
 
 	if resp.StatusCode != 201 {
 		panic(fmt.Sprintf("Expected 201 Created for user creation, got %d", resp.StatusCode))
@@ -399,11 +388,4 @@ func CreateTestUser(app *fiber.App) *domain.User {
 	}
 
 	return createdUser
-}
-
-// AssertEqual is a helper for assertions in standalone tests
-func AssertEqual(t *testing.T, expected, actual interface{}) {
-	if expected != actual {
-		t.Errorf("Expected %v, got %v", expected, actual)
-	}
 }

@@ -14,7 +14,7 @@ import (
 	"github.com/amirasaad/fintech/pkg/service/auth"
 	currencyservice "github.com/amirasaad/fintech/pkg/service/currency"
 	"github.com/amirasaad/fintech/pkg/service/user"
-	"github.com/amirasaad/fintech/webapi/common"
+	"github.com/amirasaad/fintech/webapi"
 )
 
 // @title Fintech API
@@ -78,7 +78,7 @@ func main() {
 	currencySvc := currencyservice.NewCurrencyService(currencyRegistry, logger)
 
 	logger.Info("Starting fintech server", "port", ":3000")
-	log.Fatal(common.NewApp(
+	log.Fatal(webapi.NewApp(
 		accountSvc,
 		userSvc,
 		authSvc,

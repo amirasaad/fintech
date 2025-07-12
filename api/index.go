@@ -16,7 +16,7 @@ import (
 	"github.com/amirasaad/fintech/pkg/service/auth"
 	currencyservice "github.com/amirasaad/fintech/pkg/service/currency"
 	"github.com/amirasaad/fintech/pkg/service/user"
-	"github.com/amirasaad/fintech/webapi/common"
+	"github.com/amirasaad/fintech/webapi"
 	"github.com/gofiber/fiber/v2/middleware/adaptor"
 )
 
@@ -62,7 +62,7 @@ func handler() http.HandlerFunc {
 	// Create UOW using the shared db
 	uow := infra_repository.NewUoW(db)
 
-	app := common.NewApp(
+	app := webapi.NewApp(
 		account.NewAccountService(uow, currencyConverter, logger),
 		user.NewUserService(uow, logger),
 		auth.NewAuthService(uow,

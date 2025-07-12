@@ -4,7 +4,6 @@
 // - auth: Authentication endpoints
 // - user: User management endpoints
 // - currency: Currency and exchange rate endpoints
-// - common: Shared utilities, middleware, and test helpers
 //
 // To use handlers, import the specific sub-package:
 //
@@ -12,7 +11,6 @@
 //	import "github.com/amirasaad/fintech/webapi/auth"
 //	import "github.com/amirasaad/fintech/webapi/user"
 //	import "github.com/amirasaad/fintech/webapi/currency"
-//	import "github.com/amirasaad/fintech/webapi/common"
 //
 // For backward compatibility, you can also import this package directly:
 //
@@ -22,7 +20,6 @@ package webapi
 import (
 	_ "github.com/amirasaad/fintech/webapi/account"
 	_ "github.com/amirasaad/fintech/webapi/auth"
-	_ "github.com/amirasaad/fintech/webapi/common"
 	_ "github.com/amirasaad/fintech/webapi/currency"
 	_ "github.com/amirasaad/fintech/webapi/user"
 )
