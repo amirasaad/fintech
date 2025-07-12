@@ -20,6 +20,7 @@ package webapi
 import (
 	_ "github.com/amirasaad/fintech/webapi/account"
 	_ "github.com/amirasaad/fintech/webapi/auth"
+	_ "github.com/amirasaad/fintech/webapi/common"
 	_ "github.com/amirasaad/fintech/webapi/currency"
 	_ "github.com/amirasaad/fintech/webapi/user"
 )

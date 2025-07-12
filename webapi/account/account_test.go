@@ -6,8 +6,8 @@ import (
 	"io"
 	"testing"
 
-	"github.com/amirasaad/fintech/pkg/apiutil"
 	"github.com/amirasaad/fintech/pkg/domain"
+	"github.com/amirasaad/fintech/webapi/common"
 	"github.com/amirasaad/fintech/webapi/testutils"
 	"github.com/gofiber/fiber/v2"
 	"github.com/stretchr/testify/suite"
@@ -56,7 +56,7 @@ func (s *AccountTestSuite) TestDeposit() {
 	s.Assert().Equal(fiber.StatusCreated, createResp.StatusCode)
 
 	// Extract account ID from response
-	var createResponse apiutil.Response
+	var createResponse common.Response
 	err := json.NewDecoder(createResp.Body).Decode(&createResponse)
 	s.Require().NoError(err)
 
@@ -87,7 +87,7 @@ func (s *AccountTestSuite) TestWithdraw() {
 	defer createResp.Body.Close() //nolint: errcheck
 	s.Assert().Equal(fiber.StatusCreated, createResp.StatusCode)
 
-	var createResponse apiutil.Response
+	var createResponse common.Response
 	err := json.NewDecoder(createResp.Body).Decode(&createResponse)
 	s.Require().NoError(err)
 
@@ -123,7 +123,7 @@ func (s *AccountTestSuite) TestGetBalance() {
 	defer createResp.Body.Close() //nolint: errcheck
 	s.Assert().Equal(fiber.StatusCreated, createResp.StatusCode)
 
-	var createResponse apiutil.Response
+	var createResponse common.Response
 	err := json.NewDecoder(createResp.Body).Decode(&createResponse)
 	s.Require().NoError(err)
 

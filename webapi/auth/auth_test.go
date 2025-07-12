@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/amirasaad/fintech/pkg/apiutil"
 	"github.com/amirasaad/fintech/pkg/domain"
+	"github.com/amirasaad/fintech/webapi/common"
 	"github.com/amirasaad/fintech/webapi/testutils"
 	"github.com/gofiber/fiber/v2"
 	"github.com/stretchr/testify/suite"
@@ -48,7 +48,7 @@ func (s *AuthTestSuite) TestLoginRoute_Success() {
 	s.Assert().Equal(fiber.StatusOK, resp.StatusCode)
 
 	// Verify response contains token
-	var response apiutil.Response
+	var response common.Response
 	err := json.NewDecoder(resp.Body).Decode(&response)
 	s.Require().NoError(err)
 	loginResponse := response.Data.(map[string]any)

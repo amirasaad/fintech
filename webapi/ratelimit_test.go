@@ -1,4 +1,4 @@
-package common
+package webapi_test
 
 import (
 	"testing"

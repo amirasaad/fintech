@@ -9767,21 +9767,19 @@ func DeactivateCurrency(currencySvc *currencysvc.CurrencyService) fiber.Handler 
 		<pre class="file" id="file37" style="display: none">package testutils
 
 import (
+        "bytes"
         "context"
+        "encoding/json"
+        "fmt"
         "io"
         "log"
         "log/slog"
-        "time"
-
+        "net/http"
+        "net/http/httptest"
         "os"
         "path/filepath"
         "runtime"
-
-        "bytes"
-        "encoding/json"
-        "fmt"
-        "net/http"
-        "net/http/httptest"
+        "time"
 
         "github.com/amirasaad/fintech/infra/provider"
         infrarepo "github.com/amirasaad/fintech/infra/repository"
@@ -9823,16 +9821,105 @@ func (s *E2ETestSuite) BeforeTest() <span class="cov0" title="0">{
         s.T().Parallel()
 }</span>
 
-// generateRandomTestUser creates a test user with random username and email
-func generateRandomTestUser() (*domain.User, error) <span class="cov0" title="0">{
-        randomID := uuid.New().String()[:8]
-        username := fmt.Sprintf("testuser_%s", randomID)
-        email := fmt.Sprintf("test_%s@example.com", randomID)
-        return user.NewUser(username, email, "password123")
-}</span>
+// SetupSuite initializes the test suite with a real Postgres database
+func (s *E2ETestSuite) SetupSuite() <span class="cov0" title="0">{
+        ctx := context.Background()
 
-// findNearestEnvTest searches for the nearest .env.test file in the directory tree
-func findNearestEnvTest() (string, error) <span class="cov0" title="0">{
+        // Start Postgres container
+        pg, err := tcpostgres.Run(
+                ctx,
+                "postgres:15-alpine",
+                tcpostgres.WithDatabase("testdb"),
+                tcpostgres.WithUsername("test"),
+                tcpostgres.WithPassword("test"),
+                testcontainers.WithWaitStrategy(
+                        wait.ForLog("database system is ready to accept connections").
+                                WithOccurrence(2).WithStartupTimeout(30*time.Second),
+                ),
+        )
+        s.Require().NoError(err)
+        s.pgContainer = pg
+
+        // Get connection string and connect to database
+        dsn, err := pg.ConnectionString(ctx, "sslmode=disable")
+        s.Require().NoError(err)
+
+        s.db, err = gorm.Open(postgres.Open(dsn), &amp;gorm.Config{})
+        s.Require().NoError(err)
+
+        // Run migrations
+        sqlDB, err := s.db.DB()
+        s.Require().NoError(err)
+
+        driver, err := migratepostgres.WithInstance(sqlDB, &amp;migratepostgres.Config{})
+        s.Require().NoError(err)
+
+        _, filename, _, _ := runtime.Caller(0)
+        migrationsPath := filepath.Join(filepath.Dir(filename), "../../internal/migrations")
+
+        m, err := migrate.NewWithDatabaseInstance("file://"+migrationsPath, "postgres", driver)
+        s.Require().NoError(err)
+
+        err = m.Up()
+        if err != nil &amp;&amp; err != migrate.ErrNoChange </span><span class="cov0" title="0">{
+                s.Require().NoError(err)
+        }</span>
+
+        // Load config
+        <span class="cov0" title="0">cfgPath, err := s.findEnvTest()
+        s.Require().NoError(err)
+        s.cfg, err = config.LoadAppConfig(slog.Default(), cfgPath)
+        s.Require().NoError(err)
+        s.cfg.DB.Url = dsn
+
+        // Setup services and app
+        s.setupApp()
+        log.SetOutput(io.Discard)</span>
+}
+
+// TearDownSuite cleans up the test suite resources
+func (s *E2ETestSuite) TearDownSuite() <span class="cov0" title="0">{
+        ctx := context.Background()
+        if s.pgContainer != nil </span><span class="cov0" title="0">{
+                _ = s.pgContainer.Terminate(ctx)
+        }</span>
+}
+
+// setupApp creates all services and the test app
+func (s *E2ETestSuite) setupApp() <span class="cov0" title="0">{
+        uow := infrarepo.NewUoW(s.db)
+        logger := slog.Default()
+
+        // Create services
+        authStrategy := auth.NewJWTAuthStrategy(uow, s.cfg.Jwt, logger)
+        authService := auth.NewAuthService(uow, authStrategy, logger)
+        currencyConverter := provider.NewStubCurrencyConverter()
+        accountSvc := account.NewAccountService(uow, currencyConverter, logger)
+        userSvc := userservice.NewUserService(uow, logger)
+
+        // Setup currency service
+        ctx := context.Background()
+        currencyRegistry, err := currency.NewCurrencyRegistry(ctx)
+        s.Require().NoError(err)
+
+        // Load currency fixtures
+        _, filename, _, _ := runtime.Caller(0)
+        fixturePath := filepath.Join(filepath.Dir(filename), "../../internal/fixtures/currency/meta.csv")
+        metas, err := fixturescurrency.LoadCurrencyMetaCSV(fixturePath)
+        s.Require().NoError(err)
+
+        for _, meta := range metas </span><span class="cov0" title="0">{
+                s.Require().NoError(currencyRegistry.Register(meta))
+        }</span>
+
+        <span class="cov0" title="0">currencySvc := currencyservice.NewCurrencyService(currencyRegistry, logger)
+
+        // Create test app
+        s.app = webapi.NewApp(accountSvc, userSvc, authService, currencySvc, s.cfg)</span>
+}
+
+// findEnvTest searches for the nearest .env.test file
+func (s *E2ETestSuite) findEnvTest() (string, error) <span class="cov0" title="0">{
         startDir, err := os.Getwd()
         if err != nil </span><span class="cov0" title="0">{
                 return "", err
@@ -9853,163 +9940,6 @@ func findNearestEnvTest() (string, error) <span class="cov0" title="0">{
         <span class="cov0" title="0">return "", os.ErrNotExist</span>
 }
 
-// startPostgresContainer starts a Postgres container using Testcontainers
-func (s *E2ETestSuite) startPostgresContainer(ctx context.Context) (*tcpostgres.PostgresContainer, error) <span class="cov0" title="0">{
-        return tcpostgres.Run(
-                ctx,
-                "postgres:15-alpine",
-                tcpostgres.WithDatabase("testdb"),
-                tcpostgres.WithUsername("test"),
-                tcpostgres.WithPassword("test"),
-                testcontainers.WithWaitStrategy(
-                        wait.ForLog("database system is ready to accept connections").
-                                WithOccurrence(2).WithStartupTimeout(30*time.Second),
-                ),
-        )
-}</span>
-
-// runMigrations runs database migrations on the provided database
-func (s *E2ETestSuite) runMigrations(db *gorm.DB) error <span class="cov0" title="0">{
-        sqlDB, err := db.DB()
-        if err != nil </span><span class="cov0" title="0">{
-                return err
-        }</span>
-
-        <span class="cov0" title="0">driver, err := migratepostgres.WithInstance(sqlDB, &amp;migratepostgres.Config{})
-        if err != nil </span><span class="cov0" title="0">{
-                return err
-        }</span>
-
-        <span class="cov0" title="0">_, filename, _, _ := runtime.Caller(0)
-        migrationsPath := filepath.Join(filepath.Dir(filename), "../../internal/migrations")
-
-        m, err := migrate.NewWithDatabaseInstance(
-                "file://"+migrationsPath,
-                "postgres", driver)
-        if err != nil </span><span class="cov0" title="0">{
-                return err
-        }</span>
-
-        <span class="cov0" title="0">err = m.Up()
-        if err != nil &amp;&amp; err != migrate.ErrNoChange </span><span class="cov0" title="0">{
-                return err
-        }</span>
-        <span class="cov0" title="0">return nil</span>
-}
-
-// setupCurrencyRegistry initializes the currency registry with test fixtures
-func (s *E2ETestSuite) setupCurrencyRegistry(ctx context.Context) (*currency.CurrencyRegistry, error) <span class="cov0" title="0">{
-        currencyRegistry, err := currency.NewCurrencyRegistry(ctx)
-        if err != nil </span><span class="cov0" title="0">{
-                return nil, err
-        }</span>
-
-        // Load currency fixtures
-        <span class="cov0" title="0">_, filename, _, _ := runtime.Caller(0)
-        fixturePath := filepath.Join(filepath.Dir(filename), "../../internal/fixtures/currency/meta.csv")
-        metas, err := fixturescurrency.LoadCurrencyMetaCSV(fixturePath)
-        if err != nil </span><span class="cov0" title="0">{
-                return nil, err
-        }</span>
-
-        <span class="cov0" title="0">for _, meta := range metas </span><span class="cov0" title="0">{
-                if err := currencyRegistry.Register(meta); err != nil </span><span class="cov0" title="0">{
-                        return nil, err
-                }</span>
-        }
-
-        <span class="cov0" title="0">return currencyRegistry, nil</span>
-}
-
-// setupServices creates all required services for testing
-func (s *E2ETestSuite) setupServices(db *gorm.DB, cfg *config.AppConfig) (*auth.AuthService, *account.AccountService, *userservice.UserService, *currencyservice.CurrencyService, error) <span class="cov0" title="0">{
-        uow := infrarepo.NewUoW(db)
-        logger := slog.Default()
-
-        // Create auth service
-        authStrategy := auth.NewJWTAuthStrategy(uow, cfg.Jwt, logger)
-        authService := auth.NewAuthService(uow, authStrategy, logger)
-
-        // Create currency converter
-        currencyConverter := provider.NewStubCurrencyConverter()
-
-        // Create services
-        accountSvc := account.NewAccountService(uow, currencyConverter, logger)
-        userSvc := userservice.NewUserService(uow, logger)
-
-        // Initialize currency service
-        ctx := context.Background()
-        currencyRegistry, err := s.setupCurrencyRegistry(ctx)
-        if err != nil </span><span class="cov0" title="0">{
-                return nil, nil, nil, nil, err
-        }</span>
-
-        <span class="cov0" title="0">currencySvc := currencyservice.NewCurrencyService(currencyRegistry, logger)
-
-        return authService, accountSvc, userSvc, currencySvc, nil</span>
-}
-
-// createTestApp creates a minimal Fiber app for testing without importing webapi packages
-func (s *E2ETestSuite) createTestApp(
-        accountSvc *account.AccountService,
-        userSvc *userservice.UserService,
-        authSvc *auth.AuthService,
-        currencySvc *currencyservice.CurrencyService,
-        cfg *config.AppConfig,
-) *fiber.App <span class="cov0" title="0">{
-        app := webapi.NewApp(
-                accountSvc, userSvc, authSvc, currencySvc, cfg,
-        )
-
-        return app
-}</span>
-
-// SetupSuite initializes the test suite with a real Postgres database
-func (s *E2ETestSuite) SetupSuite() <span class="cov0" title="0">{
-        ctx := context.Background()
-
-        // Start Postgres container
-        pg, err := s.startPostgresContainer(ctx)
-        s.Require().NoError(err)
-        s.pgContainer = pg
-
-        // Get connection string
-        dsn, err := pg.ConnectionString(ctx, "sslmode=disable")
-        s.Require().NoError(err)
-
-        // Connect to database
-        s.db, err = gorm.Open(postgres.Open(dsn), &amp;gorm.Config{})
-        s.Require().NoError(err)
-
-        // Run migrations
-        s.Require().NoError(s.runMigrations(s.db))
-
-        // Load config
-        cfgPath, err := findNearestEnvTest()
-        s.Require().NoError(err)
-        s.cfg, err = config.LoadAppConfig(slog.Default(), cfgPath)
-        s.Require().NoError(err)
-
-        // Override database URL with Testcontainers connection string
-        s.cfg.DB.Url = dsn
-
-        // Setup services
-        authService, accountSvc, userSvc, currencySvc, err := s.setupServices(s.db, s.cfg)
-        s.Require().NoError(err)
-
-        // Create test app
-        s.app = s.createTestApp(accountSvc, userSvc, authService, currencySvc, s.cfg)
-        log.SetOutput(io.Discard)
-}</span>
-
-// TearDownSuite cleans up the test suite resources
-func (s *E2ETestSuite) TearDownSuite() <span class="cov0" title="0">{
-        ctx := context.Background()
-        if s.pgContainer != nil </span><span class="cov0" title="0">{
-                _ = s.pgContainer.Terminate(ctx)
-        }</span>
-}
-
 // MakeRequest is a helper for making HTTP requests in tests
 func (s *E2ETestSuite) MakeRequest(method, path, body, token string) *http.Response <span class="cov0" title="0">{
         var req *http.Request
@@ -10024,25 +9954,72 @@ func (s *E2ETestSuite) MakeRequest(method, path, body, token string) *http.Respo
         }</span>
         <span class="cov0" title="0">resp, err := s.app.Test(req, 1000000)
         if err != nil </span><span class="cov0" title="0">{
-                panic(err)</span> // For standalone tests, panic on error
+                panic(err)</span>
         }
         <span class="cov0" title="0">return resp</span>
 }
 
+// CreateTestUser creates a unique test user via the POST /user/ endpoint
+func (s *E2ETestSuite) CreateTestUser() *domain.User <span class="cov0" title="0">{
+        randomID := uuid.New().String()[:8]
+        username := fmt.Sprintf("testuser_%s", randomID)
+        email := fmt.Sprintf("test_%s@example.com", randomID)
+
+        // Create user via HTTP POST request
+        createUserBody := fmt.Sprintf(`{"username":"%s","email":"%s","password":"password123"}`, username, email)
+        resp := s.MakeRequest("POST", "/user", createUserBody, "")
+
+        if resp.StatusCode != 201 </span><span class="cov0" title="0">{
+                panic(fmt.Sprintf("Expected 201 Created for user creation, got %d", resp.StatusCode))</span>
+        }
+
+        // Parse response to get the created user
+        <span class="cov0" title="0">var response apiutil.Response
+        err := json.NewDecoder(resp.Body).Decode(&amp;response)
+        if err != nil </span><span class="cov0" title="0">{
+                panic(err)</span>
+        }
+
+        // Extract user data from response
+        <span class="cov0" title="0">if userData, ok := response.Data.(map[string]any); ok </span><span class="cov0" title="0">{
+                userIDStr, ok := userData["id"].(string)
+                if !ok </span><span class="cov0" title="0">{
+                        panic("User ID should be present in response")</span>
+                }
+
+                <span class="cov0" title="0">userID, err := uuid.Parse(userIDStr)
+                if err != nil </span><span class="cov0" title="0">{
+                        panic(err)</span>
+                }
+
+                <span class="cov0" title="0">return &amp;domain.User{
+                        ID:       userID,
+                        Username: username,
+                        Email:    email,
+                        Password: "password123",
+                }</span>
+        }
+
+        // Fallback: create user directly
+        <span class="cov0" title="0">testUser, err := user.NewUser(username, email, "password123")
+        if err != nil </span><span class="cov0" title="0">{
+                panic(err)</span>
+        }
+        <span class="cov0" title="0">return testUser</span>
+}
+
 // LoginUser makes an actual HTTP request to login and returns the JWT token
 func (s *E2ETestSuite) LoginUser(testUser *domain.User) string <span class="cov0" title="0">{
-        // Make login request with the actual user credentials
         loginBody := fmt.Sprintf(`{"identity":"%s","password":"password123"}`, testUser.Email)
         resp := s.MakeRequest("POST", "/auth/login", loginBody, "")
 
-        // Parse response to get token and log response
         var response apiutil.Response
         err := json.NewDecoder(resp.Body).Decode(&amp;response)
         if err != nil </span><span class="cov0" title="0">{
-                panic(err)</span> // For standalone tests, panic on error
+                panic(err)</span>
         }
 
-        // Handle the data field which can be map[string]interface{} or map[string]string
+        // Extract token from response
         <span class="cov0" title="0">var token string
         if dataMap, ok := response.Data.(map[string]any); ok </span><span class="cov0" title="0">{
                 if tokenInterface, exists := dataMap["token"]; exists </span><span class="cov0" title="0">{
@@ -10056,58 +10033,6 @@ func (s *E2ETestSuite) LoginUser(testUser *domain.User) string <span class="cov0
                 panic("No token found in response")</span>
         }
         <span class="cov0" title="0">return token</span>
-}
-
-// CreateTestUser creates a unique test user via the POST /user/ endpoint
-func (s *E2ETestSuite) CreateTestUser() *domain.User <span class="cov0" title="0">{
-        // Create a unique test user for each test
-        testUser, err := generateRandomTestUser()
-        if err != nil </span><span class="cov0" title="0">{
-                panic(err)</span> // For standalone tests, panic on error
-        }
-
-        // Create user via HTTP POST request
-        <span class="cov0" title="0">createUserBody := fmt.Sprintf(`{"username":"%s","email":"%s","password":"password123"}`, testUser.Username, testUser.Email)
-        resp := s.MakeRequest("POST", "/user", createUserBody, "")
-
-        if resp.StatusCode != 201 </span><span class="cov0" title="0">{
-                panic(fmt.Sprintf("Expected 201 Created for user creation, got %d", resp.StatusCode))</span>
-        }
-
-        // Parse response to get the created user
-        <span class="cov0" title="0">var response apiutil.Response
-        err = json.NewDecoder(resp.Body).Decode(&amp;response)
-        if err != nil </span><span class="cov0" title="0">{
-                panic(err)</span>
-        }
-
-        // Extract user data from response
-        <span class="cov0" title="0">var createdUser *domain.User
-        if userData, ok := response.Data.(map[string]any); ok </span><span class="cov0" title="0">{
-                // Convert the response data back to a domain.User
-                // This assumes the response contains the user data
-                userIDStr, ok := userData["id"].(string)
-                if !ok </span><span class="cov0" title="0">{
-                        panic("User ID should be present in response")</span>
-                }
-
-                <span class="cov0" title="0">userID, err := uuid.Parse(userIDStr)
-                if err != nil </span><span class="cov0" title="0">{
-                        panic(err)</span>
-                }
-
-                <span class="cov0" title="0">createdUser = &amp;domain.User{
-                        ID:       userID,
-                        Username: testUser.Username,
-                        Email:    testUser.Email,
-                        Password: testUser.Password, // Note: this might not be returned in the response
-                }</span>
-        } else<span class="cov0" title="0"> {
-                // Fallback: use the original test user with the generated data
-                createdUser = testUser
-        }</span>
-
-        <span class="cov0" title="0">return createdUser</span>
 }
 </pre>
 		

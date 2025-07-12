@@ -4,7 +4,6 @@ import (
 	"errors"
 	"time"
 
-	"github.com/amirasaad/fintech/pkg/apiutil"
 	"github.com/amirasaad/fintech/pkg/config"
 	accountsvc "github.com/amirasaad/fintech/pkg/service/account"
 	authsvc "github.com/amirasaad/fintech/pkg/service/auth"
@@ -12,6 +11,7 @@ import (
 	usersvc "github.com/amirasaad/fintech/pkg/service/user"
 	"github.com/amirasaad/fintech/webapi/account"
 	"github.com/amirasaad/fintech/webapi/auth"
+	"github.com/amirasaad/fintech/webapi/common"
 	"github.com/amirasaad/fintech/webapi/currency"
 	"github.com/amirasaad/fintech/webapi/user"
 	"github.com/gofiber/fiber/v2"
@@ -44,7 +44,7 @@ func newAppWithRateLimit(
 ) *fiber.App {
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
-			return apiutil.ProblemDetailsJSON(c, "Internal Server Error", err)
+			return common.ProblemDetailsJSON(c, "Internal Server Error", err)
 		},
 	})
 	app.Get("/swagger/*", swagger.New(swagger.Config{
@@ -60,7 +60,7 @@ func newAppWithRateLimit(
 			return c.IP()
 		},
 		LimitReached: func(c *fiber.Ctx) error {
-			return apiutil.ProblemDetailsJSON(c, "Too Many Requests", errors.New("rate limit exceeded"), fiber.StatusTooManyRequests)
+			return common.ProblemDetailsJSON(c, "Too Many Requests", errors.New("rate limit exceeded"), fiber.StatusTooManyRequests)
 		},
 	}))
 	app.Use(recover.New())

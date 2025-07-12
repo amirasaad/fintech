@@ -1,5 +1,64 @@
 basePath: /
 definitions:
+  account.DepositRequest:
+    properties:
+      amount:
+        type: number
+      currency:
+        type: string
+    required:
+    - amount
+    type: object
+  account.WithdrawRequest:
+    properties:
+      amount:
+        type: number
+      currency:
+        type: string
+    required:
+    - amount
+    type: object
+  auth.LoginInput:
+    properties:
+      identity:
+        type: string
+      password:
+        type: string
+    required:
+    - identity
+    - password
+    type: object
+  common.ProblemDetails:
+    properties:
+      detail:
+        description: Human-readable explanation
+        type: string
+      errors:
+        description: 'Optional: additional error details'
+      instance:
+        description: URI reference that identifies the specific occurrence
+        type: string
+      status:
+        description: HTTP status code
+        type: integer
+      title:
+        description: Short, human-readable summary
+        type: string
+      type:
+        description: A URI reference that identifies the problem type
+        type: string
+    type: object
+  common.Response:
+    properties:
+      data:
+        description: Response data
+      message:
+        description: Human-readable explanation
+        type: string
+      status:
+        description: HTTP status code
+        type: integer
+    type: object
   currency.CurrencyMeta:
     properties:
       active:
@@ -25,71 +84,7 @@ definitions:
       updated:
         type: string
     type: object
-  webapi.DepositRequest:
-    properties:
-      amount:
-        type: number
-      currency:
-        type: string
-    required:
-    - amount
-    type: object
-  webapi.LoginInput:
-    properties:
-      identity:
-        type: string
-      password:
-        type: string
-    required:
-    - identity
-    - password
-    type: object
-  webapi.NewUser:
-    properties:
-      email:
-        maxLength: 50
-        type: string
-      password:
-        maxLength: 72
-        minLength: 6
-        type: string
-      username:
-        maxLength: 50
-        minLength: 3
-        type: string
-    required:
-    - email
-    - password
-    - username
-    type: object
-  webapi.PasswordInput:
-    properties:
-      password:
-        type: string
-    required:
-    - password
-    type: object
-  webapi.ProblemDetails:
-    properties:
-      detail:
-        description: Human-readable explanation
-        type: string
-      errors:
-        description: 'Optional: additional error details'
-      instance:
-        description: URI reference that identifies the specific occurrence
-        type: string
-      status:
-        description: HTTP status code
-        type: integer
-      title:
-        description: Short, human-readable summary
-        type: string
-      type:
-        description: A URI reference that identifies the problem type
-        type: string
-    type: object
-  webapi.RegisterCurrencyRequest:
+  currency.RegisterCurrencyRequest:
     properties:
       active:
         type: boolean
@@ -117,31 +112,36 @@ definitions:
     - name
     - symbol
     type: object
-  webapi.Response:
+  user.NewUser:
     properties:
-      data:
-        description: Response data
-      message:
-        description: Human-readable explanation
+      email:
+        maxLength: 50
         type: string
-      status:
-        description: HTTP status code
-        type: integer
+      password:
+        maxLength: 72
+        minLength: 6
+        type: string
+      username:
+        maxLength: 50
+        minLength: 3
+        type: string
+    required:
+    - email
+    - password
+    - username
     type: object
-  webapi.UpdateUserInput:
+  user.PasswordInput:
+    properties:
+      password:
+        type: string
+    required:
+    - password
+    type: object
+  user.UpdateUserInput:
     properties:
       names:
         maxLength: 100
         type: string
-    type: object
-  webapi.WithdrawRequest:
-    properties:
-      amount:
-        type: number
-      currency:
-        type: string
-    required:
-    - amount
     type: object
 host: fintech-beryl-beta.vercel.app
 info:
@@ -167,23 +167,23 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/webapi.Response'
+            $ref: '#/definitions/common.Response'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
         "429":
           description: Too Many Requests
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
       security:
       - Bearer: []
       summary: Create a new account
@@ -206,23 +206,23 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/webapi.Response'
+            $ref: '#/definitions/common.Response'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
         "429":
           description: Too Many Requests
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
       security:
       - Bearer: []
       summary: Get account balance
@@ -244,30 +244,30 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/webapi.DepositRequest'
+          $ref: '#/definitions/account.DepositRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/webapi.Response'
+            $ref: '#/definitions/common.Response'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
         "429":
           description: Too Many Requests
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
       security:
       - Bearer: []
       summary: Deposit funds into an account
@@ -290,23 +290,23 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/webapi.Response'
+            $ref: '#/definitions/common.Response'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
         "429":
           description: Too Many Requests
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
       security:
       - Bearer: []
       summary: Get account transactions
@@ -328,56 +328,35 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/webapi.WithdrawRequest'
+          $ref: '#/definitions/account.WithdrawRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/webapi.Response'
+            $ref: '#/definitions/common.Response'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
         "429":
           description: Too Many Requests
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
       security:
       - Bearer: []
       summary: Withdraw funds from an account
       tags:
       - accounts
-  /api/currencies:
-    get:
-      consumes:
-      - application/json
-      description: Get all registered currencies with full metadata
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              $ref: '#/definitions/currency.CurrencyMeta'
-            type: array
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
-      summary: List all currencies
-      tags:
-      - currencies
   /api/currencies/{code}:
     get:
       consumes:
@@ -399,15 +378,15 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
       summary: Get currency by code
       tags:
       - currencies
@@ -428,11 +407,11 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/webapi.Response'
+            $ref: '#/definitions/common.Response'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
       summary: Check if currency is supported
       tags:
       - currencies
@@ -447,7 +426,7 @@ paths:
         name: currency
         required: true
         schema:
-          $ref: '#/definitions/webapi.RegisterCurrencyRequest'
+          $ref: '#/definitions/currency.RegisterCurrencyRequest'
       produces:
       - application/json
       responses:
@@ -458,19 +437,19 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
         "409":
           description: Conflict
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
       summary: Register currency
       tags:
       - currencies
@@ -491,23 +470,23 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/webapi.Response'
+            $ref: '#/definitions/common.Response'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
       summary: Unregister currency
       tags:
       - currencies
@@ -528,23 +507,23 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/webapi.Response'
+            $ref: '#/definitions/common.Response'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
       summary: Activate currency
       tags:
       - currencies
@@ -565,23 +544,23 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/webapi.Response'
+            $ref: '#/definitions/common.Response'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
       summary: Deactivate currency
       tags:
       - currencies
@@ -600,7 +579,7 @@ paths:
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
       summary: Get default currency
       tags:
       - currencies
@@ -627,11 +606,11 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
       summary: Search currencies by region
       tags:
       - currencies
@@ -658,11 +637,11 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
       summary: Search currencies
       tags:
       - currencies
@@ -677,11 +656,11 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/webapi.Response'
+            $ref: '#/definitions/common.Response'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
       summary: Get currency statistics
       tags:
       - currencies
@@ -702,11 +681,11 @@ paths:
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
       summary: List supported currencies
       tags:
       - currencies
-  /login:
+  /auth/login:
     post:
       consumes:
       - application/json
@@ -717,33 +696,66 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/webapi.LoginInput'
+          $ref: '#/definitions/auth.LoginInput'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/webapi.Response'
+            $ref: '#/definitions/common.Response'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
         "429":
           description: Too Many Requests
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
       summary: User login
       tags:
       - auth
+  /currency:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all available currencies in the system
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/common.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/common.ProblemDetails'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/common.ProblemDetails'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/common.ProblemDetails'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/common.ProblemDetails'
+      security:
+      - Bearer: []
+      summary: List all currencies
+      tags:
+      - currencies
   /user:
     post:
       consumes:
@@ -755,30 +767,30 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/webapi.NewUser'
+          $ref: '#/definitions/user.NewUser'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/webapi.Response'
+            $ref: '#/definitions/common.Response'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
         "429":
           description: Too Many Requests
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
       summary: Create a new user
       tags:
       - users
@@ -798,30 +810,30 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/webapi.PasswordInput'
+          $ref: '#/definitions/user.PasswordInput'
       produces:
       - application/json
       responses:
         "204":
           description: No Content
           schema:
-            $ref: '#/definitions/webapi.Response'
+            $ref: '#/definitions/common.Response'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
         "429":
           description: Too Many Requests
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
       security:
       - Bearer: []
       summary: Delete user
@@ -830,7 +842,7 @@ paths:
     get:
       consumes:
       - application/json
-      description: Get a user by their unique identifier
+      description: Retrieve a user by their ID
       parameters:
       - description: User ID
         in: path
@@ -843,15 +855,19 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/webapi.Response'
+            $ref: '#/definitions/common.Response'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/common.ProblemDetails'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
       security:
       - Bearer: []
       summary: Get user by ID
@@ -872,30 +888,30 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/webapi.UpdateUserInput'
+          $ref: '#/definitions/user.UpdateUserInput'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/webapi.Response'
+            $ref: '#/definitions/common.Response'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
         "429":
           description: Too Many Requests
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/webapi.ProblemDetails'
+            $ref: '#/definitions/common.ProblemDetails'
       security:
       - Bearer: []
       summary: Update user
