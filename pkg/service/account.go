@@ -8,6 +8,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"reflect"
 
@@ -18,6 +19,7 @@ import (
 	"github.com/amirasaad/fintech/pkg/domain/user"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 // AccountService provides business logic for account operations including creation, deposits, withdrawals, and balance inquiries.
@@ -399,9 +401,15 @@ func (s *AccountService) GetAccount(
 		repo := repoAny.(repository.AccountRepository)
 		aLocal, err := repo.Get(accountID)
 		if err != nil {
+			logger.Error("GetAccount failed: db error", "error", err)
+			err = account.ErrAccountNotFound
+			return err
+		}
+		if aLocal == nil {
 			logger.Error("GetAccount failed: account not found", "error", err)
 			err = account.ErrAccountNotFound
 			return err
+
 		}
 		if aLocal.UserID != userID {
 			logger.Error("GetAccount failed: user unauthorized", "accountUserID", aLocal.UserID)
@@ -477,6 +485,10 @@ func (s *AccountService) GetBalance(
 		a, err := repo.Get(accountID)
 		if err != nil {
 			logger.Error("GetBalance failed: AccountRepository.Get error", "error", err)
+			// Map GORM "record not found" to domain error
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return account.ErrAccountNotFound
+			}
 			return err
 		}
 		if a == nil {

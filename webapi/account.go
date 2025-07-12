@@ -28,7 +28,7 @@ import (
 )
 
 type CreateAccountRequest struct {
-	Currency string `json:"currency" validate:"omitempty,len=3,uppercase"`
+	Currency string `json:"currency" validate:"omitempty,len=3,uppercase,alpha"`
 }
 
 type DepositRequest struct {
@@ -176,8 +176,8 @@ func CreateAccount(
 			return ProblemDetailsJSON(c, "Invalid user ID", err)
 		}
 		input, err := BindAndValidate[CreateAccountRequest](c)
-		if err != nil {
-			return err
+		if input == nil {
+			return err // error response already written
 		}
 		currencyCode := currency.Code("USD")
 		if input != nil && input.Currency != "" {
@@ -233,8 +233,8 @@ func Deposit(
 			return ProblemDetailsJSON(c, "Invalid account ID", err, "Account ID must be a valid UUID", fiber.StatusBadRequest)
 		}
 		input, err := BindAndValidate[DepositRequest](c)
-		if err != nil {
-			return nil // Error already written by BindAndValidate
+		if input == nil {
+			return err // error response already written
 		}
 		currencyCode := currency.Code("USD")
 		if input.Currency != "" {
@@ -299,8 +299,8 @@ func Withdraw(
 			return ProblemDetailsJSON(c, "Invalid account ID", err, "Account ID must be a valid UUID", fiber.StatusBadRequest)
 		}
 		input, err := BindAndValidate[WithdrawRequest](c)
-		if err != nil {
-			return nil // Error already written by BindAndValidate
+		if input == nil {
+			return err // error response already written
 		}
 		currencyCode := currency.Code("USD")
 		if input.Currency != "" {

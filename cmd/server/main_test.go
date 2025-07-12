@@ -35,7 +35,7 @@ func TestProtectedRoute_Unauthorized(t *testing.T) {
 	app, _, _, _, _ := webapi.SetupTestAppWithTestcontainers(t)
 	resp := webapi.MakeRequestWithApp(app, http.MethodGet, "/account", "", "")
 	defer resp.Body.Close() // nolint: errcheck
-	if resp.StatusCode == http.StatusOK {
+	if resp.StatusCode != http.StatusUnauthorized {
 		t.Fatalf("expected unauthorized or forbidden, got %d", resp.StatusCode)
 	}
 }

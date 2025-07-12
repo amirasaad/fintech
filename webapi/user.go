@@ -76,8 +76,8 @@ func GetUser(userSvc *service.UserService) fiber.Handler {
 func CreateUser(userSvc *service.UserService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		input, err := BindAndValidate[NewUser](c)
-		if err != nil {
-			return nil // Error already written by BindAndValidate
+		if input == nil {
+			return err // error response already written
 		}
 		if len(input.Password) > 72 {
 			return ProblemDetailsJSON(c, "Invalid request body", nil, "Password too long")
@@ -111,8 +111,8 @@ func UpdateUser(
 ) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		input, err := BindAndValidate[UpdateUserInput](c)
-		if err != nil {
-			return nil // Error already written by BindAndValidate
+		if input == nil {
+			return err // error response already written
 		}
 		id, err := uuid.Parse(c.Params("id"))
 		if err != nil {
@@ -169,8 +169,8 @@ func DeleteUser(
 ) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		input, err := BindAndValidate[PasswordInput](c)
-		if err != nil {
-			return nil // Error already written by BindAndValidate
+		if input == nil {
+			return err // error response already written
 		}
 		id, err := uuid.Parse(c.Params("id"))
 		if err != nil {

@@ -3,6 +3,7 @@ package webapi
 import (
 	"context"
 	"io"
+	"log"
 	"log/slog"
 	"testing"
 	"time"
@@ -26,7 +27,6 @@ import (
 	"github.com/amirasaad/fintech/pkg/domain/user"
 	"github.com/amirasaad/fintech/pkg/service"
 	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/log"
 	"github.com/golang-migrate/migrate/v4"
 	migratepostgres "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"

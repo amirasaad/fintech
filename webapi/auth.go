@@ -30,8 +30,8 @@ func AuthRoutes(app *fiber.App, authSvc *service.AuthService) {
 func Login(authSvc *service.AuthService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		input, err := BindAndValidate[LoginInput](c)
-		if err != nil {
-			return nil // Error already written by BindAndValidate
+		if input == nil {
+			return err // Error already written by BindAndValidate
 		}
 		user, err := authSvc.Login(c.Context(), input.Identity, input.Password)
 		if err != nil {
