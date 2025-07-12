@@ -1,9 +1,10 @@
-package webapi
+package user
 
 import (
 	"testing"
 
 	"github.com/amirasaad/fintech/pkg/domain"
+	. "github.com/amirasaad/fintech/webapi/common"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/suite"

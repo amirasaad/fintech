@@ -15,7 +15,8 @@ import (
 	"github.com/amirasaad/fintech/infra"
 	infra_repository "github.com/amirasaad/fintech/infra/repository"
 	"github.com/amirasaad/fintech/pkg/config"
-	"github.com/amirasaad/fintech/pkg/service"
+	"github.com/amirasaad/fintech/pkg/service/account"
+	"github.com/amirasaad/fintech/pkg/service/auth"
 	"github.com/fatih/color"
 	"github.com/google/uuid"
 	"golang.org/x/term"
@@ -69,13 +70,13 @@ func main() {
 		return
 	}
 
-	scv := service.NewAccountService(uow, currencyConverter, logger)
-	authSvc := service.NewBasicAuthService(uow, logger)
+	scv := account.NewAccountService(uow, currencyConverter, logger)
+	authSvc := auth.NewBasicAuthService(uow, logger)
 
 	cliApp(scv, authSvc)
 }
 
-func cliApp(scv *service.AccountService, authSvc *service.AuthService) {
+func cliApp(scv *account.AccountService, authSvc *auth.AuthService) {
 	reader := bufio.NewReader(os.Stdin)
 	banner := color.New(color.FgCyan, color.Bold).SprintFunc()
 	prompt := color.New(color.FgGreen, color.Bold).SprintFunc()

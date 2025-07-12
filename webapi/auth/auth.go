@@ -1,7 +1,8 @@
-package webapi
+package auth
 
 import (
-	"github.com/amirasaad/fintech/pkg/service"
+	"github.com/amirasaad/fintech/pkg/apiutil"
+	authsvc "github.com/amirasaad/fintech/pkg/service/auth"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -10,7 +11,7 @@ type LoginInput struct {
 	Password string `json:"password" validate:"required"`
 }
 
-func AuthRoutes(app *fiber.App, authSvc *service.AuthService) {
+func AuthRoutes(app *fiber.App, authSvc *authsvc.AuthService) {
 	app.Post("/auth/login", Login(authSvc))
 }
 
@@ -27,9 +28,9 @@ func AuthRoutes(app *fiber.App, authSvc *service.AuthService) {
 // @Failure 429 {object} ProblemDetails
 // @Failure 500 {object} ProblemDetails
 // @Router /auth/login [post]
-func Login(authSvc *service.AuthService) fiber.Handler {
+func Login(authSvc *authsvc.AuthService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		input, err := BindAndValidate[LoginInput](c)
+		input, err := apiutil.BindAndValidate[LoginInput](c)
 		if input == nil {
 			return err // Error already written by BindAndValidate
 		}
@@ -37,17 +38,17 @@ func Login(authSvc *service.AuthService) fiber.Handler {
 		if err != nil {
 			// Check if it's an unauthorized error
 			if err.Error() == "user unauthorized" {
-				return ProblemDetailsJSON(c, "Invalid identity or password", nil, "Identity or password is incorrect", fiber.StatusUnauthorized)
+				return apiutil.ProblemDetailsJSON(c, "Invalid identity or password", nil, "Identity or password is incorrect", fiber.StatusUnauthorized)
 			}
-			return ProblemDetailsJSON(c, "Internal Server Error", err)
+			return apiutil.ProblemDetailsJSON(c, "Internal Server Error", err)
 		}
 		if user == nil {
-			return ProblemDetailsJSON(c, "Invalid identity or password", nil, "Identity or password is incorrect", fiber.StatusUnauthorized)
+			return apiutil.ProblemDetailsJSON(c, "Invalid identity or password", nil, "Identity or password is incorrect", fiber.StatusUnauthorized)
 		}
 		token, err := authSvc.GenerateToken(user)
 		if err != nil {
-			return ProblemDetailsJSON(c, "Internal Server Error", err)
+			return apiutil.ProblemDetailsJSON(c, "Internal Server Error", err)
 		}
-		return SuccessResponseJSON(c, fiber.StatusOK, "Success login", fiber.Map{"token": token})
+		return apiutil.SuccessResponseJSON(c, fiber.StatusOK, "Success login", fiber.Map{"token": token})
 	}
 }

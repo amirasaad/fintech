@@ -1,10 +1,12 @@
-package webapi
+package user
 
 import (
+	"github.com/amirasaad/fintech/pkg/apiutil"
 	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/domain/user"
 	"github.com/amirasaad/fintech/pkg/middleware"
-	"github.com/amirasaad/fintech/pkg/service"
+	authservice "github.com/amirasaad/fintech/pkg/service/auth"
+	userservice "github.com/amirasaad/fintech/pkg/service/user"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/log"
 	"github.com/golang-jwt/jwt/v5"
@@ -25,7 +27,7 @@ type PasswordInput struct {
 	Password string `json:"password" validate:"required"`
 }
 
-func UserRoutes(app *fiber.App, userSvc *service.UserService, authSvc *service.AuthService, cfg *config.AppConfig) {
+func UserRoutes(app *fiber.App, userSvc *userservice.UserService, authSvc *authservice.AuthService, cfg *config.AppConfig) {
 	app.Get("/user/:id", middleware.JwtProtected(cfg.Jwt), GetUser(userSvc))
 	app.Post("/user", CreateUser(userSvc))
 	app.Put("/user/:id", middleware.JwtProtected(cfg.Jwt), UpdateUser(userSvc, authSvc))
@@ -44,19 +46,19 @@ func UserRoutes(app *fiber.App, userSvc *service.UserService, authSvc *service.A
 // @Failure 404 {object} ProblemDetails
 // @Router /user/{id} [get]
 // @Security Bearer
-func GetUser(userSvc *service.UserService) fiber.Handler {
+func GetUser(userSvc *userservice.UserService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		id, err := uuid.Parse(c.Params("id"))
 		if err != nil {
 			log.Errorf("Invalid user ID: %v", err)
-			return ProblemDetailsJSON(c, "Invalid user ID", err, "User ID must be a valid UUID", fiber.StatusBadRequest)
+			return apiutil.ProblemDetailsJSON(c, "Invalid user ID", err, "User ID must be a valid UUID", fiber.StatusBadRequest)
 		}
 		user, err := userSvc.GetUser(c.Context(), id.String())
 		if err != nil || user == nil {
 			// Generic error for not found to prevent user enumeration
-			return ProblemDetailsJSON(c, "Invalid credentials", nil, fiber.StatusUnauthorized)
+			return apiutil.ProblemDetailsJSON(c, "Invalid credentials", nil, fiber.StatusUnauthorized)
 		}
-		return SuccessResponseJSON(c, fiber.StatusOK, "User found", user)
+		return apiutil.SuccessResponseJSON(c, fiber.StatusOK, "User found", user)
 	}
 }
 
@@ -73,20 +75,20 @@ func GetUser(userSvc *service.UserService) fiber.Handler {
 // @Failure 429 {object} ProblemDetails
 // @Failure 500 {object} ProblemDetails
 // @Router /user [post]
-func CreateUser(userSvc *service.UserService) fiber.Handler {
+func CreateUser(userSvc *userservice.UserService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		input, err := BindAndValidate[NewUser](c)
+		input, err := apiutil.BindAndValidate[NewUser](c)
 		if input == nil {
 			return err // error response already written
 		}
 		if len(input.Password) > 72 {
-			return ProblemDetailsJSON(c, "Invalid request body", nil, "Password too long")
+			return apiutil.ProblemDetailsJSON(c, "Invalid request body", nil, "Password too long")
 		}
 		user, err := userSvc.CreateUser(c.Context(), input.Username, input.Email, input.Password)
 		if err != nil {
-			return ProblemDetailsJSON(c, "Couldn't create user", err)
+			return apiutil.ProblemDetailsJSON(c, "Couldn't create user", err)
 		}
-		return SuccessResponseJSON(c, fiber.StatusCreated, "Created user", user)
+		return apiutil.SuccessResponseJSON(c, fiber.StatusCreated, "Created user", user)
 	}
 }
 
@@ -106,30 +108,30 @@ func CreateUser(userSvc *service.UserService) fiber.Handler {
 // @Router /user/{id} [put]
 // @Security Bearer
 func UpdateUser(
-	userSvc *service.UserService,
-	authSvc *service.AuthService,
+	userSvc *userservice.UserService,
+	authSvc *authservice.AuthService,
 ) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		input, err := BindAndValidate[UpdateUserInput](c)
+		input, err := apiutil.BindAndValidate[UpdateUserInput](c)
 		if input == nil {
 			return err // error response already written
 		}
 		id, err := uuid.Parse(c.Params("id"))
 		if err != nil {
 			log.Errorf("Invalid user ID: %v", err)
-			return ProblemDetailsJSON(c, "Invalid user ID", err, "User ID must be a valid UUID", fiber.StatusBadRequest)
+			return apiutil.ProblemDetailsJSON(c, "Invalid user ID", err, "User ID must be a valid UUID", fiber.StatusBadRequest)
 		}
 		token, ok := c.Locals("user").(*jwt.Token)
 		if !ok {
-			return ProblemDetailsJSON(c, "Unauthorized", nil, "missing user context", fiber.StatusUnauthorized)
+			return apiutil.ProblemDetailsJSON(c, "Unauthorized", nil, "missing user context", fiber.StatusUnauthorized)
 		}
 		userID, err := authSvc.GetCurrentUserId(token)
 		if err != nil {
 			log.Errorf("Failed to parse user ID from token: %v", err)
-			return ProblemDetailsJSON(c, "Unauthorized", nil, fiber.StatusUnauthorized)
+			return apiutil.ProblemDetailsJSON(c, "Unauthorized", nil, fiber.StatusUnauthorized)
 		}
 		if id != userID {
-			return ProblemDetailsJSON(c, "Forbidden", nil, "You are not allowed to update this user", fiber.StatusUnauthorized)
+			return apiutil.ProblemDetailsJSON(c, "Forbidden", nil, "You are not allowed to update this user", fiber.StatusUnauthorized)
 		}
 		err = userSvc.UpdateUser(c.Context(), id.String(), func(u *user.User) error {
 			u.Names = input.Names
@@ -137,14 +139,14 @@ func UpdateUser(
 		})
 		if err != nil {
 			// Generic error for update failure
-			return ProblemDetailsJSON(c, "Invalid credentials", nil, fiber.StatusUnauthorized)
+			return apiutil.ProblemDetailsJSON(c, "Invalid credentials", nil, fiber.StatusUnauthorized)
 		}
 		// Get the updated user to return in response
 		updatedUser, err := userSvc.GetUser(c.Context(), id.String())
 		if err != nil || updatedUser == nil {
-			return ProblemDetailsJSON(c, "Invalid credentials", nil, fiber.StatusUnauthorized)
+			return apiutil.ProblemDetailsJSON(c, "Invalid credentials", nil, fiber.StatusUnauthorized)
 		}
-		return SuccessResponseJSON(c, fiber.StatusOK, "User updated successfully", updatedUser)
+		return apiutil.SuccessResponseJSON(c, fiber.StatusOK, "User updated successfully", updatedUser)
 	}
 }
 
@@ -164,44 +166,44 @@ func UpdateUser(
 // @Router /user/{id} [delete]
 // @Security Bearer
 func DeleteUser(
-	userSvc *service.UserService,
-	authSvc *service.AuthService,
+	userSvc *userservice.UserService,
+	authSvc *authservice.AuthService,
 ) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		input, err := BindAndValidate[PasswordInput](c)
+		input, err := apiutil.BindAndValidate[PasswordInput](c)
 		if input == nil {
 			return err // error response already written
 		}
 		id, err := uuid.Parse(c.Params("id"))
 		if err != nil {
 			log.Errorf("Invalid user ID: %v", err)
-			return ProblemDetailsJSON(c, "Invalid user ID", err, "User ID must be a valid UUID", fiber.StatusBadRequest)
+			return apiutil.ProblemDetailsJSON(c, "Invalid user ID", err, "User ID must be a valid UUID", fiber.StatusBadRequest)
 		}
 		token, ok := c.Locals("user").(*jwt.Token)
 		if !ok {
-			return ProblemDetailsJSON(c, "Unauthorized", nil, "missing user context", fiber.StatusUnauthorized)
+			return apiutil.ProblemDetailsJSON(c, "Unauthorized", nil, "missing user context", fiber.StatusUnauthorized)
 		}
 		userID, err := authSvc.GetCurrentUserId(token)
 		if err != nil {
 			log.Errorf("Failed to parse user ID from token: %v", err)
-			return ProblemDetailsJSON(c, "Unauthorized", nil, fiber.StatusUnauthorized)
+			return apiutil.ProblemDetailsJSON(c, "Unauthorized", nil, fiber.StatusUnauthorized)
 		}
 		if id != userID {
-			return ProblemDetailsJSON(c, "Forbidden", nil, "You are not allowed to update this user", fiber.StatusUnauthorized)
+			return apiutil.ProblemDetailsJSON(c, "Forbidden", nil, "You are not allowed to update this user", fiber.StatusUnauthorized)
 		}
 		isValid, err := userSvc.ValidUser(c.Context(), id.String(), input.Password)
 		if err != nil {
 			// If this is a DB/internal error, return 500
-			return ProblemDetailsJSON(c, "Failed to validate user", err, fiber.StatusInternalServerError)
+			return apiutil.ProblemDetailsJSON(c, "Failed to validate user", err, fiber.StatusInternalServerError)
 		}
 		if !isValid {
 			// Invalid password or user not found
-			return ProblemDetailsJSON(c, "Invalid credentials", nil, fiber.StatusUnauthorized)
+			return apiutil.ProblemDetailsJSON(c, "Invalid credentials", nil, fiber.StatusUnauthorized)
 		}
 		err = userSvc.DeleteUser(c.Context(), id.String())
 		if err != nil {
-			return ProblemDetailsJSON(c, "Failed to delete user", err, fiber.StatusInternalServerError)
+			return apiutil.ProblemDetailsJSON(c, "Failed to delete user", err, fiber.StatusInternalServerError)
 		}
-		return SuccessResponseJSON(c, fiber.StatusNoContent, "User successfully deleted", nil)
+		return apiutil.SuccessResponseJSON(c, fiber.StatusNoContent, "User successfully deleted", nil)
 	}
 }

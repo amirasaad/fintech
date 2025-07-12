@@ -1,4 +1,4 @@
-package webapi
+package apiutil
 
 import (
 	"errors"

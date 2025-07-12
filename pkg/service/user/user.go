@@ -1,6 +1,6 @@
 // Package service provides business logic for user management operations.
 // It uses the decorator pattern for transaction management and includes comprehensive logging.
-package service
+package user
 
 import (
 	"context"

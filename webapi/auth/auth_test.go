@@ -1,4 +1,4 @@
-package webapi
+package auth
 
 import (
 	"encoding/json"
@@ -6,44 +6,44 @@ import (
 	"testing"
 
 	"github.com/amirasaad/fintech/pkg/domain"
+	. "github.com/amirasaad/fintech/webapi/common"
 	"github.com/gofiber/fiber/v2"
 	"github.com/stretchr/testify/suite"
 )
 
 type AuthTestSuite struct {
-	E2ETestSuite
 	testUser *domain.User
 }
 
 func (s *AuthTestSuite) SetupTest() {
 	// Create test user via POST /user/ endpoint
-	s.testUser = s.postToCreateUser()
+	s.testUser = CreateTestUser()
 }
 
 func (s *AuthTestSuite) TestLoginRoute_BadRequest() {
-	resp := s.makeRequest("POST", "/auth/login", `{"identity":123}`, "")
+	resp := MakeRequest("POST", "/auth/login", `{"identity":123}`, "")
 	defer resp.Body.Close() //nolint: errcheck
-	s.Assert().Equal(fiber.StatusBadRequest, resp.StatusCode)
+	AssertEqual(s.T(), fiber.StatusBadRequest, resp.StatusCode)
 }
 
 func (s *AuthTestSuite) TestLoginRoute_Unauthorized() {
-	resp := s.makeRequest("POST", "/auth/login", `{"identity":"nonexistent@example.com","password":"password"}`, "")
+	resp := MakeRequest("POST", "/auth/login", `{"identity":"nonexistent@example.com","password":"password"}`, "")
 	defer resp.Body.Close() //nolint: errcheck
-	s.Assert().Equal(fiber.StatusUnauthorized, resp.StatusCode)
+	AssertEqual(s.T(), fiber.StatusUnauthorized, resp.StatusCode)
 }
 
 func (s *AuthTestSuite) TestLoginRoute_InvalidPassword() {
 	loginBody := fmt.Sprintf(`{"identity":"%s","password":"wrongpassword"}`, s.testUser.Email)
-	resp := s.makeRequest("POST", "/auth/login", loginBody, "")
+	resp := MakeRequest("POST", "/auth/login", loginBody, "")
 	defer resp.Body.Close() //nolint: errcheck
-	s.Assert().Equal(fiber.StatusUnauthorized, resp.StatusCode)
+	AssertEqual(s.T(), fiber.StatusUnauthorized, resp.StatusCode)
 }
 
 func (s *AuthTestSuite) TestLoginRoute_Success() {
 	loginBody := fmt.Sprintf(`{"identity":"%s","password":"password123"}`, s.testUser.Email)
-	resp := s.makeRequest("POST", "/auth/login", loginBody, "")
+	resp := MakeRequest("POST", "/auth/login", loginBody, "")
 	defer resp.Body.Close() //nolint: errcheck
-	s.Assert().Equal(fiber.StatusOK, resp.StatusCode)
+	AssertEqual(s.T(), fiber.StatusOK, resp.StatusCode)
 
 	// Verify response contains token
 	var response Response

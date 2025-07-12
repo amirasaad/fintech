@@ -4,7 +4,7 @@
 //
 // The service layer follows clean architecture principles and uses the decorator pattern for transaction management.
 // All business operations are wrapped with automatic transaction handling, error recovery, and structured logging.
-package service
+package account
 
 import (
 	"context"

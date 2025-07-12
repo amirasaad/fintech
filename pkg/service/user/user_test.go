@@ -1,4 +1,4 @@
-package service
+package user_test
 
 import (
 	"context"
@@ -11,6 +11,7 @@ import (
 	"github.com/amirasaad/fintech/internal/fixtures"
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/repository"
+	usersvc "github.com/amirasaad/fintech/pkg/service/user"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -20,11 +21,11 @@ import (
 func newUserServiceWithMocks(t interface {
 	mock.TestingT
 	Cleanup(func())
-}) (*UserService, *fixtures.MockUserRepository, *fixtures.MockUnitOfWork) {
+}) (*usersvc.UserService, *fixtures.MockUserRepository, *fixtures.MockUnitOfWork) {
 	userRepo := fixtures.NewMockUserRepository(t)
 	uow := fixtures.NewMockUnitOfWork(t)
 	uow.EXPECT().GetRepository(reflect.TypeOf((*repository.UserRepository)(nil)).Elem()).Return(userRepo, nil).Maybe()
-	svc := NewUserService(uow, slog.Default())
+	svc := usersvc.NewUserService(uow, slog.Default())
 	return svc, userRepo, uow
 }
 
@@ -99,7 +100,7 @@ func TestGetUser_UoWFactoryError(t *testing.T) {
 		},
 	)
 
-	svc := NewUserService(uow, slog.Default())
+	svc := usersvc.NewUserService(uow, slog.Default())
 	_, err := svc.GetUser(context.Background(), uuid.New().String())
 	assert.Error(t, err)
 }
@@ -145,7 +146,7 @@ func TestGetUserByEmail_UoWFactoryError(t *testing.T) {
 		},
 	)
 
-	svc := NewUserService(uow, slog.Default())
+	svc := usersvc.NewUserService(uow, slog.Default())
 	_, err := svc.GetUserByEmail(context.Background(), "user@example.com")
 	assert.Error(t, err)
 }
@@ -190,7 +191,7 @@ func TestGetUserByUsername_UoWFactoryError(t *testing.T) {
 		},
 	)
 
-	svc := NewUserService(uow, slog.Default())
+	svc := usersvc.NewUserService(uow, slog.Default())
 	_, err := svc.GetUserByUsername(context.Background(), "username")
 	assert.Error(t, err)
 }
@@ -244,7 +245,7 @@ func TestUpdateUser_UoWFactoryError(t *testing.T) {
 		},
 	)
 
-	svc := NewUserService(uow, slog.Default())
+	svc := usersvc.NewUserService(uow, slog.Default())
 	err := svc.UpdateUser(context.Background(), uuid.New().String(), nil)
 	assert.Error(t, err)
 }
@@ -271,7 +272,7 @@ func TestUpdateUser_CallsGetRepositoryOnce(t *testing.T) {
 	userRepo.EXPECT().Get(userID).Return(user, nil)
 	userRepo.EXPECT().Update(user).Return(nil)
 
-	svc := NewUserService(uow, slog.Default())
+	svc := usersvc.NewUserService(uow, slog.Default())
 	err := svc.UpdateUser(context.Background(), userID.String(), func(u *domain.User) error {
 		u.Username = "updated"
 		return nil

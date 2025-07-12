@@ -1,4 +1,4 @@
-package service_test
+package account_test
 
 import (
 	"context"
@@ -8,10 +8,10 @@ import (
 
 	"github.com/amirasaad/fintech/internal/fixtures"
 	"github.com/amirasaad/fintech/pkg/currency"
-	"github.com/amirasaad/fintech/pkg/domain/account"
+	accountdomain "github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/amirasaad/fintech/pkg/repository"
-	"github.com/amirasaad/fintech/pkg/service"
+	accountsvc "github.com/amirasaad/fintech/pkg/service/account"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -30,7 +30,7 @@ func TestDeposit_AcceptsMatchingCurrency(t *testing.T) {
 	uow.EXPECT().GetRepository(reflect.TypeOf((*repository.AccountRepository)(nil)).Elem()).Return(accountRepo, nil).Once()
 	uow.EXPECT().GetRepository(reflect.TypeOf((*repository.TransactionRepository)(nil)).Elem()).Return(transactionRepo, nil).Once()
 
-	account, _ := account.New().
+	account, _ := accountdomain.New().
 		WithUserID(uuid.New()).
 		WithBalance(10000).
 		WithCurrency(currency.EUR).
@@ -39,7 +39,7 @@ func TestDeposit_AcceptsMatchingCurrency(t *testing.T) {
 	accountRepo.EXPECT().Update(mock.Anything).Return(nil).Once()
 	transactionRepo.EXPECT().Create(mock.Anything).Return(nil).Once()
 
-	svc := service.NewAccountService(uow, nil, slog.Default())
+	svc := accountsvc.NewAccountService(uow, nil, slog.Default())
 	gotTx, _, err := svc.Deposit(account.UserID, account.ID, 100.0, currency.Code("EUR"))
 	assert.NoError(t, err)
 	assert.NotNil(t, gotTx)
@@ -58,7 +58,7 @@ func TestWithdraw_AcceptsMatchingCurrency(t *testing.T) {
 	uow.EXPECT().GetRepository(reflect.TypeOf((*repository.AccountRepository)(nil)).Elem()).Return(accountRepo, nil).Once()
 	uow.EXPECT().GetRepository(reflect.TypeOf((*repository.TransactionRepository)(nil)).Elem()).Return(transactionRepo, nil).Once()
 
-	account, _ := account.New().
+	account, _ := accountdomain.New().
 		WithUserID(uuid.New()).
 		WithBalance(10000).
 		WithCurrency(currency.EUR).
@@ -67,7 +67,7 @@ func TestWithdraw_AcceptsMatchingCurrency(t *testing.T) {
 	accountRepo.EXPECT().Update(mock.Anything).Return(nil).Once()
 	transactionRepo.EXPECT().Create(mock.Anything).Return(nil).Once()
 
-	svc := service.NewAccountService(uow, nil, slog.Default())
+	svc := accountsvc.NewAccountService(uow, nil, slog.Default())
 	gotTx, _, err := svc.Withdraw(account.UserID, account.ID, 100.0, currency.Code("EUR"))
 	assert.NoError(t, err)
 	assert.NotNil(t, gotTx)
@@ -87,7 +87,7 @@ func TestDeposit_ConvertsCurrency(t *testing.T) {
 	uow.EXPECT().GetRepository(reflect.TypeOf((*repository.AccountRepository)(nil)).Elem()).Return(accountRepo, nil).Once()
 	uow.EXPECT().GetRepository(reflect.TypeOf((*repository.TransactionRepository)(nil)).Elem()).Return(transactionRepo, nil).Once()
 
-	account := &account.Account{ID: uuid.New(), UserID: uuid.New(), Currency: currency.Code("USD"), Balance: 0}
+	account := &accountdomain.Account{ID: uuid.New(), UserID: uuid.New(), Currency: currency.Code("USD"), Balance: 0}
 	accountRepo.EXPECT().Get(account.ID).Return(account, nil).Once()
 	accountRepo.EXPECT().Update(mock.Anything).Return(nil).Once()
 	transactionRepo.EXPECT().Create(mock.Anything).Return(nil).Once()
@@ -101,7 +101,7 @@ func TestDeposit_ConvertsCurrency(t *testing.T) {
 		ConversionRate:    1.1,
 	}, nil).Once()
 
-	svc := service.NewAccountService(uow, converter, slog.Default())
+	svc := accountsvc.NewAccountService(uow, converter, slog.Default())
 	gotTx, _, err := svc.Deposit(account.UserID, account.ID, 100.0, currency.Code("EUR"))
 	assert.NoError(t, err)
 	assert.NotNil(t, gotTx)
@@ -121,7 +121,7 @@ func TestWithdraw_ConvertsCurrency(t *testing.T) {
 	uow.EXPECT().GetRepository(reflect.TypeOf((*repository.AccountRepository)(nil)).Elem()).Return(accountRepo, nil).Once()
 	uow.EXPECT().GetRepository(reflect.TypeOf((*repository.TransactionRepository)(nil)).Elem()).Return(transactionRepo, nil).Once()
 
-	account, _ := account.New().
+	account, _ := accountdomain.New().
 		WithUserID(uuid.New()).
 		WithBalance(1000000).
 		WithCurrency(currency.USD).
@@ -138,7 +138,7 @@ func TestWithdraw_ConvertsCurrency(t *testing.T) {
 		ConversionRate:    1.1,
 	}, nil).Once()
 
-	svc := service.NewAccountService(uow, converter, slog.Default())
+	svc := accountsvc.NewAccountService(uow, converter, slog.Default())
 	gotTx, _, err := svc.Withdraw(account.UserID, account.ID, 100.0, currency.Code("EUR"))
 	assert.NoError(t, err)
 	assert.NotNil(t, gotTx)

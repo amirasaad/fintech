@@ -1,4 +1,4 @@
-package service
+package auth_test
 
 import (
 	"errors"
@@ -7,6 +7,7 @@ import (
 
 	"github.com/amirasaad/fintech/internal/fixtures"
 	"github.com/amirasaad/fintech/pkg/domain"
+	authsvc "github.com/amirasaad/fintech/pkg/service/auth"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/mock"
 	"golang.org/x/crypto/bcrypt"
@@ -14,7 +15,7 @@ import (
 
 func BenchmarkCheckPasswordHash(b *testing.B) {
 	hash, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
-	s := &AuthService{}
+	s := &authsvc.AuthService{}
 	for b.Loop() {
 		s.CheckPasswordHash("password", string(hash))
 	}
@@ -30,7 +31,7 @@ func BenchmarkLogin_Success(b *testing.B) {
 	uow.EXPECT().GetRepository(mock.Anything).Return(repo, nil).Once()
 	authStrategy := fixtures.NewMockAuthStrategy(b)
 	authStrategy.EXPECT().Login(mock.Anything, "user@example.com", "password").Return(user, nil).Maybe()
-	s := NewAuthService(uow, authStrategy, slog.Default())
+	s := authsvc.NewAuthService(uow, authStrategy, slog.Default())
 
 	b.ResetTimer()
 	for b.Loop() {
@@ -39,7 +40,7 @@ func BenchmarkLogin_Success(b *testing.B) {
 }
 
 func BenchmarkValidEmail(b *testing.B) {
-	s := &AuthService{}
+	s := &authsvc.AuthService{}
 	for b.Loop() {
 		_ = s.ValidEmail("user@example.com")
 	}
@@ -55,7 +56,7 @@ func BenchmarkLogin_InvalidPassword(b *testing.B) {
 	authStrategy := fixtures.NewMockAuthStrategy(b)
 	authStrategy.EXPECT().Login(mock.Anything, "user@example.com", "wrong").Return(nil, errors.New("invalid password")).Maybe()
 
-	s := NewAuthService(uow, authStrategy, slog.Default())
+	s := authsvc.NewAuthService(uow, authStrategy, slog.Default())
 
 	b.ResetTimer()
 	for b.Loop() {
@@ -71,7 +72,7 @@ func BenchmarkLogin_UserNotFound(b *testing.B) {
 	authStrategy := fixtures.NewMockAuthStrategy(b)
 	authStrategy.EXPECT().Login(mock.Anything, "notfound@example.com", "password").Return(nil, nil).Maybe()
 
-	s := NewAuthService(uow, authStrategy, slog.Default())
+	s := authsvc.NewAuthService(uow, authStrategy, slog.Default())
 	b.ResetTimer()
 	for b.Loop() {
 		_, _ = s.Login(b.Context(), "notfound@example.com", "password")

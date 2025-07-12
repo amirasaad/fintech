@@ -10,8 +10,11 @@ import (
 	infra_repository "github.com/amirasaad/fintech/infra/repository"
 	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/currency"
-	"github.com/amirasaad/fintech/pkg/service"
-	"github.com/amirasaad/fintech/webapi"
+	"github.com/amirasaad/fintech/pkg/service/account"
+	"github.com/amirasaad/fintech/pkg/service/auth"
+	currencyservice "github.com/amirasaad/fintech/pkg/service/currency"
+	"github.com/amirasaad/fintech/pkg/service/user"
+	"github.com/amirasaad/fintech/webapi/common"
 )
 
 // @title Fintech API
@@ -68,14 +71,14 @@ func main() {
 	}
 
 	// Create services
-	accountSvc := service.NewAccountService(uow, currencyConverter, logger)
-	userSvc := service.NewUserService(uow, logger)
-	authStrategy := service.NewJWTAuthStrategy(uow, cfg.Jwt, logger)
-	authSvc := service.NewAuthService(uow, authStrategy, logger)
-	currencySvc := service.NewCurrencyService(currencyRegistry, logger)
+	accountSvc := account.NewAccountService(uow, currencyConverter, logger)
+	userSvc := user.NewUserService(uow, logger)
+	authStrategy := auth.NewJWTAuthStrategy(uow, cfg.Jwt, logger)
+	authSvc := auth.NewAuthService(uow, authStrategy, logger)
+	currencySvc := currencyservice.NewCurrencyService(currencyRegistry, logger)
 
 	logger.Info("Starting fintech server", "port", ":3000")
-	log.Fatal(webapi.NewApp(
+	log.Fatal(common.NewApp(
 		accountSvc,
 		userSvc,
 		authSvc,

@@ -1,15 +1,15 @@
-package webapi
+package account
 
 import (
 	"testing"
 
 	"github.com/amirasaad/fintech/pkg/domain"
+	. "github.com/amirasaad/fintech/webapi/common"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/suite"
 )
 
 type AccountBenchmarkTestSuite struct {
-	E2ETestSuite
 	testUser *domain.User
 	token    string
 }

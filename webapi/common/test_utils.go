@@ -1,4 +1,4 @@
-package webapi
+package common
 
 import (
 	"context"
@@ -21,11 +21,16 @@ import (
 	"github.com/amirasaad/fintech/infra/provider"
 	infrarepo "github.com/amirasaad/fintech/infra/repository"
 	fixturescurrency "github.com/amirasaad/fintech/internal/fixtures/currency"
+	"github.com/amirasaad/fintech/pkg/apiutil"
 	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/domain/user"
-	"github.com/amirasaad/fintech/pkg/service"
+	"github.com/amirasaad/fintech/pkg/service/account"
+	"github.com/amirasaad/fintech/pkg/service/auth"
+	currencyservice "github.com/amirasaad/fintech/pkg/service/currency"
+	userservice "github.com/amirasaad/fintech/pkg/service/user"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-migrate/migrate/v4"
 	migratepostgres "github.com/golang-migrate/migrate/v4/database/postgres"
@@ -46,7 +51,7 @@ type E2ETestSuite struct {
 	db          *gorm.DB
 	app         *fiber.App
 	testUser    *domain.User
-	authService *service.AuthService
+	authService *auth.AuthService
 	cfg         *config.AppConfig
 }
 
@@ -153,20 +158,20 @@ func setupCurrencyRegistry(ctx context.Context) (*currency.CurrencyRegistry, err
 }
 
 // setupServices creates all required services for testing
-func setupServices(db *gorm.DB, cfg *config.AppConfig) (*service.AuthService, *service.AccountService, *service.UserService, *service.CurrencyService, error) {
+func setupServices(db *gorm.DB, cfg *config.AppConfig) (*auth.AuthService, *account.AccountService, *userservice.UserService, *currencyservice.CurrencyService, error) {
 	uow := infrarepo.NewUoW(db)
 	logger := slog.Default()
 
 	// Create auth service
-	authStrategy := service.NewJWTAuthStrategy(uow, cfg.Jwt, logger)
-	authService := service.NewAuthService(uow, authStrategy, logger)
+	authStrategy := auth.NewJWTAuthStrategy(uow, cfg.Jwt, logger)
+	authService := auth.NewAuthService(uow, authStrategy, logger)
 
 	// Create currency converter
 	currencyConverter := provider.NewStubCurrencyConverter()
 
 	// Create services
-	accountSvc := service.NewAccountService(uow, currencyConverter, logger)
-	userSvc := service.NewUserService(uow, logger)
+	accountSvc := account.NewAccountService(uow, currencyConverter, logger)
+	userSvc := userservice.NewUserService(uow, logger)
 
 	// Initialize currency service
 	ctx := context.Background()
@@ -175,13 +180,13 @@ func setupServices(db *gorm.DB, cfg *config.AppConfig) (*service.AuthService, *s
 		return nil, nil, nil, nil, err
 	}
 
-	currencySvc := service.NewCurrencyService(currencyRegistry, logger)
+	currencySvc := currencyservice.NewCurrencyService(currencyRegistry, logger)
 
 	return authService, accountSvc, userSvc, currencySvc, nil
 }
 
 // SetupTestAppWithTestcontainers creates a test app using real Postgres via Testcontainers
-func SetupTestAppWithTestcontainers(t *testing.T) (*fiber.App, *gorm.DB, *domain.User, *service.AuthService, *config.AppConfig) {
+func SetupTestAppWithTestcontainers(t *testing.T) (*fiber.App, *gorm.DB, *domain.User, *auth.AuthService, *config.AppConfig) {
 	t.Helper()
 	ctx := context.Background()
 
@@ -291,18 +296,18 @@ func (s *E2ETestSuite) TearDownSuite() {
 	}
 }
 
-// loginUser makes an actual HTTP request to login and returns the JWT token
-func (s *E2ETestSuite) loginUser(testUser *domain.User) string {
+// LoginUser makes an actual HTTP request to login and returns the JWT token
+func LoginUser(app *fiber.App, testUser *domain.User) string {
 	// Make login request with the actual user credentials
 	loginBody := fmt.Sprintf(`{"identity":"%s","password":"password123"}`, testUser.Email)
-	resp := s.makeRequest("POST", "/auth/login", loginBody, "")
-
-	s.Require().Equal(200, resp.StatusCode)
+	resp := MakeRequestWithApp(app, "POST", "/auth/login", loginBody, "")
 
 	// Parse response to get token and log response
-	var response Response
+	var response apiutil.Response
 	err := json.NewDecoder(resp.Body).Decode(&response)
-	s.Require().NoError(err)
+	if err != nil {
+		panic(err) // For standalone tests, panic on error
+	}
 
 	// Handle the data field which can be map[string]interface{} or map[string]string
 	var token string
@@ -314,25 +319,15 @@ func (s *E2ETestSuite) loginUser(testUser *domain.User) string {
 		token = dataMap["token"]
 	}
 
-	s.Require().NotEmpty(token)
+	if token == "" {
+		panic("No token found in response")
+	}
 	return token
 }
 
-// makeRequest is a helper for making HTTP requests in tests
-func (s *E2ETestSuite) makeRequest(method, path, body, token string) *http.Response {
-	var req *http.Request
-	if body != "" {
-		req = httptest.NewRequest(method, path, bytes.NewBufferString(body))
-		req.Header.Set("Content-Type", "application/json")
-	} else {
-		req = httptest.NewRequest(method, path, nil)
-	}
-	if token != "" {
-		req.Header.Set("Authorization", "Bearer "+token)
-	}
-	resp, err := s.app.Test(req, 1000000)
-	s.Require().NoError(err)
-	return resp
+// MakeRequest is a helper for making HTTP requests in tests
+func MakeRequest(app *fiber.App, method, path, body, token string) *http.Response {
+	return MakeRequestWithApp(app, method, path, body, token)
 }
 
 // MakeRequestWithApp is a helper for making HTTP requests with a standalone app (for non-suite tests)
@@ -354,23 +349,28 @@ func MakeRequestWithApp(app *fiber.App, method, path, body, token string) *http.
 	return resp
 }
 
-// postToCreateUser creates a unique test user via the POST /user/ endpoint
-func (s *E2ETestSuite) postToCreateUser() *domain.User {
+// CreateTestUser creates a unique test user via the POST /user/ endpoint
+func CreateTestUser(app *fiber.App) *domain.User {
 	// Create a unique test user for each test
 	testUser, err := generateRandomTestUser()
-	s.Require().NoError(err)
+	if err != nil {
+		panic(err) // For standalone tests, panic on error
+	}
 
 	// Create user via HTTP POST request
 	createUserBody := fmt.Sprintf(`{"username":"%s","email":"%s","password":"password123"}`, testUser.Username, testUser.Email)
-	resp := s.makeRequest("POST", "/user", createUserBody, "")
+	resp := MakeRequestWithApp(app, "POST", "/user", createUserBody, "")
 
-	s.Require().Equal(201, resp.StatusCode, "Expected 201 Created for user creation")
+	if resp.StatusCode != 201 {
+		panic(fmt.Sprintf("Expected 201 Created for user creation, got %d", resp.StatusCode))
+	}
 
 	// Parse response to get the created user
-	var response Response
+	var response apiutil.Response
 	err = json.NewDecoder(resp.Body).Decode(&response)
-	s.Require().NoError(err)
-	s.Require().NotEmpty(response.Data)
+	if err != nil {
+		panic(err)
+	}
 
 	// Extract user data from response
 	var createdUser *domain.User
@@ -378,10 +378,14 @@ func (s *E2ETestSuite) postToCreateUser() *domain.User {
 		// Convert the response data back to a domain.User
 		// This assumes the response contains the user data
 		userIDStr, ok := userData["id"].(string)
-		s.Require().True(ok, "User ID should be present in response")
+		if !ok {
+			panic("User ID should be present in response")
+		}
 
 		userID, err := uuid.Parse(userIDStr)
-		s.Require().NoError(err)
+		if err != nil {
+			panic(err)
+		}
 
 		createdUser = &domain.User{
 			ID:       userID,
@@ -394,7 +398,12 @@ func (s *E2ETestSuite) postToCreateUser() *domain.User {
 		createdUser = testUser
 	}
 
-	// Update the test user reference to the newly created one
-	s.testUser = createdUser
 	return createdUser
+}
+
+// AssertEqual is a helper for assertions in standalone tests
+func AssertEqual(t *testing.T, expected, actual interface{}) {
+	if expected != actual {
+		t.Errorf("Expected %v, got %v", expected, actual)
+	}
 }
