@@ -441,6 +441,28 @@ func (s *AccountService) GetTransactions(
 	logger := s.logger.With("userID", userID, "accountID", accountID)
 	logger.Info("GetTransactions started")
 	err = s.uow.Do(context.Background(), func(uow repository.UnitOfWork) error {
+		// First, verify the account exists and belongs to the user
+		repoAny, err := uow.GetRepository(reflect.TypeOf((*repository.AccountRepository)(nil)).Elem())
+		if err != nil {
+			logger.Error("GetTransactions failed: AccountRepository error", "error", err)
+			return err
+		}
+		repo := repoAny.(repository.AccountRepository)
+		a, err := repo.Get(accountID)
+		if err != nil {
+			logger.Error("GetTransactions failed: account not found", "error", err)
+			return err
+		}
+		if a == nil {
+			logger.Error("GetTransactions failed: account not found")
+			return account.ErrAccountNotFound
+		}
+		if a.UserID != userID {
+			logger.Error("GetTransactions failed: user unauthorized", "accountUserID", a.UserID)
+			return user.ErrUserUnauthorized
+		}
+
+		// Now get the transactions
 		txRepoAny, err := uow.GetRepository(reflect.TypeOf((*repository.TransactionRepository)(nil)).Elem())
 		if err != nil {
 			logger.Error("GetTransactions failed: TransactionRepository error", "error", err)

@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"errors"
 	"time"
 
 	"github.com/amirasaad/fintech/pkg/currency"
@@ -24,6 +25,9 @@ func (r *accountRepository) Get(id uuid.UUID) (*account.Account, error) {
 	var a account.Account
 	result := r.db.First(&a, id)
 	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil, account.ErrAccountNotFound
+		}
 		return nil, result.Error
 	}
 	return account.NewAccountFromData(a.ID, a.UserID, a.Balance, a.Currency, a.CreatedAt, a.UpdatedAt), nil
@@ -107,6 +111,9 @@ func (r *transactionRepository) Get(
 	var t Transaction
 	result := r.db.First(&t, id)
 	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil, account.ErrAccountNotFound
+		}
 		return nil, result.Error
 	}
 	return account.NewTransactionFromData(t.ID, t.UserID, t.AccountID, t.Amount, t.Balance, currency.Code(t.Currency), t.CreatedAt, t.OriginalAmount, t.OriginalCurrency, t.ConversionRate), nil
@@ -165,6 +172,9 @@ func (u *userRepository) Get(id uuid.UUID) (*user.User, error) {
 	var usr user.User
 	result := u.db.First(&usr, id)
 	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil, user.ErrUserNotFound
+		}
 		return nil, result.Error
 	}
 	return &usr, nil
@@ -175,6 +185,9 @@ func (u *userRepository) GetByEmail(email string) (*user.User, error) {
 	var usr user.User
 	result := u.db.Where("email = ?", email).First(&usr)
 	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil, user.ErrUserNotFound
+		}
 		return nil, result.Error
 	}
 	return &usr, nil
@@ -185,6 +198,9 @@ func (u *userRepository) GetByUsername(username string) (*user.User, error) {
 	var usr user.User
 	result := u.db.Where("username = ?", username).First(&usr)
 	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil, user.ErrUserNotFound
+		}
 		return nil, result.Error
 	}
 	return &usr, nil
