@@ -5,6 +5,9 @@
 package fixtures
 
 import (
+	"context"
+	"reflect"
+
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/google/uuid"
@@ -192,8 +195,8 @@ func (_c *MockAccountRepository_Get_Call) Run(run func(id uuid.UUID)) *MockAccou
 	return _c
 }
 
-func (_c *MockAccountRepository_Get_Call) Return(account *domain.Account, err error) *MockAccountRepository_Get_Call {
-	_c.Call.Return(account, err)
+func (_c *MockAccountRepository_Get_Call) Return(v *domain.Account, err error) *MockAccountRepository_Get_Call {
+	_c.Call.Return(v, err)
 	return _c
 }
 
@@ -383,8 +386,8 @@ func (_c *MockTransactionRepository_Get_Call) Run(run func(id uuid.UUID)) *MockT
 	return _c
 }
 
-func (_c *MockTransactionRepository_Get_Call) Return(transaction *domain.Transaction, err error) *MockTransactionRepository_Get_Call {
-	_c.Call.Return(transaction, err)
+func (_c *MockTransactionRepository_Get_Call) Return(v *domain.Transaction, err error) *MockTransactionRepository_Get_Call {
+	_c.Call.Return(v, err)
 	return _c
 }
 
@@ -451,8 +454,8 @@ func (_c *MockTransactionRepository_List_Call) Run(run func(userID uuid.UUID, ac
 	return _c
 }
 
-func (_c *MockTransactionRepository_List_Call) Return(transactions []*domain.Transaction, err error) *MockTransactionRepository_List_Call {
-	_c.Call.Return(transactions, err)
+func (_c *MockTransactionRepository_List_Call) Return(vs []*domain.Transaction, err error) *MockTransactionRepository_List_Call {
+	_c.Call.Return(vs, err)
 	return _c
 }
 
@@ -642,8 +645,8 @@ func (_c *MockUserRepository_Get_Call) Run(run func(id uuid.UUID)) *MockUserRepo
 	return _c
 }
 
-func (_c *MockUserRepository_Get_Call) Return(user *domain.User, err error) *MockUserRepository_Get_Call {
-	_c.Call.Return(user, err)
+func (_c *MockUserRepository_Get_Call) Return(v *domain.User, err error) *MockUserRepository_Get_Call {
+	_c.Call.Return(v, err)
 	return _c
 }
 
@@ -704,8 +707,8 @@ func (_c *MockUserRepository_GetByEmail_Call) Run(run func(email string)) *MockU
 	return _c
 }
 
-func (_c *MockUserRepository_GetByEmail_Call) Return(user *domain.User, err error) *MockUserRepository_GetByEmail_Call {
-	_c.Call.Return(user, err)
+func (_c *MockUserRepository_GetByEmail_Call) Return(v *domain.User, err error) *MockUserRepository_GetByEmail_Call {
+	_c.Call.Return(v, err)
 	return _c
 }
 
@@ -766,8 +769,8 @@ func (_c *MockUserRepository_GetByUsername_Call) Run(run func(username string)) 
 	return _c
 }
 
-func (_c *MockUserRepository_GetByUsername_Call) Return(user *domain.User, err error) *MockUserRepository_GetByUsername_Call {
-	_c.Call.Return(user, err)
+func (_c *MockUserRepository_GetByUsername_Call) Return(v *domain.User, err error) *MockUserRepository_GetByUsername_Call {
+	_c.Call.Return(v, err)
 	return _c
 }
 
@@ -911,299 +914,121 @@ func (_m *MockUnitOfWork) EXPECT() *MockUnitOfWork_Expecter {
 	return &MockUnitOfWork_Expecter{mock: &_m.Mock}
 }
 
-// AccountRepository provides a mock function for the type MockUnitOfWork
-func (_mock *MockUnitOfWork) AccountRepository() (repository.AccountRepository, error) {
-	ret := _mock.Called()
+// Do provides a mock function for the type MockUnitOfWork
+func (_mock *MockUnitOfWork) Do(ctx context.Context, fn func(uow repository.UnitOfWork) error) error {
+	ret := _mock.Called(ctx, fn)
 
 	if len(ret) == 0 {
-		panic("no return value specified for AccountRepository")
-	}
-
-	var r0 repository.AccountRepository
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func() (repository.AccountRepository, error)); ok {
-		return returnFunc()
-	}
-	if returnFunc, ok := ret.Get(0).(func() repository.AccountRepository); ok {
-		r0 = returnFunc()
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(repository.AccountRepository)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func() error); ok {
-		r1 = returnFunc()
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockUnitOfWork_AccountRepository_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AccountRepository'
-type MockUnitOfWork_AccountRepository_Call struct {
-	*mock.Call
-}
-
-// AccountRepository is a helper method to define mock.On call
-func (_e *MockUnitOfWork_Expecter) AccountRepository() *MockUnitOfWork_AccountRepository_Call {
-	return &MockUnitOfWork_AccountRepository_Call{Call: _e.mock.On("AccountRepository")}
-}
-
-func (_c *MockUnitOfWork_AccountRepository_Call) Run(run func()) *MockUnitOfWork_AccountRepository_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run()
-	})
-	return _c
-}
-
-func (_c *MockUnitOfWork_AccountRepository_Call) Return(accountRepository repository.AccountRepository, err error) *MockUnitOfWork_AccountRepository_Call {
-	_c.Call.Return(accountRepository, err)
-	return _c
-}
-
-func (_c *MockUnitOfWork_AccountRepository_Call) RunAndReturn(run func() (repository.AccountRepository, error)) *MockUnitOfWork_AccountRepository_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// Begin provides a mock function for the type MockUnitOfWork
-func (_mock *MockUnitOfWork) Begin() error {
-	ret := _mock.Called()
-
-	if len(ret) == 0 {
-		panic("no return value specified for Begin")
+		panic("no return value specified for Do")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func() error); ok {
-		r0 = returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context, func(uow repository.UnitOfWork) error) error); ok {
+		r0 = returnFunc(ctx, fn)
 	} else {
 		r0 = ret.Error(0)
 	}
 	return r0
 }
 
-// MockUnitOfWork_Begin_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Begin'
-type MockUnitOfWork_Begin_Call struct {
+// MockUnitOfWork_Do_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Do'
+type MockUnitOfWork_Do_Call struct {
 	*mock.Call
 }
 
-// Begin is a helper method to define mock.On call
-func (_e *MockUnitOfWork_Expecter) Begin() *MockUnitOfWork_Begin_Call {
-	return &MockUnitOfWork_Begin_Call{Call: _e.mock.On("Begin")}
+// Do is a helper method to define mock.On call
+//   - ctx context.Context
+//   - fn func(uow repository.UnitOfWork) error
+func (_e *MockUnitOfWork_Expecter) Do(ctx interface{}, fn interface{}) *MockUnitOfWork_Do_Call {
+	return &MockUnitOfWork_Do_Call{Call: _e.mock.On("Do", ctx, fn)}
 }
 
-func (_c *MockUnitOfWork_Begin_Call) Run(run func()) *MockUnitOfWork_Begin_Call {
+func (_c *MockUnitOfWork_Do_Call) Run(run func(ctx context.Context, fn func(uow repository.UnitOfWork) error)) *MockUnitOfWork_Do_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 func(uow repository.UnitOfWork) error
+		if args[1] != nil {
+			arg1 = args[1].(func(uow repository.UnitOfWork) error)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
 
-func (_c *MockUnitOfWork_Begin_Call) Return(err error) *MockUnitOfWork_Begin_Call {
+func (_c *MockUnitOfWork_Do_Call) Return(err error) *MockUnitOfWork_Do_Call {
 	_c.Call.Return(err)
 	return _c
 }
 
-func (_c *MockUnitOfWork_Begin_Call) RunAndReturn(run func() error) *MockUnitOfWork_Begin_Call {
+func (_c *MockUnitOfWork_Do_Call) RunAndReturn(run func(ctx context.Context, fn func(uow repository.UnitOfWork) error) error) *MockUnitOfWork_Do_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
-// Commit provides a mock function for the type MockUnitOfWork
-func (_mock *MockUnitOfWork) Commit() error {
-	ret := _mock.Called()
+// GetRepository provides a mock function for the type MockUnitOfWork
+func (_mock *MockUnitOfWork) GetRepository(repoType reflect.Type) (any, error) {
+	ret := _mock.Called(repoType)
 
 	if len(ret) == 0 {
-		panic("no return value specified for Commit")
+		panic("no return value specified for GetRepository")
 	}
 
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func() error); ok {
-		r0 = returnFunc()
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// MockUnitOfWork_Commit_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Commit'
-type MockUnitOfWork_Commit_Call struct {
-	*mock.Call
-}
-
-// Commit is a helper method to define mock.On call
-func (_e *MockUnitOfWork_Expecter) Commit() *MockUnitOfWork_Commit_Call {
-	return &MockUnitOfWork_Commit_Call{Call: _e.mock.On("Commit")}
-}
-
-func (_c *MockUnitOfWork_Commit_Call) Run(run func()) *MockUnitOfWork_Commit_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run()
-	})
-	return _c
-}
-
-func (_c *MockUnitOfWork_Commit_Call) Return(err error) *MockUnitOfWork_Commit_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockUnitOfWork_Commit_Call) RunAndReturn(run func() error) *MockUnitOfWork_Commit_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// Rollback provides a mock function for the type MockUnitOfWork
-func (_mock *MockUnitOfWork) Rollback() error {
-	ret := _mock.Called()
-
-	if len(ret) == 0 {
-		panic("no return value specified for Rollback")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func() error); ok {
-		r0 = returnFunc()
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// MockUnitOfWork_Rollback_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Rollback'
-type MockUnitOfWork_Rollback_Call struct {
-	*mock.Call
-}
-
-// Rollback is a helper method to define mock.On call
-func (_e *MockUnitOfWork_Expecter) Rollback() *MockUnitOfWork_Rollback_Call {
-	return &MockUnitOfWork_Rollback_Call{Call: _e.mock.On("Rollback")}
-}
-
-func (_c *MockUnitOfWork_Rollback_Call) Run(run func()) *MockUnitOfWork_Rollback_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run()
-	})
-	return _c
-}
-
-func (_c *MockUnitOfWork_Rollback_Call) Return(err error) *MockUnitOfWork_Rollback_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockUnitOfWork_Rollback_Call) RunAndReturn(run func() error) *MockUnitOfWork_Rollback_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// TransactionRepository provides a mock function for the type MockUnitOfWork
-func (_mock *MockUnitOfWork) TransactionRepository() (repository.TransactionRepository, error) {
-	ret := _mock.Called()
-
-	if len(ret) == 0 {
-		panic("no return value specified for TransactionRepository")
-	}
-
-	var r0 repository.TransactionRepository
+	var r0 any
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func() (repository.TransactionRepository, error)); ok {
-		return returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(reflect.Type) (any, error)); ok {
+		return returnFunc(repoType)
 	}
-	if returnFunc, ok := ret.Get(0).(func() repository.TransactionRepository); ok {
-		r0 = returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(reflect.Type) any); ok {
+		r0 = returnFunc(repoType)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(repository.TransactionRepository)
+			r0 = ret.Get(0).(any)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func() error); ok {
-		r1 = returnFunc()
+	if returnFunc, ok := ret.Get(1).(func(reflect.Type) error); ok {
+		r1 = returnFunc(repoType)
 	} else {
 		r1 = ret.Error(1)
 	}
 	return r0, r1
 }
 
-// MockUnitOfWork_TransactionRepository_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'TransactionRepository'
-type MockUnitOfWork_TransactionRepository_Call struct {
+// MockUnitOfWork_GetRepository_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetRepository'
+type MockUnitOfWork_GetRepository_Call struct {
 	*mock.Call
 }
 
-// TransactionRepository is a helper method to define mock.On call
-func (_e *MockUnitOfWork_Expecter) TransactionRepository() *MockUnitOfWork_TransactionRepository_Call {
-	return &MockUnitOfWork_TransactionRepository_Call{Call: _e.mock.On("TransactionRepository")}
+// GetRepository is a helper method to define mock.On call
+//   - repoType reflect.Type
+func (_e *MockUnitOfWork_Expecter) GetRepository(repoType interface{}) *MockUnitOfWork_GetRepository_Call {
+	return &MockUnitOfWork_GetRepository_Call{Call: _e.mock.On("GetRepository", repoType)}
 }
 
-func (_c *MockUnitOfWork_TransactionRepository_Call) Run(run func()) *MockUnitOfWork_TransactionRepository_Call {
+func (_c *MockUnitOfWork_GetRepository_Call) Run(run func(repoType reflect.Type)) *MockUnitOfWork_GetRepository_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
-	})
-	return _c
-}
-
-func (_c *MockUnitOfWork_TransactionRepository_Call) Return(transactionRepository repository.TransactionRepository, err error) *MockUnitOfWork_TransactionRepository_Call {
-	_c.Call.Return(transactionRepository, err)
-	return _c
-}
-
-func (_c *MockUnitOfWork_TransactionRepository_Call) RunAndReturn(run func() (repository.TransactionRepository, error)) *MockUnitOfWork_TransactionRepository_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// UserRepository provides a mock function for the type MockUnitOfWork
-func (_mock *MockUnitOfWork) UserRepository() (repository.UserRepository, error) {
-	ret := _mock.Called()
-
-	if len(ret) == 0 {
-		panic("no return value specified for UserRepository")
-	}
-
-	var r0 repository.UserRepository
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func() (repository.UserRepository, error)); ok {
-		return returnFunc()
-	}
-	if returnFunc, ok := ret.Get(0).(func() repository.UserRepository); ok {
-		r0 = returnFunc()
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(repository.UserRepository)
+		var arg0 reflect.Type
+		if args[0] != nil {
+			arg0 = args[0].(reflect.Type)
 		}
-	}
-	if returnFunc, ok := ret.Get(1).(func() error); ok {
-		r1 = returnFunc()
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockUnitOfWork_UserRepository_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UserRepository'
-type MockUnitOfWork_UserRepository_Call struct {
-	*mock.Call
-}
-
-// UserRepository is a helper method to define mock.On call
-func (_e *MockUnitOfWork_Expecter) UserRepository() *MockUnitOfWork_UserRepository_Call {
-	return &MockUnitOfWork_UserRepository_Call{Call: _e.mock.On("UserRepository")}
-}
-
-func (_c *MockUnitOfWork_UserRepository_Call) Run(run func()) *MockUnitOfWork_UserRepository_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		run(
+			arg0,
+		)
 	})
 	return _c
 }
 
-func (_c *MockUnitOfWork_UserRepository_Call) Return(userRepository repository.UserRepository, err error) *MockUnitOfWork_UserRepository_Call {
-	_c.Call.Return(userRepository, err)
+func (_c *MockUnitOfWork_GetRepository_Call) Return(v any, err error) *MockUnitOfWork_GetRepository_Call {
+	_c.Call.Return(v, err)
 	return _c
 }
 
-func (_c *MockUnitOfWork_UserRepository_Call) RunAndReturn(run func() (repository.UserRepository, error)) *MockUnitOfWork_UserRepository_Call {
+func (_c *MockUnitOfWork_GetRepository_Call) RunAndReturn(run func(repoType reflect.Type) (any, error)) *MockUnitOfWork_GetRepository_Call {
 	_c.Call.Return(run)
 	return _c
 }

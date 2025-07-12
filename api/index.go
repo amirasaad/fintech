@@ -12,8 +12,10 @@ import (
 
 	infra_repository "github.com/amirasaad/fintech/infra/repository"
 
-	"github.com/amirasaad/fintech/pkg/repository"
-	"github.com/amirasaad/fintech/pkg/service"
+	"github.com/amirasaad/fintech/pkg/service/account"
+	"github.com/amirasaad/fintech/pkg/service/auth"
+	currencyservice "github.com/amirasaad/fintech/pkg/service/currency"
+	"github.com/amirasaad/fintech/pkg/service/user"
 	"github.com/amirasaad/fintech/webapi"
 	"github.com/gofiber/fiber/v2/middleware/adaptor"
 )
@@ -48,7 +50,7 @@ func handler() http.HandlerFunc {
 		log.Fatal(err)
 	}
 	logger.Info("Currency registry initialized successfully")
-	currencySvc := service.NewCurrencyService(currencyRegistry, logger)
+	currencySvc := currencyservice.NewCurrencyService(currencyRegistry, logger)
 
 	// Initialize DB connection ONCE
 	db, err := infra.NewDBConnection(cfg.DB, cfg.Env)
@@ -57,17 +59,15 @@ func handler() http.HandlerFunc {
 		log.Fatal(err)
 	}
 
-	// Create UOW factory using the shared db
-	uowFactory := func() (repository.UnitOfWork, error) {
-		return infra_repository.NewGormUoW(db), nil
-	}
+	// Create UOW using the shared db
+	uow := infra_repository.NewUoW(db)
 
 	app := webapi.NewApp(
-		service.NewAccountService(uowFactory, currencyConverter, logger),
-		service.NewUserService(uowFactory, logger),
-		service.NewAuthService(uowFactory,
-			service.NewJWTAuthStrategy(
-				uowFactory, cfg.Jwt, logger,
+		account.NewAccountService(uow, currencyConverter, logger),
+		user.NewUserService(uow, logger),
+		auth.NewAuthService(uow,
+			auth.NewJWTAuthStrategy(
+				uow, cfg.Jwt, logger,
 			), logger),
 		currencySvc,
 		cfg,

@@ -5,7 +5,15 @@ import (
 	"time"
 
 	"github.com/amirasaad/fintech/pkg/config"
-	"github.com/amirasaad/fintech/pkg/service"
+	accountsvc "github.com/amirasaad/fintech/pkg/service/account"
+	authsvc "github.com/amirasaad/fintech/pkg/service/auth"
+	currencysvc "github.com/amirasaad/fintech/pkg/service/currency"
+	usersvc "github.com/amirasaad/fintech/pkg/service/user"
+	"github.com/amirasaad/fintech/webapi/account"
+	"github.com/amirasaad/fintech/webapi/auth"
+	"github.com/amirasaad/fintech/webapi/common"
+	"github.com/amirasaad/fintech/webapi/currency"
+	"github.com/amirasaad/fintech/webapi/user"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/limiter"
 	"github.com/gofiber/fiber/v2/middleware/recover"
@@ -16,15 +24,27 @@ import (
 )
 
 func NewApp(
-	accountSvc *service.AccountService,
-	userSvc *service.UserService,
-	authSvc *service.AuthService,
-	currencySvc *service.CurrencyService,
+	accountSvc *accountsvc.AccountService,
+	userSvc *usersvc.UserService,
+	authSvc *authsvc.AuthService,
+	currencySvc *currencysvc.CurrencyService,
 	cfg *config.AppConfig,
+) *fiber.App {
+	return newAppWithRateLimit(accountSvc, userSvc, authSvc, currencySvc, cfg, 5, 1*time.Second)
+}
+
+func newAppWithRateLimit(
+	accountSvc *accountsvc.AccountService,
+	userSvc *usersvc.UserService,
+	authSvc *authsvc.AuthService,
+	currencySvc *currencysvc.CurrencyService,
+	cfg *config.AppConfig,
+	maxRequests int,
+	expiration time.Duration,
 ) *fiber.App {
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
-			return ProblemDetailsJSON(c, "Internal Server Error", err)
+			return common.ProblemDetailsJSON(c, "Internal Server Error", err)
 		},
 	})
 	app.Get("/swagger/*", swagger.New(swagger.Config{
@@ -34,13 +54,13 @@ func NewApp(
 	}))
 
 	app.Use(limiter.New(limiter.Config{
-		Max:        5,
-		Expiration: 1 * time.Second,
+		Max:        maxRequests,
+		Expiration: expiration,
 		KeyGenerator: func(c *fiber.Ctx) string {
 			return c.IP()
 		},
 		LimitReached: func(c *fiber.Ctx) error {
-			return ProblemDetailsJSON(c, "Too Many Requests", errors.New("rate limit exceeded"), fiber.StatusTooManyRequests)
+			return common.ProblemDetailsJSON(c, "Too Many Requests", errors.New("rate limit exceeded"), fiber.StatusTooManyRequests)
 		},
 	}))
 	app.Use(recover.New())
@@ -49,10 +69,10 @@ func NewApp(
 		return c.SendString("App is working! 🚀")
 	})
 
-	AccountRoutes(app, accountSvc, authSvc, cfg)
-	UserRoutes(app, userSvc, authSvc, cfg)
-	AuthRoutes(app, authSvc)
-	CurrencyRoutes(app, currencySvc, authSvc, cfg)
+	account.AccountRoutes(app, accountSvc, authSvc, cfg)
+	user.UserRoutes(app, userSvc, authSvc, cfg)
+	auth.AuthRoutes(app, authSvc)
+	currency.CurrencyRoutes(app, currencySvc, authSvc, cfg)
 
 	return app
 }

@@ -4,8 +4,8 @@ import (
 	"errors"
 	"time"
 
+	"github.com/amirasaad/fintech/pkg/utils"
 	"github.com/google/uuid"
-	"golang.org/x/crypto/bcrypt"
 )
 
 var (
@@ -26,11 +26,6 @@ type User struct {
 	UpdatedAt time.Time `json:"updated"`
 }
 
-func hashPassword(password string) (string, error) {
-	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
-	return string(bytes), err
-}
-
 // NewUser creates a new User with a hashed password and current timestamps.
 func NewUser(username, email, password string) (*User, error) {
 	if username == "" {
@@ -39,7 +34,7 @@ func NewUser(username, email, password string) (*User, error) {
 	if email == "" {
 		return nil, errors.New("email cannot be empty")
 	}
-	hashedPassword, err := hashPassword(password)
+	hashedPassword, err := utils.HashPassword(password)
 	if err != nil {
 		return nil, err
 	}

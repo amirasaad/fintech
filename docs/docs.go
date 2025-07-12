@@ -45,31 +45,31 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/webapi.Response"
+                            "$ref": "#/definitions/common.Response"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     },
                     "429": {
                         "description": "Too Many Requests",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     }
                 }
@@ -106,31 +106,31 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/webapi.Response"
+                            "$ref": "#/definitions/common.Response"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     },
                     "429": {
                         "description": "Too Many Requests",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     }
                 }
@@ -168,7 +168,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/webapi.DepositRequest"
+                            "$ref": "#/definitions/account.DepositRequest"
                         }
                     }
                 ],
@@ -176,31 +176,31 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/webapi.Response"
+                            "$ref": "#/definitions/common.Response"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     },
                     "429": {
                         "description": "Too Many Requests",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     }
                 }
@@ -237,31 +237,31 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/webapi.Response"
+                            "$ref": "#/definitions/common.Response"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     },
                     "429": {
                         "description": "Too Many Requests",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     }
                 }
@@ -299,7 +299,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/webapi.WithdrawRequest"
+                            "$ref": "#/definitions/account.WithdrawRequest"
                         }
                     }
                 ],
@@ -307,63 +307,31 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/webapi.Response"
+                            "$ref": "#/definitions/common.Response"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     },
                     "429": {
                         "description": "Too Many Requests",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/currencies": {
-            "get": {
-                "description": "Get all registered currencies with full metadata",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "currencies"
-                ],
-                "summary": "List all currencies",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/currency.CurrencyMeta"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     }
                 }
@@ -389,7 +357,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/webapi.RegisterCurrencyRequest"
+                            "$ref": "#/definitions/currency.RegisterCurrencyRequest"
                         }
                     }
                 ],
@@ -403,25 +371,25 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     },
                     "409": {
                         "description": "Conflict",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     }
                 }
@@ -453,31 +421,31 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/webapi.Response"
+                            "$ref": "#/definitions/common.Response"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     }
                 }
@@ -509,31 +477,31 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/webapi.Response"
+                            "$ref": "#/definitions/common.Response"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     }
                 }
@@ -565,31 +533,31 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/webapi.Response"
+                            "$ref": "#/definitions/common.Response"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     }
                 }
@@ -618,7 +586,7 @@ const docTemplate = `{
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     }
                 }
@@ -659,13 +627,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     }
                 }
@@ -706,13 +674,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     }
                 }
@@ -735,13 +703,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/webapi.Response"
+                            "$ref": "#/definitions/common.Response"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     }
                 }
@@ -773,7 +741,7 @@ const docTemplate = `{
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     }
                 }
@@ -811,19 +779,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     }
                 }
@@ -855,19 +823,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/webapi.Response"
+                            "$ref": "#/definitions/common.Response"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     }
                 }
             }
         },
-        "/login": {
+        "/auth/login": {
             "post": {
                 "description": "Authenticate user with identity (username or email) and password",
                 "consumes": [
@@ -887,7 +855,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/webapi.LoginInput"
+                            "$ref": "#/definitions/auth.LoginInput"
                         }
                     }
                 ],
@@ -895,31 +863,83 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/webapi.Response"
+                            "$ref": "#/definitions/common.Response"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     },
                     "429": {
                         "description": "Too Many Requests",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
+                        }
+                    }
+                }
+            }
+        },
+        "/currency": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Get a list of all available currencies in the system",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "currencies"
+                ],
+                "summary": "List all currencies",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/common.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/common.ProblemDetails"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/common.ProblemDetails"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/common.ProblemDetails"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     }
                 }
@@ -945,7 +965,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/webapi.NewUser"
+                            "$ref": "#/definitions/user.NewUser"
                         }
                     }
                 ],
@@ -953,31 +973,31 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/webapi.Response"
+                            "$ref": "#/definitions/common.Response"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     },
                     "429": {
                         "description": "Too Many Requests",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     }
                 }
@@ -990,7 +1010,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "Get a user by their unique identifier",
+                "description": "Retrieve a user by their ID",
                 "consumes": [
                     "application/json"
                 ],
@@ -1014,19 +1034,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/webapi.Response"
+                            "$ref": "#/definitions/common.Response"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     }
                 }
@@ -1062,7 +1088,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/webapi.UpdateUserInput"
+                            "$ref": "#/definitions/user.UpdateUserInput"
                         }
                     }
                 ],
@@ -1070,31 +1096,31 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/webapi.Response"
+                            "$ref": "#/definitions/common.Response"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     },
                     "429": {
                         "description": "Too Many Requests",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     }
                 }
@@ -1130,7 +1156,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/webapi.PasswordInput"
+                            "$ref": "#/definitions/user.PasswordInput"
                         }
                     }
                 ],
@@ -1138,31 +1164,31 @@ const docTemplate = `{
                     "204": {
                         "description": "No Content",
                         "schema": {
-                            "$ref": "#/definitions/webapi.Response"
+                            "$ref": "#/definitions/common.Response"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     },
                     "429": {
                         "description": "Too Many Requests",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/webapi.ProblemDetails"
+                            "$ref": "#/definitions/common.ProblemDetails"
                         }
                     }
                 }
@@ -1170,6 +1196,93 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "account.DepositRequest": {
+            "type": "object",
+            "required": [
+                "amount"
+            ],
+            "properties": {
+                "amount": {
+                    "type": "number"
+                },
+                "currency": {
+                    "type": "string"
+                }
+            }
+        },
+        "account.WithdrawRequest": {
+            "type": "object",
+            "required": [
+                "amount"
+            ],
+            "properties": {
+                "amount": {
+                    "type": "number"
+                },
+                "currency": {
+                    "type": "string"
+                }
+            }
+        },
+        "auth.LoginInput": {
+            "type": "object",
+            "required": [
+                "identity",
+                "password"
+            ],
+            "properties": {
+                "identity": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                }
+            }
+        },
+        "common.ProblemDetails": {
+            "type": "object",
+            "properties": {
+                "detail": {
+                    "description": "Human-readable explanation",
+                    "type": "string"
+                },
+                "errors": {
+                    "description": "Optional: additional error details"
+                },
+                "instance": {
+                    "description": "URI reference that identifies the specific occurrence",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "HTTP status code",
+                    "type": "integer"
+                },
+                "title": {
+                    "description": "Short, human-readable summary",
+                    "type": "string"
+                },
+                "type": {
+                    "description": "A URI reference that identifies the problem type",
+                    "type": "string"
+                }
+            }
+        },
+        "common.Response": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "description": "Response data"
+                },
+                "message": {
+                    "description": "Human-readable explanation",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "HTTP status code",
+                    "type": "integer"
+                }
+            }
+        },
         "currency.CurrencyMeta": {
             "type": "object",
             "properties": {
@@ -1208,99 +1321,7 @@ const docTemplate = `{
                 }
             }
         },
-        "webapi.DepositRequest": {
-            "type": "object",
-            "required": [
-                "amount"
-            ],
-            "properties": {
-                "amount": {
-                    "type": "number"
-                },
-                "currency": {
-                    "type": "string"
-                }
-            }
-        },
-        "webapi.LoginInput": {
-            "type": "object",
-            "required": [
-                "identity",
-                "password"
-            ],
-            "properties": {
-                "identity": {
-                    "type": "string"
-                },
-                "password": {
-                    "type": "string"
-                }
-            }
-        },
-        "webapi.NewUser": {
-            "type": "object",
-            "required": [
-                "email",
-                "password",
-                "username"
-            ],
-            "properties": {
-                "email": {
-                    "type": "string",
-                    "maxLength": 50
-                },
-                "password": {
-                    "type": "string",
-                    "maxLength": 72,
-                    "minLength": 6
-                },
-                "username": {
-                    "type": "string",
-                    "maxLength": 50,
-                    "minLength": 3
-                }
-            }
-        },
-        "webapi.PasswordInput": {
-            "type": "object",
-            "required": [
-                "password"
-            ],
-            "properties": {
-                "password": {
-                    "type": "string"
-                }
-            }
-        },
-        "webapi.ProblemDetails": {
-            "type": "object",
-            "properties": {
-                "detail": {
-                    "description": "Human-readable explanation",
-                    "type": "string"
-                },
-                "errors": {
-                    "description": "Optional: additional error details"
-                },
-                "instance": {
-                    "description": "URI reference that identifies the specific occurrence",
-                    "type": "string"
-                },
-                "status": {
-                    "description": "HTTP status code",
-                    "type": "integer"
-                },
-                "title": {
-                    "description": "Short, human-readable summary",
-                    "type": "string"
-                },
-                "type": {
-                    "description": "A URI reference that identifies the problem type",
-                    "type": "string"
-                }
-            }
-        },
-        "webapi.RegisterCurrencyRequest": {
+        "currency.RegisterCurrencyRequest": {
             "type": "object",
             "required": [
                 "code",
@@ -1340,42 +1361,47 @@ const docTemplate = `{
                 }
             }
         },
-        "webapi.Response": {
+        "user.NewUser": {
             "type": "object",
+            "required": [
+                "email",
+                "password",
+                "username"
+            ],
             "properties": {
-                "data": {
-                    "description": "Response data"
+                "email": {
+                    "type": "string",
+                    "maxLength": 50
                 },
-                "message": {
-                    "description": "Human-readable explanation",
-                    "type": "string"
+                "password": {
+                    "type": "string",
+                    "maxLength": 72,
+                    "minLength": 6
                 },
-                "status": {
-                    "description": "HTTP status code",
-                    "type": "integer"
+                "username": {
+                    "type": "string",
+                    "maxLength": 50,
+                    "minLength": 3
                 }
             }
         },
-        "webapi.UpdateUserInput": {
+        "user.PasswordInput": {
+            "type": "object",
+            "required": [
+                "password"
+            ],
+            "properties": {
+                "password": {
+                    "type": "string"
+                }
+            }
+        },
+        "user.UpdateUserInput": {
             "type": "object",
             "properties": {
                 "names": {
                     "type": "string",
                     "maxLength": 100
-                }
-            }
-        },
-        "webapi.WithdrawRequest": {
-            "type": "object",
-            "required": [
-                "amount"
-            ],
-            "properties": {
-                "amount": {
-                    "type": "number"
-                },
-                "currency": {
-                    "type": "string"
                 }
             }
         }
