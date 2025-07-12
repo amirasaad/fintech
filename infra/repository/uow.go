@@ -53,7 +53,14 @@ func (u *UoW) GetRepository(repoType reflect.Type) (any, error) {
 	if !ok {
 		return nil, fmt.Errorf("unsupported repository type: %v", repoType)
 	}
-	repo := constructor(u.tx)
+
+	// Use transaction DB if available, otherwise use main DB
+	dbToUse := u.tx
+	if dbToUse == nil {
+		dbToUse = u.db
+	}
+
+	repo := constructor(dbToUse)
 	return repo, nil
 }
 
