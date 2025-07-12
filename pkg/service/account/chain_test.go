@@ -116,7 +116,7 @@ func TestAccountValidationHandler_Handle_RepositoryError(t *testing.T) {
 
 func TestAccountValidationHandler_Handle_AccountNotFound(t *testing.T) {
 	uow := new(MockUnitOfWork)
-	accountRepo := repofixtures.NewMockAccountRepository(t)
+	accountRepo := fixtures.NewMockAccountRepository(t)
 	logger := newTestLogger()
 	userID := uuid.New()
 	accountID := uuid.New()
