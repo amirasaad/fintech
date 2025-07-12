@@ -3,7 +3,7 @@
 // retrieving account details, listing transactions, and checking account balances.
 //
 // The service layer follows clean architecture principles and uses the decorator pattern for transaction management.
-// All business operations are wrapped with automatic transaction handling, error recovery, and structured logging.
+// All business operations are wrapped with automatic transaction management, error recovery, and structured logging.
 package account
 
 import (
@@ -19,6 +19,48 @@ import (
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/google/uuid"
 )
+
+// OperationType represents the type of account operation
+type OperationType string
+
+const (
+	OperationDeposit  OperationType = "deposit"
+	OperationWithdraw OperationType = "withdraw"
+)
+
+// operationRequest contains the common parameters for account operations
+type operationRequest struct {
+	userID       uuid.UUID
+	accountID    uuid.UUID
+	amount       float64
+	currencyCode currency.Code
+	operation    OperationType
+}
+
+// operationResult contains the result of an account operation
+type operationResult struct {
+	transaction *account.Transaction
+	convInfo    *common.ConversionInfo
+}
+
+// operationHandler defines the interface for handling account operations
+type operationHandler interface {
+	execute(account *account.Account, userID uuid.UUID, money mon.Money) (*account.Transaction, error)
+}
+
+// depositHandler implements operationHandler for deposit operations
+type depositHandler struct{}
+
+func (h *depositHandler) execute(account *account.Account, userID uuid.UUID, money mon.Money) (*account.Transaction, error) {
+	return account.Deposit(userID, money)
+}
+
+// withdrawHandler implements operationHandler for withdraw operations
+type withdrawHandler struct{}
+
+func (h *withdrawHandler) execute(account *account.Account, userID uuid.UUID, money mon.Money) (*account.Transaction, error) {
+	return account.Withdraw(userID, money)
+}
 
 // AccountService provides business logic for account operations including creation, deposits, withdrawals, and balance inquiries.
 type AccountService struct {
@@ -180,96 +222,20 @@ func (s *AccountService) Deposit(
 	amount float64,
 	currencyCode currency.Code,
 ) (tx *account.Transaction, convInfo *common.ConversionInfo, err error) {
-	s.logger.Info("Deposit started", "userID", userID, "accountID", accountID, "amount", amount, "currency", currencyCode)
-	defer func() {
-		if err != nil {
-			s.logger.Error("Deposit failed", "userID", userID, "accountID", accountID, "amount", amount, "currency", currencyCode, "error", err)
-		} else {
-			s.logger.Info("Deposit successful", "userID", userID, "accountID", accountID, "amount", amount, "currency", currencyCode, "transactionID", tx.ID)
-		}
-	}()
-	logger := s.logger.With("userID", userID, "accountID", accountID, "amount", amount, "currency", currencyCode)
-	logger.Info("Deposit started")
-
-	var txLocal *account.Transaction
-	var convInfoLocal *common.ConversionInfo
-	err = s.uow.Do(context.Background(), func(uow repository.UnitOfWork) error {
-		repoAny, err := uow.GetRepository(reflect.TypeOf((*repository.AccountRepository)(nil)).Elem())
-		if err != nil {
-			logger.Error("Deposit failed: AccountRepository error", "error", err)
-			return err
-		}
-		repo := repoAny.(repository.AccountRepository)
-
-		txRepoAny, err := uow.GetRepository(reflect.TypeOf((*repository.TransactionRepository)(nil)).Elem())
-		if err != nil {
-			logger.Error("Deposit failed: TransactionRepository error", "error", err)
-			return err
-		}
-		txRepo := txRepoAny.(repository.TransactionRepository)
-
-		a, err := repo.Get(accountID)
-		if err != nil {
-			logger.Error("Deposit failed: account not found", "error", err)
-			return account.ErrAccountNotFound
-		}
-		amountDeposit, err := mon.NewMoney(amount, currencyCode)
-		if err != nil {
-			logger.Error("Deposit failed: invalid money", "error", err)
-			return err
-		}
-
-		// Inline currency conversion logic
-		if amountDeposit.Currency() == a.Currency {
-			// No conversion needed
-		} else {
-			convInfoLocal, err = s.converter.Convert(amountDeposit.AmountFloat(), string(amountDeposit.Currency()), string(a.Currency))
-			if err != nil {
-				logger.Error("Deposit failed: currency conversion error", "error", err)
-				return err
-			}
-			amountDeposit, err = mon.NewMoney(convInfoLocal.ConvertedAmount, a.Currency)
-			if err != nil {
-				logger.Error("Deposit failed: converted money creation error", "error", err)
-				return err
-			}
-		}
-
-		txLocal, err = a.Deposit(userID, amountDeposit)
-		if err != nil {
-			logger.Error("Deposit failed: domain deposit error", "error", err)
-			return err
-		}
-		if convInfoLocal != nil {
-			logger.Info(
-				"Deposit: conversion info stored",
-				"originalAmount", convInfoLocal.OriginalAmount,
-				"originalCurrency", convInfoLocal.OriginalCurrency,
-				"conversionRate", convInfoLocal.ConversionRate,
-			)
-			txLocal.OriginalAmount = &convInfoLocal.OriginalAmount
-			txLocal.OriginalCurrency = &convInfoLocal.OriginalCurrency
-			txLocal.ConversionRate = &convInfoLocal.ConversionRate
-		}
-		if err = repo.Update(a); err != nil {
-			logger.Error("Deposit failed: repo update error", "error", err)
-			return err
-		}
-		if err = txRepo.Create(txLocal); err != nil {
-			logger.Error("Deposit failed: transaction create error", "error", err)
-			return err
-		}
-		return nil
-	})
-	if err != nil {
-		tx = nil
-		convInfo = nil
-		logger.Error("Deposit failed: transaction error", "error", err)
-		return
+	req := operationRequest{
+		userID:       userID,
+		accountID:    accountID,
+		amount:       amount,
+		currencyCode: currencyCode,
+		operation:    OperationDeposit,
 	}
-	tx = txLocal
-	convInfo = convInfoLocal
-	return
+	
+	result, err := s.executeOperation(req, &depositHandler{})
+	if err != nil {
+		return nil, nil, err
+	}
+	
+	return result.transaction, result.convInfo, nil
 }
 
 // Withdraw removes funds from the specified account and creates a transaction record.
@@ -283,96 +249,177 @@ func (s *AccountService) Withdraw(
 	convInfo *common.ConversionInfo,
 	err error,
 ) {
-	s.logger.Info("Withdraw started", "userID", userID, "accountID", accountID, "amount", amount, "currency", currencyCode)
+	req := operationRequest{
+		userID:       userID,
+		accountID:    accountID,
+		amount:       amount,
+		currencyCode: currencyCode,
+		operation:    OperationWithdraw,
+	}
+	
+	result, err := s.executeOperation(req, &withdrawHandler{})
+	if err != nil {
+		return nil, nil, err
+	}
+	
+	return result.transaction, result.convInfo, nil
+}
+
+// executeOperation is the core method that handles both deposit and withdraw operations
+// using the strategy pattern to eliminate code duplication and reduce branching.
+func (s *AccountService) executeOperation(req operationRequest, handler operationHandler) (result *operationResult, err error) {
+	logger := s.logger.With(
+		"userID", req.userID,
+		"accountID", req.accountID,
+		"amount", req.amount,
+		"currency", req.currencyCode,
+		"operation", req.operation,
+	)
+	
+	logger.Info("executeOperation started")
 	defer func() {
 		if err != nil {
-			s.logger.Error("Withdraw failed", "userID", userID, "accountID", accountID, "amount", amount, "currency", currencyCode, "error", err)
+			logger.Error("executeOperation failed", "error", err)
 		} else {
-			s.logger.Info("Withdraw successful", "userID", userID, "accountID", accountID, "amount", amount, "currency", currencyCode, "transactionID", tx.ID)
+			logger.Info("executeOperation successful", "transactionID", result.transaction.ID)
 		}
 	}()
-	logger := s.logger.With("userID", userID, "accountID", accountID, "amount", amount, "currency", currencyCode)
-	logger.Info("Withdraw started")
 
 	var txLocal *account.Transaction
 	var convInfoLocal *common.ConversionInfo
+	
 	err = s.uow.Do(context.Background(), func(uow repository.UnitOfWork) error {
-		repoAny, err := uow.GetRepository(reflect.TypeOf((*repository.AccountRepository)(nil)).Elem())
+		// Get repositories
+		accountRepo, txRepo, err := s.getRepositories(uow, logger)
 		if err != nil {
-			logger.Error("Withdraw failed: AccountRepository error", "error", err)
-			return err
-		}
-		repo := repoAny.(repository.AccountRepository)
-
-		txRepoAny, err := uow.GetRepository(reflect.TypeOf((*repository.TransactionRepository)(nil)).Elem())
-		if err != nil {
-			logger.Error("Withdraw failed: TransactionRepository error", "error", err)
-			return err
-		}
-		txRepo := txRepoAny.(repository.TransactionRepository)
-
-		a, err := repo.Get(accountID)
-		if err != nil {
-			logger.Error("Withdraw failed: account not found", "error", err)
-			return account.ErrAccountNotFound
-		}
-		m, err := mon.NewMoney(amount, currencyCode)
-		if err != nil {
-			logger.Error("Withdraw failed: invalid money", "error", err)
 			return err
 		}
 
-		// Inline currency conversion logic
-		if m.Currency() == a.Currency {
-			// No conversion needed
-		} else {
-			convInfoLocal, err = s.converter.Convert(m.AmountFloat(), string(m.Currency()), string(a.Currency))
-			if err != nil {
-				logger.Error("Withdraw failed: currency conversion error", "error", err)
-				return err
-			}
-			m, err = mon.NewMoney(convInfoLocal.ConvertedAmount, a.Currency)
-			if err != nil {
-				logger.Error("Withdraw failed: converted money creation error", "error", err)
-				return err
-			}
-		}
-
-		txLocal, err = a.Withdraw(userID, m)
+		// Get and validate account
+		account, err := s.getAndValidateAccount(accountRepo, req.accountID, logger)
 		if err != nil {
-			logger.Error("Withdraw failed: domain withdraw error", "error", err)
 			return err
 		}
+
+		// Create money object
+		money, err := s.createMoney(req.amount, req.currencyCode, logger)
+		if err != nil {
+			return err
+		}
+
+		// Handle currency conversion if needed
+		convertedMoney, convInfo, err := s.handleCurrencyConversion(money, account.Currency, logger)
+		if err != nil {
+			return err
+		}
+		convInfoLocal = convInfo
+
+		// Execute the operation using the strategy pattern
+		txLocal, err = handler.execute(account, req.userID, convertedMoney)
+		if err != nil {
+			logger.Error("executeOperation failed: domain operation error", "error", err)
+			return err
+		}
+
+		// Store conversion info if conversion occurred
 		if convInfoLocal != nil {
-			logger.Info(
-				"Withdraw: conversion info stored",
-				"originalAmount", convInfoLocal.OriginalAmount,
-				"originalCurrency", convInfoLocal.OriginalCurrency,
-				"conversionRate", convInfoLocal.ConversionRate,
-			)
-			txLocal.OriginalAmount = &convInfoLocal.OriginalAmount
-			txLocal.OriginalCurrency = &convInfoLocal.OriginalCurrency
-			txLocal.ConversionRate = &convInfoLocal.ConversionRate
+			s.storeConversionInfo(txLocal, convInfoLocal, logger)
 		}
-		if err = repo.Update(a); err != nil {
-			logger.Error("Withdraw failed: repo update error", "error", err)
+
+		// Update account and create transaction
+		if err = accountRepo.Update(account); err != nil {
+			logger.Error("executeOperation failed: repo update error", "error", err)
 			return err
 		}
 		if err = txRepo.Create(txLocal); err != nil {
-			logger.Error("Withdraw failed: transaction create error", "error", err)
+			logger.Error("executeOperation failed: transaction create error", "error", err)
 			return err
 		}
+
 		return nil
 	})
+
 	if err != nil {
-		tx = nil
-		convInfo = nil
-		logger.Error("Withdraw failed: transaction error", "error", err)
-		return
+		return nil, err
 	}
-	tx = txLocal
-	convInfo = convInfoLocal
-	return
+
+	return &operationResult{
+		transaction: txLocal,
+		convInfo:    convInfoLocal,
+	}, nil
+}
+
+// getRepositories retrieves the account and transaction repositories from the unit of work
+func (s *AccountService) getRepositories(uow repository.UnitOfWork, logger *slog.Logger) (repository.AccountRepository, repository.TransactionRepository, error) {
+	repoAny, err := uow.GetRepository(reflect.TypeOf((*repository.AccountRepository)(nil)).Elem())
+	if err != nil {
+		logger.Error("getRepositories failed: AccountRepository error", "error", err)
+		return nil, nil, err
+	}
+	accountRepo := repoAny.(repository.AccountRepository)
+
+	txRepoAny, err := uow.GetRepository(reflect.TypeOf((*repository.TransactionRepository)(nil)).Elem())
+	if err != nil {
+		logger.Error("getRepositories failed: TransactionRepository error", "error", err)
+		return nil, nil, err
+	}
+	txRepo := txRepoAny.(repository.TransactionRepository)
+
+	return accountRepo, txRepo, nil
+}
+
+// getAndValidateAccount retrieves an account and validates it exists
+func (s *AccountService) getAndValidateAccount(repo repository.AccountRepository, accountID uuid.UUID, logger *slog.Logger) (*account.Account, error) {
+	account, err := repo.Get(accountID)
+	if err != nil {
+		logger.Error("getAndValidateAccount failed: account not found", "error", err)
+		return nil, account.ErrAccountNotFound
+	}
+	return account, nil
+}
+
+// createMoney creates a Money object from amount and currency
+func (s *AccountService) createMoney(amount float64, currencyCode currency.Code, logger *slog.Logger) (mon.Money, error) {
+	money, err := mon.NewMoney(amount, currencyCode)
+	if err != nil {
+		logger.Error("createMoney failed: invalid money", "error", err)
+		return mon.Money{}, err
+	}
+	return money, nil
+}
+
+// handleCurrencyConversion handles currency conversion if the money currency differs from account currency
+func (s *AccountService) handleCurrencyConversion(money mon.Money, accountCurrency currency.Code, logger *slog.Logger) (mon.Money, *common.ConversionInfo, error) {
+	if money.Currency() == accountCurrency {
+		// No conversion needed
+		return money, nil, nil
+	}
+
+	convInfo, err := s.converter.Convert(money.AmountFloat(), string(money.Currency()), string(accountCurrency))
+	if err != nil {
+		logger.Error("handleCurrencyConversion failed: currency conversion error", "error", err)
+		return mon.Money{}, nil, err
+	}
+
+	convertedMoney, err := mon.NewMoney(convInfo.ConvertedAmount, accountCurrency)
+	if err != nil {
+		logger.Error("handleCurrencyConversion failed: converted money creation error", "error", err)
+		return mon.Money{}, nil, err
+	}
+
+	return convertedMoney, convInfo, nil
+}
+
+// storeConversionInfo stores conversion information in the transaction
+func (s *AccountService) storeConversionInfo(tx *account.Transaction, convInfo *common.ConversionInfo, logger *slog.Logger) {
+	logger.Info("storeConversionInfo: conversion info stored",
+		"originalAmount", convInfo.OriginalAmount,
+		"originalCurrency", convInfo.OriginalCurrency,
+		"conversionRate", convInfo.ConversionRate,
+	)
+	tx.OriginalAmount = &convInfo.OriginalAmount
+	tx.OriginalCurrency = &convInfo.OriginalCurrency
+	tx.ConversionRate = &convInfo.ConversionRate
 }
 
 // GetAccount retrieves an account by its ID.
