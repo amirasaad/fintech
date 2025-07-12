@@ -2,6 +2,8 @@ package webapi
 
 import (
 	"errors"
+	"log/slog"
+	"os"
 	"time"
 
 	"github.com/amirasaad/fintech/pkg/config"
@@ -64,6 +66,29 @@ func newAppWithRateLimit(
 		},
 	}))
 	app.Use(recover.New())
+
+	// Add Vercel-compatible logging middleware
+	app.Use(func(c *fiber.Ctx) error {
+		start := time.Now()
+
+		// Process request
+		err := c.Next()
+
+		// Log to stderr for Vercel visibility
+		logger := slog.New(slog.NewJSONHandler(os.Stderr, nil))
+		logger.Info("HTTP Request",
+			"method", c.Method(),
+			"path", c.Path(),
+			"status", c.Response().StatusCode(),
+			"duration_ms", time.Since(start).Milliseconds(),
+			"ip", c.IP(),
+			"user_agent", c.Get("User-Agent"),
+			"function", "webapi/app.go",
+			"timestamp", time.Now(),
+		)
+
+		return err
+	})
 
 	app.Get("/", func(c *fiber.Ctx) error {
 		return c.SendString("App is working! 🚀")

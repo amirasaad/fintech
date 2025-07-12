@@ -5,6 +5,8 @@ import (
 	"log"
 	"log/slog"
 	"net/http"
+	"os"
+	"time"
 
 	"github.com/amirasaad/fintech/infra"
 	"github.com/amirasaad/fintech/pkg/config"
@@ -30,32 +32,70 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 
 // building the fiber application
 func handler() http.HandlerFunc {
-	logger := slog.New(slog.NewTextHandler(log.Writer(), &slog.HandlerOptions{Level: slog.LevelDebug}))
+	// Configure logger for Vercel - use stderr for better visibility
+	var logLevel slog.Level
+	if os.Getenv("VERCEL_ENV") == "production" {
+		logLevel = slog.LevelInfo
+	} else {
+		logLevel = slog.LevelDebug
+	}
+
+	// Use stderr for Vercel logging visibility
+	logger := slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
+		Level:     logLevel,
+		AddSource: true,
+	}))
 	slog.SetDefault(logger)
+
+	// Log application startup for Vercel visibility
+	logger.Info("Application starting",
+		"environment", os.Getenv("VERCEL_ENV"),
+		"function", "api/index.go",
+		"started_at", time.Now(),
+	)
+
 	cfg, err := config.LoadAppConfig(logger)
 	if err != nil {
-		logger.Error("Failed to load application configuration", "error", err)
+		logger.Error("Failed to load application configuration",
+			"error", err,
+			"function", "api/index.go",
+		)
 		log.Fatal(err)
 	}
+
 	currencyConverter, err := infra.NewExchangeRateSystem(logger, *cfg)
 	if err != nil {
-		logger.Error("Failed to initialize exchange rate system", "error", err)
+		logger.Error("Failed to initialize exchange rate system",
+			"error", err,
+			"function", "api/index.go",
+		)
 		log.Fatal(err)
 	}
+
 	// Initialize currency registry
 	ctx := context.Background()
 	currencyRegistry, err := currency.NewCurrencyRegistry(ctx)
 	if err != nil {
-		logger.Error("Failed to initialize currency registry", "error", err)
+		logger.Error("Failed to initialize currency registry",
+			"error", err,
+			"function", "api/index.go",
+		)
 		log.Fatal(err)
 	}
-	logger.Info("Currency registry initialized successfully")
+	logger.Info("Currency registry initialized successfully",
+		"function", "api/index.go",
+		"registry_ready", true,
+	)
+
 	currencySvc := currencyservice.NewCurrencyService(currencyRegistry, logger)
 
 	// Initialize DB connection ONCE
 	db, err := infra.NewDBConnection(cfg.DB, cfg.Env)
 	if err != nil {
-		logger.Error("Failed to initialize database", "error", err)
+		logger.Error("Failed to initialize database",
+			"error", err,
+			"function", "api/index.go",
+		)
 		log.Fatal(err)
 	}
 
@@ -72,5 +112,11 @@ func handler() http.HandlerFunc {
 		currencySvc,
 		cfg,
 	)
+
+	logger.Info("Application initialized successfully",
+		"function", "api/index.go",
+		"services_ready", true,
+	)
+
 	return adaptor.FiberApp(app)
 }
