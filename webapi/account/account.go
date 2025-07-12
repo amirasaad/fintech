@@ -71,8 +71,8 @@ func CreateAccount(
 		if input == nil {
 			return err // error response already written
 		}
-		currencyCode := currency.Code("USD")
-		if input != nil && input.Currency != "" {
+		currencyCode := currency.USD
+		if input.Currency != "" {
 			currencyCode = currency.Code(input.Currency)
 		}
 		a, err := accountSvc.CreateAccountWithCurrency(userID, currencyCode)
@@ -128,7 +128,7 @@ func Deposit(
 		if input == nil {
 			return err // error response already written
 		}
-		currencyCode := currency.Code("USD")
+		currencyCode := currency.USD
 		if input.Currency != "" {
 			currencyCode = currency.Code(input.Currency)
 		}
