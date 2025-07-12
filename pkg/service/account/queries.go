@@ -25,12 +25,11 @@ func (s *AccountService) GetAccount(
 	logger := s.logger.With("userID", userID, "accountID", accountID)
 	logger.Info("GetAccount started")
 	err = s.uow.Do(context.Background(), func(uow repository.UnitOfWork) error {
-		repoAny, err := uow.AccountRepository()
+		repo, err := uow.AccountRepository()
 		if err != nil {
 			logger.Error("GetAccount failed: AccountRepository error", "error", err)
 			return err
 		}
-		repo := repoAny.(repository.AccountRepository)
 		aLocal, err := repo.Get(accountID)
 		if err != nil {
 			logger.Error("GetAccount failed: db error", "error", err)
@@ -120,12 +119,11 @@ func (s *AccountService) GetBalance(
 	logger := s.logger.With("userID", userID, "accountID", accountID)
 	logger.Info("GetBalance started")
 	err = s.uow.Do(context.Background(), func(uow repository.UnitOfWork) error {
-		repoAny, err := uow.AccountRepository()
+		repo, err := uow.AccountRepository()
 		if err != nil {
 			logger.Error("GetBalance failed: AccountRepository error", "error", err)
 			return err
 		}
-		repo := repoAny.(repository.AccountRepository)
 		a, err := repo.Get(accountID)
 		if err != nil {
 			logger.Error("GetBalance failed: AccountRepository.Get error", "error", err)
