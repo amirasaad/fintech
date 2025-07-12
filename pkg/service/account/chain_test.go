@@ -9,8 +9,7 @@ import (
 	"github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/domain/common"
 	mon "github.com/amirasaad/fintech/pkg/domain/money"
-	domainfixtures "github.com/amirasaad/fintech/internal/fixtures/domain"
-	repofixtures "github.com/amirasaad/fintech/internal/fixtures/repository"
+	"github.com/amirasaad/fintech/internal/fixtures"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -70,7 +69,7 @@ func TestBaseHandler_Handle_WithNext(t *testing.T) {
 // Test AccountValidationHandler
 func TestAccountValidationHandler_Handle_Success(t *testing.T) {
 	uow := new(MockUnitOfWork)
-	accountRepo := repofixtures.NewMockAccountRepository(t)
+	accountRepo := fixtures.NewMockAccountRepository(t)
 	logger := newTestLogger()
 	userID := uuid.New()
 	accountID := uuid.New()
