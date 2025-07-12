@@ -1,0 +1,350 @@
+@host = https://fintech-f8o7nvika-hoppies.vercel.app
+
+### Login (needed for admin endpoints)
+# @name login
+POST {{host}}/login HTTP/1.1
+Content-Type: application/json
+
+{
+    "identity": "test",
+    "password": "R4g&BejL5P3j"
+}
+
+### ========================================
+### PUBLIC CURRENCY ENDPOINTS
+### ========================================
+
+### List All Currencies
+# @name listCurrencies
+GET {{host}}/api/currencies HTTP/1.1
+Content-Type: application/json
+
+### List Supported Currencies
+# @name listSupportedCurrencies
+GET {{host}}/api/currencies/supported HTTP/1.1
+Content-Type: application/json
+
+### Get Currency by Code
+# @name getCurrency
+GET {{host}}/api/currencies/USD HTTP/1.1
+Content-Type: application/json
+
+### Check if Currency is Supported
+# @name checkCurrencySupported
+GET {{host}}/api/currencies/USD/supported HTTP/1.1
+Content-Type: application/json
+
+### Search Currencies by Name
+# @name searchCurrencies
+GET {{host}}/api/currencies/search?q=dollar HTTP/1.1
+Content-Type: application/json
+
+### Search Currencies by Region
+# @name searchCurrenciesByRegion
+GET {{host}}/api/currencies/region/North America/ HTTP/1.1
+Content-Type: application/json
+
+### Get Currency Statistics
+# @name getCurrencyStatistics
+GET {{host}}/api/currencies/statistics HTTP/1.1
+Content-Type: application/json
+
+### Get Default Currency
+# @name getDefaultCurrency
+GET {{host}}/api/currencies/default HTTP/1.1
+Content-Type: application/json
+
+### ========================================
+### ADMIN CURRENCY ENDPOINTS (Require Authentication)
+### ========================================
+
+### Register New Currency
+# @name registerCurrency
+POST {{host}}/api/currencies/admin HTTP/1.1
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.$.data.$.token}}
+
+{
+    "code": "BTC",
+    "name": "Bitcoin",
+    "symbol": "₿",
+    "decimals": 8,
+    "country": "Global",
+    "region": "Cryptocurrency",
+    "active": true,
+    "metadata": {
+        "type": "cryptocurrency",
+        "blockchain": "bitcoin"
+    }
+}
+
+### Register Another Currency (Ethereum)
+# @name registerEthereum
+POST {{host}}/api/currencies/admin HTTP/1.1
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.$.data.$.token}}
+
+{
+    "code": "ETH",
+    "name": "Ethereum",
+    "symbol": "Ξ",
+    "decimals": 18,
+    "country": "Global",
+    "region": "Cryptocurrency",
+    "active": true,
+    "metadata": {
+        "type": "cryptocurrency",
+        "blockchain": "ethereum"
+    }
+}
+
+### Register Traditional Currency (Brazilian Real)
+# @name registerBRL
+POST {{host}}/api/currencies/admin HTTP/1.1
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.$.data.$.token}}
+
+{
+    "code": "BRL",
+    "name": "Brazilian Real",
+    "symbol": "R$",
+    "decimals": 2,
+    "country": "Brazil",
+    "region": "South America",
+    "active": true,
+    "metadata": {
+        "type": "fiat",
+        "central_bank": "Banco Central do Brasil"
+    }
+}
+
+### Activate Currency
+# @name activateCurrency
+PUT {{host}}/api/currencies/admin/BTC/activate HTTP/1.1
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.$.data.$.token}}
+
+### Deactivate Currency
+# @name deactivateCurrency
+PUT {{host}}/api/currencies/admin/BTC/deactivate HTTP/1.1
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.$.data.$.token}}
+
+### Unregister Currency
+# @name unregisterCurrency
+DELETE {{host}}/api/currencies/admin/BTC HTTP/1.1
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.$.data.$.token}}
+
+### ========================================
+### ERROR HANDLING EXAMPLES
+### ========================================
+
+### 1. Invalid Currency Code (400)
+GET {{host}}/api/currencies/INVALID HTTP/1.1
+Content-Type: application/json
+
+### 2. Currency Not Found (404)
+GET {{host}}/api/currencies/XXX HTTP/1.1
+Content-Type: application/json
+
+### 3. Missing Search Query (400)
+GET {{host}}/api/currencies/search HTTP/1.1
+Content-Type: application/json
+
+### 4. Missing Region (400)
+GET {{host}}/api/currencies/region/ HTTP/1.1
+Content-Type: application/json
+
+### 5. Unauthorized Access to Admin Endpoint (401)
+POST {{host}}/api/currencies/admin HTTP/1.1
+Content-Type: application/json
+
+{
+    "code": "BTC",
+    "name": "Bitcoin",
+    "symbol": "₿",
+    "decimals": 8
+}
+
+### 6. Invalid Currency Registration (400) - Missing Required Fields
+POST {{host}}/api/currencies/admin HTTP/1.1
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.$.data.$.token}}
+
+{
+    "code": "BTC",
+    "name": "Bitcoin"
+}
+
+### 7. Invalid Currency Registration (400) - Invalid Decimals
+POST {{host}}/api/currencies/admin HTTP/1.1
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.$.data.$.token}}
+
+{
+    "code": "BTC",
+    "name": "Bitcoin",
+    "symbol": "₿",
+    "decimals": 20
+}
+
+### 8. Currency Already Exists (409)
+POST {{host}}/api/currencies/admin HTTP/1.1
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.$.data.$.token}}
+
+{
+    "code": "USD",
+    "name": "US Dollar",
+    "symbol": "$",
+    "decimals": 2
+}
+
+### 9. Activate Non-existent Currency (404)
+PUT {{host}}/api/currencies/admin/XXX/activate HTTP/1.1
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.$.data.$.token}}
+
+### 10. Unregister Non-existent Currency (404)
+DELETE {{host}}/api/currencies/admin/XXX HTTP/1.1
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.$.data.$.token}}
+
+### ========================================
+### WORKFLOW EXAMPLES
+### ========================================
+
+### Complete Currency Management Workflow
+
+### Step 1: Check if BTC is supported (should be false initially)
+GET {{host}}/api/currencies/BTC/supported HTTP/1.1
+Content-Type: application/json
+
+### Step 2: Register BTC
+POST {{host}}/api/currencies/admin HTTP/1.1
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.$.data.$.token}}
+
+{
+    "code": "BTC",
+    "name": "Bitcoin",
+    "symbol": "₿",
+    "decimals": 8,
+    "country": "Global",
+    "region": "Cryptocurrency",
+    "active": false,
+    "metadata": {
+        "type": "cryptocurrency",
+        "blockchain": "bitcoin"
+    }
+}
+
+### Step 3: Check if BTC is supported (should still be false - inactive)
+GET {{host}}/api/currencies/BTC/supported HTTP/1.1
+Content-Type: application/json
+
+### Step 4: Activate BTC
+PUT {{host}}/api/currencies/admin/BTC/activate HTTP/1.1
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.$.data.$.token}}
+
+### Step 5: Check if BTC is supported (should now be true)
+GET {{host}}/api/currencies/BTC/supported HTTP/1.1
+Content-Type: application/json
+
+### Step 6: Get BTC details
+GET {{host}}/api/currencies/BTC HTTP/1.1
+Content-Type: application/json
+
+### Step 7: Deactivate BTC
+PUT {{host}}/api/currencies/admin/BTC/deactivate HTTP/1.1
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.$.data.$.token}}
+
+### Step 8: Check if BTC is supported (should be false again)
+GET {{host}}/api/currencies/BTC/supported HTTP/1.1
+Content-Type: application/json
+
+### Step 9: Unregister BTC
+DELETE {{host}}/api/currencies/admin/BTC HTTP/1.1
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.$.data.$.token}}
+
+### Step 10: Try to get BTC details (should be 404)
+GET {{host}}/api/currencies/BTC HTTP/1.1
+Content-Type: application/json
+
+### ========================================
+### BULK OPERATIONS
+### ========================================
+
+### Register Multiple Currencies
+# @name registerMultiple
+POST {{host}}/api/currencies/admin HTTP/1.1
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.$.data.$.token}}
+
+{
+    "code": "EUR",
+    "name": "Euro",
+    "symbol": "€",
+    "decimals": 2,
+    "country": "European Union",
+    "region": "Europe",
+    "active": true,
+    "metadata": {
+        "type": "fiat",
+        "central_bank": "European Central Bank"
+    }
+}
+
+###
+POST {{host}}/api/currencies/admin HTTP/1.1
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.$.data.$.token}}
+
+{
+    "code": "GBP",
+    "name": "British Pound",
+    "symbol": "£",
+    "decimals": 2,
+    "country": "United Kingdom",
+    "region": "Europe",
+    "active": true,
+    "metadata": {
+        "type": "fiat",
+        "central_bank": "Bank of England"
+    }
+}
+
+###
+POST {{host}}/api/currencies/admin HTTP/1.1
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.$.data.$.token}}
+
+{
+    "code": "JPY",
+    "name": "Japanese Yen",
+    "symbol": "¥",
+    "decimals": 0,
+    "country": "Japan",
+    "region": "Asia",
+    "active": true,
+    "metadata": {
+        "type": "fiat",
+        "central_bank": "Bank of Japan"
+    }
+}
+
+### Check All Registered Currencies
+GET {{host}}/api/currencies HTTP/1.1
+Content-Type: application/json
+
+### Search for European Currencies
+GET {{host}}/api/currencies/region/europe HTTP/1.1
+Content-Type: application/json
+
+### Search for Fiat Currencies
+GET {{host}}/api/currencies/search?q=fiat HTTP/1.1
+Content-Type: application/json
