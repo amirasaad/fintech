@@ -59,15 +59,15 @@ func (h *BaseHandler) Handle(ctx context.Context, req *OperationRequest) (*Opera
 	return &OperationResponse{}, nil
 }
 
-// AccountValidationHandler validates that the account exists and belongs to the user
-type AccountValidationHandler struct {
+// ValidationHandler validates that the account exists and belongs to the user
+type ValidationHandler struct {
 	BaseHandler
 	uow    repository.UnitOfWork
 	logger *slog.Logger
 }
 
 // Handle validates the account and passes the request to the next handler
-func (h *AccountValidationHandler) Handle(ctx context.Context, req *OperationRequest) (*OperationResponse, error) {
+func (h *ValidationHandler) Handle(ctx context.Context, req *OperationRequest) (*OperationResponse, error) {
 	logger := h.logger.With("userID", req.UserID, "accountID", req.AccountID)
 	logger.Info("AccountValidationHandler: starting")
 
@@ -266,7 +266,7 @@ func NewChainBuilder(uow repository.UnitOfWork, converter mon.CurrencyConverter,
 // BuildOperationChain builds and returns the complete operation chain
 func (b *ChainBuilder) BuildOperationChain() OperationHandler {
 	// Create handlers
-	accountValidation := &AccountValidationHandler{
+	accountValidation := &ValidationHandler{
 		uow:    b.uow,
 		logger: b.logger,
 	}

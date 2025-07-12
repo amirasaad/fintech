@@ -6,7 +6,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func AuthRoutes(app *fiber.App, authSvc *authsvc.AuthService) {
+func Routes(app *fiber.App, authSvc *authsvc.AuthService) {
 	app.Post("/auth/login", Login(authSvc))
 }
 

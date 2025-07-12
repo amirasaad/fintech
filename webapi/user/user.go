@@ -13,7 +13,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func UserRoutes(app *fiber.App, userSvc *usersvc.UserService, authSvc *authsvc.AuthService, cfg *config.AppConfig) {
+func Routes(app *fiber.App, userSvc *usersvc.UserService, authSvc *authsvc.AuthService, cfg *config.AppConfig) {
 	app.Get("/user/:id", middleware.JwtProtected(cfg.Jwt), GetUser(userSvc))
 	app.Post("/user", CreateUser(userSvc))
 	app.Put("/user/:id", middleware.JwtProtected(cfg.Jwt), UpdateUser(userSvc, authSvc))

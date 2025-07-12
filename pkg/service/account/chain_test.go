@@ -84,7 +84,7 @@ func TestAccountValidationHandler_Handle_Success(t *testing.T) {
 	}
 	uow.On("AccountRepository").Return(accountRepo, nil)
 	accountRepo.On("Get", accountID).Return(expectedAccount, nil)
-	handler := &AccountValidationHandler{
+	handler := &ValidationHandler{
 		uow:    uow,
 		logger: logger,
 	}
@@ -104,7 +104,7 @@ func TestAccountValidationHandler_Handle_RepositoryError(t *testing.T) {
 		AccountID: uuid.New(),
 	}
 	uow.On("AccountRepository").Return(nil, assert.AnError)
-	handler := &AccountValidationHandler{
+	handler := &ValidationHandler{
 		uow:    uow,
 		logger: logger,
 	}
@@ -127,7 +127,7 @@ func TestAccountValidationHandler_Handle_AccountNotFound(t *testing.T) {
 	}
 	uow.On("AccountRepository").Return(accountRepo, nil)
 	accountRepo.On("Get", accountID).Return(nil, account.ErrAccountNotFound)
-	handler := &AccountValidationHandler{
+	handler := &ValidationHandler{
 		uow:    uow,
 		logger: logger,
 	}

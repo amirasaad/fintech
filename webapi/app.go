@@ -69,10 +69,10 @@ func newAppWithRateLimit(
 		return c.SendString("App is working! 🚀")
 	})
 
-	account.AccountRoutes(app, accountSvc, authSvc, cfg)
-	user.UserRoutes(app, userSvc, authSvc, cfg)
-	auth.AuthRoutes(app, authSvc)
-	currency.CurrencyRoutes(app, currencySvc, authSvc, cfg)
+	account.Routes(app, accountSvc, authSvc, cfg)
+	user.Routes(app, userSvc, authSvc, cfg)
+	auth.Routes(app, authSvc)
+	currency.Routes(app, currencySvc, authSvc, cfg)
 
 	return app
 }
