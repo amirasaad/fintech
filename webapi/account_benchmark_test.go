@@ -5,22 +5,26 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/suite"
 )
 
 type AccountBenchmarkTestSuite struct {
 	E2ETestSuiteWithDB
+	testUser *domain.User
+	token    string
 }
 
 func (s *AccountBenchmarkTestSuite) SetupTest() {
-	// Create test user in database
-	s.createTestUserInDB()
+	// Create test user via POST /user/ endpoint
+	s.testUser = s.postToCreateUser()
+	s.token = s.loginUser(s.testUser)
 }
 
 func (s *AccountBenchmarkTestSuite) BenchmarkAccountCreate(b *testing.B) {
 	// Generate a real JWT token for authenticated requests
-	token := s.generateTestToken()
+	token := s.loginUser(s.testUser)
 
 	body := `{"currency":"USD"}`
 	req := httptest.NewRequest("POST", "/account", bytes.NewBufferString(body))
@@ -28,7 +32,7 @@ func (s *AccountBenchmarkTestSuite) BenchmarkAccountCreate(b *testing.B) {
 	req.Header.Set("Authorization", "Bearer "+token)
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		resp, err := s.app.Test(req)
 		if err != nil {
 			b.Fatal(err)
@@ -38,18 +42,16 @@ func (s *AccountBenchmarkTestSuite) BenchmarkAccountCreate(b *testing.B) {
 }
 
 func (s *AccountBenchmarkTestSuite) BenchmarkAccountDeposit(b *testing.B) {
-	// Generate a real JWT token for authenticated requests
-	token := s.generateTestToken()
 
 	accountID := uuid.New()
 
 	body := `{"amount":100.0}`
 	req := httptest.NewRequest("POST", "/account/"+accountID.String()+"/deposit", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Authorization", "Bearer "+s.token)
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		resp, err := s.app.Test(req)
 		if err != nil {
 			b.Fatal(err)

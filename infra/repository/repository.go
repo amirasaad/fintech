@@ -4,9 +4,10 @@ import (
 	"time"
 
 	"github.com/amirasaad/fintech/pkg/currency"
-	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/domain/account"
+	"github.com/amirasaad/fintech/pkg/domain/user"
 	"github.com/amirasaad/fintech/pkg/repository"
+	"github.com/amirasaad/fintech/pkg/utils"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -19,8 +20,8 @@ func NewAccountRepository(db *gorm.DB) repository.AccountRepository {
 	return &accountRepository{db: db}
 }
 
-func (r *accountRepository) Get(id uuid.UUID) (*domain.Account, error) {
-	var a domain.Account
+func (r *accountRepository) Get(id uuid.UUID) (*account.Account, error) {
+	var a account.Account
 	result := r.db.First(&a, id)
 	if result.Error != nil {
 		return nil, result.Error
@@ -28,7 +29,7 @@ func (r *accountRepository) Get(id uuid.UUID) (*domain.Account, error) {
 	return account.NewAccountFromData(a.ID, a.UserID, a.Balance, a.Currency, a.CreatedAt, a.UpdatedAt), nil
 }
 
-func (r *accountRepository) Create(a *domain.Account) error {
+func (r *accountRepository) Create(a *account.Account) error {
 	result := r.db.Create(a)
 	if result.Error != nil {
 		return result.Error
@@ -36,7 +37,7 @@ func (r *accountRepository) Create(a *domain.Account) error {
 	return nil
 }
 
-func (r *accountRepository) Update(a *domain.Account) error {
+func (r *accountRepository) Update(a *account.Account) error {
 	// Use infra.Account for DB operations
 	dbModel := Account{
 		Model: gorm.Model{
@@ -72,7 +73,7 @@ func NewTransactionRepository(db *gorm.DB) repository.TransactionRepository {
 	return &transactionRepository{db: db}
 }
 
-func (r *transactionRepository) Create(transaction *domain.Transaction) error {
+func (r *transactionRepository) Create(transaction *account.Transaction) error {
 	// Convert domain transaction to GORM model
 	dbTransaction := Transaction{
 		Model: gorm.Model{
@@ -100,7 +101,7 @@ func (r *transactionRepository) Create(transaction *domain.Transaction) error {
 func (r *transactionRepository) Get(
 	id uuid.UUID,
 ) (
-	*domain.Transaction,
+	*account.Transaction,
 	error,
 ) {
 	var t Transaction
@@ -113,13 +114,13 @@ func (r *transactionRepository) Get(
 
 func (r *transactionRepository) List(
 	userID, accountID uuid.UUID,
-) ([]*domain.Transaction, error) {
+) ([]*account.Transaction, error) {
 	var dbTransactions []*Transaction
 	result := r.db.Where("account_id = ? and user_id = ?", accountID, userID).Order("created_at desc").Limit(100).Find(&dbTransactions)
 	if result.Error != nil {
 		return nil, result.Error
 	}
-	tx := make([]*domain.Transaction, 0, len(dbTransactions))
+	tx := make([]*account.Transaction, 0, len(dbTransactions))
 	for _, t := range dbTransactions {
 		tx = append(tx, account.NewTransactionFromData(t.ID, t.UserID, t.AccountID, t.Amount, t.Balance, currency.Code(t.Currency), t.CreatedAt, t.OriginalAmount, t.OriginalCurrency, t.ConversionRate))
 	}
@@ -132,13 +133,17 @@ type userRepository struct {
 
 // Valid implements repository.UserRepository.
 func (u *userRepository) Valid(id uuid.UUID, password string) bool {
-	var user domain.User
-	result := u.db.Where("id = ? AND password = ?", id, password).First(&user)
-	return result.Error == nil
+	var usr user.User
+	result := u.db.Where("id = ?", id).First(&usr)
+	if result.Error != nil {
+		return false
+	}
+	// Compare the provided password with the stored hash
+	return utils.CheckPasswordHash(password, usr.Password)
 }
 
 // Create implements repository.UserRepository.
-func (u *userRepository) Create(user *domain.User) error {
+func (u *userRepository) Create(user *user.User) error {
 	result := u.db.Create(user)
 	if result.Error != nil {
 		return result.Error
@@ -148,7 +153,7 @@ func (u *userRepository) Create(user *domain.User) error {
 
 // Delete implements repository.UserRepository.
 func (u *userRepository) Delete(id uuid.UUID) error {
-	result := u.db.Delete(&domain.User{}, id)
+	result := u.db.Delete(&user.User{}, id)
 	if result.Error != nil {
 		return result.Error
 	}
@@ -156,37 +161,37 @@ func (u *userRepository) Delete(id uuid.UUID) error {
 }
 
 // Get implements repository.UserRepository.
-func (u *userRepository) Get(id uuid.UUID) (*domain.User, error) {
-	var user domain.User
-	result := u.db.First(&user, id)
+func (u *userRepository) Get(id uuid.UUID) (*user.User, error) {
+	var usr user.User
+	result := u.db.First(&usr, id)
 	if result.Error != nil {
 		return nil, result.Error
 	}
-	return &user, nil
+	return &usr, nil
 }
 
 // GetByEmail implements repository.UserRepository.
-func (u *userRepository) GetByEmail(email string) (*domain.User, error) {
-	var user domain.User
-	result := u.db.Where("email = ?", email).First(&user)
+func (u *userRepository) GetByEmail(email string) (*user.User, error) {
+	var usr user.User
+	result := u.db.Where("email = ?", email).First(&usr)
 	if result.Error != nil {
 		return nil, result.Error
 	}
-	return &user, nil
+	return &usr, nil
 }
 
 // GetByUsername implements repository.UserRepository.
-func (u *userRepository) GetByUsername(username string) (*domain.User, error) {
-	var user domain.User
-	result := u.db.Where("username = ?", username).First(&user)
+func (u *userRepository) GetByUsername(username string) (*user.User, error) {
+	var usr user.User
+	result := u.db.Where("username = ?", username).First(&usr)
 	if result.Error != nil {
 		return nil, result.Error
 	}
-	return &user, nil
+	return &usr, nil
 }
 
 // Update implements repository.UserRepository.
-func (u *userRepository) Update(user *domain.User) error {
+func (u *userRepository) Update(user *user.User) error {
 	result := u.db.Save(user)
 	if result.Error != nil {
 		return result.Error

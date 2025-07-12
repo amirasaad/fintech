@@ -4,17 +4,15 @@ import (
 	"context"
 	"errors"
 	"log/slog"
-	"net/mail"
 	"reflect"
 	"time"
 
 	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/domain"
-	"github.com/amirasaad/fintech/pkg/domain/user"
 	"github.com/amirasaad/fintech/pkg/repository"
+	"github.com/amirasaad/fintech/pkg/utils"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
-	"golang.org/x/crypto/bcrypt"
 )
 
 type contextKey string
@@ -49,20 +47,16 @@ func (s *AuthService) CheckPasswordHash(
 	password, hash string,
 ) bool {
 	s.logger.Info("CheckPasswordHash called")
-	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
-	if err != nil {
-		s.logger.Error("Password hash check failed", "error", err)
+	valid := utils.CheckPasswordHash(password, hash)
+	if !valid {
+		s.logger.Error("Password hash check failed", "valid", valid)
 	}
-	return err == nil
+	return valid
 }
 
 func (s *AuthService) ValidEmail(email string) bool {
 	s.logger.Info("ValidEmail called", "email", email)
-	_, err := mail.ParseAddress(email)
-	if err != nil {
-		s.logger.Error("Email validation failed", "email", email, "error", err)
-	}
-	return err == nil
+	return utils.IsEmail(email)
 }
 
 func (s *AuthService) GetCurrentUserId(
@@ -87,7 +81,7 @@ func (s *AuthService) Login(
 		return
 	}
 	if u == nil {
-		err = user.ErrUserUnauthorized
+		err = domain.ErrUserUnauthorized
 		s.logger.Error("Login failed", "identity", identity, "error", "user is nil")
 		return
 	}
@@ -151,21 +145,21 @@ func (s *JWTAuthStrategy) Login(
 			return err
 		}
 		repo := repoAny.(repository.UserRepository)
-		if isEmail(identity) {
+		if utils.IsEmail(identity) {
 			u, err = repo.GetByEmail(identity)
 		} else {
 			u, err = repo.GetByUsername(identity)
 		}
 		const dummyHash = "$2a$10$7zFqzDbD3RrlkMTczbXG9OWZ0FLOXjIxXzSZ.QZxkVXjXcx7QZQiC"
 		if err != nil {
-			return err
+			return domain.ErrUserUnauthorized
 		}
 		if u == nil {
-			checkPasswordHash(password, dummyHash)
-			return user.ErrUserUnauthorized
+			utils.CheckPasswordHash(password, dummyHash)
+			return domain.ErrUserUnauthorized
 		}
-		if !checkPasswordHash(password, u.Password) {
-			return user.ErrUserUnauthorized
+		if !utils.CheckPasswordHash(password, u.Password) {
+			return domain.ErrUserUnauthorized
 		}
 		return nil
 	})
@@ -220,20 +214,20 @@ func (s *BasicAuthStrategy) Login(
 			return err
 		}
 		repo := repoAny.(repository.UserRepository)
-		if isEmail(identity) {
+		if utils.IsEmail(identity) {
 			user, err = repo.GetByEmail(identity)
 		} else {
 			user, err = repo.GetByUsername(identity)
 		}
 		const dummyHash = "$2a$10$7zFqzDbD3RrlkMTczbXG9OWZ0FLOXjIxXzSZ.QZxkVXjXcx7QZQiC"
 		if err != nil {
-			return err
+			return domain.ErrUserUnauthorized
 		}
 		if user == nil {
-			checkPasswordHash(password, dummyHash)
+			utils.CheckPasswordHash(password, dummyHash)
 			return errors.New("invalid credentials")
 		}
-		if !checkPasswordHash(password, user.Password) {
+		if !utils.CheckPasswordHash(password, user.Password) {
 			return errors.New("invalid credentials")
 		}
 		return nil
@@ -249,19 +243,4 @@ func (s *BasicAuthStrategy) GetCurrentUserID(ctx context.Context) (uuid.UUID, er
 func (s *BasicAuthStrategy) GenerateToken(user *domain.User) (string, error) {
 	s.logger.Info("GenerateToken called", "userID", user.ID)
 	return "", nil // No token for basic auth
-}
-
-// Helper functions
-func isEmail(
-	email string,
-) bool {
-	_, err := mail.ParseAddress(email)
-	return err == nil
-}
-
-func checkPasswordHash(
-	password, hash string,
-) (isValid bool) {
-	isValid = bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)) == nil
-	return
 }

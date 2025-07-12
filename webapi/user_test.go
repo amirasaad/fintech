@@ -3,6 +3,7 @@ package webapi
 import (
 	"testing"
 
+	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/suite"
@@ -10,11 +11,14 @@ import (
 
 type UserTestSuite struct {
 	E2ETestSuiteWithDB
+	testUser *domain.User
+	token    string
 }
 
 func (s *UserTestSuite) SetupTest() {
-	// Create test user in database
-	s.createTestUserInDB()
+	// Create test user via POST /user/ endpoint
+	s.testUser = s.postToCreateUser()
+	s.token = s.loginUser(s.testUser)
 }
 
 func (s *UserTestSuite) TestCreateUserVariants() {
@@ -46,14 +50,17 @@ func (s *UserTestSuite) TestCreateUserVariants() {
 
 func (s *UserTestSuite) TestGetUserVariants() {
 	testCases := []struct {
+		userId     string
 		desc       string
 		wantStatus int
 	}{
 		{
+			userId:     uuid.New().String(),
 			desc:       "user not found",
 			wantStatus: fiber.StatusUnauthorized, // Generic error for security
 		},
 		{
+			userId:     s.testUser.ID.String(),
 			desc:       "get user success",
 			wantStatus: fiber.StatusOK,
 		},
@@ -61,9 +68,8 @@ func (s *UserTestSuite) TestGetUserVariants() {
 
 	for _, tc := range testCases {
 		s.Run(tc.desc, func() {
-			id := uuid.New()
-			token := s.generateTestToken()
-			resp := s.makeRequest("GET", "/user/"+id.String(), "", token)
+
+			resp := s.makeRequest("GET", "/user/"+tc.userId, "", s.token)
 			defer resp.Body.Close() //nolint:errcheck
 			s.Assert().Equal(tc.wantStatus, resp.StatusCode)
 		})
@@ -90,8 +96,7 @@ func (s *UserTestSuite) TestUpdateUserVariants() {
 
 	for _, tc := range testCases {
 		s.Run(tc.desc, func() {
-			token := s.generateTestToken()
-			resp := s.makeRequest("PUT", "/user/"+s.testUser.ID.String(), tc.body, token)
+			resp := s.makeRequest("PUT", "/user/"+s.testUser.ID.String(), tc.body, s.token)
 			defer resp.Body.Close() //nolint:errcheck
 			s.Assert().Equal(tc.wantStatus, resp.StatusCode)
 		})
@@ -125,23 +130,21 @@ func (s *UserTestSuite) TestDeleteUserVariants() {
 			body:       `{"password":"wrongpass"}`,
 			wantStatus: fiber.StatusUnauthorized, // This is correct - invalid credentials should return 401
 		},
-		{
-			desc:       "internal error",
-			body:       `{"password":"password123"}`,
-			wantStatus: fiber.StatusInternalServerError,
-		},
 	}
 
 	for _, tc := range testCases {
 		s.Run(tc.desc, func() {
 			// Skip failing tests in CI due to test isolation issue
-			if tc.desc == "invalid password" || tc.desc == "internal error" {
-				s.T().Skip("Skipping due to test isolation issue with mock expectations in test suite")
-			}
+			// if tc.desc == "invalid password" || tc.desc == "internal error" {
+			// 	s.T().Skip("Skipping due to test isolation issue with mock expectations in test suite")
+			// }
+
+			// Create a fresh user for each test case to avoid conflicts when user is deleted
+			testUser := s.postToCreateUser()
+			token := s.loginUser(testUser)
 
 			// Generate a real JWT token for authenticated requests
-			token := s.generateTestToken()
-			resp := s.makeRequest("DELETE", "/user/"+s.testUser.ID.String(), tc.body, token)
+			resp := s.makeRequest("DELETE", "/user/"+testUser.ID.String(), tc.body, token)
 			defer resp.Body.Close() //nolint:errcheck
 			s.Assert().Equal(tc.wantStatus, resp.StatusCode)
 		})

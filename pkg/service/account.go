@@ -476,7 +476,12 @@ func (s *AccountService) GetBalance(
 		repo := repoAny.(repository.AccountRepository)
 		a, err := repo.Get(accountID)
 		if err != nil {
-			logger.Error("GetBalance failed: account not found", "error", err)
+			logger.Error("GetBalance failed: AccountRepository.Get error", "error", err)
+			return err
+		}
+		if a == nil {
+			err = account.ErrAccountNotFound
+			logger.Error("GetBalance failed:  ErrAccountNotFound")
 			return err
 		}
 		balance, err = a.GetBalance(userID)

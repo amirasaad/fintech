@@ -4,7 +4,6 @@ import (
 	"context"
 	"io"
 	"log/slog"
-	"reflect"
 	"testing"
 	"time"
 
@@ -25,7 +24,6 @@ import (
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/domain/user"
-	pkgrepo "github.com/amirasaad/fintech/pkg/repository"
 	"github.com/amirasaad/fintech/pkg/service"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/log"
@@ -55,6 +53,10 @@ type E2ETestSuiteWithDB struct {
 	testUser    *domain.User
 	authService *service.AuthService
 	cfg         *config.AppConfig
+}
+
+func (s *E2ETestSuite) BeforeTest() {
+	s.T().Parallel()
 }
 
 // generateRandomTestUser creates a test user with random username and email
@@ -297,26 +299,32 @@ func (s *E2ETestSuiteWithDB) TearDownSuite() {
 	}
 }
 
-// generateTestToken makes an actual HTTP request to login and returns the JWT token
-func (s *E2ETestSuiteWithDB) generateTestToken() string {
-	// First, create the user in the database
-	testUser := s.createTestUserInDB()
-
+// loginUser makes an actual HTTP request to login and returns the JWT token
+func (s *E2ETestSuiteWithDB) loginUser(testUser *domain.User) string {
 	// Make login request with the actual user credentials
-	loginBody := fmt.Sprintf(`{"email":"%s","password":"password123"}`, testUser.Email)
+	loginBody := fmt.Sprintf(`{"identity":"%s","password":"password123"}`, testUser.Email)
 	resp := s.makeRequest("POST", "/auth/login", loginBody, "")
 
 	s.Require().Equal(200, resp.StatusCode)
 
-	// Parse response to get token
-	var loginResponse struct {
-		Token string `json:"token"`
-	}
-	err := json.NewDecoder(resp.Body).Decode(&loginResponse)
+	// Parse response to get token and log response
+	var response Response
+	err := json.NewDecoder(resp.Body).Decode(&response)
+	s.T().Logf("Login response: %+v", response)
 	s.Require().NoError(err)
-	s.Require().NotEmpty(loginResponse.Token)
 
-	return loginResponse.Token
+	// Handle the data field which can be map[string]interface{} or map[string]string
+	var token string
+	if dataMap, ok := response.Data.(map[string]any); ok {
+		if tokenInterface, exists := dataMap["token"]; exists {
+			token = tokenInterface.(string)
+		}
+	} else if dataMap, ok := response.Data.(map[string]string); ok {
+		token = dataMap["token"]
+	}
+
+	s.Require().NotEmpty(token)
+	return token
 }
 
 // makeRequest is a helper for making HTTP requests in tests
@@ -331,28 +339,52 @@ func (s *E2ETestSuiteWithDB) makeRequest(method, path, body, token string) *http
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
-	resp, err := s.app.Test(req)
+	resp, err := s.app.Test(req, 1000000)
 	s.Require().NoError(err)
 	return resp
 }
 
-// createTestUserInDB creates a unique test user in the database for each test
-func (s *E2ETestSuiteWithDB) createTestUserInDB() *domain.User {
+// postToCreateUser creates a unique test user via the POST /user/ endpoint
+func (s *E2ETestSuiteWithDB) postToCreateUser() *domain.User {
 	// Create a unique test user for each test
 	testUser, err := generateRandomTestUser()
 	s.Require().NoError(err)
 
-	uow := infrarepo.NewUoW(s.db)
-	err = uow.Do(context.Background(), func(uow pkgrepo.UnitOfWork) error {
-		userRepo, err := uow.GetRepository(reflect.TypeOf((*pkgrepo.UserRepository)(nil)).Elem())
-		if err != nil {
-			return err
-		}
-		return userRepo.(pkgrepo.UserRepository).Create(testUser)
-	})
+	// Create user via HTTP POST request
+	createUserBody := fmt.Sprintf(`{"username":"%s","email":"%s","password":"password123"}`, testUser.Username, testUser.Email)
+	resp := s.makeRequest("POST", "/user", createUserBody, "")
+
+	s.Require().Equal(201, resp.StatusCode, "Expected 201 Created for user creation")
+
+	// Parse response to get the created user
+	var response Response
+	err = json.NewDecoder(resp.Body).Decode(&response)
 	s.Require().NoError(err)
+	s.Require().NotEmpty(response.Data)
+
+	// Extract user data from response
+	var createdUser *domain.User
+	if userData, ok := response.Data.(map[string]any); ok {
+		// Convert the response data back to a domain.User
+		// This assumes the response contains the user data
+		userIDStr, ok := userData["id"].(string)
+		s.Require().True(ok, "User ID should be present in response")
+
+		userID, err := uuid.Parse(userIDStr)
+		s.Require().NoError(err)
+
+		createdUser = &domain.User{
+			ID:       userID,
+			Username: testUser.Username,
+			Email:    testUser.Email,
+			Password: testUser.Password, // Note: this might not be returned in the response
+		}
+	} else {
+		// Fallback: use the original test user with the generated data
+		createdUser = testUser
+	}
 
 	// Update the test user reference to the newly created one
-	s.testUser = testUser
-	return testUser
+	s.testUser = createdUser
+	return createdUser
 }

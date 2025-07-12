@@ -11,7 +11,7 @@ type LoginInput struct {
 }
 
 func AuthRoutes(app *fiber.App, authSvc *service.AuthService) {
-	app.Post("/login", Login(authSvc))
+	app.Post("/auth/login", Login(authSvc))
 }
 
 // Login handles user authentication and returns a JWT token.
@@ -26,7 +26,7 @@ func AuthRoutes(app *fiber.App, authSvc *service.AuthService) {
 // @Failure 401 {object} ProblemDetails
 // @Failure 429 {object} ProblemDetails
 // @Failure 500 {object} ProblemDetails
-// @Router /login [post]
+// @Router /auth/login [post]
 func Login(authSvc *service.AuthService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		input, err := BindAndValidate[LoginInput](c)
@@ -35,6 +35,10 @@ func Login(authSvc *service.AuthService) fiber.Handler {
 		}
 		user, err := authSvc.Login(c.Context(), input.Identity, input.Password)
 		if err != nil {
+			// Check if it's an unauthorized error
+			if err.Error() == "user unauthorized" {
+				return ProblemDetailsJSON(c, "Invalid identity or password", nil, "Identity or password is incorrect", fiber.StatusUnauthorized)
+			}
 			return ProblemDetailsJSON(c, "Internal Server Error", err)
 		}
 		if user == nil {

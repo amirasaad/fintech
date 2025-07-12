@@ -3,6 +3,7 @@ package webapi
 import (
 	"testing"
 
+	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/suite"
@@ -10,11 +11,14 @@ import (
 
 type AccountTestSuite struct {
 	E2ETestSuiteWithDB
+	testUser *domain.User
+	token    string
 }
 
 func (s *AccountTestSuite) SetupTest() {
-	// Create test user in database
-	s.createTestUserInDB()
+	// Create test user via POST /user/ endpoint
+	s.testUser = s.postToCreateUser()
+	s.token = s.loginUser(s.testUser)
 }
 
 func (s *AccountTestSuite) TestCreateAccountVariants() {
@@ -37,9 +41,8 @@ func (s *AccountTestSuite) TestCreateAccountVariants() {
 
 	for _, tc := range testCases {
 		s.Run(tc.desc, func() {
-			// Generate a real JWT token for authenticated requests
-			token := s.generateTestToken()
-			resp := s.makeRequest("POST", "/account", tc.body, token)
+			// Use the stored token for authenticated requests
+			resp := s.makeRequest("POST", "/account", tc.body, s.token)
 			defer resp.Body.Close() //nolint:errcheck
 			s.Assert().Equal(tc.wantStatus, resp.StatusCode)
 		})
@@ -53,10 +56,10 @@ func (s *AccountTestSuite) TestGetAccountVariants() {
 	}{
 		{
 			desc:       "account not found",
-			wantStatus: fiber.StatusUnauthorized, // Generic error for security
+			wantStatus: fiber.StatusNotFound, // Account doesn't exist
 		},
 		{
-			desc:       "get account success",
+			desc:       "get account balance success",
 			wantStatus: fiber.StatusOK,
 		},
 	}
@@ -64,9 +67,8 @@ func (s *AccountTestSuite) TestGetAccountVariants() {
 	for _, tc := range testCases {
 		s.Run(tc.desc, func() {
 			id := uuid.New()
-			// Generate a real JWT token for authenticated requests
-			token := s.generateTestToken()
-			resp := s.makeRequest("GET", "/account/"+id.String(), "", token)
+			// Use the stored token for authenticated requests
+			resp := s.makeRequest("GET", "/account/"+id.String()+"/balance", "", s.token)
 			defer resp.Body.Close() //nolint:errcheck
 			s.Assert().Equal(tc.wantStatus, resp.StatusCode)
 		})

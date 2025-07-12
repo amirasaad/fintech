@@ -190,13 +190,17 @@ func DeleteUser(
 			return ProblemDetailsJSON(c, "Forbidden", nil, "You are not allowed to update this user", fiber.StatusUnauthorized)
 		}
 		isValid, err := userSvc.ValidUser(c.Context(), id.String(), input.Password)
-		if err != nil || !isValid {
-			// Generic error for invalid credentials
+		if err != nil {
+			// If this is a DB/internal error, return 500
+			return ProblemDetailsJSON(c, "Failed to validate user", err, fiber.StatusInternalServerError)
+		}
+		if !isValid {
+			// Invalid password or user not found
 			return ProblemDetailsJSON(c, "Invalid credentials", nil, fiber.StatusUnauthorized)
 		}
 		err = userSvc.DeleteUser(c.Context(), id.String())
 		if err != nil {
-			return ProblemDetailsJSON(c, "Failed to delete user", nil, fiber.StatusInternalServerError)
+			return ProblemDetailsJSON(c, "Failed to delete user", err, fiber.StatusInternalServerError)
 		}
 		return SuccessResponseJSON(c, fiber.StatusNoContent, "User successfully deleted", nil)
 	}
