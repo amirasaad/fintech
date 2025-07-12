@@ -1,0 +1,225 @@
+package money
+
+import (
+	"fmt"
+	"log"
+
+	"github.com/amirasaad/fintech/pkg/currency"
+)
+
+// ExampleNewMoney demonstrates creating money values
+func ExampleNewMoney() {
+	// Create money with USD
+	usdMoney, err := NewMoney(100.50, currency.USD)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("USD Money: %s\n", usdMoney.String())
+
+	// Create money with EUR
+	eurMoney, err := NewMoney(75.25, currency.EUR)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("EUR Money: %s\n", eurMoney.String())
+
+	// Create money with JPY (0 decimals)
+	jpyMoney, err := NewMoney(1000, currency.Code("JPY"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("JPY Money: %s\n", jpyMoney.String())
+	// Output:
+	// USD Money: $100.50
+	// EUR Money: €75.25
+	// JPY Money: ¥1000
+}
+
+// ExampleMoney_Add demonstrates adding money values
+func ExampleMoney_Add() {
+	// Create two USD amounts
+	money1, _ := NewMoney(100.50, currency.USD)
+	money2, _ := NewMoney(25.75, currency.USD)
+
+	// Add them together
+	result, err := money1.Add(money2)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("Result: %s\n", result.String())
+	// Output:
+	// Result: $126.25
+}
+
+// ExampleMoney_Subtract demonstrates subtracting money values
+func ExampleMoney_Subtract() {
+	// Create two USD amounts
+	money1, _ := NewMoney(100.50, currency.USD)
+	money2, _ := NewMoney(25.75, currency.USD)
+
+	// Subtract the second from the first
+	result, err := money1.Subtract(money2)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("Result: %s\n", result.String())
+	// Output:
+	// Result: $74.75
+}
+
+// ExampleMoney_Multiply demonstrates multiplying money by a factor
+func ExampleMoney_Multiply() {
+	// Create USD amount
+	money, _ := NewMoney(100.50, currency.USD)
+
+	// Multiply by 2.5
+	result, err := money.Multiply(2.5)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("Result: %s\n", result.String())
+	// Output:
+	// Result: $251.25
+}
+
+// ExampleMoney_Divide demonstrates dividing money by a factor
+func ExampleMoney_Divide() {
+	// Create USD amount
+	money, _ := NewMoney(100.50, currency.USD)
+
+	// Divide by 2
+	result, err := money.Divide(2)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("Result: %s\n", result.String())
+	// Output:
+	// Result: $50.25
+}
+
+// ExampleMoney_Compare demonstrates comparing money values
+func ExampleMoney_Compare() {
+	// Create two USD amounts
+	money1, _ := NewMoney(100.50, currency.USD)
+	money2, _ := NewMoney(75.25, currency.USD)
+
+	// Compare them
+	greater, _ := money1.GreaterThan(money2)
+	equal := money1.Equals(money2)
+	less, _ := money1.LessThan(money2)
+
+	fmt.Printf("Greater than: %t\n", greater)
+	fmt.Printf("Equal: %t\n", equal)
+	fmt.Printf("Less than: %t\n", less)
+	// Output:
+	// Greater than: true
+	// Equal: false
+	// Less than: false
+}
+
+// ExampleMoney_IsPositive demonstrates checking if money is positive
+func ExampleMoney_IsPositive() {
+	// Create positive and negative amounts
+	positive, _ := NewMoney(100.50, currency.USD)
+	negative, _ := NewMoney(-25.75, currency.USD)
+	zero, _ := NewMoney(0, currency.USD)
+
+	fmt.Printf("Positive amount is positive: %t\n", positive.IsPositive())
+	fmt.Printf("Negative amount is positive: %t\n", negative.IsPositive())
+	fmt.Printf("Zero amount is positive: %t\n", zero.IsPositive())
+	// Output:
+	// Positive amount is positive: true
+	// Negative amount is positive: false
+	// Zero amount is positive: false
+}
+
+// ExampleMoney_IsZero demonstrates checking if money is zero
+func ExampleMoney_IsZero() {
+	// Create positive and zero amounts
+	positive, _ := NewMoney(100.50, currency.USD)
+	zero, _ := NewMoney(0, currency.USD)
+
+	fmt.Printf("Positive amount is zero: %t\n", positive.IsZero())
+	fmt.Printf("Zero amount is zero: %t\n", zero.IsZero())
+	// Output:
+	// Positive amount is zero: false
+	// Zero amount is zero: true
+}
+
+// ExampleMoney_Currency demonstrates getting the currency
+func ExampleMoney_Currency() {
+	// Create money with different currencies
+	usdMoney, _ := NewMoney(100.50, currency.USD)
+	eurMoney, _ := NewMoney(75.25, currency.EUR)
+	jpyMoney, _ := NewMoney(1000, currency.Code("JPY"))
+
+	fmt.Printf("USD Money currency: %s\n", usdMoney.Currency())
+	fmt.Printf("EUR Money currency: %s\n", eurMoney.Currency())
+	fmt.Printf("JPY Money currency: %s\n", jpyMoney.Currency())
+	// Output:
+	// USD Money currency: USD
+	// EUR Money currency: EUR
+	// JPY Money currency: JPY
+}
+
+// ExampleMoney_Amount demonstrates getting the amount
+func ExampleMoney_Amount() {
+	// Create money with different amounts
+	money1, _ := NewMoney(100.50, currency.USD)
+	money2, _ := NewMoney(1000, currency.Code("JPY"))
+
+	fmt.Printf("USD amount: %.2f\n", money1.AmountFloat())
+	fmt.Printf("JPY amount: %.0f\n", money2.AmountFloat())
+	// Output:
+	// USD amount: 100.50
+	// JPY amount: 1000
+}
+
+// ExampleMoney_AmountFloat demonstrates getting the amount as float64
+func ExampleMoney_AmountFloat() {
+	// Create money with different amounts
+	money1, _ := NewMoney(100.50, currency.USD)
+	money2, _ := NewMoney(1000, currency.Code("JPY"))
+
+	fmt.Printf("USD amount float: %.2f\n", money1.AmountFloat())
+	fmt.Printf("JPY amount float: %.0f\n", money2.AmountFloat())
+	// Output:
+	// USD amount float: 100.50
+	// JPY amount float: 1000
+}
+
+// ExampleNewMoneyFromSmallestUnit demonstrates creating money from smallest unit
+func ExampleNewMoneyFromSmallestUnit() {
+	// Create USD money from cents (smallest unit)
+	usdMoney, err := NewMoneyFromSmallestUnit(10050, currency.USD) // 100.50 USD
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("USD from cents: %s\n", usdMoney.String())
+
+	// Create JPY money from yen (smallest unit)
+	jpyMoney, err := NewMoneyFromSmallestUnit(1000, currency.Code("JPY")) // 1000 JPY
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("JPY from yen: %s\n", jpyMoney.String())
+	// Output:
+	// USD from cents: $100.50
+	// JPY from yen: ¥1000
+}
+
+// ExampleMoney_String demonstrates string representation
+func ExampleMoney_String() {
+	// Create money with different currencies
+	usdMoney, _ := NewMoney(100.50, currency.USD)
+	eurMoney, _ := NewMoney(75.25, currency.EUR)
+	jpyMoney, _ := NewMoney(1000, currency.Code("JPY"))
+
+	fmt.Printf("USD: %s\n", usdMoney.String())
+	fmt.Printf("EUR: %s\n", eurMoney.String())
+	fmt.Printf("JPY: %s\n", jpyMoney.String())
+	// Output:
+	// USD: $100.50
+	// EUR: €75.25
+	// JPY: ¥1000
+}

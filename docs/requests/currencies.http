@@ -2,7 +2,7 @@
 
 ### Login (needed for admin endpoints)
 # @name login
-POST {{host}}/login HTTP/1.1
+POST {{host}}/auth/login HTTP/1.1
 Content-Type: application/json
 
 {
