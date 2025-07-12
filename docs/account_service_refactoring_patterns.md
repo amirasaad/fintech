@@ -36,6 +36,51 @@ pkg/service/account/
 └── queries.go          # Query operations (GetAccount, GetTransactions, GetBalance)
 ```
 
+**Complete Example:**
+
+```go
+// types.go
+type OperationType string
+
+const (
+    OperationDeposit  OperationType = "deposit"
+    OperationWithdraw OperationType = "withdraw"
+)
+
+type operationHandler interface {
+    execute(account *account.Account, userID uuid.UUID, money mon.Money) (*account.Transaction, error)
+}
+
+// handlers.go
+type depositHandler struct{}
+
+func (h *depositHandler) execute(account *account.Account, userID uuid.UUID, money mon.Money) (*account.Transaction, error) {
+    return account.Deposit(userID, money)
+}
+
+type withdrawHandler struct{}
+
+func (h *withdrawHandler) execute(account *account.Account, userID uuid.UUID, money mon.Money) (*account.Transaction, error) {
+    return account.Withdraw(userID, money)
+}
+
+// operations.go
+func (s *AccountService) executeOperation(req operationRequest, handler operationHandler) (result *operationResult, err error) {
+    // Common logic: fetch account, convert currency, execute operation, persist
+    // Uses handler.execute() for the specific operation
+}
+
+// deposit.go
+func (s *AccountService) Deposit(userID, accountID uuid.UUID, amount float64, currencyCode currency.Code) (*account.Transaction, *common.ConversionInfo, error) {
+    req := operationRequest{
+        userID: userID, accountID: accountID, amount: amount, 
+        currencyCode: currencyCode, operation: OperationDeposit,
+    }
+    result, err := s.executeOperation(req, &depositHandler{})
+    return result.transaction, result.convInfo, err
+}
+```
+
 **Benefits:**
 - ✅ Eliminated ~150 lines of duplicated code
 - ✅ Reduced branching complexity
@@ -51,18 +96,153 @@ pkg/service/account/
 
 **Approach:** Encapsulate each operation as a command object with a uniform interface.
 
-**Key Components:**
+**Complete Example:**
+
 ```go
+// Command interface
 type AccountCommand interface {
     Execute(ctx context.Context) (*account.Transaction, *common.ConversionInfo, error)
 }
 
-type DepositCommand struct {
+// Base command with common functionality
+type BaseCommand struct {
     Service     *AccountService
     UserID      uuid.UUID
     AccountID   uuid.UUID
     Amount      float64
     Currency    currency.Code
+    logger      *slog.Logger
+}
+
+func (c *BaseCommand) getRepositories(uow repository.UnitOfWork) (repository.AccountRepository, repository.TransactionRepository, error) {
+    repoAny, err := uow.GetRepository(reflect.TypeOf((*repository.AccountRepository)(nil)).Elem())
+    if err != nil {
+        return nil, nil, err
+    }
+    accountRepo := repoAny.(repository.AccountRepository)
+
+    txRepoAny, err := uow.GetRepository(reflect.TypeOf((*repository.TransactionRepository)(nil)).Elem())
+    if err != nil {
+        return nil, nil, err
+    }
+    txRepo := txRepoAny.(repository.TransactionRepository)
+
+    return accountRepo, txRepo, nil
+}
+
+// Deposit command
+type DepositCommand struct {
+    BaseCommand
+}
+
+func NewDepositCommand(service *AccountService, userID, accountID uuid.UUID, amount float64, currency currency.Code) *DepositCommand {
+    return &DepositCommand{
+        BaseCommand: BaseCommand{
+            Service:  service,
+            UserID:   userID,
+            AccountID: accountID,
+            Amount:   amount,
+            Currency: currency,
+            logger:   service.logger,
+        },
+    }
+}
+
+func (c *DepositCommand) Execute(ctx context.Context) (*account.Transaction, *common.ConversionInfo, error) {
+    logger := c.logger.With("userID", c.UserID, "accountID", c.AccountID, "amount", c.Amount, "currency", c.Currency)
+    logger.Info("DepositCommand.Execute started")
+
+    var txLocal *account.Transaction
+    var convInfoLocal *common.ConversionInfo
+
+    err := c.Service.uow.Do(ctx, func(uow repository.UnitOfWork) error {
+        accountRepo, txRepo, err := c.getRepositories(uow)
+        if err != nil {
+            return err
+        }
+
+        // Get account
+        account, err := accountRepo.Get(c.AccountID)
+        if err != nil {
+            return account.ErrAccountNotFound
+        }
+
+        // Create money
+        money, err := mon.NewMoney(c.Amount, c.Currency)
+        if err != nil {
+            return err
+        }
+
+        // Convert currency if needed
+        convertedMoney, convInfo, err := c.Service.handleCurrencyConversion(money, account.Currency, logger)
+        if err != nil {
+            return err
+        }
+        convInfoLocal = convInfo
+
+        // Execute deposit
+        txLocal, err = account.Deposit(c.UserID, convertedMoney)
+        if err != nil {
+            return err
+        }
+
+        // Store conversion info
+        if convInfoLocal != nil {
+            txLocal.OriginalAmount = &convInfoLocal.OriginalAmount
+            txLocal.OriginalCurrency = &convInfoLocal.OriginalCurrency
+            txLocal.ConversionRate = &convInfoLocal.ConversionRate
+        }
+
+        // Persist changes
+        if err = accountRepo.Update(account); err != nil {
+            return err
+        }
+        if err = txRepo.Create(txLocal); err != nil {
+            return err
+        }
+
+        return nil
+    })
+
+    if err != nil {
+        return nil, nil, err
+    }
+
+    return txLocal, convInfoLocal, nil
+}
+
+// Withdraw command
+type WithdrawCommand struct {
+    BaseCommand
+}
+
+func NewWithdrawCommand(service *AccountService, userID, accountID uuid.UUID, amount float64, currency currency.Code) *WithdrawCommand {
+    return &WithdrawCommand{
+        BaseCommand: BaseCommand{
+            Service:  service,
+            UserID:   userID,
+            AccountID: accountID,
+            Amount:   amount,
+            Currency: currency,
+            logger:   service.logger,
+        },
+    }
+}
+
+func (c *WithdrawCommand) Execute(ctx context.Context) (*account.Transaction, *common.ConversionInfo, error) {
+    // Similar implementation to DepositCommand but calls account.Withdraw()
+    // ... implementation details
+}
+
+// Updated service
+func (s *AccountService) Deposit(userID, accountID uuid.UUID, amount float64, currencyCode currency.Code) (*account.Transaction, *common.ConversionInfo, error) {
+    cmd := NewDepositCommand(s, userID, accountID, amount, currencyCode)
+    return cmd.Execute(context.Background())
+}
+
+func (s *AccountService) Withdraw(userID, accountID uuid.UUID, amount float64, currencyCode currency.Code) (*account.Transaction, *common.ConversionInfo, error) {
+    cmd := NewWithdrawCommand(s, userID, accountID, amount, currencyCode)
+    return cmd.Execute(context.Background())
 }
 ```
 
@@ -81,12 +261,317 @@ type DepositCommand struct {
 
 **Approach:** Break operations into a chain of focused handlers, each responsible for one step.
 
-**Handler Chain:**
-1. **AccountValidationHandler** - Validates account exists and belongs to user
-2. **MoneyCreationHandler** - Creates Money object from amount/currency
-3. **CurrencyConversionHandler** - Handles currency conversion if needed
-4. **DomainOperationHandler** - Executes deposit/withdraw domain logic
-5. **PersistenceHandler** - Updates account and creates transaction
+**Complete Example:**
+
+```go
+// Handler interface
+type OperationHandler interface {
+    Handle(ctx context.Context, req *OperationRequest) (*OperationResponse, error)
+    SetNext(handler OperationHandler)
+}
+
+// Request/Response structures
+type OperationRequest struct {
+    UserID         uuid.UUID
+    AccountID      uuid.UUID
+    Amount         float64
+    CurrencyCode   currency.Code
+    Operation      OperationType
+    Account        *account.Account
+    Money          mon.Money
+    ConvertedMoney mon.Money
+    ConvInfo       *common.ConversionInfo
+    Transaction    *account.Transaction
+}
+
+type OperationResponse struct {
+    Transaction *account.Transaction
+    ConvInfo    *common.ConversionInfo
+    Error       error
+}
+
+// Base handler
+type BaseHandler struct {
+    next OperationHandler
+}
+
+func (h *BaseHandler) SetNext(handler OperationHandler) {
+    h.next = handler
+}
+
+func (h *BaseHandler) Handle(ctx context.Context, req *OperationRequest) (*OperationResponse, error) {
+    if h.next != nil {
+        return h.next.Handle(ctx, req)
+    }
+    return &OperationResponse{}, nil
+}
+
+// Account validation handler
+type AccountValidationHandler struct {
+    BaseHandler
+    uow    repository.UnitOfWork
+    logger *slog.Logger
+}
+
+func (h *AccountValidationHandler) Handle(ctx context.Context, req *OperationRequest) (*OperationResponse, error) {
+    logger := h.logger.With("userID", req.UserID, "accountID", req.AccountID)
+    
+    repoAny, err := h.uow.GetRepository(reflect.TypeOf((*repository.AccountRepository)(nil)).Elem())
+    if err != nil {
+        logger.Error("AccountValidationHandler failed: repository error", "error", err)
+        return &OperationResponse{Error: err}, nil
+    }
+    
+    repo := repoAny.(repository.AccountRepository)
+    account, err := repo.Get(req.AccountID)
+    if err != nil {
+        logger.Error("AccountValidationHandler failed: account not found", "error", err)
+        return &OperationResponse{Error: account.ErrAccountNotFound}, nil
+    }
+    
+    req.Account = account
+    logger.Info("AccountValidationHandler: account validated successfully")
+    
+    return h.BaseHandler.Handle(ctx, req)
+}
+
+// Money creation handler
+type MoneyCreationHandler struct {
+    BaseHandler
+    logger *slog.Logger
+}
+
+func (h *MoneyCreationHandler) Handle(ctx context.Context, req *OperationRequest) (*OperationResponse, error) {
+    logger := h.logger.With("amount", req.Amount, "currency", req.CurrencyCode)
+    
+    money, err := mon.NewMoney(req.Amount, req.CurrencyCode)
+    if err != nil {
+        logger.Error("MoneyCreationHandler failed: invalid money", "error", err)
+        return &OperationResponse{Error: err}, nil
+    }
+    
+    req.Money = money
+    logger.Info("MoneyCreationHandler: money created successfully")
+    
+    return h.BaseHandler.Handle(ctx, req)
+}
+
+// Currency conversion handler
+type CurrencyConversionHandler struct {
+    BaseHandler
+    converter mon.CurrencyConverter
+    logger    *slog.Logger
+}
+
+func (h *CurrencyConversionHandler) Handle(ctx context.Context, req *OperationRequest) (*OperationResponse, error) {
+    logger := h.logger.With("fromCurrency", req.Money.Currency(), "toCurrency", req.Account.Currency)
+    
+    if req.Money.Currency() == req.Account.Currency {
+        req.ConvertedMoney = req.Money
+        logger.Info("CurrencyConversionHandler: no conversion needed")
+        return h.BaseHandler.Handle(ctx, req)
+    }
+    
+    convInfo, err := h.converter.Convert(req.Money.AmountFloat(), string(req.Money.Currency()), string(req.Account.Currency))
+    if err != nil {
+        logger.Error("CurrencyConversionHandler failed: conversion error", "error", err)
+        return &OperationResponse{Error: err}, nil
+    }
+    
+    convertedMoney, err := mon.NewMoney(convInfo.ConvertedAmount, req.Account.Currency)
+    if err != nil {
+        logger.Error("CurrencyConversionHandler failed: converted money creation error", "error", err)
+        return &OperationResponse{Error: err}, nil
+    }
+    
+    req.ConvertedMoney = convertedMoney
+    req.ConvInfo = convInfo
+    logger.Info("CurrencyConversionHandler: conversion completed", "rate", convInfo.ConversionRate)
+    
+    return h.BaseHandler.Handle(ctx, req)
+}
+
+// Domain operation handler
+type DomainOperationHandler struct {
+    BaseHandler
+    logger *slog.Logger
+}
+
+func (h *DomainOperationHandler) Handle(ctx context.Context, req *OperationRequest) (*OperationResponse, error) {
+    logger := h.logger.With("operation", req.Operation)
+    
+    var tx *account.Transaction
+    var err error
+    
+    switch req.Operation {
+    case OperationDeposit:
+        tx, err = req.Account.Deposit(req.UserID, req.ConvertedMoney)
+    case OperationWithdraw:
+        tx, err = req.Account.Withdraw(req.UserID, req.ConvertedMoney)
+    default:
+        err = fmt.Errorf("unsupported operation: %s", req.Operation)
+    }
+    
+    if err != nil {
+        logger.Error("DomainOperationHandler failed: domain operation error", "error", err)
+        return &OperationResponse{Error: err}, nil
+    }
+    
+    req.Transaction = tx
+    logger.Info("DomainOperationHandler: domain operation completed", "transactionID", tx.ID)
+    
+    return h.BaseHandler.Handle(ctx, req)
+}
+
+// Persistence handler
+type PersistenceHandler struct {
+    BaseHandler
+    uow    repository.UnitOfWork
+    logger *slog.Logger
+}
+
+func (h *PersistenceHandler) Handle(ctx context.Context, req *OperationRequest) (*OperationResponse, error) {
+    logger := h.logger.With("transactionID", req.Transaction.ID)
+    
+    if req.ConvInfo != nil {
+        req.Transaction.OriginalAmount = &req.ConvInfo.OriginalAmount
+        req.Transaction.OriginalCurrency = &req.ConvInfo.OriginalCurrency
+        req.Transaction.ConversionRate = &req.ConvInfo.ConversionRate
+        logger.Info("PersistenceHandler: conversion info stored")
+    }
+    
+    repoAny, err := h.uow.GetRepository(reflect.TypeOf((*repository.AccountRepository)(nil)).Elem())
+    if err != nil {
+        logger.Error("PersistenceHandler failed: AccountRepository error", "error", err)
+        return &OperationResponse{Error: err}, nil
+    }
+    repo := repoAny.(repository.AccountRepository)
+    
+    if err = repo.Update(req.Account); err != nil {
+        logger.Error("PersistenceHandler failed: account update error", "error", err)
+        return &OperationResponse{Error: err}, nil
+    }
+    
+    txRepoAny, err := h.uow.GetRepository(reflect.TypeOf((*repository.TransactionRepository)(nil)).Elem())
+    if err != nil {
+        logger.Error("PersistenceHandler failed: TransactionRepository error", "error", err)
+        return &OperationResponse{Error: err}, nil
+    }
+    txRepo := txRepoAny.(repository.TransactionRepository)
+    
+    if err = txRepo.Create(req.Transaction); err != nil {
+        logger.Error("PersistenceHandler failed: transaction create error", "error", err)
+        return &OperationResponse{Error: err}, nil
+    }
+    
+    logger.Info("PersistenceHandler: persistence completed successfully")
+    
+    return &OperationResponse{
+        Transaction: req.Transaction,
+        ConvInfo:    req.ConvInfo,
+    }, nil
+}
+
+// Chain builder
+type ChainBuilder struct {
+    uow       repository.UnitOfWork
+    converter mon.CurrencyConverter
+    logger    *slog.Logger
+}
+
+func NewChainBuilder(uow repository.UnitOfWork, converter mon.CurrencyConverter, logger *slog.Logger) *ChainBuilder {
+    return &ChainBuilder{
+        uow:       uow,
+        converter: converter,
+        logger:    logger,
+    }
+}
+
+func (b *ChainBuilder) BuildOperationChain() OperationHandler {
+    accountValidation := &AccountValidationHandler{
+        uow:    b.uow,
+        logger: b.logger,
+    }
+    
+    moneyCreation := &MoneyCreationHandler{
+        logger: b.logger,
+    }
+    
+    currencyConversion := &CurrencyConversionHandler{
+        converter: b.converter,
+        logger:    b.logger,
+    }
+    
+    domainOperation := &DomainOperationHandler{
+        logger: b.logger,
+    }
+    
+    persistence := &PersistenceHandler{
+        uow:    b.uow,
+        logger: b.logger,
+    }
+    
+    // Chain them together
+    accountValidation.SetNext(moneyCreation)
+    moneyCreation.SetNext(currencyConversion)
+    currencyConversion.SetNext(domainOperation)
+    domainOperation.SetNext(persistence)
+    
+    return accountValidation
+}
+
+// Updated service
+type AccountService struct {
+    uow       repository.UnitOfWork
+    converter mon.CurrencyConverter
+    logger    *slog.Logger
+    chain     OperationHandler
+}
+
+func NewAccountService(uow repository.UnitOfWork, converter mon.CurrencyConverter, logger *slog.Logger) *AccountService {
+    builder := NewChainBuilder(uow, converter, logger)
+    return &AccountService{
+        uow:       uow,
+        converter: converter,
+        logger:    logger,
+        chain:     builder.BuildOperationChain(),
+    }
+}
+
+func (s *AccountService) Deposit(userID, accountID uuid.UUID, amount float64, currencyCode currency.Code) (*account.Transaction, *common.ConversionInfo, error) {
+    req := &OperationRequest{
+        UserID:       userID,
+        AccountID:    accountID,
+        Amount:       amount,
+        CurrencyCode: currencyCode,
+        Operation:    OperationDeposit,
+    }
+    
+    resp, err := s.chain.Handle(context.Background(), req)
+    if err != nil {
+        return nil, nil, err
+    }
+    
+    return resp.Transaction, resp.ConvInfo, resp.Error
+}
+
+func (s *AccountService) Withdraw(userID, accountID uuid.UUID, amount float64, currencyCode currency.Code) (*account.Transaction, *common.ConversionInfo, error) {
+    req := &OperationRequest{
+        UserID:       userID,
+        AccountID:    accountID,
+        Amount:       amount,
+        CurrencyCode: currencyCode,
+        Operation:    OperationWithdraw,
+    }
+    
+    resp, err := s.chain.Handle(context.Background(), req)
+    if err != nil {
+        return nil, nil, err
+    }
+    
+    return resp.Transaction, resp.ConvInfo, resp.Error
+}
+```
 
 **Benefits:**
 - ✅ Single responsibility per handler
@@ -95,34 +580,256 @@ type DepositCommand struct {
 - ✅ Excellent testability
 - ✅ Clear, linear flow
 
-**Implementation Example:**
-```go
-type OperationHandler interface {
-    Handle(ctx context.Context, req *OperationRequest) (*OperationResponse, error)
-    SetNext(handler OperationHandler)
-}
-
-// Chain execution
-accountValidation.SetNext(moneyCreation)
-moneyCreation.SetNext(currencyConversion)
-currencyConversion.SetNext(domainOperation)
-domainOperation.SetNext(persistence)
-```
-
 ### 4. Event-Driven Architecture (Analyzed)
 
 **Approach:** Convert operations into events that trigger cascading reactions.
 
-**Event Flow:**
-```
-AccountDepositRequested → AccountValidated → CurrencyConversionCompleted → AccountOperationCompleted
-```
+**Complete Example:**
 
-**Key Events:**
-- `AccountDepositRequested` / `AccountWithdrawalRequested`
-- `AccountValidated`
-- `CurrencyConversionCompleted`
-- `AccountOperationCompleted` / `AccountOperationFailed`
+```go
+// Event interface
+type Event interface {
+    EventType() string
+    Timestamp() time.Time
+    CorrelationID() string
+}
+
+// Account operation events
+type AccountDepositRequested struct {
+    UserID        uuid.UUID
+    AccountID     uuid.UUID
+    Amount        float64
+    CurrencyCode  currency.Code
+    Timestamp     time.Time
+    CorrelationID string
+}
+
+func (e AccountDepositRequested) EventType() string { return "AccountDepositRequested" }
+func (e AccountDepositRequested) Timestamp() time.Time { return e.Timestamp }
+func (e AccountDepositRequested) CorrelationID() string { return e.CorrelationID }
+
+type AccountWithdrawalRequested struct {
+    UserID        uuid.UUID
+    AccountID     uuid.UUID
+    Amount        float64
+    CurrencyCode  currency.Code
+    Timestamp     time.Time
+    CorrelationID string
+}
+
+func (e AccountWithdrawalRequested) EventType() string { return "AccountWithdrawalRequested" }
+func (e AccountWithdrawalRequested) Timestamp() time.Time { return e.Timestamp }
+func (e AccountWithdrawalRequested) CorrelationID() string { return e.CorrelationID }
+
+// Domain events
+type AccountValidated struct {
+    Account       *account.Account
+    UserID        uuid.UUID
+    AccountID     uuid.UUID
+    Timestamp     time.Time
+    CorrelationID string
+}
+
+func (e AccountValidated) EventType() string { return "AccountValidated" }
+func (e AccountValidated) Timestamp() time.Time { return e.Timestamp }
+func (e AccountValidated) CorrelationID() string { return e.CorrelationID }
+
+type CurrencyConversionCompleted struct {
+    OriginalAmount    float64
+    ConvertedAmount   float64
+    OriginalCurrency  currency.Code
+    TargetCurrency    currency.Code
+    ConversionRate    float64
+    Timestamp         time.Time
+    CorrelationID     string
+}
+
+func (e CurrencyConversionCompleted) EventType() string { return "CurrencyConversionCompleted" }
+func (e CurrencyConversionCompleted) Timestamp() time.Time { return e.Timestamp }
+func (e CurrencyConversionCompleted) CorrelationID() string { return e.CorrelationID }
+
+type AccountOperationCompleted struct {
+    Transaction    *account.Transaction
+    ConvInfo       *common.ConversionInfo
+    Timestamp      time.Time
+    CorrelationID  string
+}
+
+func (e AccountOperationCompleted) EventType() string { return "AccountOperationCompleted" }
+func (e AccountOperationCompleted) Timestamp() time.Time { return e.Timestamp }
+func (e AccountOperationCompleted) CorrelationID() string { return e.CorrelationID }
+
+type AccountOperationFailed struct {
+    Error          error
+    UserID         uuid.UUID
+    AccountID      uuid.UUID
+    Timestamp      time.Time
+    CorrelationID  string
+}
+
+func (e AccountOperationFailed) EventType() string { return "AccountOperationFailed" }
+func (e AccountOperationFailed) Timestamp() time.Time { return e.Timestamp }
+func (e AccountOperationFailed) CorrelationID() string { return e.CorrelationID }
+
+// Event bus
+type EventBus interface {
+    Publish(event Event) error
+    Subscribe(eventType string, handler EventHandler) error
+    Unsubscribe(eventType string, handler EventHandler) error
+}
+
+type EventHandler func(ctx context.Context, event Event) error
+
+// In-memory event bus
+type InMemoryEventBus struct {
+    handlers map[string][]EventHandler
+    mu       sync.RWMutex
+}
+
+func NewInMemoryEventBus() *InMemoryEventBus {
+    return &InMemoryEventBus{
+        handlers: make(map[string][]EventHandler),
+    }
+}
+
+func (b *InMemoryEventBus) Publish(event Event) error {
+    b.mu.RLock()
+    handlers := b.handlers[event.EventType()]
+    b.mu.RUnlock()
+    
+    for _, handler := range handlers {
+        if err := handler(context.Background(), event); err != nil {
+            return fmt.Errorf("handler failed for event %s: %w", event.EventType(), err)
+        }
+    }
+    return nil
+}
+
+func (b *InMemoryEventBus) Subscribe(eventType string, handler EventHandler) error {
+    b.mu.Lock()
+    defer b.mu.Unlock()
+    b.handlers[eventType] = append(b.handlers[eventType], handler)
+    return nil
+}
+
+func (b *InMemoryEventBus) Unsubscribe(eventType string, handler EventHandler) error {
+    // Implementation for removing handlers
+    return nil
+}
+
+// Event handlers
+type AccountValidationHandler struct {
+    uow    repository.UnitOfWork
+    bus    EventBus
+    logger *slog.Logger
+}
+
+func NewAccountValidationHandler(uow repository.UnitOfWork, bus EventBus, logger *slog.Logger) *AccountValidationHandler {
+    handler := &AccountValidationHandler{
+        uow:    uow,
+        bus:    bus,
+        logger: logger,
+    }
+    
+    bus.Subscribe("AccountDepositRequested", handler.Handle)
+    bus.Subscribe("AccountWithdrawalRequested", handler.Handle)
+    
+    return handler
+}
+
+func (h *AccountValidationHandler) Handle(ctx context.Context, event Event) error {
+    logger := h.logger.With("eventType", event.EventType(), "correlationID", event.CorrelationID())
+    
+    var userID, accountID uuid.UUID
+    var amount float64
+    var currencyCode currency.Code
+    
+    switch e := event.(type) {
+    case AccountDepositRequested:
+        userID, accountID, amount, currencyCode = e.UserID, e.AccountID, e.Amount, e.CurrencyCode
+    case AccountWithdrawalRequested:
+        userID, accountID, amount, currencyCode = e.UserID, e.AccountID, e.Amount, e.CurrencyCode
+    default:
+        return fmt.Errorf("unsupported event type: %T", event)
+    }
+    
+    repoAny, err := h.uow.GetRepository(reflect.TypeOf((*repository.AccountRepository)(nil)).Elem())
+    if err != nil {
+        logger.Error("AccountValidationHandler failed: repository error", "error", err)
+        return h.bus.Publish(AccountOperationFailed{
+            Error:         err,
+            UserID:        userID,
+            AccountID:     accountID,
+            Timestamp:     time.Now(),
+            CorrelationID: event.CorrelationID(),
+        })
+    }
+    
+    repo := repoAny.(repository.AccountRepository)
+    account, err := repo.Get(accountID)
+    if err != nil {
+        logger.Error("AccountValidationHandler failed: account not found", "error", err)
+        return h.bus.Publish(AccountOperationFailed{
+            Error:         account.ErrAccountNotFound,
+            UserID:        userID,
+            AccountID:     accountID,
+            Timestamp:     time.Now(),
+            CorrelationID: event.CorrelationID(),
+        })
+    }
+    
+    logger.Info("AccountValidationHandler: account validated successfully")
+    
+    return h.bus.Publish(AccountValidated{
+        Account:       account,
+        UserID:        userID,
+        AccountID:     accountID,
+        Timestamp:     time.Now(),
+        CorrelationID: event.CorrelationID(),
+    })
+}
+
+// Updated service
+type AccountService struct {
+    bus    EventBus
+    logger *slog.Logger
+}
+
+func NewAccountService(uow repository.UnitOfWork, converter mon.CurrencyConverter, logger *slog.Logger) *AccountService {
+    bus := NewInMemoryEventBus()
+    
+    // Initialize all handlers
+    NewAccountValidationHandler(uow, bus, logger)
+    // Add more handlers as needed
+    
+    return &AccountService{
+        bus:    bus,
+        logger: logger,
+    }
+}
+
+func (s *AccountService) Deposit(userID, accountID uuid.UUID, amount float64, currencyCode currency.Code) (*account.Transaction, *common.ConversionInfo, error) {
+    correlationID := uuid.New().String()
+    
+    event := AccountDepositRequested{
+        UserID:        userID,
+        AccountID:     accountID,
+        Amount:        amount,
+        CurrencyCode:  currencyCode,
+        Timestamp:     time.Now(),
+        CorrelationID: correlationID,
+    }
+    
+    // Publish the event
+    if err := s.bus.Publish(event); err != nil {
+        return nil, nil, err
+    }
+    
+    // In a real implementation, you'd need to wait for completion
+    // This is a simplified version
+    return nil, nil, nil
+}
+```
 
 **Benefits:**
 - ✅ Complete decoupling
