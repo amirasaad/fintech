@@ -256,6 +256,8 @@ func TestWithdraw_Success(t *testing.T) {
 		},
 	)
 
+	uow.EXPECT().AccountRepository().Return(accountRepo, nil).Twice()
+	uow.EXPECT().TransactionRepository().Return(transactionRepo, nil).Once()
 	userID := uuid.New()
 	acc, _ := accountdomain.New().WithUserID(userID).WithCurrency(currency.USD).Build()
 	// Deposit first
@@ -446,6 +448,7 @@ func TestGetBalance_Success(t *testing.T) {
 			return fn(uow)
 		},
 	)
+	uow.EXPECT().AccountRepository().Return(accountRepo, nil)
 
 	userID := uuid.New()
 	acc, _ := accountdomain.New().WithUserID(userID).WithCurrency(currency.USD).Build()
@@ -462,6 +465,7 @@ func TestGetBalance_Success(t *testing.T) {
 func TestGetBalance_NotFound(t *testing.T) {
 	t.Parallel()
 	uow, accountRepo, _ := setupTestMocks(t)
+	uow.EXPECT().AccountRepository().Return(accountRepo, nil)
 	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).RunAndReturn(
 		func(ctx context.Context, fn func(repository.UnitOfWork) error) error {
 			return fn(uow)

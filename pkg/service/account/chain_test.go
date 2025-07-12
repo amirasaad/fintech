@@ -11,6 +11,7 @@ import (
 	"github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/amirasaad/fintech/pkg/domain/money"
+	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -337,10 +338,21 @@ func TestPersistenceHandler_Handle_Success(t *testing.T) {
 		Account:     account,
 		ConvInfo:    convInfo,
 	}
-	uow.On("AccountRepository").Return(accountRepo, nil)
-	uow.On("TransactionRepository").Return(txRepo, nil)
-	accountRepo.On("Update", account).Return(nil)
-	txRepo.On("Create", transaction).Return(nil)
+
+	// Do called by PersistenceHandler
+	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).RunAndReturn(
+		func(ctx context.Context, fn func(repository.UnitOfWork) error) error {
+			return fn(uow)
+		},
+	).Once()
+
+	// Inside Do callback: AccountRepository and TransactionRepository called once each
+	uow.EXPECT().AccountRepository().Return(accountRepo, nil).Once()
+	uow.EXPECT().TransactionRepository().Return(txRepo, nil).Once()
+
+	accountRepo.EXPECT().Update(account).Return(nil).Once()
+	txRepo.EXPECT().Create(transaction).Return(nil).Once()
+
 	handler := &PersistenceHandler{
 		uow:    uow,
 		logger: logger,
@@ -352,9 +364,6 @@ func TestPersistenceHandler_Handle_Success(t *testing.T) {
 	assert.Equal(t, convInfo, resp.ConvInfo)
 	assert.Equal(t, &convInfo.OriginalAmount, transaction.OriginalAmount)
 	assert.Equal(t, &convInfo.ConversionRate, transaction.ConversionRate)
-	uow.AssertExpectations(t)
-	accountRepo.AssertExpectations(t)
-	txRepo.AssertExpectations(t)
 }
 
 func TestPersistenceHandler_Handle_AccountUpdateError(t *testing.T) {
@@ -367,8 +376,19 @@ func TestPersistenceHandler_Handle_AccountUpdateError(t *testing.T) {
 		Transaction: transaction,
 		Account:     account,
 	}
-	uow.On("AccountRepository").Return(accountRepo, nil)
-	accountRepo.On("Update", account).Return(assert.AnError)
+
+	// Do called by PersistenceHandler
+	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).RunAndReturn(
+		func(ctx context.Context, fn func(repository.UnitOfWork) error) error {
+			return fn(uow)
+		},
+	).Once()
+
+	// Inside Do callback: AccountRepository called once
+	uow.EXPECT().AccountRepository().Return(accountRepo, nil).Once()
+
+	accountRepo.EXPECT().Update(account).Return(assert.AnError).Once()
+
 	handler := &PersistenceHandler{
 		uow:    uow,
 		logger: logger,
@@ -377,8 +397,6 @@ func TestPersistenceHandler_Handle_AccountUpdateError(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, resp.Error)
 	assert.Equal(t, assert.AnError, resp.Error)
-	uow.AssertExpectations(t)
-	accountRepo.AssertExpectations(t)
 }
 
 // Test ChainBuilder
@@ -390,11 +408,24 @@ func TestChainBuilder_BuildOperationChain(t *testing.T) {
 	transactionRepo := mocks.NewMockTransactionRepository(t)
 	converter := mocks.NewMockCurrencyConverter(t)
 
-	uow.EXPECT().AccountRepository().Return(accountRepo, nil)
-	uow.EXPECT().TransactionRepository().Return(transactionRepo, nil)
-	accountRepo.EXPECT().Get(mock.Anything).Return(acc, nil)
-	transactionRepo.EXPECT().Create(mock.Anything).Return(nil)
-	accountRepo.EXPECT().Update(acc).Return(nil)
+	// AccountRepository called once by AccountValidationHandler
+	uow.EXPECT().AccountRepository().Return(accountRepo, nil).Once()
+
+	// Do called once by PersistenceHandler
+	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).RunAndReturn(
+		func(ctx context.Context, fn func(repository.UnitOfWork) error) error {
+			return fn(uow)
+		},
+	).Once()
+
+	// Inside Do callback: AccountRepository and TransactionRepository called once each
+	uow.EXPECT().AccountRepository().Return(accountRepo, nil).Once()
+	uow.EXPECT().TransactionRepository().Return(transactionRepo, nil).Once()
+
+	accountRepo.EXPECT().Get(mock.Anything).Return(acc, nil).Once()
+	transactionRepo.EXPECT().Create(mock.Anything).Return(nil).Once()
+	accountRepo.EXPECT().Update(acc).Return(nil).Once()
+
 	logger := newTestLogger()
 	builder := NewChainBuilder(uow, converter, logger)
 	chain := builder.BuildOperationChain()

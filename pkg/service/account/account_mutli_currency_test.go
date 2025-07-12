@@ -21,11 +21,17 @@ func TestDeposit_AcceptsMatchingCurrency(t *testing.T) {
 	accountRepo := fixtures.NewMockAccountRepository(t)
 	transactionRepo := fixtures.NewMockTransactionRepository(t)
 
+	// AccountRepository called once by AccountValidationHandler
+	uow.EXPECT().AccountRepository().Return(accountRepo, nil).Once()
+
+	// Do called once by PersistenceHandler
 	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).RunAndReturn(
 		func(ctx context.Context, fn func(repository.UnitOfWork) error) error {
 			return fn(uow)
 		},
-	)
+	).Once()
+
+	// Inside Do callback: AccountRepository and TransactionRepository called once each
 	uow.EXPECT().AccountRepository().Return(accountRepo, nil).Once()
 	uow.EXPECT().TransactionRepository().Return(transactionRepo, nil).Once()
 
@@ -49,11 +55,17 @@ func TestWithdraw_AcceptsMatchingCurrency(t *testing.T) {
 	accountRepo := fixtures.NewMockAccountRepository(t)
 	transactionRepo := fixtures.NewMockTransactionRepository(t)
 
+	// AccountRepository called once by AccountValidationHandler
+	uow.EXPECT().AccountRepository().Return(accountRepo, nil).Once()
+
+	// Do called once by PersistenceHandler
 	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).RunAndReturn(
 		func(ctx context.Context, fn func(repository.UnitOfWork) error) error {
 			return fn(uow)
 		},
-	)
+	).Once()
+
+	// Inside Do callback: AccountRepository and TransactionRepository called once each
 	uow.EXPECT().AccountRepository().Return(accountRepo, nil).Once()
 	uow.EXPECT().TransactionRepository().Return(transactionRepo, nil).Once()
 
@@ -78,11 +90,17 @@ func TestDeposit_ConvertsCurrency(t *testing.T) {
 	transactionRepo := fixtures.NewMockTransactionRepository(t)
 	converter := fixtures.NewMockCurrencyConverter(t)
 
+	// AccountRepository called once by AccountValidationHandler
+	uow.EXPECT().AccountRepository().Return(accountRepo, nil).Once()
+
+	// Do called once by PersistenceHandler
 	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).RunAndReturn(
 		func(ctx context.Context, fn func(repository.UnitOfWork) error) error {
 			return fn(uow)
 		},
-	)
+	).Once()
+
+	// Inside Do callback: AccountRepository and TransactionRepository called once each
 	uow.EXPECT().AccountRepository().Return(accountRepo, nil).Once()
 	uow.EXPECT().TransactionRepository().Return(transactionRepo, nil).Once()
 
@@ -112,11 +130,17 @@ func TestWithdraw_ConvertsCurrency(t *testing.T) {
 	transactionRepo := fixtures.NewMockTransactionRepository(t)
 	converter := fixtures.NewMockCurrencyConverter(t)
 
+	// AccountRepository called once by AccountValidationHandler
+	uow.EXPECT().AccountRepository().Return(accountRepo, nil).Once()
+
+	// Do called once by PersistenceHandler
 	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).RunAndReturn(
 		func(ctx context.Context, fn func(repository.UnitOfWork) error) error {
 			return fn(uow)
 		},
-	)
+	).Once()
+
+	// Inside Do callback: AccountRepository and TransactionRepository called once each
 	uow.EXPECT().AccountRepository().Return(accountRepo, nil).Once()
 	uow.EXPECT().TransactionRepository().Return(transactionRepo, nil).Once()
 
