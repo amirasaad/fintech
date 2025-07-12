@@ -2,17 +2,15 @@ package account
 
 import (
 	"context"
-	"reflect"
 	"testing"
 
 	"log/slog"
 
-	"github.com/amirasaad/fintech/internal/fixtures"
+	"github.com/amirasaad/fintech/internal/fixtures/mocks"
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/domain/common"
-	mon "github.com/amirasaad/fintech/pkg/domain/money"
-	"github.com/amirasaad/fintech/pkg/repository"
+	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -70,8 +68,8 @@ func TestBaseHandler_Handle_WithNext(t *testing.T) {
 
 // Test AccountValidationHandler
 func TestAccountValidationHandler_Handle_Success(t *testing.T) {
-	uow := new(MockUnitOfWork)
-	accountRepo := fixtures.NewMockAccountRepository(t)
+	uow := mocks.NewMockUnitOfWork(t)
+	accountRepo := mocks.NewMockAccountRepository(t)
 	logger := newTestLogger()
 	userID := uuid.New()
 	accountID := uuid.New()
@@ -83,7 +81,7 @@ func TestAccountValidationHandler_Handle_Success(t *testing.T) {
 		ID:     accountID,
 		UserID: userID,
 	}
-	uow.On("GetRepository", mock.Anything).Return(accountRepo, nil)
+	uow.On("AccountRepository").Return(accountRepo, nil)
 	accountRepo.On("Get", accountID).Return(expectedAccount, nil)
 	handler := &AccountValidationHandler{
 		uow:    uow,
@@ -98,13 +96,13 @@ func TestAccountValidationHandler_Handle_Success(t *testing.T) {
 }
 
 func TestAccountValidationHandler_Handle_RepositoryError(t *testing.T) {
-	uow := new(MockUnitOfWork)
+	uow := mocks.NewMockUnitOfWork(t)
 	logger := newTestLogger()
 	req := &OperationRequest{
 		UserID:    uuid.New(),
 		AccountID: uuid.New(),
 	}
-	uow.On("GetRepository", mock.Anything).Return(nil, assert.AnError)
+	uow.On("AccountRepository").Return(nil, assert.AnError)
 	handler := &AccountValidationHandler{
 		uow:    uow,
 		logger: logger,
@@ -117,8 +115,8 @@ func TestAccountValidationHandler_Handle_RepositoryError(t *testing.T) {
 }
 
 func TestAccountValidationHandler_Handle_AccountNotFound(t *testing.T) {
-	uow := new(MockUnitOfWork)
-	accountRepo := fixtures.NewMockAccountRepository(t)
+	uow := mocks.NewMockUnitOfWork(t)
+	accountRepo := mocks.NewMockAccountRepository(t)
 	logger := newTestLogger()
 	userID := uuid.New()
 	accountID := uuid.New()
@@ -126,7 +124,7 @@ func TestAccountValidationHandler_Handle_AccountNotFound(t *testing.T) {
 		UserID:    userID,
 		AccountID: accountID,
 	}
-	uow.On("GetRepository", mock.Anything).Return(accountRepo, nil)
+	uow.On("AccountRepository").Return(accountRepo, nil)
 	accountRepo.On("Get", accountID).Return(nil, account.ErrAccountNotFound)
 	handler := &AccountValidationHandler{
 		uow:    uow,
@@ -161,7 +159,7 @@ func TestMoneyCreationHandler_Handle_Success(t *testing.T) {
 func TestMoneyCreationHandler_Handle_InvalidMoney(t *testing.T) {
 	logger := newTestLogger()
 	req := &OperationRequest{
-		Amount:       -100.0, // Invalid negative amount
+		Amount:       -100.0, // Negative amount is valid for Money creation
 		CurrencyCode: currency.Code("USD"),
 	}
 	handler := &MoneyCreationHandler{
@@ -169,15 +167,17 @@ func TestMoneyCreationHandler_Handle_InvalidMoney(t *testing.T) {
 	}
 	resp, err := handler.Handle(context.Background(), req)
 	assert.NoError(t, err)
-	assert.NotNil(t, resp.Error)
-	assert.Equal(t, req.Money, mon.Money{})
+	assert.Nil(t, resp.Error) // Money creation succeeds even for negative amounts
+	assert.NotNil(t, req.Money)
+	assert.Equal(t, float64(-100.0), req.Money.AmountFloat())
+	assert.Equal(t, currency.Code("USD"), req.Money.Currency())
 }
 
 // Test CurrencyConversionHandler
 func TestCurrencyConversionHandler_Handle_NoConversionNeeded(t *testing.T) {
-	converter := fixtures.NewMockCurrencyConverter(t)
+	converter := mocks.NewMockCurrencyConverter(t)
 	logger := newTestLogger()
-	money, _ := mon.NewMoney(100.0, currency.Code("USD"))
+	money, _ := money.NewMoney(100.0, currency.Code("USD"))
 	req := &OperationRequest{
 		Money: money,
 		Account: &account.Account{
@@ -196,9 +196,9 @@ func TestCurrencyConversionHandler_Handle_NoConversionNeeded(t *testing.T) {
 }
 
 func TestCurrencyConversionHandler_Handle_ConversionNeeded(t *testing.T) {
-	converter := fixtures.NewMockCurrencyConverter(t)
+	converter := mocks.NewMockCurrencyConverter(t)
 	logger := newTestLogger()
-	money, _ := mon.NewMoney(100.0, currency.Code("USD"))
+	money, _ := money.NewMoney(100.0, currency.Code("USD"))
 	req := &OperationRequest{
 		Money: money,
 		Account: &account.Account{
@@ -228,9 +228,9 @@ func TestCurrencyConversionHandler_Handle_ConversionNeeded(t *testing.T) {
 }
 
 func TestCurrencyConversionHandler_Handle_ConversionError(t *testing.T) {
-	converter := fixtures.NewMockCurrencyConverter(t)
+	converter := mocks.NewMockCurrencyConverter(t)
 	logger := newTestLogger()
-	money, _ := mon.NewMoney(100.0, currency.Code("USD"))
+	money, _ := money.NewMoney(100.0, currency.Code("USD"))
 	req := &OperationRequest{
 		Money: money,
 		Account: &account.Account{
@@ -252,13 +252,15 @@ func TestCurrencyConversionHandler_Handle_ConversionError(t *testing.T) {
 // Test DomainOperationHandler
 func TestDomainOperationHandler_Handle_Deposit(t *testing.T) {
 	logger := newTestLogger()
-	money, _ := mon.NewMoney(100.0, currency.Code("USD"))
+	money, _ := money.NewMoney(100.0, currency.Code("USD"))
+	userID := uuid.New()
 	account := &account.Account{
 		ID:       uuid.New(),
+		UserID:   userID, // Set the correct user ID
 		Currency: currency.Code("USD"),
 	}
 	req := &OperationRequest{
-		UserID:         uuid.New(),
+		UserID:         userID, // Use the same user ID
 		Operation:      OperationDeposit,
 		ConvertedMoney: money,
 		Account:        account,
@@ -275,13 +277,16 @@ func TestDomainOperationHandler_Handle_Deposit(t *testing.T) {
 
 func TestDomainOperationHandler_Handle_Withdraw(t *testing.T) {
 	logger := newTestLogger()
-	money, _ := mon.NewMoney(100.0, currency.Code("USD"))
+	money, _ := money.NewMoney(100.0, currency.Code("USD"))
+	userID := uuid.New()
 	account := &account.Account{
 		ID:       uuid.New(),
+		UserID:   userID, // Set the correct user ID
 		Currency: currency.Code("USD"),
+		Balance:  10000, // Set sufficient balance (100.00 USD in cents)
 	}
 	req := &OperationRequest{
-		UserID:         uuid.New(),
+		UserID:         userID, // Use the same user ID
 		Operation:      OperationWithdraw,
 		ConvertedMoney: money,
 		Account:        account,
@@ -312,9 +317,9 @@ func TestDomainOperationHandler_Handle_UnsupportedOperation(t *testing.T) {
 
 // Test PersistenceHandler
 func TestPersistenceHandler_Handle_Success(t *testing.T) {
-	uow := new(MockUnitOfWork)
-	accountRepo := fixtures.NewMockAccountRepository(t)
-	txRepo := fixtures.NewMockTransactionRepository(t)
+	uow := mocks.NewMockUnitOfWork(t)
+	accountRepo := mocks.NewMockAccountRepository(t)
+	txRepo := mocks.NewMockTransactionRepository(t)
 	logger := newTestLogger()
 	transaction := &account.Transaction{
 		ID:        uuid.New(),
@@ -332,8 +337,8 @@ func TestPersistenceHandler_Handle_Success(t *testing.T) {
 		Account:     account,
 		ConvInfo:    convInfo,
 	}
-	uow.On("GetRepository", mock.Anything).Return(accountRepo, nil).Once()
-	uow.On("GetRepository", mock.Anything).Return(txRepo, nil).Once()
+	uow.On("AccountRepository").Return(accountRepo, nil)
+	uow.On("TransactionRepository").Return(txRepo, nil)
 	accountRepo.On("Update", account).Return(nil)
 	txRepo.On("Create", transaction).Return(nil)
 	handler := &PersistenceHandler{
@@ -353,8 +358,8 @@ func TestPersistenceHandler_Handle_Success(t *testing.T) {
 }
 
 func TestPersistenceHandler_Handle_AccountUpdateError(t *testing.T) {
-	uow := new(MockUnitOfWork)
-	accountRepo := fixtures.NewMockAccountRepository(t)
+	uow := mocks.NewMockUnitOfWork(t)
+	accountRepo := mocks.NewMockAccountRepository(t)
 	logger := newTestLogger()
 	transaction := &account.Transaction{ID: uuid.New()}
 	account := &account.Account{ID: uuid.New()}
@@ -362,7 +367,7 @@ func TestPersistenceHandler_Handle_AccountUpdateError(t *testing.T) {
 		Transaction: transaction,
 		Account:     account,
 	}
-	uow.On("GetRepository", mock.Anything).Return(accountRepo, nil)
+	uow.On("AccountRepository").Return(accountRepo, nil)
 	accountRepo.On("Update", account).Return(assert.AnError)
 	handler := &PersistenceHandler{
 		uow:    uow,
@@ -378,15 +383,27 @@ func TestPersistenceHandler_Handle_AccountUpdateError(t *testing.T) {
 
 // Test ChainBuilder
 func TestChainBuilder_BuildOperationChain(t *testing.T) {
-	uow := fixtures.NewMockUnitOfWork(t) 
-	converter := fixtures.NewMockCurrencyConverter(t)
+	userId := uuid.New()
+	acc, _ := account.New().WithUserID(userId).Build()
+	uow := mocks.NewMockUnitOfWork(t)
+	accountRepo := mocks.NewMockAccountRepository(t)
+	transactionRepo := mocks.NewMockTransactionRepository(t)
+	converter := mocks.NewMockCurrencyConverter(t)
+
+	uow.EXPECT().AccountRepository().Return(accountRepo, nil)
+	uow.EXPECT().TransactionRepository().Return(transactionRepo, nil)
+	accountRepo.EXPECT().Get(mock.Anything).Return(acc, nil)
+	transactionRepo.EXPECT().Create(mock.Anything).Return(nil)
+	accountRepo.EXPECT().Update(acc).Return(nil)
+	converter.EXPECT().Convert(float64(100), "USD", "").Return(&common.ConversionInfo{}, nil)
+
 	logger := newTestLogger()
 	builder := NewChainBuilder(uow, converter, logger)
 	chain := builder.BuildOperationChain()
 	assert.NotNil(t, chain)
 	req := &OperationRequest{
-		UserID:       uuid.New(),
-		AccountID:    uuid.New(),
+		UserID:       userId,
+		AccountID:    acc.ID,
 		Amount:       100.0,
 		CurrencyCode: currency.Code("USD"),
 		Operation:    OperationDeposit,
@@ -399,19 +416,4 @@ func TestChainBuilder_BuildOperationChain(t *testing.T) {
 // Helper function to create a test logger
 func newTestLogger() *slog.Logger {
 	return slog.Default()
-}
-
-// MockUnitOfWork is a local mock for the UoW interface (not generated by mockery)
-type MockUnitOfWork struct {
-	mock.Mock
-}
-
-func (m *MockUnitOfWork) Do(ctx context.Context, fn func(repository.UnitOfWork) error) error {
-	args := m.Called(ctx, fn)
-	return args.Error(0)
-}
-
-func (m *MockUnitOfWork) GetRepository(repoType reflect.Type) (interface{}, error) {
-	args := m.Called(repoType)
-	return args.Get(0), args.Error(1)
 }

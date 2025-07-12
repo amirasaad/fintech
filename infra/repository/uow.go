@@ -57,6 +57,35 @@ func (u *UoW) GetRepository(repoType reflect.Type) (any, error) {
 	return repo, nil
 }
 
+// Type-safe repository access methods (convenience methods)
+
+// AccountRepository returns the account repository bound to the current transaction
+func (u *UoW) AccountRepository() (repository.AccountRepository, error) {
+	repoAny, err := u.GetRepository(reflect.TypeOf((*repository.AccountRepository)(nil)).Elem())
+	if err != nil {
+		return nil, err
+	}
+	return repoAny.(repository.AccountRepository), nil
+}
+
+// TransactionRepository returns the transaction repository bound to the current transaction
+func (u *UoW) TransactionRepository() (repository.TransactionRepository, error) {
+	repoAny, err := u.GetRepository(reflect.TypeOf((*repository.TransactionRepository)(nil)).Elem())
+	if err != nil {
+		return nil, err
+	}
+	return repoAny.(repository.TransactionRepository), nil
+}
+
+// UserRepository returns the user repository bound to the current transaction
+func (u *UoW) UserRepository() (repository.UserRepository, error) {
+	repoAny, err := u.GetRepository(reflect.TypeOf((*repository.UserRepository)(nil)).Elem())
+	if err != nil {
+		return nil, err
+	}
+	return repoAny.(repository.UserRepository), nil
+}
+
 // ---
 // Sample mock for tests:
 //

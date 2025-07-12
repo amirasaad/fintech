@@ -5,7 +5,6 @@ package user
 import (
 	"context"
 	"log/slog"
-	"reflect"
 
 	"github.com/amirasaad/fintech/pkg/domain/user"
 	"github.com/amirasaad/fintech/pkg/repository"
@@ -35,7 +34,7 @@ func (s *UserService) CreateUser(
 	username, email, password string,
 ) (u *user.User, err error) {
 	err = s.uow.Do(ctx, func(uow repository.UnitOfWork) error {
-		repoAny, err := uow.GetRepository(reflect.TypeOf((*repository.UserRepository)(nil)).Elem())
+		repoAny, err := uow.UserRepository()
 		if err != nil {
 			return err
 		}
@@ -55,7 +54,7 @@ func (s *UserService) CreateUser(
 // GetUser retrieves a user by ID in a transaction.
 func (s *UserService) GetUser(ctx context.Context, userID string) (u *user.User, err error) {
 	err = s.uow.Do(ctx, func(uow repository.UnitOfWork) error {
-		repoAny, err := uow.GetRepository(reflect.TypeOf((*repository.UserRepository)(nil)).Elem())
+		repoAny, err := uow.UserRepository()
 		if err != nil {
 			return err
 		}
@@ -76,7 +75,7 @@ func (s *UserService) GetUser(ctx context.Context, userID string) (u *user.User,
 // GetUserByEmail retrieves a user by email in a transaction.
 func (s *UserService) GetUserByEmail(ctx context.Context, email string) (u *user.User, err error) {
 	err = s.uow.Do(ctx, func(uow repository.UnitOfWork) error {
-		repoAny, err := uow.GetRepository(reflect.TypeOf((*repository.UserRepository)(nil)).Elem())
+		repoAny, err := uow.UserRepository()
 		if err != nil {
 			return err
 		}
@@ -93,7 +92,7 @@ func (s *UserService) GetUserByEmail(ctx context.Context, email string) (u *user
 // GetUserByUsername retrieves a user by username in a transaction.
 func (s *UserService) GetUserByUsername(ctx context.Context, username string) (u *user.User, err error) {
 	err = s.uow.Do(ctx, func(uow repository.UnitOfWork) error {
-		repoAny, err := uow.GetRepository(reflect.TypeOf((*repository.UserRepository)(nil)).Elem())
+		repoAny, err := uow.UserRepository()
 		if err != nil {
 			return err
 		}
@@ -110,7 +109,7 @@ func (s *UserService) GetUserByUsername(ctx context.Context, username string) (u
 // UpdateUser updates user information in a transaction.
 func (s *UserService) UpdateUser(ctx context.Context, userID string, updateFn func(u *user.User) error) (err error) {
 	err = s.uow.Do(ctx, func(uow repository.UnitOfWork) error {
-		repoAny, err := uow.GetRepository(reflect.TypeOf((*repository.UserRepository)(nil)).Elem())
+		repoAny, err := uow.UserRepository()
 		if err != nil {
 			return err
 		}
@@ -137,7 +136,7 @@ func (s *UserService) UpdateUser(ctx context.Context, userID string, updateFn fu
 // DeleteUser deletes a user account in a transaction.
 func (s *UserService) DeleteUser(ctx context.Context, userID string) (err error) {
 	err = s.uow.Do(ctx, func(uow repository.UnitOfWork) error {
-		repoAny, err := uow.GetRepository(reflect.TypeOf((*repository.UserRepository)(nil)).Elem())
+		repoAny, err := uow.UserRepository()
 		if err != nil {
 			return err
 		}
@@ -154,7 +153,7 @@ func (s *UserService) DeleteUser(ctx context.Context, userID string) (err error)
 // ValidUser validates user credentials in a transaction.
 func (s *UserService) ValidUser(ctx context.Context, userID string, password string) (valid bool, err error) {
 	err = s.uow.Do(ctx, func(uow repository.UnitOfWork) error {
-		repoAny, err := uow.GetRepository(reflect.TypeOf((*repository.UserRepository)(nil)).Elem())
+		repoAny, err := uow.UserRepository()
 		if err != nil {
 			return err
 		}

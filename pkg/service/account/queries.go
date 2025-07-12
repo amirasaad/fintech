@@ -2,7 +2,6 @@ package account
 
 import (
 	"context"
-	"reflect"
 
 	"github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/domain/user"
@@ -26,7 +25,7 @@ func (s *AccountService) GetAccount(
 	logger := s.logger.With("userID", userID, "accountID", accountID)
 	logger.Info("GetAccount started")
 	err = s.uow.Do(context.Background(), func(uow repository.UnitOfWork) error {
-		repoAny, err := uow.GetRepository(reflect.TypeOf((*repository.AccountRepository)(nil)).Elem())
+		repoAny, err := uow.AccountRepository()
 		if err != nil {
 			logger.Error("GetAccount failed: AccountRepository error", "error", err)
 			return err
@@ -67,12 +66,11 @@ func (s *AccountService) GetTransactions(
 	logger.Info("GetTransactions started")
 	err = s.uow.Do(context.Background(), func(uow repository.UnitOfWork) error {
 		// First, verify the account exists and belongs to the user
-		repoAny, err := uow.GetRepository(reflect.TypeOf((*repository.AccountRepository)(nil)).Elem())
+		repo, err := uow.AccountRepository()
 		if err != nil {
 			logger.Error("GetTransactions failed: AccountRepository error", "error", err)
 			return err
 		}
-		repo := repoAny.(repository.AccountRepository)
 		a, err := repo.Get(accountID)
 		if err != nil {
 			logger.Error("GetTransactions failed: account not found", "error", err)
@@ -88,12 +86,11 @@ func (s *AccountService) GetTransactions(
 		}
 
 		// Now get the transactions
-		txRepoAny, err := uow.GetRepository(reflect.TypeOf((*repository.TransactionRepository)(nil)).Elem())
+		txRepo, err := uow.TransactionRepository()
 		if err != nil {
 			logger.Error("GetTransactions failed: TransactionRepository error", "error", err)
 			return err
 		}
-		txRepo := txRepoAny.(repository.TransactionRepository)
 		txs, err = txRepo.List(userID, accountID)
 		if err != nil {
 			logger.Error("GetTransactions failed: repo list error", "error", err)
@@ -123,7 +120,7 @@ func (s *AccountService) GetBalance(
 	logger := s.logger.With("userID", userID, "accountID", accountID)
 	logger.Info("GetBalance started")
 	err = s.uow.Do(context.Background(), func(uow repository.UnitOfWork) error {
-		repoAny, err := uow.GetRepository(reflect.TypeOf((*repository.AccountRepository)(nil)).Elem())
+		repoAny, err := uow.AccountRepository()
 		if err != nil {
 			logger.Error("GetBalance failed: AccountRepository error", "error", err)
 			return err

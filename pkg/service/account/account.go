@@ -9,7 +9,6 @@ package account
 import (
 	"context"
 	"log/slog"
-	"reflect"
 
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/account"
@@ -45,11 +44,10 @@ func NewAccountService(
 // CreateAccount creates a new account for the specified user in a transaction.
 func (s *AccountService) CreateAccount(ctx context.Context, userID uuid.UUID) (a *account.Account, err error) {
 	err = s.uow.Do(ctx, func(uow repository.UnitOfWork) error {
-		repoAny, err := uow.GetRepository(reflect.TypeOf((*repository.AccountRepository)(nil)).Elem())
+		repo, err := uow.AccountRepository()
 		if err != nil {
 			return err
 		}
-		repo := repoAny.(repository.AccountRepository)
 		a, err = account.New().WithUserID(userID).Build()
 		if err != nil {
 			return err
@@ -95,12 +93,11 @@ func (s *AccountService) CreateAccountWithCurrency(
 	logger := s.logger.With("userID", userID, "currency", currencyCode)
 	logger.Info("CreateAccountWithCurrency started")
 	err = s.uow.Do(context.Background(), func(uow repository.UnitOfWork) error {
-		repoAny, err := uow.GetRepository(reflect.TypeOf((*repository.AccountRepository)(nil)).Elem())
+		repo, err := uow.AccountRepository()
 		if err != nil {
 			logger.Error("CreateAccountWithCurrency failed: AccountRepository error", "error", err)
 			return err
 		}
-		repo := repoAny.(repository.AccountRepository)
 		acct, err = account.New().
 			WithUserID(userID).
 			WithCurrency(currencyCode).

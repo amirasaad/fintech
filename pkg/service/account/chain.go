@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"reflect"
 
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/domain/common"
 	mon "github.com/amirasaad/fintech/pkg/domain/money"
+	"github.com/amirasaad/fintech/pkg/domain/user"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/google/uuid"
 )
@@ -69,23 +69,27 @@ type AccountValidationHandler struct {
 // Handle validates the account and passes the request to the next handler
 func (h *AccountValidationHandler) Handle(ctx context.Context, req *OperationRequest) (*OperationResponse, error) {
 	logger := h.logger.With("userID", req.UserID, "accountID", req.AccountID)
-	
-	repoAny, err := h.uow.GetRepository(reflect.TypeOf((*repository.AccountRepository)(nil)).Elem())
+
+	repo, err := h.uow.AccountRepository()
 	if err != nil {
 		logger.Error("AccountValidationHandler failed: repository error", "error", err)
 		return &OperationResponse{Error: err}, nil
 	}
-	
-	repo := repoAny.(repository.AccountRepository)
+
 	acc, err := repo.Get(req.AccountID)
 	if err != nil {
 		logger.Error("AccountValidationHandler failed: account not found", "error", err)
 		return &OperationResponse{Error: account.ErrAccountNotFound}, nil
 	}
-	
+
+	if acc.UserID != req.UserID {
+		logger.Error("AccountValidationHandler failed: user unauthorized", "accountUserID", acc.UserID)
+		return &OperationResponse{Error: user.ErrUserUnauthorized}, nil
+	}
+
 	req.Account = acc
 	logger.Info("AccountValidationHandler: account validated successfully")
-	
+
 	return h.BaseHandler.Handle(ctx, req)
 }
 
@@ -98,16 +102,16 @@ type MoneyCreationHandler struct {
 // Handle creates a Money object and passes the request to the next handler
 func (h *MoneyCreationHandler) Handle(ctx context.Context, req *OperationRequest) (*OperationResponse, error) {
 	logger := h.logger.With("amount", req.Amount, "currency", req.CurrencyCode)
-	
+
 	money, err := mon.NewMoney(req.Amount, req.CurrencyCode)
 	if err != nil {
 		logger.Error("MoneyCreationHandler failed: invalid money", "error", err)
 		return &OperationResponse{Error: err}, nil
 	}
-	
+
 	req.Money = money
 	logger.Info("MoneyCreationHandler: money created successfully")
-	
+
 	return h.BaseHandler.Handle(ctx, req)
 }
 
@@ -121,29 +125,29 @@ type CurrencyConversionHandler struct {
 // Handle converts currency if needed and passes the request to the next handler
 func (h *CurrencyConversionHandler) Handle(ctx context.Context, req *OperationRequest) (*OperationResponse, error) {
 	logger := h.logger.With("fromCurrency", req.Money.Currency(), "toCurrency", req.Account.Currency)
-	
+
 	if req.Money.Currency() == req.Account.Currency {
 		req.ConvertedMoney = req.Money
 		logger.Info("CurrencyConversionHandler: no conversion needed")
 		return h.BaseHandler.Handle(ctx, req)
 	}
-	
+
 	convInfo, err := h.converter.Convert(req.Money.AmountFloat(), string(req.Money.Currency()), string(req.Account.Currency))
 	if err != nil {
 		logger.Error("CurrencyConversionHandler failed: conversion error", "error", err)
 		return &OperationResponse{Error: err}, nil
 	}
-	
+
 	convertedMoney, err := mon.NewMoney(convInfo.ConvertedAmount, req.Account.Currency)
 	if err != nil {
 		logger.Error("CurrencyConversionHandler failed: converted money creation error", "error", err)
 		return &OperationResponse{Error: err}, nil
 	}
-	
+
 	req.ConvertedMoney = convertedMoney
 	req.ConvInfo = convInfo
 	logger.Info("CurrencyConversionHandler: conversion completed", "rate", convInfo.ConversionRate)
-	
+
 	return h.BaseHandler.Handle(ctx, req)
 }
 
@@ -156,10 +160,10 @@ type DomainOperationHandler struct {
 // Handle executes the domain operation and passes the request to the next handler
 func (h *DomainOperationHandler) Handle(ctx context.Context, req *OperationRequest) (*OperationResponse, error) {
 	logger := h.logger.With("operation", req.Operation)
-	
+
 	var tx *account.Transaction
 	var err error
-	
+
 	switch req.Operation {
 	case OperationDeposit:
 		tx, err = req.Account.Deposit(req.UserID, req.ConvertedMoney)
@@ -168,15 +172,15 @@ func (h *DomainOperationHandler) Handle(ctx context.Context, req *OperationReque
 	default:
 		err = fmt.Errorf("unsupported operation: %s", req.Operation)
 	}
-	
+
 	if err != nil {
 		logger.Error("DomainOperationHandler failed: domain operation error", "error", err)
 		return &OperationResponse{Error: err}, nil
 	}
-	
+
 	req.Transaction = tx
 	logger.Info("DomainOperationHandler: domain operation completed", "transactionID", tx.ID)
-	
+
 	return h.BaseHandler.Handle(ctx, req)
 }
 
@@ -190,7 +194,7 @@ type PersistenceHandler struct {
 // Handle persists the changes and returns the final response
 func (h *PersistenceHandler) Handle(ctx context.Context, req *OperationRequest) (*OperationResponse, error) {
 	logger := h.logger.With("transactionID", req.Transaction.ID)
-	
+
 	// Store conversion info if conversion occurred
 	if req.ConvInfo != nil {
 		req.Transaction.OriginalAmount = &req.ConvInfo.OriginalAmount
@@ -198,35 +202,33 @@ func (h *PersistenceHandler) Handle(ctx context.Context, req *OperationRequest) 
 		req.Transaction.ConversionRate = &req.ConvInfo.ConversionRate
 		logger.Info("PersistenceHandler: conversion info stored")
 	}
-	
-	// Update account
-	repoAny, err := h.uow.GetRepository(reflect.TypeOf((*repository.AccountRepository)(nil)).Elem())
+
+	// Update account using type-safe method
+	repo, err := h.uow.AccountRepository()
 	if err != nil {
 		logger.Error("PersistenceHandler failed: AccountRepository error", "error", err)
 		return &OperationResponse{Error: err}, nil
 	}
-	repo := repoAny.(repository.AccountRepository)
-	
+
 	if err = repo.Update(req.Account); err != nil {
 		logger.Error("PersistenceHandler failed: account update error", "error", err)
 		return &OperationResponse{Error: err}, nil
 	}
-	
-	// Create transaction
-	txRepoAny, err := h.uow.GetRepository(reflect.TypeOf((*repository.TransactionRepository)(nil)).Elem())
+
+	// Create transaction using type-safe method
+	txRepo, err := h.uow.TransactionRepository()
 	if err != nil {
 		logger.Error("PersistenceHandler failed: TransactionRepository error", "error", err)
 		return &OperationResponse{Error: err}, nil
 	}
-	txRepo := txRepoAny.(repository.TransactionRepository)
-	
+
 	if err = txRepo.Create(req.Transaction); err != nil {
 		logger.Error("PersistenceHandler failed: transaction create error", "error", err)
 		return &OperationResponse{Error: err}, nil
 	}
-	
+
 	logger.Info("PersistenceHandler: persistence completed successfully")
-	
+
 	return &OperationResponse{
 		Transaction: req.Transaction,
 		ConvInfo:    req.ConvInfo,
@@ -256,30 +258,30 @@ func (b *ChainBuilder) BuildOperationChain() OperationHandler {
 		uow:    b.uow,
 		logger: b.logger,
 	}
-	
+
 	moneyCreation := &MoneyCreationHandler{
 		logger: b.logger,
 	}
-	
+
 	currencyConversion := &CurrencyConversionHandler{
 		converter: b.converter,
 		logger:    b.logger,
 	}
-	
+
 	domainOperation := &DomainOperationHandler{
 		logger: b.logger,
 	}
-	
+
 	persistence := &PersistenceHandler{
 		uow:    b.uow,
 		logger: b.logger,
 	}
-	
+
 	// Chain them together
 	accountValidation.SetNext(moneyCreation)
 	moneyCreation.SetNext(currencyConversion)
 	currencyConversion.SetNext(domainOperation)
 	domainOperation.SetNext(persistence)
-	
+
 	return accountValidation
 }

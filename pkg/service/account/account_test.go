@@ -3,12 +3,11 @@ package account_test
 import (
 	"context"
 	"errors"
-	"reflect"
 	"testing"
 
 	"log/slog"
 
-	"github.com/amirasaad/fintech/internal/fixtures"
+	"github.com/amirasaad/fintech/internal/fixtures/mocks"
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain"
 	accountdomain "github.com/amirasaad/fintech/pkg/domain/account"
@@ -26,19 +25,31 @@ import (
 func newServiceWithMocks(t interface {
 	mock.TestingT
 	Cleanup(func())
-}) (svc *accountsvc.AccountService, accountRepo *fixtures.MockAccountRepository, transactionRepo *fixtures.MockTransactionRepository, uow *fixtures.MockUnitOfWork) {
-	accountRepo = fixtures.NewMockAccountRepository(t)
-	transactionRepo = fixtures.NewMockTransactionRepository(t)
-	uow = fixtures.NewMockUnitOfWork(t)
-	uow.EXPECT().GetRepository(reflect.TypeOf((*repository.AccountRepository)(nil)).Elem()).Return(accountRepo, nil).Maybe()
-	uow.EXPECT().GetRepository(reflect.TypeOf((*repository.TransactionRepository)(nil)).Elem()).Return(transactionRepo, nil).Maybe()
+}) (svc *accountsvc.AccountService, accountRepo *mocks.MockAccountRepository, transactionRepo *mocks.MockTransactionRepository, uow *mocks.MockUnitOfWork) {
+	accountRepo = mocks.NewMockAccountRepository(t)
+	transactionRepo = mocks.NewMockTransactionRepository(t)
+	uow = mocks.NewMockUnitOfWork(t)
+	uow.EXPECT().AccountRepository().Return(accountRepo, nil).Maybe()
+	uow.EXPECT().TransactionRepository().Return(transactionRepo, nil).Maybe()
 	svc = accountsvc.NewAccountService(uow, nil, slog.Default())
 	return svc, accountRepo, transactionRepo, uow
 }
 
+func setupTestMocks(t *testing.T) (*mocks.MockUnitOfWork, *mocks.MockAccountRepository, *mocks.MockTransactionRepository) {
+	uow := mocks.NewMockUnitOfWork(t)
+	accountRepo := mocks.NewMockAccountRepository(t)
+	transactionRepo := mocks.NewMockTransactionRepository(t)
+
+	// Setup default expectations for type-safe methods
+	uow.EXPECT().AccountRepository().Return(accountRepo, nil).Maybe()
+	uow.EXPECT().TransactionRepository().Return(transactionRepo, nil).Maybe()
+
+	return uow, accountRepo, transactionRepo
+}
+
 func TestCreateAccount_Success(t *testing.T) {
-	uow := fixtures.NewMockUnitOfWork(t)
-	accountRepo := fixtures.NewMockAccountRepository(t)
+	uow := mocks.NewMockUnitOfWork(t)
+	accountRepo := mocks.NewMockAccountRepository(t)
 	userID := uuid.New()
 
 	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).RunAndReturn(
@@ -46,7 +57,7 @@ func TestCreateAccount_Success(t *testing.T) {
 			return fn(uow)
 		},
 	).Once()
-	uow.EXPECT().GetRepository(reflect.TypeOf((*repository.AccountRepository)(nil)).Elem()).Return(accountRepo, nil).Once()
+	uow.EXPECT().AccountRepository().Return(accountRepo, nil).Once()
 	accountRepo.EXPECT().Create(mock.Anything).Return(nil).Once()
 
 	svc := accountsvc.NewAccountService(uow, nil, slog.Default())
@@ -57,8 +68,8 @@ func TestCreateAccount_Success(t *testing.T) {
 }
 
 func TestCreateAccount_RepoError(t *testing.T) {
-	uow := fixtures.NewMockUnitOfWork(t)
-	accountRepo := fixtures.NewMockAccountRepository(t)
+	uow := mocks.NewMockUnitOfWork(t)
+	accountRepo := mocks.NewMockAccountRepository(t)
 	userID := uuid.New()
 
 	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).RunAndReturn(
@@ -66,7 +77,7 @@ func TestCreateAccount_RepoError(t *testing.T) {
 			return fn(uow)
 		},
 	).Once()
-	uow.EXPECT().GetRepository(reflect.TypeOf((*repository.AccountRepository)(nil)).Elem()).Return(accountRepo, nil).Once()
+	uow.EXPECT().AccountRepository().Return(accountRepo, nil).Once()
 	accountRepo.EXPECT().Create(mock.Anything).Return(errors.New("repo error")).Once()
 
 	svc := accountsvc.NewAccountService(uow, nil, slog.Default())
@@ -76,9 +87,9 @@ func TestCreateAccount_RepoError(t *testing.T) {
 }
 
 func TestDeposit_Success(t *testing.T) {
-	uow := fixtures.NewMockUnitOfWork(t)
-	accountRepo := fixtures.NewMockAccountRepository(t)
-	transactionRepo := fixtures.NewMockTransactionRepository(t)
+	uow := mocks.NewMockUnitOfWork(t)
+	accountRepo := mocks.NewMockAccountRepository(t)
+	transactionRepo := mocks.NewMockTransactionRepository(t)
 	userID := uuid.New()
 	accountID := uuid.New()
 	account := &accountdomain.Account{ID: accountID, UserID: userID, Currency: currency.USD, Balance: 0}
@@ -88,8 +99,8 @@ func TestDeposit_Success(t *testing.T) {
 			return fn(uow)
 		},
 	).Once()
-	uow.EXPECT().GetRepository(reflect.TypeOf((*repository.AccountRepository)(nil)).Elem()).Return(accountRepo, nil).Once()
-	uow.EXPECT().GetRepository(reflect.TypeOf((*repository.TransactionRepository)(nil)).Elem()).Return(transactionRepo, nil).Once()
+	uow.EXPECT().AccountRepository().Return(accountRepo, nil).Once()
+	uow.EXPECT().TransactionRepository().Return(transactionRepo, nil).Once()
 	accountRepo.EXPECT().Get(accountID).Return(account, nil).Once()
 	accountRepo.EXPECT().Update(account).Return(nil).Once()
 	transactionRepo.EXPECT().Create(mock.Anything).Return(nil).Once()
@@ -101,9 +112,9 @@ func TestDeposit_Success(t *testing.T) {
 }
 
 func TestDeposit_RepoError(t *testing.T) {
-	uow := fixtures.NewMockUnitOfWork(t)
-	accountRepo := fixtures.NewMockAccountRepository(t)
-	transactionRepo := fixtures.NewMockTransactionRepository(t)
+	uow := mocks.NewMockUnitOfWork(t)
+	accountRepo := mocks.NewMockAccountRepository(t)
+	transactionRepo := mocks.NewMockTransactionRepository(t)
 	userID := uuid.New()
 	accountID := uuid.New()
 	account := &accountdomain.Account{ID: accountID, UserID: userID, Currency: currency.USD, Balance: 0}
@@ -113,8 +124,8 @@ func TestDeposit_RepoError(t *testing.T) {
 			return fn(uow)
 		},
 	).Once()
-	uow.EXPECT().GetRepository(reflect.TypeOf((*repository.AccountRepository)(nil)).Elem()).Return(accountRepo, nil).Once()
-	uow.EXPECT().GetRepository(reflect.TypeOf((*repository.TransactionRepository)(nil)).Elem()).Return(transactionRepo, nil).Once()
+	uow.EXPECT().AccountRepository().Return(accountRepo, nil).Once()
+	uow.EXPECT().TransactionRepository().Return(transactionRepo, nil).Once()
 	accountRepo.EXPECT().Get(accountID).Return(account, nil).Once()
 	accountRepo.EXPECT().Update(account).Return(errors.New("update error")).Once()
 
@@ -125,9 +136,9 @@ func TestDeposit_RepoError(t *testing.T) {
 }
 
 func TestDeposit_NegativeAmount(t *testing.T) {
-	uow := fixtures.NewMockUnitOfWork(t)
-	accountRepo := fixtures.NewMockAccountRepository(t)
-	transactionRepo := fixtures.NewMockTransactionRepository(t)
+	uow := mocks.NewMockUnitOfWork(t)
+	accountRepo := mocks.NewMockAccountRepository(t)
+	transactionRepo := mocks.NewMockTransactionRepository(t)
 	userID := uuid.New()
 	accountID := uuid.New()
 	account := &accountdomain.Account{ID: accountID, UserID: userID, Currency: currency.USD, Balance: 0}
@@ -137,8 +148,8 @@ func TestDeposit_NegativeAmount(t *testing.T) {
 			return fn(uow)
 		},
 	).Once()
-	uow.EXPECT().GetRepository(reflect.TypeOf((*repository.AccountRepository)(nil)).Elem()).Return(accountRepo, nil).Once()
-	uow.EXPECT().GetRepository(reflect.TypeOf((*repository.TransactionRepository)(nil)).Elem()).Return(transactionRepo, nil).Once()
+	uow.EXPECT().AccountRepository().Return(accountRepo, nil).Once()
+	uow.EXPECT().TransactionRepository().Return(transactionRepo, nil).Once()
 	accountRepo.EXPECT().Get(accountID).Return(account, nil).Once()
 	// No update or create expected for negative amount
 
@@ -149,9 +160,9 @@ func TestDeposit_NegativeAmount(t *testing.T) {
 }
 
 func TestDeposit_AccountRepoError(t *testing.T) {
-	uow := fixtures.NewMockUnitOfWork(t)
-	accountRepo := fixtures.NewMockAccountRepository(t)
-	transactionRepo := fixtures.NewMockTransactionRepository(t)
+	uow := mocks.NewMockUnitOfWork(t)
+	accountRepo := mocks.NewMockAccountRepository(t)
+	transactionRepo := mocks.NewMockTransactionRepository(t)
 	userID := uuid.New()
 	accountID := uuid.New()
 
@@ -160,8 +171,8 @@ func TestDeposit_AccountRepoError(t *testing.T) {
 			return fn(uow)
 		},
 	).Once()
-	uow.EXPECT().GetRepository(reflect.TypeOf((*repository.AccountRepository)(nil)).Elem()).Return(accountRepo, nil).Once()
-	uow.EXPECT().GetRepository(reflect.TypeOf((*repository.TransactionRepository)(nil)).Elem()).Return(transactionRepo, nil).Once()
+	uow.EXPECT().AccountRepository().Return(accountRepo, nil).Once()
+	uow.EXPECT().TransactionRepository().Return(transactionRepo, nil).Once()
 	accountRepo.EXPECT().Get(accountID).Return(nil, errors.New("get error")).Once()
 	// No update or create expected if get fails
 
@@ -172,9 +183,9 @@ func TestDeposit_AccountRepoError(t *testing.T) {
 }
 
 func TestDeposit_GetAccountError(t *testing.T) {
-	uow := fixtures.NewMockUnitOfWork(t)
-	accountRepo := fixtures.NewMockAccountRepository(t)
-	transactionRepo := fixtures.NewMockTransactionRepository(t)
+	uow := mocks.NewMockUnitOfWork(t)
+	accountRepo := mocks.NewMockAccountRepository(t)
+	transactionRepo := mocks.NewMockTransactionRepository(t)
 	userID := uuid.New()
 	accountID := uuid.New()
 
@@ -183,8 +194,8 @@ func TestDeposit_GetAccountError(t *testing.T) {
 			return fn(uow)
 		},
 	).Once()
-	uow.EXPECT().GetRepository(reflect.TypeOf((*repository.AccountRepository)(nil)).Elem()).Return(accountRepo, nil).Once()
-	uow.EXPECT().GetRepository(reflect.TypeOf((*repository.TransactionRepository)(nil)).Elem()).Return(transactionRepo, nil).Once()
+	uow.EXPECT().AccountRepository().Return(accountRepo, nil).Once()
+	uow.EXPECT().TransactionRepository().Return(transactionRepo, nil).Once()
 	accountRepo.EXPECT().Get(accountID).Return(nil, accountdomain.ErrAccountNotFound).Once()
 	// No update or create expected if get fails
 
@@ -195,9 +206,9 @@ func TestDeposit_GetAccountError(t *testing.T) {
 }
 
 func TestDeposit_UpdateError(t *testing.T) {
-	uow := fixtures.NewMockUnitOfWork(t)
-	accountRepo := fixtures.NewMockAccountRepository(t)
-	transactionRepo := fixtures.NewMockTransactionRepository(t)
+	uow := mocks.NewMockUnitOfWork(t)
+	accountRepo := mocks.NewMockAccountRepository(t)
+	transactionRepo := mocks.NewMockTransactionRepository(t)
 	userID := uuid.New()
 	accountID := uuid.New()
 	account := &accountdomain.Account{ID: accountID, UserID: userID, Currency: currency.USD, Balance: 0}
@@ -207,8 +218,8 @@ func TestDeposit_UpdateError(t *testing.T) {
 			return fn(uow)
 		},
 	).Once()
-	uow.EXPECT().GetRepository(reflect.TypeOf((*repository.AccountRepository)(nil)).Elem()).Return(accountRepo, nil).Once()
-	uow.EXPECT().GetRepository(reflect.TypeOf((*repository.TransactionRepository)(nil)).Elem()).Return(transactionRepo, nil).Once()
+	uow.EXPECT().AccountRepository().Return(accountRepo, nil).Once()
+	uow.EXPECT().TransactionRepository().Return(transactionRepo, nil).Once()
 	accountRepo.EXPECT().Get(accountID).Return(account, nil).Once()
 	accountRepo.EXPECT().Update(account).Return(errors.New("update error")).Once()
 	// No create expected if update fails
@@ -220,9 +231,9 @@ func TestDeposit_UpdateError(t *testing.T) {
 }
 
 func TestDeposit_TransactionRepoError(t *testing.T) {
-	uow := fixtures.NewMockUnitOfWork(t)
-	accountRepo := fixtures.NewMockAccountRepository(t)
-	transactionRepo := fixtures.NewMockTransactionRepository(t)
+	uow := mocks.NewMockUnitOfWork(t)
+	accountRepo := mocks.NewMockAccountRepository(t)
+	transactionRepo := mocks.NewMockTransactionRepository(t)
 	userID := uuid.New()
 	accountID := uuid.New()
 	account := &accountdomain.Account{ID: accountID, UserID: userID, Currency: currency.USD, Balance: 0}
@@ -232,8 +243,8 @@ func TestDeposit_TransactionRepoError(t *testing.T) {
 			return fn(uow)
 		},
 	).Once()
-	uow.EXPECT().GetRepository(reflect.TypeOf((*repository.AccountRepository)(nil)).Elem()).Return(accountRepo, nil).Once()
-	uow.EXPECT().GetRepository(reflect.TypeOf((*repository.TransactionRepository)(nil)).Elem()).Return(transactionRepo, nil).Once()
+	uow.EXPECT().AccountRepository().Return(accountRepo, nil).Once()
+	uow.EXPECT().TransactionRepository().Return(transactionRepo, nil).Once()
 	accountRepo.EXPECT().Get(accountID).Return(account, nil).Once()
 	accountRepo.EXPECT().Update(account).Return(nil).Once()
 	transactionRepo.EXPECT().Create(mock.Anything).Return(errors.New("create error")).Once()
@@ -270,9 +281,9 @@ func TestWithdraw_Success(t *testing.T) {
 }
 
 func TestWithdraw_InsufficientFunds(t *testing.T) {
-	uow := fixtures.NewMockUnitOfWork(t)
-	accountRepo := fixtures.NewMockAccountRepository(t)
-	transactionRepo := fixtures.NewMockTransactionRepository(t)
+	uow := mocks.NewMockUnitOfWork(t)
+	accountRepo := mocks.NewMockAccountRepository(t)
+	transactionRepo := mocks.NewMockTransactionRepository(t)
 	userID := uuid.New()
 	accountID := uuid.New()
 	account := &accountdomain.Account{ID: accountID, UserID: userID, Currency: currency.USD, Balance: 10} // Not enough for withdrawal
@@ -283,8 +294,8 @@ func TestWithdraw_InsufficientFunds(t *testing.T) {
 		},
 	).Once()
 
-	uow.EXPECT().GetRepository(reflect.TypeOf((*repository.AccountRepository)(nil)).Elem()).Return(accountRepo, nil).Once()
-	uow.EXPECT().GetRepository(reflect.TypeOf((*repository.TransactionRepository)(nil)).Elem()).Return(transactionRepo, nil).Once()
+	uow.EXPECT().AccountRepository().Return(accountRepo, nil).Once()
+	uow.EXPECT().TransactionRepository().Return(transactionRepo, nil).Once()
 	accountRepo.EXPECT().Get(accountID).Return(account, nil).Once()
 
 	svc := accountsvc.NewAccountService(uow, nil, slog.Default())
@@ -294,9 +305,9 @@ func TestWithdraw_InsufficientFunds(t *testing.T) {
 }
 
 func TestWithdraw_UpdateError(t *testing.T) {
-	uow := fixtures.NewMockUnitOfWork(t)
-	accountRepo := fixtures.NewMockAccountRepository(t)
-	transactionRepo := fixtures.NewMockTransactionRepository(t)
+	uow := mocks.NewMockUnitOfWork(t)
+	accountRepo := mocks.NewMockAccountRepository(t)
+	transactionRepo := mocks.NewMockTransactionRepository(t)
 	userID := uuid.New()
 	accountID := uuid.New()
 	account := &accountdomain.Account{ID: accountID, UserID: userID, Currency: currency.USD, Balance: 10000}
@@ -307,8 +318,8 @@ func TestWithdraw_UpdateError(t *testing.T) {
 		},
 	).Once()
 
-	uow.EXPECT().GetRepository(reflect.TypeOf((*repository.AccountRepository)(nil)).Elem()).Return(accountRepo, nil).Once()
-	uow.EXPECT().GetRepository(reflect.TypeOf((*repository.TransactionRepository)(nil)).Elem()).Return(transactionRepo, nil).Once()
+	uow.EXPECT().AccountRepository().Return(accountRepo, nil).Once()
+	uow.EXPECT().TransactionRepository().Return(transactionRepo, nil).Once()
 	accountRepo.EXPECT().Get(accountID).Return(account, nil).Once()
 	accountRepo.EXPECT().Update(mock.Anything).Return(errors.New("update error")).Once()
 
@@ -320,13 +331,13 @@ func TestWithdraw_UpdateError(t *testing.T) {
 
 func TestGetAccount_Success(t *testing.T) {
 	t.Parallel()
-	uow := fixtures.NewMockUnitOfWork(t)
-	accountRepo := fixtures.NewMockAccountRepository(t)
+	uow := mocks.NewMockUnitOfWork(t)
+	accountRepo := mocks.NewMockAccountRepository(t)
 	userID := uuid.New()
 	accountID := uuid.New()
 	account := &accountdomain.Account{ID: accountID, UserID: userID, Currency: currency.USD, Balance: 100}
 
-	uow.EXPECT().GetRepository(reflect.TypeOf((*repository.AccountRepository)(nil)).Elem()).Return(accountRepo, nil).Once()
+	uow.EXPECT().AccountRepository().Return(accountRepo, nil).Once()
 	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).RunAndReturn(
 		func(ctx context.Context, fn func(repository.UnitOfWork) error) error {
 			return fn(uow)
@@ -341,12 +352,12 @@ func TestGetAccount_Success(t *testing.T) {
 }
 
 func TestGetAccount_NotFound(t *testing.T) {
-	uow := fixtures.NewMockUnitOfWork(t)
-	accountRepo := fixtures.NewMockAccountRepository(t)
+	uow := mocks.NewMockUnitOfWork(t)
+	accountRepo := mocks.NewMockAccountRepository(t)
 	userID := uuid.New()
 	accountID := uuid.New()
 
-	uow.EXPECT().GetRepository(reflect.TypeOf((*repository.AccountRepository)(nil)).Elem()).Return(accountRepo, nil).Times(1)
+	uow.EXPECT().AccountRepository().Return(accountRepo, nil).Times(1)
 	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).RunAndReturn(
 		func(ctx context.Context, fn func(repository.UnitOfWork) error) error {
 			return fn(uow)
@@ -361,12 +372,12 @@ func TestGetAccount_NotFound(t *testing.T) {
 }
 
 func TestGetAccount_Unauthorized(t *testing.T) {
-	uow := fixtures.NewMockUnitOfWork(t)
-	accountRepo := fixtures.NewMockAccountRepository(t)
+	uow := mocks.NewMockUnitOfWork(t)
+	accountRepo := mocks.NewMockAccountRepository(t)
 	userID := uuid.New()
 	accountID := uuid.New()
 
-	uow.EXPECT().GetRepository(reflect.TypeOf((*repository.AccountRepository)(nil)).Elem()).Return(accountRepo, nil).Times(1)
+	uow.EXPECT().AccountRepository().Return(accountRepo, nil).Times(1)
 	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).RunAndReturn(
 		func(ctx context.Context, fn func(repository.UnitOfWork) error) error {
 			return fn(uow)
@@ -381,9 +392,9 @@ func TestGetAccount_Unauthorized(t *testing.T) {
 }
 
 func TestGetTransactions_Success(t *testing.T) {
-	uow := fixtures.NewMockUnitOfWork(t)
-	accountRepo := fixtures.NewMockAccountRepository(t)
-	transactionRepo := fixtures.NewMockTransactionRepository(t)
+	uow := mocks.NewMockUnitOfWork(t)
+	accountRepo := mocks.NewMockAccountRepository(t)
+	transactionRepo := mocks.NewMockTransactionRepository(t)
 	userID := uuid.New()
 	accountID := uuid.New()
 	account := &accountdomain.Account{ID: accountID, UserID: userID, Currency: currency.USD, Balance: 0}
@@ -391,8 +402,8 @@ func TestGetTransactions_Success(t *testing.T) {
 		{ID: uuid.New(), UserID: userID, AccountID: accountID, Amount: 100, Currency: currency.USD},
 	}
 
-	uow.EXPECT().GetRepository(reflect.TypeOf((*repository.AccountRepository)(nil)).Elem()).Return(accountRepo, nil).Maybe()
-	uow.EXPECT().GetRepository(reflect.TypeOf((*repository.TransactionRepository)(nil)).Elem()).Return(transactionRepo, nil).Times(1)
+	uow.EXPECT().AccountRepository().Return(accountRepo, nil).Maybe()
+	uow.EXPECT().TransactionRepository().Return(transactionRepo, nil).Times(1)
 	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).RunAndReturn(
 		func(ctx context.Context, fn func(repository.UnitOfWork) error) error {
 			return fn(uow)
@@ -408,15 +419,15 @@ func TestGetTransactions_Success(t *testing.T) {
 }
 
 func TestGetTransactions_Error(t *testing.T) {
-	uow := fixtures.NewMockUnitOfWork(t)
-	accountRepo := fixtures.NewMockAccountRepository(t)
-	transactionRepo := fixtures.NewMockTransactionRepository(t)
+	uow := mocks.NewMockUnitOfWork(t)
+	accountRepo := mocks.NewMockAccountRepository(t)
+	transactionRepo := mocks.NewMockTransactionRepository(t)
 	userID := uuid.New()
 	accountID := uuid.New()
 	account := &accountdomain.Account{ID: accountID, UserID: userID, Currency: currency.USD, Balance: 0}
 
-	uow.EXPECT().GetRepository(reflect.TypeOf((*repository.AccountRepository)(nil)).Elem()).Return(accountRepo, nil).Maybe()
-	uow.EXPECT().GetRepository(reflect.TypeOf((*repository.TransactionRepository)(nil)).Elem()).Return(transactionRepo, nil).Times(1)
+	uow.EXPECT().AccountRepository().Return(accountRepo, nil).Maybe()
+	uow.EXPECT().TransactionRepository().Return(transactionRepo, nil).Times(1)
 	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).RunAndReturn(
 		func(ctx context.Context, fn func(repository.UnitOfWork) error) error {
 			return fn(uow)
@@ -432,7 +443,7 @@ func TestGetTransactions_Error(t *testing.T) {
 }
 
 func TestGetTransactions_UoWFactoryError(t *testing.T) {
-	uow := fixtures.NewMockUnitOfWork(t)
+	uow := mocks.NewMockUnitOfWork(t)
 	expectedErr := errors.New("factory error")
 	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(expectedErr).RunAndReturn(
 		func(ctx context.Context, fn func(repository.UnitOfWork) error) error {

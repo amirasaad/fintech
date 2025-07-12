@@ -31,4 +31,9 @@ type UnitOfWork interface {
 	//   repoAny, err := uow.GetRepository(reflect.TypeOf((*UserRepository)(nil)).Elem())
 	//   repo := repoAny.(UserRepository)
 	GetRepository(repoType reflect.Type) (any, error)
+
+	// Type-safe repository access methods (convenience methods)
+	AccountRepository() (AccountRepository, error)
+	TransactionRepository() (TransactionRepository, error)
+	UserRepository() (UserRepository, error)
 }

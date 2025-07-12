@@ -3,10 +3,9 @@ package account_test
 import (
 	"context"
 	"log/slog"
-	"reflect"
 	"testing"
 
-	"github.com/amirasaad/fintech/internal/fixtures"
+	fixtures "github.com/amirasaad/fintech/internal/fixtures/mocks"
 	"github.com/amirasaad/fintech/pkg/currency"
 	accountdomain "github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/domain/common"
@@ -27,8 +26,8 @@ func TestDeposit_AcceptsMatchingCurrency(t *testing.T) {
 			return fn(uow)
 		},
 	)
-	uow.EXPECT().GetRepository(reflect.TypeOf((*repository.AccountRepository)(nil)).Elem()).Return(accountRepo, nil).Once()
-	uow.EXPECT().GetRepository(reflect.TypeOf((*repository.TransactionRepository)(nil)).Elem()).Return(transactionRepo, nil).Once()
+	uow.EXPECT().AccountRepository().Return(accountRepo, nil).Once()
+	uow.EXPECT().TransactionRepository().Return(transactionRepo, nil).Once()
 
 	account, _ := accountdomain.New().
 		WithUserID(uuid.New()).
@@ -55,8 +54,8 @@ func TestWithdraw_AcceptsMatchingCurrency(t *testing.T) {
 			return fn(uow)
 		},
 	)
-	uow.EXPECT().GetRepository(reflect.TypeOf((*repository.AccountRepository)(nil)).Elem()).Return(accountRepo, nil).Once()
-	uow.EXPECT().GetRepository(reflect.TypeOf((*repository.TransactionRepository)(nil)).Elem()).Return(transactionRepo, nil).Once()
+	uow.EXPECT().AccountRepository().Return(accountRepo, nil).Once()
+	uow.EXPECT().TransactionRepository().Return(transactionRepo, nil).Once()
 
 	account, _ := accountdomain.New().
 		WithUserID(uuid.New()).
@@ -84,8 +83,8 @@ func TestDeposit_ConvertsCurrency(t *testing.T) {
 			return fn(uow)
 		},
 	)
-	uow.EXPECT().GetRepository(reflect.TypeOf((*repository.AccountRepository)(nil)).Elem()).Return(accountRepo, nil).Once()
-	uow.EXPECT().GetRepository(reflect.TypeOf((*repository.TransactionRepository)(nil)).Elem()).Return(transactionRepo, nil).Once()
+	uow.EXPECT().AccountRepository().Return(accountRepo, nil).Once()
+	uow.EXPECT().TransactionRepository().Return(transactionRepo, nil).Once()
 
 	account := &accountdomain.Account{ID: uuid.New(), UserID: uuid.New(), Currency: currency.Code("USD"), Balance: 0}
 	accountRepo.EXPECT().Get(account.ID).Return(account, nil).Once()
@@ -118,8 +117,8 @@ func TestWithdraw_ConvertsCurrency(t *testing.T) {
 			return fn(uow)
 		},
 	)
-	uow.EXPECT().GetRepository(reflect.TypeOf((*repository.AccountRepository)(nil)).Elem()).Return(accountRepo, nil).Once()
-	uow.EXPECT().GetRepository(reflect.TypeOf((*repository.TransactionRepository)(nil)).Elem()).Return(transactionRepo, nil).Once()
+	uow.EXPECT().AccountRepository().Return(accountRepo, nil).Once()
+	uow.EXPECT().TransactionRepository().Return(transactionRepo, nil).Once()
 
 	account, _ := accountdomain.New().
 		WithUserID(uuid.New()).

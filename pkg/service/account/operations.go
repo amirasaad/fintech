@@ -3,7 +3,6 @@ package account
 import (
 	"context"
 	"log/slog"
-	"reflect"
 
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/account"
@@ -23,7 +22,7 @@ func (s *AccountService) executeOperation(req operationRequest, handler operatio
 		"currency", req.currencyCode,
 		"operation", req.operation,
 	)
-	
+
 	logger.Info("executeOperation started")
 	defer func() {
 		if err != nil {
@@ -35,7 +34,7 @@ func (s *AccountService) executeOperation(req operationRequest, handler operatio
 
 	var txLocal *account.Transaction
 	var convInfoLocal *common.ConversionInfo
-	
+
 	err = s.uow.Do(context.Background(), func(uow repository.UnitOfWork) error {
 		// Get repositories
 		accountRepo, txRepo, err := s.getRepositories(uow, logger)
@@ -99,19 +98,18 @@ func (s *AccountService) executeOperation(req operationRequest, handler operatio
 
 // getRepositories retrieves the account and transaction repositories from the unit of work
 func (s *AccountService) getRepositories(uow repository.UnitOfWork, logger *slog.Logger) (repository.AccountRepository, repository.TransactionRepository, error) {
-	repoAny, err := uow.GetRepository(reflect.TypeOf((*repository.AccountRepository)(nil)).Elem())
+	// Use type-safe convenience methods instead of reflect
+	accountRepo, err := uow.AccountRepository()
 	if err != nil {
 		logger.Error("getRepositories failed: AccountRepository error", "error", err)
 		return nil, nil, err
 	}
-	accountRepo := repoAny.(repository.AccountRepository)
 
-	txRepoAny, err := uow.GetRepository(reflect.TypeOf((*repository.TransactionRepository)(nil)).Elem())
+	txRepo, err := uow.TransactionRepository()
 	if err != nil {
 		logger.Error("getRepositories failed: TransactionRepository error", "error", err)
 		return nil, nil, err
 	}
-	txRepo := txRepoAny.(repository.TransactionRepository)
 
 	return accountRepo, txRepo, nil
 }
