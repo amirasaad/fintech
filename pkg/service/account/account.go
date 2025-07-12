@@ -179,6 +179,8 @@ func (s *AccountService) Deposit(
 	amount float64,
 	currencyCode currency.Code,
 ) (tx *account.Transaction, convInfo *common.ConversionInfo, err error) {
+	s.logger.Info("Deposit: starting", "userID", userID, "accountID", accountID, "amount", amount, "currency", currencyCode, "chain_nil", s.chain == nil)
+
 	req := &OperationRequest{
 		UserID:       userID,
 		AccountID:    accountID,

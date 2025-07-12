@@ -110,6 +110,7 @@ func Deposit(
 	authSvc *authsvc.AuthService,
 ) fiber.Handler {
 	return func(c *fiber.Ctx) error {
+		log.Infof("Deposit handler: called for account %s", c.Params("id"))
 		token, ok := c.Locals("user").(*jwt.Token)
 		if !ok {
 			return common.ProblemDetailsJSON(c, "Unauthorized", nil, "missing user context")
@@ -132,6 +133,7 @@ func Deposit(
 		if input.Currency != "" {
 			currencyCode = currency.Code(input.Currency)
 		}
+		log.Infof("Deposit handler: calling service for user %s, account %s, amount %v, currency %s", userID, accountID, input.Amount, currencyCode)
 		tx, convInfo, err := accountSvc.Deposit(userID, accountID, input.Amount, currencyCode)
 		if err != nil {
 			log.Errorf("Failed to deposit: %v", err)

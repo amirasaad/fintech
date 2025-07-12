@@ -69,18 +69,23 @@ type AccountValidationHandler struct {
 // Handle validates the account and passes the request to the next handler
 func (h *AccountValidationHandler) Handle(ctx context.Context, req *OperationRequest) (*OperationResponse, error) {
 	logger := h.logger.With("userID", req.UserID, "accountID", req.AccountID)
+	logger.Info("AccountValidationHandler: starting")
 
 	repo, err := h.uow.AccountRepository()
 	if err != nil {
 		logger.Error("AccountValidationHandler failed: repository error", "error", err)
 		return &OperationResponse{Error: err}, nil
 	}
+	logger.Info("AccountValidationHandler: got repository", "repo_nil", repo == nil)
 
+	logger.Info("AccountValidationHandler: about to call repo.Get", "accountID", req.AccountID)
 	acc, err := repo.Get(req.AccountID)
+	logger.Info("AccountValidationHandler: repo.Get completed", "acc_nil", acc == nil, "err", err)
 	if err != nil {
 		logger.Error("AccountValidationHandler failed: account not found", "error", err)
 		return &OperationResponse{Error: account.ErrAccountNotFound}, nil
 	}
+	logger.Info("AccountValidationHandler: got account", "account", acc)
 
 	if acc.UserID != req.UserID {
 		logger.Error("AccountValidationHandler failed: user unauthorized", "accountUserID", acc.UserID)
