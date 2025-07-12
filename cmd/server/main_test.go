@@ -5,7 +5,6 @@ import (
 	"log"
 	"log/slog"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"testing"
 
@@ -24,11 +23,7 @@ func TestMain(m *testing.M) {
 func TestStartServer_RootRoute(t *testing.T) {
 	app, _, _, _, _ := webapi.SetupTestAppWithTestcontainers(t)
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	resp, err := app.Test(req)
-	if err != nil {
-		t.Fatalf("Get / returns err, %s", err)
-	}
+	resp := webapi.MakeRequestWithApp(app, http.MethodGet, "/", "", "")
 	defer resp.Body.Close() // nolint: errcheck
 
 	if resp.StatusCode != http.StatusOK {
@@ -38,11 +33,7 @@ func TestStartServer_RootRoute(t *testing.T) {
 
 func TestProtectedRoute_Unauthorized(t *testing.T) {
 	app, _, _, _, _ := webapi.SetupTestAppWithTestcontainers(t)
-	req := httptest.NewRequest(http.MethodGet, "/account", nil)
-	resp, err := app.Test(req)
-	if err != nil {
-		t.Fatalf("GET /account returns err: %s", err)
-	}
+	resp := webapi.MakeRequestWithApp(app, http.MethodGet, "/account", "", "")
 	defer resp.Body.Close() // nolint: errcheck
 	if resp.StatusCode == http.StatusOK {
 		t.Fatalf("expected unauthorized or forbidden, got %d", resp.StatusCode)
@@ -51,11 +42,7 @@ func TestProtectedRoute_Unauthorized(t *testing.T) {
 
 func TestNotFoundRoute(t *testing.T) {
 	app, _, _, _, _ := webapi.SetupTestAppWithTestcontainers(t)
-	req := httptest.NewRequest(http.MethodGet, "/doesnotexist", nil)
-	resp, err := app.Test(req)
-	if err != nil {
-		t.Fatalf("GET /doesnotexist returns err: %s", err)
-	}
+	resp := webapi.MakeRequestWithApp(app, http.MethodGet, "/doesnotexist", "", "")
 	defer resp.Body.Close() // nolint: errcheck
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("expected 404, got %d", resp.StatusCode)
@@ -64,11 +51,7 @@ func TestNotFoundRoute(t *testing.T) {
 
 func TestLoginRoute_BadRequest(t *testing.T) {
 	app, _, _, _, _ := webapi.SetupTestAppWithTestcontainers(t)
-	req := httptest.NewRequest(http.MethodPost, "/auth/login", nil)
-	resp, err := app.Test(req)
-	if err != nil {
-		t.Fatalf("POST /auth/login returns err: %s", err)
-	}
+	resp := webapi.MakeRequestWithApp(app, http.MethodPost, "/auth/login", "", "")
 	defer resp.Body.Close() // nolint: errcheck
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("expected 400, got %d", resp.StatusCode)

@@ -10,7 +10,7 @@ import (
 )
 
 type UserTestSuite struct {
-	E2ETestSuiteWithDB
+	E2ETestSuite
 	testUser *domain.User
 	token    string
 }

@@ -1,7 +1,6 @@
 package webapi
 
 import (
-	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -35,9 +34,7 @@ func (s *RateLimitTestSuite) TestRateLimit() {
 	s.T().Parallel()
 	// Send requests until rate limit is hit
 	for i := range [6]int{} { // Default limit is 5 requests per IP per second
-		req := httptest.NewRequest(fiber.MethodGet, "/", nil)
-		resp, err := s.app.Test(req, 1000) // Add timeout to app.Test
-		s.Require().NoError(err)
+		resp := MakeRequestWithApp(s.app, fiber.MethodGet, "/", "", "")
 		defer resp.Body.Close() //nolint: errcheck
 
 		if i < 5 {
@@ -51,9 +48,7 @@ func (s *RateLimitTestSuite) TestRateLimit() {
 	time.Sleep(1 * time.Second)
 
 	// Send another request and expect it to be successful
-	req := httptest.NewRequest(fiber.MethodGet, "/", nil)
-	resp, err := s.app.Test(req, 1000) // Add timeout to app.Test
-	s.Require().NoError(err)
+	resp := MakeRequestWithApp(s.app, fiber.MethodGet, "/", "", "")
 	defer resp.Body.Close() //nolint: errcheck
 	s.Assert().Equal(fiber.StatusOK, resp.StatusCode, "Expected OK after rate limit reset")
 }

@@ -39,13 +39,8 @@ import (
 	"gorm.io/gorm"
 )
 
-// E2ETestSuite provides a base test suite for E2E tests
+// E2ETestSuite provides a test suite with a real Postgres database using Testcontainers
 type E2ETestSuite struct {
-	suite.Suite
-}
-
-// E2ETestSuiteWithDB provides a test suite with a real Postgres database using Testcontainers
-type E2ETestSuiteWithDB struct {
 	suite.Suite
 	pgContainer *tcpostgres.PostgresContainer
 	db          *gorm.DB
@@ -133,6 +128,58 @@ func runMigrations(db *gorm.DB) error {
 	return nil
 }
 
+// setupCurrencyRegistry initializes the currency registry with test fixtures
+func setupCurrencyRegistry(ctx context.Context) (*currency.CurrencyRegistry, error) {
+	currencyRegistry, err := currency.NewCurrencyRegistry(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Load currency fixtures
+	_, filename, _, _ := runtime.Caller(0)
+	fixturePath := filepath.Join(filepath.Dir(filename), "../internal/fixtures/currency/meta.csv")
+	metas, err := fixturescurrency.LoadCurrencyMetaCSV(fixturePath)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, meta := range metas {
+		if err := currencyRegistry.Register(meta); err != nil {
+			return nil, err
+		}
+	}
+
+	return currencyRegistry, nil
+}
+
+// setupServices creates all required services for testing
+func setupServices(db *gorm.DB, cfg *config.AppConfig) (*service.AuthService, *service.AccountService, *service.UserService, *service.CurrencyService, error) {
+	uow := infrarepo.NewUoW(db)
+	logger := slog.Default()
+
+	// Create auth service
+	authStrategy := service.NewJWTAuthStrategy(uow, cfg.Jwt, logger)
+	authService := service.NewAuthService(uow, authStrategy, logger)
+
+	// Create currency converter
+	currencyConverter := provider.NewStubCurrencyConverter()
+
+	// Create services
+	accountSvc := service.NewAccountService(uow, currencyConverter, logger)
+	userSvc := service.NewUserService(uow, logger)
+
+	// Initialize currency service
+	ctx := context.Background()
+	currencyRegistry, err := setupCurrencyRegistry(ctx)
+	if err != nil {
+		return nil, nil, nil, nil, err
+	}
+
+	currencySvc := service.NewCurrencyService(currencyRegistry, logger)
+
+	return authService, accountSvc, userSvc, currencySvc, nil
+}
+
 // SetupTestAppWithTestcontainers creates a test app using real Postgres via Testcontainers
 func SetupTestAppWithTestcontainers(t *testing.T) (*fiber.App, *gorm.DB, *domain.User, *service.AuthService, *config.AppConfig) {
 	t.Helper()
@@ -180,42 +227,11 @@ func SetupTestAppWithTestcontainers(t *testing.T) (*fiber.App, *gorm.DB, *domain
 		t.Fatalf("Failed to create test user: %v", err)
 	}
 
-	// Create services
-	uow := infrarepo.NewUoW(db)
-	logger := slog.Default()
-
-	// Create auth service
-	authStrategy := service.NewJWTAuthStrategy(uow, cfg.Jwt, logger)
-	authService := service.NewAuthService(uow, authStrategy, logger)
-
-	// Create currency converter
-	currencyConverter := provider.NewStubCurrencyConverter()
-
-	// Create services
-	accountSvc := service.NewAccountService(uow, currencyConverter, logger)
-	userSvc := service.NewUserService(uow, logger)
-
-	// Initialize currency service
-	currencyRegistry, err := currency.NewCurrencyRegistry(ctx)
+	// Setup services
+	authService, accountSvc, userSvc, currencySvc, err := setupServices(db, cfg)
 	if err != nil {
-		t.Fatalf("Failed to create currency registry for tests: %v", err)
+		t.Fatalf("Failed to setup services: %v", err)
 	}
-
-	// Load currency fixtures
-	_, filename, _, _ := runtime.Caller(0)
-	fixturePath := filepath.Join(filepath.Dir(filename), "../internal/fixtures/currency/meta.csv")
-	metas, err := fixturescurrency.LoadCurrencyMetaCSV(fixturePath)
-	if err != nil {
-		t.Fatalf("Failed to load currency meta fixture: %v", err)
-	}
-
-	for _, meta := range metas {
-		if err := currencyRegistry.Register(meta); err != nil {
-			t.Fatalf("Failed to register currency meta: %v", err)
-		}
-	}
-
-	currencySvc := service.NewCurrencyService(currencyRegistry, logger)
 
 	// Create app
 	app := NewApp(accountSvc, userSvc, authService, currencySvc, cfg)
@@ -225,7 +241,7 @@ func SetupTestAppWithTestcontainers(t *testing.T) (*fiber.App, *gorm.DB, *domain
 }
 
 // SetupSuite initializes the test suite with a real Postgres database
-func (s *E2ETestSuiteWithDB) SetupSuite() {
+func (s *E2ETestSuite) SetupSuite() {
 	ctx := context.Background()
 
 	// Start Postgres container
@@ -257,34 +273,10 @@ func (s *E2ETestSuiteWithDB) SetupSuite() {
 	s.testUser, err = generateRandomTestUser()
 	s.Require().NoError(err)
 
-	// Create services
-	uow := infrarepo.NewUoW(s.db)
-	logger := slog.Default()
-
-	// Create auth service
-	authStrategy := service.NewJWTAuthStrategy(uow, s.cfg.Jwt, logger)
-	s.authService = service.NewAuthService(uow, authStrategy, logger)
-
-	// Create currency converter
-	currencyConverter := provider.NewStubCurrencyConverter()
-
-	// Create services
-	accountSvc := service.NewAccountService(uow, currencyConverter, logger)
-	userSvc := service.NewUserService(uow, logger)
-
-	// Initialize currency service
-	currencyRegistry, err := currency.NewCurrencyRegistry(ctx)
+	// Setup services
+	authService, accountSvc, userSvc, currencySvc, err := setupServices(s.db, s.cfg)
 	s.Require().NoError(err)
-
-	// Load currency fixtures
-	_, filename, _, _ := runtime.Caller(0)
-	fixturePath := filepath.Join(filepath.Dir(filename), "../internal/fixtures/currency/meta.csv")
-	metas, err := fixturescurrency.LoadCurrencyMetaCSV(fixturePath)
-	s.Require().NoError(err)
-	for _, meta := range metas {
-		s.Require().NoError(currencyRegistry.Register(meta))
-	}
-	currencySvc := service.NewCurrencyService(currencyRegistry, logger)
+	s.authService = authService
 
 	// Create app
 	s.app = NewApp(accountSvc, userSvc, s.authService, currencySvc, s.cfg)
@@ -292,7 +284,7 @@ func (s *E2ETestSuiteWithDB) SetupSuite() {
 }
 
 // TearDownSuite cleans up the test suite resources
-func (s *E2ETestSuiteWithDB) TearDownSuite() {
+func (s *E2ETestSuite) TearDownSuite() {
 	ctx := context.Background()
 	if s.pgContainer != nil {
 		_ = s.pgContainer.Terminate(ctx)
@@ -300,7 +292,7 @@ func (s *E2ETestSuiteWithDB) TearDownSuite() {
 }
 
 // loginUser makes an actual HTTP request to login and returns the JWT token
-func (s *E2ETestSuiteWithDB) loginUser(testUser *domain.User) string {
+func (s *E2ETestSuite) loginUser(testUser *domain.User) string {
 	// Make login request with the actual user credentials
 	loginBody := fmt.Sprintf(`{"identity":"%s","password":"password123"}`, testUser.Email)
 	resp := s.makeRequest("POST", "/auth/login", loginBody, "")
@@ -310,7 +302,6 @@ func (s *E2ETestSuiteWithDB) loginUser(testUser *domain.User) string {
 	// Parse response to get token and log response
 	var response Response
 	err := json.NewDecoder(resp.Body).Decode(&response)
-	s.T().Logf("Login response: %+v", response)
 	s.Require().NoError(err)
 
 	// Handle the data field which can be map[string]interface{} or map[string]string
@@ -328,7 +319,7 @@ func (s *E2ETestSuiteWithDB) loginUser(testUser *domain.User) string {
 }
 
 // makeRequest is a helper for making HTTP requests in tests
-func (s *E2ETestSuiteWithDB) makeRequest(method, path, body, token string) *http.Response {
+func (s *E2ETestSuite) makeRequest(method, path, body, token string) *http.Response {
 	var req *http.Request
 	if body != "" {
 		req = httptest.NewRequest(method, path, bytes.NewBufferString(body))
@@ -344,8 +335,27 @@ func (s *E2ETestSuiteWithDB) makeRequest(method, path, body, token string) *http
 	return resp
 }
 
+// MakeRequestWithApp is a helper for making HTTP requests with a standalone app (for non-suite tests)
+func MakeRequestWithApp(app *fiber.App, method, path, body, token string) *http.Response {
+	var req *http.Request
+	if body != "" {
+		req = httptest.NewRequest(method, path, bytes.NewBufferString(body))
+		req.Header.Set("Content-Type", "application/json")
+	} else {
+		req = httptest.NewRequest(method, path, nil)
+	}
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+	resp, err := app.Test(req, 1000000)
+	if err != nil {
+		panic(err) // For standalone tests, panic on error
+	}
+	return resp
+}
+
 // postToCreateUser creates a unique test user via the POST /user/ endpoint
-func (s *E2ETestSuiteWithDB) postToCreateUser() *domain.User {
+func (s *E2ETestSuite) postToCreateUser() *domain.User {
 	// Create a unique test user for each test
 	testUser, err := generateRandomTestUser()
 	s.Require().NoError(err)

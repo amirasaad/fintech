@@ -177,8 +177,7 @@ func CreateAccount(
 		}
 		input, err := BindAndValidate[CreateAccountRequest](c)
 		if err != nil {
-			log.Errorf("Failed to validate request: %v", err)
-			return ProblemDetailsJSON(c, "Invalid request", err)
+			return err
 		}
 		currencyCode := currency.Code("USD")
 		if input != nil && input.Currency != "" {

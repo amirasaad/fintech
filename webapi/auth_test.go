@@ -11,7 +11,7 @@ import (
 )
 
 type AuthTestSuite struct {
-	E2ETestSuiteWithDB
+	E2ETestSuite
 	testUser *domain.User
 }
 

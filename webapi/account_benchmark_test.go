@@ -1,8 +1,6 @@
 package webapi
 
 import (
-	"bytes"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/amirasaad/fintech/pkg/domain"
@@ -11,7 +9,7 @@ import (
 )
 
 type AccountBenchmarkTestSuite struct {
-	E2ETestSuiteWithDB
+	E2ETestSuite
 	testUser *domain.User
 	token    string
 }
@@ -27,16 +25,10 @@ func (s *AccountBenchmarkTestSuite) BenchmarkAccountCreate(b *testing.B) {
 	token := s.loginUser(s.testUser)
 
 	body := `{"currency":"USD"}`
-	req := httptest.NewRequest("POST", "/account", bytes.NewBufferString(body))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+token)
 
 	b.ResetTimer()
 	for b.Loop() {
-		resp, err := s.app.Test(req)
-		if err != nil {
-			b.Fatal(err)
-		}
+		resp := s.makeRequest("POST", "/account", body, token)
 		resp.Body.Close() //nolint:errcheck
 	}
 }
@@ -46,16 +38,10 @@ func (s *AccountBenchmarkTestSuite) BenchmarkAccountDeposit(b *testing.B) {
 	accountID := uuid.New()
 
 	body := `{"amount":100.0}`
-	req := httptest.NewRequest("POST", "/account/"+accountID.String()+"/deposit", bytes.NewBufferString(body))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+s.token)
 
 	b.ResetTimer()
 	for b.Loop() {
-		resp, err := s.app.Test(req)
-		if err != nil {
-			b.Fatal(err)
-		}
+		resp := s.makeRequest("POST", "/account/"+accountID.String()+"/deposit", body, s.token)
 		resp.Body.Close() //nolint:errcheck
 	}
 }
