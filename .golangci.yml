@@ -1,0 +1,7 @@
+version: "2"
+linters:
+  settings:
+    testifylint:
+      # Enable all checkers (https://github.com/Antonboom/testifylint#checkers).
+      # Default: false
+      enable-all: true
