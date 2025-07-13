@@ -33,7 +33,7 @@ func TestBaseHandler_Handle_WithNoNext(t *testing.T) {
 	assert.NotNil(t, resp)
 	assert.Nil(t, resp.Transaction)
 	assert.Nil(t, resp.ConvInfo)
-	assert.Nil(t, resp.Error)
+	assert.NoError(t, resp.Error)
 }
 
 // Mock handler for testing
@@ -90,7 +90,7 @@ func TestAccountValidationHandler_Handle_Success(t *testing.T) {
 	}
 	resp, err := handler.Handle(context.Background(), req)
 	assert.NoError(t, err)
-	assert.Nil(t, resp.Error)
+	assert.NoError(t, resp.Error)
 	assert.Equal(t, expectedAccount, req.Account)
 	uow.AssertExpectations(t)
 	accountRepo.AssertExpectations(t)
@@ -110,7 +110,7 @@ func TestAccountValidationHandler_Handle_RepositoryError(t *testing.T) {
 	}
 	resp, err := handler.Handle(context.Background(), req)
 	assert.NoError(t, err)
-	assert.NotNil(t, resp.Error)
+	assert.Error(t, resp.Error)
 	assert.Equal(t, assert.AnError, resp.Error)
 	uow.AssertExpectations(t)
 }
@@ -133,7 +133,7 @@ func TestAccountValidationHandler_Handle_AccountNotFound(t *testing.T) {
 	}
 	resp, err := handler.Handle(context.Background(), req)
 	assert.NoError(t, err)
-	assert.NotNil(t, resp.Error)
+	assert.Error(t, resp.Error)
 	assert.Equal(t, account.ErrAccountNotFound, resp.Error)
 	uow.AssertExpectations(t)
 	accountRepo.AssertExpectations(t)
@@ -151,7 +151,7 @@ func TestMoneyCreationHandler_Handle_Success(t *testing.T) {
 	}
 	resp, err := handler.Handle(context.Background(), req)
 	assert.NoError(t, err)
-	assert.Nil(t, resp.Error)
+	assert.NoError(t, resp.Error)
 	assert.NotNil(t, req.Money)
 	assert.Equal(t, float64(100.0), req.Money.AmountFloat())
 	assert.Equal(t, currency.Code("USD"), req.Money.Currency())
@@ -168,7 +168,7 @@ func TestMoneyCreationHandler_Handle_InvalidMoney(t *testing.T) {
 	}
 	resp, err := handler.Handle(context.Background(), req)
 	assert.NoError(t, err)
-	assert.Nil(t, resp.Error) // Money creation succeeds even for negative amounts
+	assert.NoError(t, resp.Error) // Money creation succeeds even for negative amounts
 	assert.NotNil(t, req.Money)
 	assert.Equal(t, float64(-100.0), req.Money.AmountFloat())
 	assert.Equal(t, currency.Code("USD"), req.Money.Currency())
@@ -191,7 +191,7 @@ func TestCurrencyConversionHandler_Handle_NoConversionNeeded(t *testing.T) {
 	}
 	resp, err := handler.Handle(context.Background(), req)
 	assert.NoError(t, err)
-	assert.Nil(t, resp.Error)
+	assert.NoError(t, resp.Error)
 	assert.Equal(t, money, req.ConvertedMoney)
 	assert.Nil(t, req.ConvInfo)
 }
@@ -220,7 +220,7 @@ func TestCurrencyConversionHandler_Handle_ConversionNeeded(t *testing.T) {
 	}
 	resp, err := handler.Handle(context.Background(), req)
 	assert.NoError(t, err)
-	assert.Nil(t, resp.Error)
+	assert.NoError(t, resp.Error)
 	assert.NotNil(t, req.ConvertedMoney)
 	assert.Equal(t, float64(85.0), req.ConvertedMoney.AmountFloat())
 	assert.Equal(t, currency.Code("EUR"), req.ConvertedMoney.Currency())
@@ -245,7 +245,7 @@ func TestCurrencyConversionHandler_Handle_ConversionError(t *testing.T) {
 	}
 	resp, err := handler.Handle(context.Background(), req)
 	assert.NoError(t, err)
-	assert.NotNil(t, resp.Error)
+	assert.Error(t, resp.Error)
 	assert.Equal(t, assert.AnError, resp.Error)
 	converter.AssertExpectations(t)
 }
@@ -271,7 +271,7 @@ func TestDomainOperationHandler_Handle_Deposit(t *testing.T) {
 	}
 	resp, err := handler.Handle(context.Background(), req)
 	assert.NoError(t, err)
-	assert.Nil(t, resp.Error)
+	assert.NoError(t, resp.Error)
 	assert.NotNil(t, req.Transaction)
 	assert.Equal(t, account.ID, req.Transaction.AccountID)
 }
@@ -297,7 +297,7 @@ func TestDomainOperationHandler_Handle_Withdraw(t *testing.T) {
 	}
 	resp, err := handler.Handle(context.Background(), req)
 	assert.NoError(t, err)
-	assert.Nil(t, resp.Error)
+	assert.NoError(t, resp.Error)
 	assert.NotNil(t, req.Transaction)
 	assert.Equal(t, account.ID, req.Transaction.AccountID)
 }
@@ -312,7 +312,7 @@ func TestDomainOperationHandler_Handle_UnsupportedOperation(t *testing.T) {
 	}
 	resp, err := handler.Handle(context.Background(), req)
 	assert.NoError(t, err)
-	assert.NotNil(t, resp.Error)
+	assert.Error(t, resp.Error)
 	assert.Contains(t, resp.Error.Error(), "unsupported operation")
 }
 
@@ -359,7 +359,7 @@ func TestPersistenceHandler_Handle_Success(t *testing.T) {
 	}
 	resp, err := handler.Handle(context.Background(), req)
 	assert.NoError(t, err)
-	assert.Nil(t, resp.Error)
+	assert.NoError(t, resp.Error)
 	assert.Equal(t, transaction, resp.Transaction)
 	assert.Equal(t, convInfo, resp.ConvInfo)
 	assert.Equal(t, &convInfo.OriginalAmount, transaction.OriginalAmount)
@@ -395,7 +395,7 @@ func TestPersistenceHandler_Handle_AccountUpdateError(t *testing.T) {
 	}
 	resp, err := handler.Handle(context.Background(), req)
 	assert.NoError(t, err)
-	assert.NotNil(t, resp.Error)
+	assert.Error(t, resp.Error)
 	assert.Equal(t, assert.AnError, resp.Error)
 }
 
@@ -439,7 +439,7 @@ func TestChainBuilder_BuildOperationChain(t *testing.T) {
 	}
 	resp, err := chain.Handle(context.Background(), req)
 	assert.NoError(t, err)
-	assert.Nil(t, resp.Error)
+	assert.NoError(t, resp.Error)
 }
 
 // Helper function to create a test logger

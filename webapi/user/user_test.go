@@ -44,7 +44,7 @@ func (s *UserTestSuite) TestCreateUserVariants() {
 		s.Run(tc.desc, func() {
 			resp := s.MakeRequest("POST", "/user", tc.body, "")
 			defer resp.Body.Close() //nolint:errcheck
-			s.Assert().Equal(tc.wantStatus, resp.StatusCode)
+			s.Equal(tc.wantStatus, resp.StatusCode)
 		})
 	}
 }
@@ -71,7 +71,7 @@ func (s *UserTestSuite) TestGetUserVariants() {
 		s.Run(tc.desc, func() {
 			resp := s.MakeRequest("GET", "/user/"+tc.userId, "", s.token)
 			defer resp.Body.Close() //nolint:errcheck
-			s.Assert().Equal(tc.wantStatus, resp.StatusCode)
+			s.Equal(tc.wantStatus, resp.StatusCode)
 		})
 	}
 }
@@ -98,7 +98,7 @@ func (s *UserTestSuite) TestUpdateUserVariants() {
 		s.Run(tc.desc, func() {
 			resp := s.MakeRequest("PUT", "/user/"+s.testUser.ID.String(), tc.body, s.token)
 			defer resp.Body.Close() //nolint:errcheck
-			s.Assert().Equal(tc.wantStatus, resp.StatusCode)
+			s.Equal(tc.wantStatus, resp.StatusCode)
 		})
 	}
 }
@@ -133,7 +133,7 @@ func (s *UserTestSuite) TestDeleteUserVariants() {
 			token := s.LoginUser(testUser)
 			resp := s.MakeRequest("DELETE", "/user/"+testUser.ID.String(), tc.body, token)
 			defer resp.Body.Close() //nolint:errcheck
-			s.Assert().Equal(tc.wantStatus, resp.StatusCode)
+			s.Equal(tc.wantStatus, resp.StatusCode)
 		})
 	}
 }
