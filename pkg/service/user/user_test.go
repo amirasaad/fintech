@@ -14,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 // Helper to create a service with mocks
@@ -55,7 +56,7 @@ func TestCreateUser_RepoError(t *testing.T) {
 	)
 
 	u, err := svc.CreateUser(context.Background(), "bob", "bob@example.com", "password")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, u)
 }
 
@@ -86,7 +87,7 @@ func TestGetUser_NotFound(t *testing.T) {
 	)
 
 	got, err := svc.GetUser(context.Background(), uuid.New().String())
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, got)
 }
 
@@ -101,7 +102,7 @@ func TestGetUser_UoWFactoryError(t *testing.T) {
 
 	svc := usersvc.NewUserService(uow, slog.Default())
 	_, err := svc.GetUser(context.Background(), uuid.New().String())
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestGetUserByEmail_Success(t *testing.T) {
@@ -132,7 +133,7 @@ func TestGetUserByEmail_NotFound(t *testing.T) {
 	)
 
 	got, err := svc.GetUserByEmail(context.Background(), "notfound@example.com")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, got)
 }
 
@@ -147,7 +148,7 @@ func TestGetUserByEmail_UoWFactoryError(t *testing.T) {
 
 	svc := usersvc.NewUserService(uow, slog.Default())
 	_, err := svc.GetUserByEmail(context.Background(), "user@example.com")
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestGetUserByUsername_Success(t *testing.T) {
@@ -177,7 +178,7 @@ func TestGetUserByUsername_NotFound(t *testing.T) {
 	)
 
 	got, err := svc.GetUserByUsername(context.Background(), "notfound")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, got)
 }
 
@@ -192,7 +193,7 @@ func TestGetUserByUsername_UoWFactoryError(t *testing.T) {
 
 	svc := usersvc.NewUserService(uow, slog.Default())
 	_, err := svc.GetUserByUsername(context.Background(), "username")
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestUpdateUser_Success(t *testing.T) {
@@ -232,7 +233,7 @@ func TestUpdateUser_RepoError(t *testing.T) {
 		u.Username = "updated"
 		return nil
 	})
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestUpdateUser_UoWFactoryError(t *testing.T) {
@@ -246,7 +247,7 @@ func TestUpdateUser_UoWFactoryError(t *testing.T) {
 
 	svc := usersvc.NewUserService(uow, slog.Default())
 	err := svc.UpdateUser(context.Background(), uuid.New().String(), nil)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestUpdateUser_CallsGetRepositoryOnce(t *testing.T) {
@@ -307,7 +308,7 @@ func TestDeleteUser_RepoError(t *testing.T) {
 	)
 
 	err := svc.DeleteUser(context.Background(), id.String())
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestValidUser_True(t *testing.T) {

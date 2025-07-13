@@ -31,7 +31,7 @@ func TestNewMoney_Precision(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			money, err := money.NewMoney(tt.amount, tt.currency)
 			if tt.wantErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 				return
 			}
 			require.NoError(t, err)
@@ -58,7 +58,7 @@ func TestMoney_Arithmetic(t *testing.T) {
 
 	t.Run("Add different currency", func(t *testing.T) {
 		_, err := usd100.Add(eur100)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.ErrorIs(t, err, common.ErrInvalidCurrencyCode)
 	})
 
@@ -107,7 +107,7 @@ func TestMoney_Comparison(t *testing.T) {
 
 	t.Run("GreaterThan different currency", func(t *testing.T) {
 		_, err := usd100.GreaterThan(eur100)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.ErrorIs(t, err, common.ErrInvalidCurrencyCode)
 	})
 }
@@ -200,7 +200,7 @@ func TestNewMoneyFromSmallestUnit(t *testing.T) {
 
 	t.Run("Invalid currency", func(t *testing.T) {
 		_, err := money.NewMoneyFromSmallestUnit(100, "INVALID")
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.ErrorIs(t, err, common.ErrInvalidCurrencyCode)
 	})
 }
@@ -281,13 +281,13 @@ func TestMoney_Divide(t *testing.T) {
 
 	t.Run("Divide by 0", func(t *testing.T) {
 		_, err := money.Divide(0.0)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "division by zero")
 	})
 
 	t.Run("Divide by 3 (precision loss)", func(t *testing.T) {
 		_, err := money.Divide(3.0)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "precision loss")
 	})
 }

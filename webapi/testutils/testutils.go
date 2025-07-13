@@ -32,7 +32,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-migrate/migrate/v4"
 	migratepostgres "github.com/golang-migrate/migrate/v4/database/postgres"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
+	_ "github.com/golang-migrate/migrate/v4/source/file" // required for file-based migrations in tests
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/suite"
 	"github.com/testcontainers/testcontainers-go"
@@ -51,7 +51,8 @@ type E2ETestSuite struct {
 	cfg         *config.AppConfig
 }
 
-func (s *E2ETestSuite) BeforeTest() {
+// BeforeEachTest runs before each test in the E2ETestSuite. It enables parallel test execution.
+func (s *E2ETestSuite) BeforeEachTest() {
 	s.T().Parallel()
 }
 

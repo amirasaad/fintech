@@ -15,6 +15,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 // Test BaseHandler
@@ -110,7 +111,7 @@ func TestAccountValidationHandler_Handle_RepositoryError(t *testing.T) {
 	}
 	resp, err := handler.Handle(context.Background(), req)
 	assert.NoError(t, err)
-	assert.Error(t, resp.Error)
+	require.Error(t, resp.Error)
 	assert.Equal(t, assert.AnError, resp.Error)
 	uow.AssertExpectations(t)
 }
@@ -133,7 +134,7 @@ func TestAccountValidationHandler_Handle_AccountNotFound(t *testing.T) {
 	}
 	resp, err := handler.Handle(context.Background(), req)
 	assert.NoError(t, err)
-	assert.Error(t, resp.Error)
+	require.Error(t, resp.Error)
 	assert.Equal(t, account.ErrAccountNotFound, resp.Error)
 	uow.AssertExpectations(t)
 	accountRepo.AssertExpectations(t)
@@ -245,7 +246,7 @@ func TestCurrencyConversionHandler_Handle_ConversionError(t *testing.T) {
 	}
 	resp, err := handler.Handle(context.Background(), req)
 	assert.NoError(t, err)
-	assert.Error(t, resp.Error)
+	require.Error(t, resp.Error)
 	assert.Equal(t, assert.AnError, resp.Error)
 	converter.AssertExpectations(t)
 }
@@ -312,7 +313,7 @@ func TestDomainOperationHandler_Handle_UnsupportedOperation(t *testing.T) {
 	}
 	resp, err := handler.Handle(context.Background(), req)
 	assert.NoError(t, err)
-	assert.Error(t, resp.Error)
+	require.Error(t, resp.Error)
 	assert.Contains(t, resp.Error.Error(), "unsupported operation")
 }
 
@@ -395,14 +396,14 @@ func TestPersistenceHandler_Handle_AccountUpdateError(t *testing.T) {
 	}
 	resp, err := handler.Handle(context.Background(), req)
 	assert.NoError(t, err)
-	assert.Error(t, resp.Error)
+	require.Error(t, resp.Error)
 	assert.Equal(t, assert.AnError, resp.Error)
 }
 
 // Test ChainBuilder
 func TestChainBuilder_BuildOperationChain(t *testing.T) {
-	userId := uuid.New()
-	acc, _ := account.New().WithUserID(userId).Build()
+	userID := uuid.New()
+	acc, _ := account.New().WithUserID(userID).Build()
 	uow := mocks.NewMockUnitOfWork(t)
 	accountRepo := mocks.NewMockAccountRepository(t)
 	transactionRepo := mocks.NewMockTransactionRepository(t)
@@ -431,7 +432,7 @@ func TestChainBuilder_BuildOperationChain(t *testing.T) {
 	chain := builder.BuildOperationChain()
 	assert.NotNil(t, chain)
 	req := &OperationRequest{
-		UserID:       userId,
+		UserID:       userID,
 		AccountID:    acc.ID,
 		Amount:       100.0,
 		CurrencyCode: currency.Code("USD"),

@@ -219,7 +219,7 @@ func TestCurrencyValidator(t *testing.T) {
 			err := validator.Validate(ctx, entity)
 
 			if tt.expectError {
-				assert.Error(t, err)
+				require.Error(t, err)
 				if tt.errorType != nil {
 					assert.ErrorIs(t, err, tt.errorType)
 				}
@@ -281,7 +281,7 @@ func TestCurrencyValidatorMetadata(t *testing.T) {
 			err := validator.ValidateMetadata(ctx, tt.metadata)
 
 			if tt.expectError {
-				assert.Error(t, err)
+				require.Error(t, err)
 			} else {
 				assert.NoError(t, err)
 			}
@@ -350,7 +350,7 @@ func TestCurrencyRegistry(t *testing.T) {
 		}
 
 		err = registry.Register(invalidCurrency)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.ErrorIs(t, err, ErrInvalidCurrencyCode)
 	})
 
@@ -359,7 +359,7 @@ func TestCurrencyRegistry(t *testing.T) {
 		require.NoError(t, err)
 
 		_, err = registry.Get("NONEXISTENT")
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "currency not found")
 	})
 
@@ -458,7 +458,7 @@ func TestCurrencyRegistry(t *testing.T) {
 
 		// Verify it's gone
 		_, err = registry.Get("TSU")
-		assert.Error(t, err)
+		require.Error(t, err)
 	})
 
 	t.Run("search currencies", func(t *testing.T) {
@@ -659,7 +659,7 @@ func TestValidationHelpers(t *testing.T) {
 			Symbol:   "$",
 			Decimals: 2,
 		}
-		assert.Error(t, validateCurrencyMeta(invalidMeta))
+		require.Error(t, validateCurrencyMeta(invalidMeta))
 		assert.ErrorIs(t, validateCurrencyMeta(invalidMeta), ErrInvalidCurrencyCode)
 	})
 }

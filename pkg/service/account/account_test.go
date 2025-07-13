@@ -77,7 +77,7 @@ func TestCreateAccount_RepoError(t *testing.T) {
 
 	svc := accountsvc.NewAccountService(uow, nil, slog.Default())
 	gotAccount, err := svc.CreateAccount(context.Background(), userID)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, gotAccount)
 }
 
@@ -147,7 +147,7 @@ func TestDeposit_RepoError(t *testing.T) {
 	accountRepo.EXPECT().Update(account).Return(errors.New("update error")).Once()
 
 	tx, _, err := svc.Deposit(userID, accountID, 100.0, currency.USD)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, tx)
 }
 
@@ -164,7 +164,7 @@ func TestDeposit_NegativeAmount(t *testing.T) {
 
 	svc := accountsvc.NewAccountService(uow, nil, slog.Default())
 	tx, _, err := svc.Deposit(userID, accountID, -50.0, currency.USD)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, tx)
 }
 
@@ -179,7 +179,7 @@ func TestDeposit_AccountRepoError(t *testing.T) {
 
 	svc := accountsvc.NewAccountService(uow, nil, slog.Default())
 	tx, _, err := svc.Deposit(userID, accountID, 100.0, currency.USD)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, tx)
 }
 
@@ -195,7 +195,7 @@ func TestDeposit_GetAccountError(t *testing.T) {
 
 	svc := accountsvc.NewAccountService(uow, nil, slog.Default())
 	tx, _, err := svc.Deposit(userID, accountID, 100.0, currency.USD)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, tx)
 }
 
@@ -218,7 +218,7 @@ func TestDeposit_UpdateError(t *testing.T) {
 
 	svc := accountsvc.NewAccountService(uow, nil, slog.Default())
 	tx, _, err := svc.Deposit(userID, accountID, 100.0, currency.USD)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, tx)
 }
 
@@ -243,7 +243,7 @@ func TestDeposit_TransactionRepoError(t *testing.T) {
 
 	svc := accountsvc.NewAccountService(uow, nil, slog.Default())
 	tx, _, err := svc.Deposit(userID, accountID, 100.0, currency.USD)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, tx)
 }
 
@@ -286,7 +286,7 @@ func TestWithdraw_InsufficientFunds(t *testing.T) {
 
 	svc := accountsvc.NewAccountService(uow, nil, slog.Default())
 	tx, _, err := svc.Withdraw(userID, accountID, 50.0, currency.USD)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, tx)
 }
 
@@ -309,7 +309,7 @@ func TestWithdraw_UpdateError(t *testing.T) {
 
 	svc := accountsvc.NewAccountService(uow, nil, slog.Default())
 	tx, _, err := svc.Withdraw(userID, accountID, 50.0, currency.USD)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, tx)
 }
 
@@ -351,7 +351,7 @@ func TestGetAccount_NotFound(t *testing.T) {
 
 	svc := accountsvc.NewAccountService(uow, nil, slog.Default())
 	gotAccount, err := svc.GetAccount(userID, accountID)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, gotAccount)
 }
 
@@ -371,7 +371,7 @@ func TestGetAccount_Unauthorized(t *testing.T) {
 
 	svc := accountsvc.NewAccountService(uow, nil, slog.Default())
 	gotAccount, err := svc.GetAccount(userID, accountID)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, gotAccount)
 }
 
@@ -422,7 +422,7 @@ func TestGetTransactions_Error(t *testing.T) {
 
 	svc := accountsvc.NewAccountService(uow, nil, slog.Default())
 	txs, err := svc.GetTransactions(userID, accountID)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, txs)
 }
 
@@ -437,7 +437,7 @@ func TestGetTransactions_UoWFactoryError(t *testing.T) {
 
 	svc := accountsvc.NewAccountService(uow, nil, slog.Default())
 	_, err := svc.GetTransactions(uuid.New(), uuid.New())
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestGetBalance_Success(t *testing.T) {
@@ -475,6 +475,6 @@ func TestGetBalance_NotFound(t *testing.T) {
 	accountRepo.EXPECT().Get(mock.Anything).Return(&domain.Account{}, domain.ErrAccountNotFound)
 
 	balance, err := accountsvc.NewAccountService(uow, nil, slog.Default()).GetBalance(uuid.New(), uuid.New())
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Equal(t, 0.0, balance)
 }

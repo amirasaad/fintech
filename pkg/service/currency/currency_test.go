@@ -41,7 +41,7 @@ func TestCurrencyService(t *testing.T) {
 
 		// Test getting non-existent currency
 		_, err = service.GetCurrency(ctx, "INVALID")
-		assert.Error(t, err)
+		require.Error(t, err)
 	})
 
 	t.Run("list supported currencies", func(t *testing.T) {
@@ -137,7 +137,7 @@ func TestCurrencyService(t *testing.T) {
 
 		// Verify it's gone
 		_, err = service.GetCurrency(ctx, "TSU")
-		assert.Error(t, err)
+		require.Error(t, err)
 	})
 
 	t.Run("activate and deactivate currency", func(t *testing.T) {
@@ -259,7 +259,7 @@ func TestCurrencyService(t *testing.T) {
 		invalidCodes := []string{"usd", "US", "USDD", "123", "USD1", ""}
 		for _, code := range invalidCodes {
 			err := service.ValidateCurrencyCode(ctx, code)
-			assert.Error(t, err, "Code %s should be invalid", code)
+			require.Error(t, err, "Code %s should be invalid", code)
 		}
 	})
 

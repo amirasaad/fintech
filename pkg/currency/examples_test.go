@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"time"
+	"sort"
 )
 
 // ExampleGet demonstrates basic currency operations
@@ -87,7 +87,7 @@ func ExampleNewCurrencyRegistryWithPersistence() {
 
 	// Register a new currency
 	newCurrency := CurrencyMeta{
-		Code:     "CUSTOM",
+		Code:     "CST",
 		Name:     "Custom Currency",
 		Symbol:   "C",
 		Decimals: 2,
@@ -120,6 +120,10 @@ func ExampleCurrencyRegistry_Search() {
 		log.Fatal(err)
 	}
 
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].Name < results[j].Name
+	})
+
 	fmt.Println("Currencies with 'Dollar' in name:")
 	for _, currency := range results {
 		fmt.Printf("- %s (%s) from %s\n",
@@ -127,9 +131,9 @@ func ExampleCurrencyRegistry_Search() {
 	}
 	// Output:
 	// Currencies with 'Dollar' in name:
-	// - US Dollar ($) from United States
-	// - Canadian Dollar (C$) from Canada
 	// - Australian Dollar (A$) from Australia
+	// - Canadian Dollar (C$) from Canada
+	// - US Dollar ($) from United States
 }
 
 // ExampleCurrencyRegistry_SearchByRegion demonstrates searching by region
@@ -146,14 +150,18 @@ func ExampleCurrencyRegistry_SearchByRegion() {
 		log.Fatal(err)
 	}
 
+	sort.Slice(european, func(i, j int) bool {
+		return european[i].Name < european[j].Name
+	})
+
 	fmt.Println("European currencies:")
 	for _, currency := range european {
 		fmt.Printf("- %s (%s)\n", currency.Name, currency.Symbol)
 	}
 	// Output:
 	// European currencies:
-	// - Euro (€)
 	// - British Pound (£)
+	// - Euro (€)
 	// - Swiss Franc (CHF)
 }
 
@@ -167,7 +175,7 @@ func ExampleCurrencyRegistry_Register() {
 
 	// Register a currency as inactive
 	currency := CurrencyMeta{
-		Code:     "TEST",
+		Code:     "TST",
 		Name:     "Test Currency",
 		Symbol:   "T",
 		Decimals: 2,
@@ -179,22 +187,22 @@ func ExampleCurrencyRegistry_Register() {
 	}
 
 	// Initially not supported (inactive)
-	fmt.Printf("Is TEST supported? %t\n", registry.IsSupported("TEST"))
+	fmt.Printf("Is TEST supported? %t\n", registry.IsSupported("TST"))
 
 	// Activate the currency
-	if err := registry.Activate("TEST"); err != nil {
+	if err := registry.Activate("TST"); err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("After activation, is TEST supported? %t\n", registry.IsSupported("TEST"))
+	fmt.Printf("After activation, is TEST supported? %t\n", registry.IsSupported("TST"))
 
 	// Deactivate the currency
-	if err := registry.Deactivate("TEST"); err != nil {
+	if err := registry.Deactivate("TST"); err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("After deactivation, is TEST supported? %t\n", registry.IsSupported("TEST"))
+	fmt.Printf("After deactivation, is TEST supported? %t\n", registry.IsSupported("TST"))
 
 	// Unregister the currency
-	if err := registry.Unregister("TEST"); err != nil {
+	if err := registry.Unregister("TST"); err != nil {
 		log.Fatal(err)
 	}
 	fmt.Println("Currency unregistered")
@@ -217,7 +225,7 @@ func ExampleCurrencyRegistry_Count() {
 	currencies := []CurrencyMeta{
 		{Code: "USD", Name: "US Dollar", Symbol: "$", Decimals: 2, Active: true},
 		{Code: "EUR", Name: "Euro", Symbol: "€", Decimals: 2, Active: true},
-		{Code: "INACTIVE", Name: "Inactive Currency", Symbol: "I", Decimals: 2, Active: false},
+		{Code: "INA", Name: "Inactive Currency", Symbol: "I", Decimals: 2, Active: false},
 	}
 
 	for _, currency := range currencies {
@@ -246,7 +254,7 @@ func ExampleCurrencyRegistry_Get() {
 
 	// Register a currency
 	currency := CurrencyMeta{
-		Code:     "TEST",
+		Code:     "TST",
 		Name:     "Test Currency",
 		Symbol:   "T",
 		Decimals: 2,
@@ -261,7 +269,7 @@ func ExampleCurrencyRegistry_Get() {
 	}
 
 	// Unregister the currency
-	err = registry.Unregister("TEST")
+	err = registry.Unregister("TST")
 	if err != nil {
 		fmt.Printf("Unregistration failed: %v\n", err)
 	} else {
@@ -281,21 +289,13 @@ func ExampleCurrencyRegistry_IsSupported() {
 	}
 
 	// First lookup (cache miss)
-	start := time.Now()
 	currency1, _ := registry.Get("USD")
-	duration1 := time.Since(start)
 
 	// Second lookup (cache hit)
-	start = time.Now()
 	currency2, _ := registry.Get("USD")
-	duration2 := time.Since(start)
 
-	fmt.Printf("First lookup: %v\n", duration1)
-	fmt.Printf("Second lookup: %v\n", duration2)
 	fmt.Printf("Same currency: %t\n", currency1.Code == currency2.Code)
 	// Output:
-	// First lookup: 1.234ms
-	// Second lookup: 45.67µs
 	// Same currency: true
 }
 
@@ -320,5 +320,5 @@ func ExampleCurrencyRegistry_ListSupported() {
 	fmt.Printf("Total currencies: %d\n", total)
 	// Output:
 	// Registry is healthy
-	// Total currencies: 10
+	// Total currencies: 12
 }

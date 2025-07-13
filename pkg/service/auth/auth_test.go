@@ -81,6 +81,7 @@ func TestLogin_InvalidPassword(t *testing.T) {
 func TestLogin_UserNotFound(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
+	require := require.New(t)
 
 	uow := mocks.NewMockUnitOfWork(t)
 
@@ -89,30 +90,32 @@ func TestLogin_UserNotFound(t *testing.T) {
 	s := authsvc.NewAuthService(uow, authStrategy, slog.Default())
 	gotUser, err := s.Login(context.Background(), "notfound@example.com", "password")
 	assert.Nil(gotUser)
-	assert.Error(err)
+	require.Error(err)
 }
 
 func TestLogin_JWTSignError(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
+	require := require.New(t)
 	authStrategy := mocks.NewMockAuthStrategy(t)
 	authStrategy.EXPECT().Login(mock.Anything, "user@example.com", "password").Return(nil, errors.New("JWT sign error")).Once()
 	s := authsvc.NewAuthService(nil, authStrategy, slog.Default())
 	gotUser, err := s.Login(context.Background(), "user@example.com", "password")
-	assert.Error(err)
+	require.Error(err)
 	assert.Nil(gotUser)
 }
 
 func TestLogin_GetByEmailError(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
+	require := require.New(t)
 	authStrategy := mocks.NewMockAuthStrategy(t)
 	expectedErr := errors.New("db error")
 	authStrategy.EXPECT().Login(mock.Anything, "user@example.com", "password").Return(nil, expectedErr).Once()
 
 	s := authsvc.NewAuthService(nil, authStrategy, slog.Default())
 	gotUser, err := s.Login(context.Background(), "user@example.com", "password")
-	assert.Error(err)
+	require.Error(err)
 	assert.Equal(expectedErr, err)
 	assert.Nil(gotUser)
 }
@@ -125,7 +128,7 @@ func TestGetCurrentUserId_InvalidToken(t *testing.T) {
 	s := authsvc.NewAuthService(uow, jwtStrategy, logger)
 	token := &jwt.Token{}
 	_, err := s.GetCurrentUserId(token)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestGetCurrentUserId_MissingClaim(t *testing.T) {
@@ -136,7 +139,7 @@ func TestGetCurrentUserId_MissingClaim(t *testing.T) {
 	s := authsvc.NewAuthService(uow, jwtStrategy, logger)
 	token := jwt.New(jwt.SigningMethodHS256)
 	_, err := s.GetCurrentUserId(token)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestLogin_BasicAuthSuccess(t *testing.T) {
@@ -155,62 +158,67 @@ func TestLogin_BasicAuthSuccess(t *testing.T) {
 func TestLogin_BasicAuthInvalidPassword(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
+	require := require.New(t)
 	authStrategy := mocks.NewMockAuthStrategy(t)
 	authStrategy.EXPECT().Login(mock.Anything, "user", "wrong").Return(nil, nil).Once()
 	s := authsvc.NewAuthService(nil, authStrategy, slog.Default())
 	gotUser, err := s.Login(context.Background(), "user", "wrong")
-	assert.Error(err)
+	require.Error(err)
 	assert.Nil(gotUser)
 }
 
 func TestLogin_BasicAuthUoWFactoryError(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
+	require := require.New(t)
 	authStrategy := mocks.NewMockAuthStrategy(t)
 	expectedErr := errors.New("uow error")
 	authStrategy.EXPECT().Login(mock.Anything, "user", "password").Return(nil, expectedErr).Once()
 	s := authsvc.NewAuthService(nil, authStrategy, slog.Default())
 	gotUser, err := s.Login(context.Background(), "user", "password")
-	assert.Error(err)
+	require.Error(err)
 	assert.Nil(gotUser)
 }
 
 func TestLogin_BasicAuthUserNotFound(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
+	require := require.New(t)
 	authStrategy := mocks.NewMockAuthStrategy(t)
 	authStrategy.EXPECT().Login(mock.Anything, "notfound", "password").Return(nil, nil).Once()
 	authStrategy.EXPECT().Login(mock.Anything, "notfound@example.com", "password").Return(nil, nil).Once()
 	s := authsvc.NewAuthService(nil, authStrategy, slog.Default())
 	gotUser, err := s.Login(context.Background(), "notfound", "password")
-	assert.Error(err)
+	require.Error(err)
 	assert.Nil(gotUser)
 
 	gotUser, err = s.Login(context.Background(), "notfound@example.com", "password")
-	assert.Error(err)
+	require.Error(err)
 	assert.Nil(gotUser)
 }
 
 func TestLogin_RepoErrorWithUser(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
+	require := require.New(t)
 	authStrategy := mocks.NewMockAuthStrategy(t)
 	expectedErr := errors.New("db error")
 	authStrategy.EXPECT().Login(mock.Anything, "user", "password").Return(nil, expectedErr).Once()
 	s := authsvc.NewAuthService(nil, authStrategy, slog.Default())
 	gotUser, err := s.Login(context.Background(), "user", "password")
-	assert.Error(err)
+	require.Error(err)
 	assert.Nil(gotUser)
 }
 
 func TestLogin_BasicAuthRepoErrorWithUser(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
+	require := require.New(t)
 	authStrategy := mocks.NewMockAuthStrategy(t)
 	expectedErr := errors.New("db error")
 	authStrategy.EXPECT().Login(mock.Anything, "user", "password").Return(nil, expectedErr).Once()
 	s := authsvc.NewAuthService(nil, authStrategy, slog.Default())
 	gotUser, err := s.Login(context.Background(), "user", "password")
-	assert.Error(err)
+	require.Error(err)
 	assert.Nil(gotUser)
 }
