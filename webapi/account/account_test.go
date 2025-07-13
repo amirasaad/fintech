@@ -145,8 +145,8 @@ func (s *AccountTestSuite) TestWithdraw() {
 		var errorResponse common.ProblemDetails
 		err := json.NewDecoder(resp.Body).Decode(&errorResponse)
 		s.Require().NoError(err)
-		s.Assert().Equal("insufficient funds for withdrawal", errorResponse.Title)
-		s.Assert().Equal("", errorResponse.Detail) // Should be empty, not duplicated
+		s.Assert().Equal("Failed to withdraw", errorResponse.Title)
+		s.Assert().Equal("insufficient funds for withdrawal", errorResponse.Detail) // Detail should contain the error message
 		s.Assert().Equal(fiber.StatusUnprocessableEntity, errorResponse.Status)
 		s.Assert().Equal("about:blank", errorResponse.Type)
 		s.Assert().NotEmpty(errorResponse.Instance)
