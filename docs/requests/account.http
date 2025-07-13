@@ -112,7 +112,7 @@ GET {{host}}/account/{{account.response.body.$.data.$.ID}}/balance
 
 ### 7. Forbidden Access (403) - Wrong User
 # This would require a different user's token to demonstrate
-PUT {{host}}/user/{{login.response.body.$.data.$.user_id}} HTTP/1.1
+PUT {{host}}/user/00000000-0000-0000-0000-000000000000/ HTTP/1.1
 Content-Type: application/json
 Authorization: Bearer {{login.response.body.$.data.$.token}}
 

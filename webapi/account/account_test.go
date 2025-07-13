@@ -47,6 +47,23 @@ func (s *AccountTestSuite) TestCreateAccount() {
 		defer resp.Body.Close() //nolint: errcheck
 		s.Assert().Equal(fiber.StatusUnauthorized, resp.StatusCode)
 	})
+
+	s.Run("Create account with invalid currency", func() {
+		resp := s.MakeRequest("POST", "/account", `{"currency":"INVALID"}`, s.token)
+		defer resp.Body.Close() //nolint: errcheck
+		s.Assert().Equal(fiber.StatusBadRequest, resp.StatusCode)
+
+		// Verify validation error response format
+		var errorResponse common.ProblemDetails
+		err := json.NewDecoder(resp.Body).Decode(&errorResponse)
+		s.Require().NoError(err)
+		s.Assert().Equal("Validation failed", errorResponse.Title)
+		s.Assert().Equal("Request validation failed", errorResponse.Detail)
+		s.Assert().Equal(fiber.StatusBadRequest, errorResponse.Status)
+		s.Assert().Equal("about:blank", errorResponse.Type)
+		s.Assert().NotEmpty(errorResponse.Instance)
+		s.Assert().NotNil(errorResponse.Errors)
+	})
 }
 
 func (s *AccountTestSuite) TestDeposit() {
@@ -116,6 +133,23 @@ func (s *AccountTestSuite) TestWithdraw() {
 		resp := s.MakeRequest("POST", fmt.Sprintf("/account/%s/withdraw", accountID), withdrawBody, "")
 		defer resp.Body.Close() //nolint: errcheck
 		s.Assert().Equal(fiber.StatusUnauthorized, resp.StatusCode)
+	})
+
+	s.Run("Withdraw insufficient funds", func() {
+		withdrawBody := `{"amount":200,"currency":"USD"}`
+		resp := s.MakeRequest("POST", fmt.Sprintf("/account/%s/withdraw", accountID), withdrawBody, s.token)
+		defer resp.Body.Close() //nolint: errcheck
+		s.Assert().Equal(fiber.StatusUnprocessableEntity, resp.StatusCode)
+
+		// Verify error response format
+		var errorResponse common.ProblemDetails
+		err := json.NewDecoder(resp.Body).Decode(&errorResponse)
+		s.Require().NoError(err)
+		s.Assert().Equal("insufficient funds for withdrawal", errorResponse.Title)
+		s.Assert().Equal("", errorResponse.Detail) // Should be empty, not duplicated
+		s.Assert().Equal(fiber.StatusUnprocessableEntity, errorResponse.Status)
+		s.Assert().Equal("about:blank", errorResponse.Type)
+		s.Assert().NotEmpty(errorResponse.Instance)
 	})
 }
 

@@ -39,7 +39,6 @@ func ProblemDetailsJSON(c *fiber.Ctx, title string, err error, detailOrStatus ..
 
 	if err != nil {
 		status = errorToStatusCode(err)
-		title = err.Error()
 		pdDetail = err.Error()
 	}
 	// Check for custom detail or status code in variadic args
@@ -60,10 +59,12 @@ func ProblemDetailsJSON(c *fiber.Ctx, title string, err error, detailOrStatus ..
 		status = *customStatus
 	}
 	pd := ProblemDetails{
-		Status: status,
-		Title:  title,
-		Detail: pdDetail,
-		Errors: pdErrors,
+		Type:     "about:blank",
+		Status:   status,
+		Title:    title,
+		Detail:   pdDetail,
+		Errors:   pdErrors,
+		Instance: c.Path(),
 	}
 	c.Set(fiber.HeaderContentType, "application/problem+json")
 	if err := c.Status(status).JSON(pd); err != nil {
@@ -89,7 +90,7 @@ func BindAndValidate[T any](c *fiber.Ctx) (*T, error) {
 				msg := fe.Tag()
 				details[field] = msg
 			}
-			return nil, ProblemDetailsJSON(c, "Validation failed", nil, details, fiber.StatusBadRequest) //nolint:errcheck
+			return nil, ProblemDetailsJSON(c, "Validation failed", nil, "Request validation failed", details, fiber.StatusBadRequest) //nolint:errcheck
 		}
 		ProblemDetailsJSON(c, "Validation failed", err, "Request validation failed", fiber.StatusBadRequest) //nolint:errcheck
 		return nil, err
