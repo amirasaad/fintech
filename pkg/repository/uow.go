@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"reflect"
 )
 
 // UnitOfWork defines the contract for transactional work and type-safe repository access.
@@ -18,7 +17,7 @@ import (
 // GetRepository provides type-safe access to repositories using the transaction session.
 // Example usage:
 //
-//	repoAny, err := uow.GetRepository(reflect.TypeOf((*UserRepository)(nil)).Elem())
+//	repoAny, err := uow.GetRepository((*UserRepository)(nil))
 //	repo := repoAny.(UserRepository)
 type UnitOfWork interface {
 	// Do executes the given function within a transaction boundary.
@@ -27,8 +26,14 @@ type UnitOfWork interface {
 	Do(ctx context.Context, fn func(uow UnitOfWork) error) error
 
 	// GetRepository returns a repository of the requested type, bound to the current transaction/session.
+	// This method is maintained for backward compatibility but is deprecated in favor of type-safe methods.
 	// Example:
-	//   repoAny, err := uow.GetRepository(reflect.TypeOf((*UserRepository)(nil)).Elem())
+	//   repoAny, err := uow.GetRepository((*UserRepository)(nil))
 	//   repo := repoAny.(UserRepository)
-	GetRepository(repoType reflect.Type) (any, error)
+	GetRepository(repoType any) (any, error)
+
+	// Type-safe repository access methods (preferred approach)
+	AccountRepository() (AccountRepository, error)
+	TransactionRepository() (TransactionRepository, error)
+	UserRepository() (UserRepository, error)
 }

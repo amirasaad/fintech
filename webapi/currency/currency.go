@@ -10,8 +10,8 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-// CurrencyRoutes sets up currency-related routes
-func CurrencyRoutes(app *fiber.App, currencySvc *currencysvc.CurrencyService, authSvc *authsvc.AuthService, cfg *config.AppConfig) {
+// Routes sets up currency-related routes
+func Routes(app *fiber.App, currencySvc *currencysvc.CurrencyService, authSvc *authsvc.AuthService, cfg *config.AppConfig) {
 	currencyGroup := app.Group("/api/currencies")
 
 	// Public endpoints

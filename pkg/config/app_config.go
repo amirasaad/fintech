@@ -25,6 +25,11 @@ type RedisConfig struct {
 	URL string `envconfig:"REDIS_URL" default:"redis://localhost:6379/0"`
 }
 
+type RateLimitConfig struct {
+	MaxRequests int           `envconfig:"MAX_REQUESTS" default:"100"`
+	Window      time.Duration `envconfig:"WINDOW" default:"1m"`
+}
+
 type ExchangeRateConfig struct {
 	ApiKey            string        `envconfig:"API_KEY"`
 	ApiUrl            string        `envconfig:"API_URL" default:"https://api.exchangerate-api.com/v4/latest"`
@@ -39,14 +44,15 @@ type ExchangeRateConfig struct {
 }
 
 type AppConfig struct {
-	Env      string             `envconfig:"APP_ENV" default:"development"`
-	Host     string             `envconfig:"APP_HOST" default:"localhost"`
-	Port     int                `envconfig:"APP_PORT" default:"3000"`
-	DB       DBConfig           `envconfig:"DATABASE"`
-	Auth     AuthConfig         `envconfig:"AUTH"`
-	Jwt      JwtConfig          `envconfig:"JWT"`
-	Exchange ExchangeRateConfig `envconfig:"EXCHANGE_RATE"`
-	Redis    RedisConfig        `envconfig:"REDIS"`
+	Env       string             `envconfig:"APP_ENV" default:"development"`
+	Host      string             `envconfig:"APP_HOST" default:"localhost"`
+	Port      int                `envconfig:"APP_PORT" default:"3000"`
+	DB        DBConfig           `envconfig:"DATABASE"`
+	Auth      AuthConfig         `envconfig:"AUTH"`
+	Jwt       JwtConfig          `envconfig:"JWT"`
+	Exchange  ExchangeRateConfig `envconfig:"EXCHANGE_RATE"`
+	Redis     RedisConfig        `envconfig:"REDIS"`
+	RateLimit RateLimitConfig    `envconfig:"RATE_LIMIT"`
 }
 
 func maskApiKey(key string) string {
@@ -89,6 +95,8 @@ func LoadAppConfig(logger *slog.Logger, envFilePath ...string) (*AppConfig, erro
 		"exchange_cache_ttl", cfg.Exchange.CacheTTL,
 		"exchange_api_url", maskApiKeyInUrl(cfg.Exchange.ApiUrl),
 		"exchange_api_key", maskApiKey(cfg.Exchange.ApiKey),
+		"rate_limit_max_requests", cfg.RateLimit.MaxRequests,
+		"rate_limit_window", cfg.RateLimit.Window,
 	)
 	return &cfg, nil
 }

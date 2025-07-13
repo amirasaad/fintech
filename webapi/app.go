@@ -2,6 +2,7 @@ package webapi
 
 import (
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/amirasaad/fintech/pkg/config"
@@ -30,18 +31,18 @@ func NewApp(
 	currencySvc *currencysvc.CurrencyService,
 	cfg *config.AppConfig,
 ) *fiber.App {
-	return newAppWithRateLimit(accountSvc, userSvc, authSvc, currencySvc, cfg, 5, 1*time.Second)
-}
+	// Configure rate limits with reasonable defaults
+	maxRequests := 5 // 5 requests per minute by default
+	expiration := 1 * time.Minute
 
-func newAppWithRateLimit(
-	accountSvc *accountsvc.AccountService,
-	userSvc *usersvc.UserService,
-	authSvc *authsvc.AuthService,
-	currencySvc *currencysvc.CurrencyService,
-	cfg *config.AppConfig,
-	maxRequests int,
-	expiration time.Duration,
-) *fiber.App {
+	// Override with config if available
+	if cfg.RateLimit.MaxRequests > 0 {
+		maxRequests = cfg.RateLimit.MaxRequests
+	}
+	if cfg.RateLimit.Window > 0 {
+		expiration = cfg.RateLimit.Window
+	}
+
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			return common.ProblemDetailsJSON(c, "Internal Server Error", err)
@@ -51,12 +52,25 @@ func newAppWithRateLimit(
 		TryItOutEnabled:      true,
 		WithCredentials:      true,
 		PersistAuthorization: true,
+		OAuth2RedirectUrl:    "/auth/login",
 	}))
 
 	app.Use(limiter.New(limiter.Config{
 		Max:        maxRequests,
 		Expiration: expiration,
 		KeyGenerator: func(c *fiber.Ctx) string {
+			// Use X-Forwarded-For header if available (for load balancers/proxies)
+			// Fall back to X-Real-IP, then to direct IP
+			if forwardedFor := c.Get("X-Forwarded-For"); forwardedFor != "" {
+				// Take the first IP in the chain
+				if commaIndex := strings.Index(forwardedFor, ","); commaIndex != -1 {
+					return strings.TrimSpace(forwardedFor[:commaIndex])
+				}
+				return strings.TrimSpace(forwardedFor)
+			}
+			if realIP := c.Get("X-Real-IP"); realIP != "" {
+				return realIP
+			}
 			return c.IP()
 		},
 		LimitReached: func(c *fiber.Ctx) error {
@@ -69,10 +83,10 @@ func newAppWithRateLimit(
 		return c.SendString("App is working! 🚀")
 	})
 
-	account.AccountRoutes(app, accountSvc, authSvc, cfg)
-	user.UserRoutes(app, userSvc, authSvc, cfg)
-	auth.AuthRoutes(app, authSvc)
-	currency.CurrencyRoutes(app, currencySvc, authSvc, cfg)
+	account.Routes(app, accountSvc, authSvc, cfg)
+	user.Routes(app, userSvc, authSvc, cfg)
+	auth.Routes(app, authSvc)
+	currency.Routes(app, currencySvc, authSvc, cfg)
 
 	return app
 }

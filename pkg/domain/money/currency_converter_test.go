@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/amirasaad/fintech/internal/fixtures"
+	"github.com/amirasaad/fintech/internal/fixtures/mocks"
 )
 
 func TestCurrencyConversion(t *testing.T) {
@@ -42,7 +42,7 @@ func TestCurrencyConversion(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			converter := fixtures.NewMockCurrencyConverter(t)
+			converter := mocks.NewMockCurrencyConverter(t)
 			var err error
 			if test.wantErr {
 				err = errors.New("test error")

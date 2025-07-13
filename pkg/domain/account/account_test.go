@@ -345,32 +345,35 @@ func TestSimultaneous(t *testing.T) {
 
 func TestAccount_DepositUnauthorized(t *testing.T) {
 	assert := assert.New(t)
+	require := require.New(t)
 	userID := uuid.New()
 	account, _ := account.New().WithUserID(userID).WithCurrency(currency.USD).Build() //nolint:errcheck
 	money, err := money.NewMoney(1000.0, "USD")
-	require.NoError(t, err)
+	require.NoError(err)
 	_, err = account.Deposit(uuid.New(), money)
-	assert.Error(err, "Deposit with different user id should return error")
+	require.Error(err, "Deposit with different user id should return error")
 	assert.ErrorIs(err, user.ErrUserUnauthorized)
 }
 
 func TestAccount_WithdrawUnauthorized(t *testing.T) {
 	assert := assert.New(t)
+	require := require.New(t)
 	userID := uuid.New()
 	account, _ := account.New().WithUserID(userID).WithCurrency(currency.USD).Build() //nolint:errcheck
 	unauthorizedMoney, err := money.NewMoney(1000.0, "USD")
-	require.NoError(t, err)
+	require.NoError(err)
 	_, err = account.Withdraw(uuid.New(), unauthorizedMoney)
-	assert.Error(err, "Deposit with different user id should return error")
+	require.Error(err, "Deposit with different user id should return error")
 	assert.ErrorIs(err, user.ErrUserUnauthorized)
 }
 
 func TestAccount_GetBalanceUnauthorized(t *testing.T) {
 	assert := assert.New(t)
+	require := require.New(t)
 	userID := uuid.New()
 	account, _ := account.New().WithUserID(userID).WithCurrency(currency.USD).Build() //nolint:errcheck
 	_, err := account.GetBalance(uuid.New())
-	assert.Error(err, "Deposit with different user id should return error")
+	require.Error(err, "Deposit with different user id should return error")
 	assert.ErrorIs(err, user.ErrUserUnauthorized)
 }
 
@@ -493,7 +496,7 @@ func TestAccount_WithdrawWithMoneyOperations(t *testing.T) {
 	largeWithdraw, err := money.NewMoney(200.0, "USD")
 	require.NoError(err)
 	_, err = acc.Withdraw(userID, largeWithdraw)
-	assert.Error(err)
+	require.Error(err)
 	assert.ErrorIs(err, account.ErrInsufficientFunds)
 
 	// Balance should remain unchanged

@@ -25,27 +25,27 @@ func (s *AuthTestSuite) SetupTest() {
 func (s *AuthTestSuite) TestLoginRoute_BadRequest() {
 	resp := s.MakeRequest("POST", "/auth/login", `{"identity":123}`, "")
 	defer resp.Body.Close() //nolint: errcheck
-	s.Assert().Equal(fiber.StatusBadRequest, resp.StatusCode)
+	s.Equal(fiber.StatusBadRequest, resp.StatusCode)
 }
 
 func (s *AuthTestSuite) TestLoginRoute_Unauthorized() {
 	resp := s.MakeRequest("POST", "/auth/login", `{"identity":"nonexistent@example.com","password":"password"}`, "")
 	defer resp.Body.Close() //nolint: errcheck
-	s.Assert().Equal(fiber.StatusUnauthorized, resp.StatusCode)
+	s.Equal(fiber.StatusUnauthorized, resp.StatusCode)
 }
 
 func (s *AuthTestSuite) TestLoginRoute_InvalidPassword() {
 	loginBody := fmt.Sprintf(`{"identity":"%s","password":"wrongpassword"}`, s.testUser.Email)
 	resp := s.MakeRequest("POST", "/auth/login", loginBody, "")
 	defer resp.Body.Close() //nolint: errcheck
-	s.Assert().Equal(fiber.StatusUnauthorized, resp.StatusCode)
+	s.Equal(fiber.StatusUnauthorized, resp.StatusCode)
 }
 
 func (s *AuthTestSuite) TestLoginRoute_Success() {
 	loginBody := fmt.Sprintf(`{"identity":"%s","password":"password123"}`, s.testUser.Email)
 	resp := s.MakeRequest("POST", "/auth/login", loginBody, "")
 	defer resp.Body.Close() //nolint: errcheck
-	s.Assert().Equal(fiber.StatusOK, resp.StatusCode)
+	s.Equal(fiber.StatusOK, resp.StatusCode)
 
 	// Verify response contains token
 	var response common.Response

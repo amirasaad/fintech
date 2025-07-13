@@ -41,7 +41,7 @@ func TestCurrencyService(t *testing.T) {
 
 		// Test getting non-existent currency
 		_, err = service.GetCurrency(ctx, "INVALID")
-		assert.Error(t, err)
+		require.Error(t, err)
 	})
 
 	t.Run("list supported currencies", func(t *testing.T) {
@@ -52,7 +52,7 @@ func TestCurrencyService(t *testing.T) {
 
 		supported, err := service.ListSupportedCurrencies(ctx)
 		require.NoError(t, err)
-		assert.Greater(t, len(supported), 0)
+		assert.NotEmpty(t, supported)
 
 		// Check that USD is in the list
 		found := slices.Contains(supported, "USD")
@@ -67,7 +67,7 @@ func TestCurrencyService(t *testing.T) {
 
 		all, err := service.ListAllCurrencies(ctx)
 		require.NoError(t, err)
-		assert.Greater(t, len(all), 0)
+		assert.NotEmpty(t, all)
 
 		// Check that we have currency metadata
 		found := false
@@ -137,7 +137,7 @@ func TestCurrencyService(t *testing.T) {
 
 		// Verify it's gone
 		_, err = service.GetCurrency(ctx, "TSU")
-		assert.Error(t, err)
+		require.Error(t, err)
 	})
 
 	t.Run("activate and deactivate currency", func(t *testing.T) {
@@ -181,7 +181,7 @@ func TestCurrencyService(t *testing.T) {
 		// Search for "Dollar"
 		results, err := service.SearchCurrencies(ctx, "Dollar")
 		require.NoError(t, err)
-		assert.Greater(t, len(results), 0)
+		assert.NotEmpty(t, results)
 
 		// Check that USD is in results
 		found := false
@@ -203,7 +203,7 @@ func TestCurrencyService(t *testing.T) {
 		// Search for North America
 		results, err := service.SearchCurrenciesByRegion(ctx, "North America")
 		require.NoError(t, err)
-		assert.Greater(t, len(results), 0)
+		assert.NotEmpty(t, results)
 
 		// Check that USD is in results
 		found := false
@@ -236,8 +236,8 @@ func TestCurrencyService(t *testing.T) {
 		active := stats["active_currencies"].(int)
 		inactive := stats["inactive_currencies"].(int)
 
-		assert.Greater(t, total, 0)
-		assert.Greater(t, active, 0)
+		assert.Positive(t, total)
+		assert.Positive(t, active)
 		assert.LessOrEqual(t, active, total)
 		assert.Equal(t, total-active, inactive)
 	})
@@ -259,7 +259,7 @@ func TestCurrencyService(t *testing.T) {
 		invalidCodes := []string{"usd", "US", "USDD", "123", "USD1", ""}
 		for _, code := range invalidCodes {
 			err := service.ValidateCurrencyCode(ctx, code)
-			assert.Error(t, err, "Code %s should be invalid", code)
+			require.Error(t, err, "Code %s should be invalid", code)
 		}
 	})
 

@@ -53,7 +53,7 @@ func TestExchangeRateService_GetRate_SameCurrency(t *testing.T) {
 
 	rate, err := service.GetRate("USD", "USD")
 	require.NoError(t, err)
-	assert.Equal(t, 1.0, rate.Rate)
+	assert.InEpsilon(t, 1.0, rate.Rate, 0.0001)
 	assert.Equal(t, "USD", rate.FromCurrency)
 	assert.Equal(t, "USD", rate.ToCurrency)
 	assert.Equal(t, "internal", rate.Source)
@@ -90,8 +90,8 @@ func TestExchangeRateService_GetRate_FromCache(t *testing.T) {
 	// Retrieve from cache
 	rate, err := service.GetRate("USD", "EUR")
 	require.NoError(t, err)
-	assert.Equal(t, 0.85, rate.Rate)
-	assert.Equal(t, "", rate.Source)
+	assert.InEpsilon(t, 0.85, rate.Rate, 0.0001)
+	assert.Empty(t, rate.Source)
 }
 
 func TestExchangeRateService_GetRate_FromProvider(t *testing.T) {
@@ -118,13 +118,13 @@ func TestExchangeRateService_GetRate_FromProvider(t *testing.T) {
 	// Get rate
 	rate, err := service.GetRate("USD", "EUR")
 	require.NoError(t, err)
-	assert.Equal(t, 0.85, rate.Rate)
+	assert.InEpsilon(t, 0.85, rate.Rate, 0.0001)
 	assert.Equal(t, "mock-provider", rate.Source)
 
 	// Verify it was cached
 	cachedRate, err := cache.Get("USD:EUR")
 	require.NoError(t, err)
-	assert.Equal(t, 0.85, cachedRate.Rate)
+	assert.InEpsilon(t, 0.85, cachedRate.Rate, 0.0001)
 
 	mockProvider.AssertExpectations(t)
 }
@@ -142,7 +142,7 @@ func TestExchangeRateService_GetRate_ProviderUnhealthy(t *testing.T) {
 
 	// Try to get rate
 	rate, err := service.GetRate("USD", "EUR")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, rate)
 	assert.Equal(t, domain.ErrExchangeRateUnavailable, err)
 
@@ -163,7 +163,7 @@ func TestExchangeRateService_GetRate_ProviderError(t *testing.T) {
 
 	// Try to get rate
 	rate, err := service.GetRate("USD", "EUR")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, rate)
 	assert.Equal(t, domain.ErrExchangeRateUnavailable, err)
 
@@ -193,7 +193,7 @@ func TestExchangeRateService_GetRate_InvalidRate(t *testing.T) {
 
 	// Try to get rate
 	rate, err := service.GetRate("USD", "EUR")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, rate)
 	assert.Equal(t, domain.ErrExchangeRateUnavailable, err)
 
@@ -234,8 +234,8 @@ func TestExchangeRateService_GetRates_MultipleCurrencies(t *testing.T) {
 	rates, err := service.GetRates("USD", []string{"EUR", "GBP"})
 	require.NoError(t, err)
 	assert.Len(t, rates, 2)
-	assert.Equal(t, 0.85, rates["EUR"].Rate)
-	assert.Equal(t, 0.75, rates["GBP"].Rate)
+	assert.InEpsilon(t, 0.85, rates["EUR"].Rate, 0.0001)
+	assert.InEpsilon(t, 0.75, rates["GBP"].Rate, 0.0001)
 
 	mockProvider.AssertExpectations(t)
 

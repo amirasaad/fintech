@@ -219,7 +219,7 @@ func TestCurrencyValidator(t *testing.T) {
 			err := validator.Validate(ctx, entity)
 
 			if tt.expectError {
-				assert.Error(t, err)
+				require.Error(t, err)
 				if tt.errorType != nil {
 					assert.ErrorIs(t, err, tt.errorType)
 				}
@@ -281,7 +281,7 @@ func TestCurrencyValidatorMetadata(t *testing.T) {
 			err := validator.ValidateMetadata(ctx, tt.metadata)
 
 			if tt.expectError {
-				assert.Error(t, err)
+				require.Error(t, err)
 			} else {
 				assert.NoError(t, err)
 			}
@@ -300,7 +300,7 @@ func TestCurrencyRegistry(t *testing.T) {
 		// Check that default currencies are registered
 		count, err := registry.Count()
 		require.NoError(t, err)
-		assert.Greater(t, count, 0)
+		assert.Positive(t, count)
 
 		// Check specific currencies
 		usd, err := registry.Get("USD")
@@ -350,7 +350,7 @@ func TestCurrencyRegistry(t *testing.T) {
 		}
 
 		err = registry.Register(invalidCurrency)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.ErrorIs(t, err, ErrInvalidCurrencyCode)
 	})
 
@@ -359,7 +359,7 @@ func TestCurrencyRegistry(t *testing.T) {
 		require.NoError(t, err)
 
 		_, err = registry.Get("NONEXISTENT")
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "currency not found")
 	})
 
@@ -369,7 +369,7 @@ func TestCurrencyRegistry(t *testing.T) {
 
 		supported, err := registry.ListSupported()
 		require.NoError(t, err)
-		assert.Greater(t, len(supported), 0)
+		assert.NotEmpty(t, supported)
 
 		// Check that USD is in the list
 		found := false
@@ -388,7 +388,7 @@ func TestCurrencyRegistry(t *testing.T) {
 
 		all, err := registry.ListAll()
 		require.NoError(t, err)
-		assert.Greater(t, len(all), 0)
+		assert.NotEmpty(t, all)
 
 		// Check that we have currency metadata
 		found := false
@@ -458,7 +458,7 @@ func TestCurrencyRegistry(t *testing.T) {
 
 		// Verify it's gone
 		_, err = registry.Get("TSU")
-		assert.Error(t, err)
+		require.Error(t, err)
 	})
 
 	t.Run("search currencies", func(t *testing.T) {
@@ -468,7 +468,7 @@ func TestCurrencyRegistry(t *testing.T) {
 		// Search for "Dollar"
 		results, err := registry.Search("Dollar")
 		require.NoError(t, err)
-		assert.Greater(t, len(results), 0)
+		assert.NotEmpty(t, results)
 
 		// Check that USD is in results
 		found := false
@@ -488,7 +488,7 @@ func TestCurrencyRegistry(t *testing.T) {
 		// Search for North America
 		results, err := registry.SearchByRegion("North America")
 		require.NoError(t, err)
-		assert.Greater(t, len(results), 0)
+		assert.NotEmpty(t, results)
 
 		// Check that USD is in results
 		found := false
@@ -507,11 +507,11 @@ func TestCurrencyRegistry(t *testing.T) {
 
 		total, err := registry.Count()
 		require.NoError(t, err)
-		assert.Greater(t, total, 0)
+		assert.Positive(t, total)
 
 		active, err := registry.CountActive()
 		require.NoError(t, err)
-		assert.Greater(t, active, 0)
+		assert.Positive(t, active)
 		assert.LessOrEqual(t, active, total)
 	})
 }
@@ -532,7 +532,7 @@ func TestGlobalFunctions(t *testing.T) {
 	t.Run("global list supported", func(t *testing.T) {
 		supported, err := ListSupported()
 		require.NoError(t, err)
-		assert.Greater(t, len(supported), 0)
+		assert.NotEmpty(t, supported)
 
 		// Check that USD is supported
 		found := false
@@ -548,13 +548,13 @@ func TestGlobalFunctions(t *testing.T) {
 	t.Run("global count", func(t *testing.T) {
 		count, err := Count()
 		require.NoError(t, err)
-		assert.Greater(t, count, 0)
+		assert.Positive(t, count)
 	})
 
 	t.Run("global search", func(t *testing.T) {
 		results, err := Search("Dollar")
 		require.NoError(t, err)
-		assert.Greater(t, len(results), 0)
+		assert.NotEmpty(t, results)
 	})
 }
 
@@ -597,7 +597,7 @@ func TestBackwardCompatibility(t *testing.T) {
 
 	t.Run("legacy list supported", func(t *testing.T) {
 		codes := ListSupportedLegacy()
-		assert.Greater(t, len(codes), 0)
+		assert.NotEmpty(t, codes)
 
 		// Check that USD is in the list
 		found := false
@@ -627,7 +627,7 @@ func TestBackwardCompatibility(t *testing.T) {
 
 	t.Run("legacy count", func(t *testing.T) {
 		count := CountLegacy()
-		assert.Greater(t, count, 0)
+		assert.Positive(t, count)
 	})
 }
 
@@ -659,7 +659,7 @@ func TestValidationHelpers(t *testing.T) {
 			Symbol:   "$",
 			Decimals: 2,
 		}
-		assert.Error(t, validateCurrencyMeta(invalidMeta))
+		require.Error(t, validateCurrencyMeta(invalidMeta))
 		assert.ErrorIs(t, validateCurrencyMeta(invalidMeta), ErrInvalidCurrencyCode)
 	})
 }

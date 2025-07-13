@@ -1,4 +1,4 @@
-// AccountRoutes registers HTTP routes for account-related operations using the Fiber web framework.
+// Routes registers HTTP routes for account-related operations using the Fiber web framework.
 // It sets up endpoints for creating accounts, depositing and withdrawing funds, retrieving account balances,
 // and listing account transactions. All routes are protected by authentication middleware and require a valid user context.
 //
@@ -28,7 +28,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func AccountRoutes(app *fiber.App, accountSvc *accountsvc.AccountService, authSvc *authsvc.AuthService, cfg *config.AppConfig) {
+func Routes(app *fiber.App, accountSvc *accountsvc.AccountService, authSvc *authsvc.AuthService, cfg *config.AppConfig) {
 	app.Post("/account", middleware.JwtProtected(cfg.Jwt), CreateAccount(accountSvc, authSvc))
 	app.Post("/account/:id/deposit", middleware.JwtProtected(cfg.Jwt), Deposit(accountSvc, authSvc))
 	app.Post("/account/:id/withdraw", middleware.JwtProtected(cfg.Jwt), Withdraw(accountSvc, authSvc))
@@ -71,8 +71,8 @@ func CreateAccount(
 		if input == nil {
 			return err // error response already written
 		}
-		currencyCode := currency.Code("USD")
-		if input != nil && input.Currency != "" {
+		currencyCode := currency.USD
+		if input.Currency != "" {
 			currencyCode = currency.Code(input.Currency)
 		}
 		a, err := accountSvc.CreateAccountWithCurrency(userID, currencyCode)
@@ -110,6 +110,7 @@ func Deposit(
 	authSvc *authsvc.AuthService,
 ) fiber.Handler {
 	return func(c *fiber.Ctx) error {
+		log.Infof("Deposit handler: called for account %s", c.Params("id"))
 		token, ok := c.Locals("user").(*jwt.Token)
 		if !ok {
 			return common.ProblemDetailsJSON(c, "Unauthorized", nil, "missing user context")
@@ -128,10 +129,11 @@ func Deposit(
 		if input == nil {
 			return err // error response already written
 		}
-		currencyCode := currency.Code("USD")
+		currencyCode := currency.USD
 		if input.Currency != "" {
 			currencyCode = currency.Code(input.Currency)
 		}
+		log.Infof("Deposit handler: calling service for user %s, account %s, amount %v, currency %s", userID, accountID, input.Amount, currencyCode)
 		tx, convInfo, err := accountSvc.Deposit(userID, accountID, input.Amount, currencyCode)
 		if err != nil {
 			log.Errorf("Failed to deposit: %v", err)

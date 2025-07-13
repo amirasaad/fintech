@@ -1,10 +1,12 @@
 package webapi_test
 
 import (
+	"bytes"
+	"log/slog"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
-
-	"log/slog"
 
 	infra_provider "github.com/amirasaad/fintech/infra/provider"
 	"github.com/amirasaad/fintech/pkg/config"
@@ -15,17 +17,19 @@ import (
 	currencyservice "github.com/amirasaad/fintech/pkg/service/currency"
 	userservice "github.com/amirasaad/fintech/pkg/service/user"
 	"github.com/amirasaad/fintech/webapi"
-	"github.com/amirasaad/fintech/webapi/testutils"
 	"github.com/gofiber/fiber/v2"
-	"github.com/stretchr/testify/suite"
+	"github.com/stretchr/testify/assert"
 )
 
-type RateLimitTestSuite struct {
-	testutils.E2ETestSuite
-	app *fiber.App
-}
+func TestRateLimit(t *testing.T) {
+	// Create app with stricter rate limits for testing
+	cfg := &config.AppConfig{
+		RateLimit: config.RateLimitConfig{
+			MaxRequests: 5,
+			Window:      1 * time.Second,
+		},
+	}
 
-func (s *RateLimitTestSuite) SetupTest() {
 	// Provide dummy services for required arguments
 	dummyUow := *new(repository.UnitOfWork)
 	accountSvc := account.NewAccountService(dummyUow, infra_provider.NewStubCurrencyConverter(), slog.Default())
@@ -39,20 +43,36 @@ func (s *RateLimitTestSuite) SetupTest() {
 	dummyRegistry := &currency.CurrencyRegistry{}
 	currencySvc := currencyservice.NewCurrencyService(dummyRegistry, slog.Default())
 
-	s.app = webapi.NewApp(accountSvc, userSvc, authSvc, currencySvc, &config.AppConfig{})
-}
+	app := webapi.NewApp(accountSvc, userSvc, authSvc, currencySvc, cfg)
 
-func (s *RateLimitTestSuite) TestRateLimit() {
-	s.T().Parallel()
+	// Helper function to make requests
+	makeRequest := func(method, path, body, token string) *http.Response {
+		var req *http.Request
+		if body != "" {
+			req = httptest.NewRequest(method, path, bytes.NewBufferString(body))
+			req.Header.Set("Content-Type", "application/json")
+		} else {
+			req = httptest.NewRequest(method, path, nil)
+		}
+		if token != "" {
+			req.Header.Set("Authorization", "Bearer "+token)
+		}
+		resp, err := app.Test(req, 1000000)
+		if err != nil {
+			panic(err)
+		}
+		return resp
+	}
+
 	// Send requests until rate limit is hit
-	for i := range [6]int{} { // Default limit is 5 requests per IP per second
-		resp := s.MakeRequest(fiber.MethodGet, "/", "", "")
+	for i := 0; i < 6; i++ { // Test with 5 requests per second limit
+		resp := makeRequest(fiber.MethodGet, "/", "", "")
 		defer resp.Body.Close() //nolint: errcheck
 
 		if i < 5 {
-			s.Assert().Equal(fiber.StatusOK, resp.StatusCode, "Expected OK for request %d", i+1)
+			assert.Equal(t, fiber.StatusOK, resp.StatusCode, "Expected OK for request %d", i+1)
 		} else {
-			s.Assert().Equal(fiber.StatusTooManyRequests, resp.StatusCode, "Expected Too Many Requests for request %d", i+1)
+			assert.Equal(t, fiber.StatusTooManyRequests, resp.StatusCode, "Expected Too Many Requests for request %d", i+1)
 		}
 	}
 
@@ -60,11 +80,7 @@ func (s *RateLimitTestSuite) TestRateLimit() {
 	time.Sleep(1 * time.Second)
 
 	// Send another request and expect it to be successful
-	resp := s.MakeRequest(fiber.MethodGet, "/", "", "")
+	resp := makeRequest(fiber.MethodGet, "/", "", "")
 	defer resp.Body.Close() //nolint: errcheck
-	s.Assert().Equal(fiber.StatusOK, resp.StatusCode, "Expected OK after rate limit reset")
-}
-
-func TestRateLimitTestSuite(t *testing.T) {
-	suite.Run(t, new(RateLimitTestSuite))
+	assert.Equal(t, fiber.StatusOK, resp.StatusCode, "Expected OK after rate limit reset")
 }

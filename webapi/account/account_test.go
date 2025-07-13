@@ -39,13 +39,30 @@ func (s *AccountTestSuite) TestCreateAccount() {
 		body, _ := io.ReadAll(resp.Body)
 		s.T().Logf("Response status: %d, body: %s", resp.StatusCode, string(body))
 
-		s.Assert().Equal(fiber.StatusCreated, resp.StatusCode)
+		s.Equal(fiber.StatusCreated, resp.StatusCode)
 	})
 
 	s.Run("Create account without auth", func() {
 		resp := s.MakeRequest("POST", "/account", `{"currency":"USD"}`, "")
 		defer resp.Body.Close() //nolint: errcheck
-		s.Assert().Equal(fiber.StatusUnauthorized, resp.StatusCode)
+		s.Equal(fiber.StatusUnauthorized, resp.StatusCode)
+	})
+
+	s.Run("Create account with invalid currency", func() {
+		resp := s.MakeRequest("POST", "/account", `{"currency":"INVALID"}`, s.token)
+		defer resp.Body.Close() //nolint: errcheck
+		s.Equal(fiber.StatusBadRequest, resp.StatusCode)
+
+		// Verify validation error response format
+		var errorResponse common.ProblemDetails
+		err := json.NewDecoder(resp.Body).Decode(&errorResponse)
+		s.Require().NoError(err)
+		s.Equal("Validation failed", errorResponse.Title)
+		s.Equal("Request validation failed", errorResponse.Detail)
+		s.Equal(fiber.StatusBadRequest, errorResponse.Status)
+		s.Equal("about:blank", errorResponse.Type)
+		s.NotEmpty(errorResponse.Instance)
+		s.NotNil(errorResponse.Errors)
 	})
 }
 
@@ -53,7 +70,7 @@ func (s *AccountTestSuite) TestDeposit() {
 	// First create an account
 	createResp := s.MakeRequest("POST", "/account", `{"currency":"USD"}`, s.token)
 	defer createResp.Body.Close() //nolint: errcheck
-	s.Assert().Equal(fiber.StatusCreated, createResp.StatusCode)
+	s.Equal(fiber.StatusCreated, createResp.StatusCode)
 
 	// Extract account ID from response
 	var createResponse common.Response
@@ -69,15 +86,17 @@ func (s *AccountTestSuite) TestDeposit() {
 	s.Run("Deposit successfully", func() {
 		depositBody := `{"amount":100,"currency":"USD"}`
 		resp := s.MakeRequest("POST", fmt.Sprintf("/account/%s/deposit", accountID), depositBody, s.token)
+		body, _ := io.ReadAll(resp.Body)
+		s.T().Logf("Deposit response status: %d, body: %s", resp.StatusCode, string(body))
 		defer resp.Body.Close() //nolint: errcheck
-		s.Assert().Equal(fiber.StatusOK, resp.StatusCode)
+		s.Equal(fiber.StatusOK, resp.StatusCode)
 	})
 
 	s.Run("Deposit without auth", func() {
 		depositBody := `{"amount":100,"currency":"USD"}`
 		resp := s.MakeRequest("POST", fmt.Sprintf("/account/%s/deposit", accountID), depositBody, "")
 		defer resp.Body.Close() //nolint: errcheck
-		s.Assert().Equal(fiber.StatusUnauthorized, resp.StatusCode)
+		s.Equal(fiber.StatusUnauthorized, resp.StatusCode)
 	})
 }
 
@@ -85,7 +104,7 @@ func (s *AccountTestSuite) TestWithdraw() {
 	// First create an account and deposit some money
 	createResp := s.MakeRequest("POST", "/account", `{"currency":"USD"}`, s.token)
 	defer createResp.Body.Close() //nolint: errcheck
-	s.Assert().Equal(fiber.StatusCreated, createResp.StatusCode)
+	s.Equal(fiber.StatusCreated, createResp.StatusCode)
 
 	var createResponse common.Response
 	err := json.NewDecoder(createResp.Body).Decode(&createResponse)
@@ -100,20 +119,37 @@ func (s *AccountTestSuite) TestWithdraw() {
 	depositBody := `{"amount":100,"currency":"USD"}`
 	depositResp := s.MakeRequest("POST", fmt.Sprintf("/account/%s/deposit", accountID), depositBody, s.token)
 	defer depositResp.Body.Close() //nolint: errcheck
-	s.Assert().Equal(fiber.StatusOK, depositResp.StatusCode)
+	s.Equal(fiber.StatusOK, depositResp.StatusCode)
 
 	s.Run("Withdraw successfully", func() {
 		withdrawBody := `{"amount":50,"currency":"USD"}`
 		resp := s.MakeRequest("POST", fmt.Sprintf("/account/%s/withdraw", accountID), withdrawBody, s.token)
 		defer resp.Body.Close() //nolint: errcheck
-		s.Assert().Equal(fiber.StatusOK, resp.StatusCode)
+		s.Equal(fiber.StatusOK, resp.StatusCode)
 	})
 
 	s.Run("Withdraw without auth", func() {
 		withdrawBody := `{"amount":50,"currency":"USD"}`
 		resp := s.MakeRequest("POST", fmt.Sprintf("/account/%s/withdraw", accountID), withdrawBody, "")
 		defer resp.Body.Close() //nolint: errcheck
-		s.Assert().Equal(fiber.StatusUnauthorized, resp.StatusCode)
+		s.Equal(fiber.StatusUnauthorized, resp.StatusCode)
+	})
+
+	s.Run("Withdraw insufficient funds", func() {
+		withdrawBody := `{"amount":200,"currency":"USD"}`
+		resp := s.MakeRequest("POST", fmt.Sprintf("/account/%s/withdraw", accountID), withdrawBody, s.token)
+		defer resp.Body.Close() //nolint: errcheck
+		s.Equal(fiber.StatusUnprocessableEntity, resp.StatusCode)
+
+		// Verify error response format
+		var errorResponse common.ProblemDetails
+		err := json.NewDecoder(resp.Body).Decode(&errorResponse)
+		s.Require().NoError(err)
+		s.Equal("Failed to withdraw", errorResponse.Title)
+		s.Equal("insufficient funds for withdrawal", errorResponse.Detail) // Detail should contain the error message
+		s.Equal(fiber.StatusUnprocessableEntity, errorResponse.Status)
+		s.Equal("about:blank", errorResponse.Type)
+		s.NotEmpty(errorResponse.Instance)
 	})
 }
 
@@ -121,7 +157,7 @@ func (s *AccountTestSuite) TestGetBalance() {
 	// First create an account
 	createResp := s.MakeRequest("POST", "/account", `{"currency":"USD"}`, s.token)
 	defer createResp.Body.Close() //nolint: errcheck
-	s.Assert().Equal(fiber.StatusCreated, createResp.StatusCode)
+	s.Equal(fiber.StatusCreated, createResp.StatusCode)
 
 	var createResponse common.Response
 	err := json.NewDecoder(createResp.Body).Decode(&createResponse)
@@ -135,12 +171,12 @@ func (s *AccountTestSuite) TestGetBalance() {
 	s.Run("Get balance successfully", func() {
 		resp := s.MakeRequest("GET", fmt.Sprintf("/account/%s/balance", accountID), "", s.token)
 		defer resp.Body.Close() //nolint: errcheck
-		s.Assert().Equal(fiber.StatusOK, resp.StatusCode)
+		s.Equal(fiber.StatusOK, resp.StatusCode)
 	})
 
 	s.Run("Get balance without auth", func() {
 		resp := s.MakeRequest("GET", fmt.Sprintf("/account/%s/balance", accountID), "", "")
 		defer resp.Body.Close() //nolint: errcheck
-		s.Assert().Equal(fiber.StatusUnauthorized, resp.StatusCode)
+		s.Equal(fiber.StatusUnauthorized, resp.StatusCode)
 	})
 }

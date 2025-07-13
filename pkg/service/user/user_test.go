@@ -3,28 +3,28 @@ package user_test
 import (
 	"context"
 	"errors"
-	"reflect"
 	"testing"
 
 	"log/slog"
 
-	"github.com/amirasaad/fintech/internal/fixtures"
+	"github.com/amirasaad/fintech/internal/fixtures/mocks"
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/repository"
 	usersvc "github.com/amirasaad/fintech/pkg/service/user"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 // Helper to create a service with mocks
 func newUserServiceWithMocks(t interface {
 	mock.TestingT
 	Cleanup(func())
-}) (*usersvc.UserService, *fixtures.MockUserRepository, *fixtures.MockUnitOfWork) {
-	userRepo := fixtures.NewMockUserRepository(t)
-	uow := fixtures.NewMockUnitOfWork(t)
-	uow.EXPECT().GetRepository(reflect.TypeOf((*repository.UserRepository)(nil)).Elem()).Return(userRepo, nil).Maybe()
+}) (*usersvc.UserService, *mocks.MockUserRepository, *mocks.MockUnitOfWork) {
+	userRepo := mocks.NewMockUserRepository(t)
+	uow := mocks.NewMockUnitOfWork(t)
+	uow.EXPECT().UserRepository().Return(userRepo, nil).Maybe()
 	svc := usersvc.NewUserService(uow, slog.Default())
 	return svc, userRepo, uow
 }
@@ -56,7 +56,7 @@ func TestCreateUser_RepoError(t *testing.T) {
 	)
 
 	u, err := svc.CreateUser(context.Background(), "bob", "bob@example.com", "password")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, u)
 }
 
@@ -87,12 +87,12 @@ func TestGetUser_NotFound(t *testing.T) {
 	)
 
 	got, err := svc.GetUser(context.Background(), uuid.New().String())
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, got)
 }
 
 func TestGetUser_UoWFactoryError(t *testing.T) {
-	uow := fixtures.NewMockUnitOfWork(t)
+	uow := mocks.NewMockUnitOfWork(t)
 	expectedErr := errors.New("factory error")
 	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(expectedErr).RunAndReturn(
 		func(ctx context.Context, fn func(repository.UnitOfWork) error) error {
@@ -102,7 +102,7 @@ func TestGetUser_UoWFactoryError(t *testing.T) {
 
 	svc := usersvc.NewUserService(uow, slog.Default())
 	_, err := svc.GetUser(context.Background(), uuid.New().String())
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestGetUserByEmail_Success(t *testing.T) {
@@ -133,12 +133,12 @@ func TestGetUserByEmail_NotFound(t *testing.T) {
 	)
 
 	got, err := svc.GetUserByEmail(context.Background(), "notfound@example.com")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, got)
 }
 
 func TestGetUserByEmail_UoWFactoryError(t *testing.T) {
-	uow := fixtures.NewMockUnitOfWork(t)
+	uow := mocks.NewMockUnitOfWork(t)
 	expectedErr := errors.New("factory error")
 	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(expectedErr).RunAndReturn(
 		func(ctx context.Context, fn func(repository.UnitOfWork) error) error {
@@ -148,7 +148,7 @@ func TestGetUserByEmail_UoWFactoryError(t *testing.T) {
 
 	svc := usersvc.NewUserService(uow, slog.Default())
 	_, err := svc.GetUserByEmail(context.Background(), "user@example.com")
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestGetUserByUsername_Success(t *testing.T) {
@@ -178,12 +178,12 @@ func TestGetUserByUsername_NotFound(t *testing.T) {
 	)
 
 	got, err := svc.GetUserByUsername(context.Background(), "notfound")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, got)
 }
 
 func TestGetUserByUsername_UoWFactoryError(t *testing.T) {
-	uow := fixtures.NewMockUnitOfWork(t)
+	uow := mocks.NewMockUnitOfWork(t)
 	expectedErr := errors.New("factory error")
 	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(expectedErr).RunAndReturn(
 		func(ctx context.Context, fn func(repository.UnitOfWork) error) error {
@@ -193,7 +193,7 @@ func TestGetUserByUsername_UoWFactoryError(t *testing.T) {
 
 	svc := usersvc.NewUserService(uow, slog.Default())
 	_, err := svc.GetUserByUsername(context.Background(), "username")
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestUpdateUser_Success(t *testing.T) {
@@ -233,11 +233,11 @@ func TestUpdateUser_RepoError(t *testing.T) {
 		u.Username = "updated"
 		return nil
 	})
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestUpdateUser_UoWFactoryError(t *testing.T) {
-	uow := fixtures.NewMockUnitOfWork(t)
+	uow := mocks.NewMockUnitOfWork(t)
 	expectedErr := errors.New("factory error")
 	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(expectedErr).RunAndReturn(
 		func(ctx context.Context, fn func(repository.UnitOfWork) error) error {
@@ -247,13 +247,13 @@ func TestUpdateUser_UoWFactoryError(t *testing.T) {
 
 	svc := usersvc.NewUserService(uow, slog.Default())
 	err := svc.UpdateUser(context.Background(), uuid.New().String(), nil)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestUpdateUser_CallsGetRepositoryOnce(t *testing.T) {
 	t.Parallel()
-	uow := fixtures.NewMockUnitOfWork(t)
-	userRepo := fixtures.NewMockUserRepository(t)
+	uow := mocks.NewMockUnitOfWork(t)
+	userRepo := mocks.NewMockUserRepository(t)
 	callCount := 0
 
 	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).RunAndReturn(
@@ -261,8 +261,8 @@ func TestUpdateUser_CallsGetRepositoryOnce(t *testing.T) {
 			return fn(uow)
 		},
 	)
-	uow.EXPECT().GetRepository(reflect.TypeOf((*repository.UserRepository)(nil)).Elem()).Return(userRepo, nil).Run(
-		func(repoType reflect.Type) {
+	uow.EXPECT().UserRepository().Return(userRepo, nil).Run(
+		func() {
 			callCount++
 		},
 	).Once()
@@ -308,7 +308,7 @@ func TestDeleteUser_RepoError(t *testing.T) {
 	)
 
 	err := svc.DeleteUser(context.Background(), id.String())
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestValidUser_True(t *testing.T) {

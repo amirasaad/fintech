@@ -10,6 +10,7 @@ import (
 	"github.com/amirasaad/fintech/pkg/domain/user"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -17,6 +18,7 @@ import (
 
 func TestTransactionRepository_Create(t *testing.T) {
 	assert := assert.New(t)
+	require := require.New(t)
 	mockDb, mock, _ := sqlmock.New()
 	dialector := postgres.New(postgres.Config{
 		Conn:       mockDb,
@@ -48,11 +50,12 @@ func TestTransactionRepository_Create(t *testing.T) {
 	mock.ExpectRollback()
 
 	err = transRepo.Create(transaction)
-	assert.Error(err)
+	require.Error(err)
 }
 
 func TestUserRepository_Create(t *testing.T) {
 	assert := assert.New(t)
+	require := require.New(t)
 	mockDb, mock, _ := sqlmock.New()
 	dialector := postgres.New(postgres.Config{
 		Conn:       mockDb,
@@ -80,11 +83,12 @@ func TestUserRepository_Create(t *testing.T) {
 	mock.ExpectRollback()
 
 	err = userRepo.Create(user)
-	assert.Error(err)
+	require.Error(err)
 }
 
 func TestAccountRepository_Get(t *testing.T) {
 	assert := assert.New(t)
+	require := require.New(t)
 	mockDb, mock, _ := sqlmock.New()
 	dialector := postgres.New(postgres.Config{
 		Conn:       mockDb,
@@ -112,6 +116,6 @@ func TestAccountRepository_Get(t *testing.T) {
 	mock.ExpectQuery(`SELECT \* FROM "accounts" WHERE "accounts"\."id" = \$1 ORDER BY "accounts"\."id" LIMIT \$2`).
 		WithArgs(sqlmock.AnyArg(), 1).WillReturnError(gorm.ErrRecordNotFound)
 	account, err = accRepo.Get(uuid.New())
-	assert.Error(err)
+	require.Error(err)
 	assert.Nil(account)
 }
