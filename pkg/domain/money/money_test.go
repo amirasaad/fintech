@@ -29,7 +29,7 @@ func TestNewMoney_Precision(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			money, err := money.NewMoney(tt.amount, tt.currency)
+			money, err := money.New(tt.amount, tt.currency)
 			if tt.wantErr {
 				require.Error(t, err)
 				return
@@ -42,11 +42,11 @@ func TestNewMoney_Precision(t *testing.T) {
 }
 
 func TestMoney_Arithmetic(t *testing.T) {
-	usd100, err := money.NewMoney(100.0, "USD")
+	usd100, err := money.New(100.0, "USD")
 	require.NoError(t, err)
-	usd50, err := money.NewMoney(50.0, "USD")
+	usd50, err := money.New(50.0, "USD")
 	require.NoError(t, err)
-	eur100, err := money.NewMoney(100.0, "EUR")
+	eur100, err := money.New(100.0, "EUR")
 	require.NoError(t, err)
 
 	t.Run("Add same currency", func(t *testing.T) {
@@ -77,15 +77,15 @@ func TestMoney_Arithmetic(t *testing.T) {
 }
 
 func TestMoney_Comparison(t *testing.T) {
-	usd100, err := money.NewMoney(100.0, "USD")
+	usd100, err := money.New(100.0, "USD")
 	require.NoError(t, err)
-	usd50, err := money.NewMoney(50.0, "USD")
+	usd50, err := money.New(50.0, "USD")
 	require.NoError(t, err)
-	eur100, err := money.NewMoney(100.0, "EUR")
+	eur100, err := money.New(100.0, "EUR")
 	require.NoError(t, err)
 
 	t.Run("Equals same currency", func(t *testing.T) {
-		usd100b, err := money.NewMoney(100.0, "USD")
+		usd100b, err := money.New(100.0, "USD")
 		require.NoError(t, err)
 		assert.True(t, usd100.Equals(usd100b))
 		assert.False(t, usd100.Equals(usd50))
@@ -113,11 +113,11 @@ func TestMoney_Comparison(t *testing.T) {
 }
 
 func TestMoney_State(t *testing.T) {
-	usd100, err := money.NewMoney(100.0, "USD")
+	usd100, err := money.New(100.0, "USD")
 	require.NoError(t, err)
-	usd0, err := money.NewMoney(0.0, "USD")
+	usd0, err := money.New(0.0, "USD")
 	require.NoError(t, err)
-	usdNeg50, err := money.NewMoney(-50.0, "USD")
+	usdNeg50, err := money.New(-50.0, "USD")
 	require.NoError(t, err)
 
 	t.Run("IsPositive", func(t *testing.T) {
@@ -154,7 +154,7 @@ func TestMoney_String(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			money, err := money.NewMoney(tt.amount, tt.cc)
+			money, err := money.New(tt.amount, tt.cc)
 			require.NoError(t, err)
 			assert.Equal(t, tt.expected, money.String())
 		})
@@ -163,19 +163,19 @@ func TestMoney_String(t *testing.T) {
 
 func TestMoney_PrecisionEdgeCases(t *testing.T) {
 	t.Run("USD with exactly 2 decimals", func(t *testing.T) {
-		money, err := money.NewMoney(100.99, "USD")
+		money, err := money.New(100.99, "USD")
 		require.NoError(t, err)
 		assert.InDelta(t, 100.99, money.AmountFloat(), 0.001)
 	})
 
 	t.Run("JPY with no decimals", func(t *testing.T) {
-		money, err := money.NewMoney(1000.0, "JPY")
+		money, err := money.New(1000.0, "JPY")
 		require.NoError(t, err)
 		assert.InDelta(t, 1000.0, money.AmountFloat(), 0.001)
 	})
 
 	t.Run("KWD with exactly 3 decimals", func(t *testing.T) {
-		money, err := money.NewMoney(100.123, "KWD")
+		money, err := money.New(100.123, "KWD")
 		require.NoError(t, err)
 		assert.InDelta(t, 100.123, money.AmountFloat(), 0.001)
 	})
@@ -207,21 +207,21 @@ func TestNewMoneyFromSmallestUnit(t *testing.T) {
 
 func TestMoney_Abs(t *testing.T) {
 	t.Run("Positive amount", func(t *testing.T) {
-		money, err := money.NewMoney(100.0, "USD")
+		money, err := money.New(100.0, "USD")
 		require.NoError(t, err)
 		result := money.Abs()
 		assert.Equal(t, money.Amount(), result.Amount())
 	})
 
 	t.Run("Negative amount", func(t *testing.T) {
-		money, err := money.NewMoney(-100.0, "USD")
+		money, err := money.New(-100.0, "USD")
 		require.NoError(t, err)
 		result := money.Abs()
 		assert.Equal(t, int64(10000), result.Amount()) // 100.00 USD in cents
 	})
 
 	t.Run("Zero amount", func(t *testing.T) {
-		money, err := money.NewMoney(0.0, "USD")
+		money, err := money.New(0.0, "USD")
 		require.NoError(t, err)
 		result := money.Abs()
 		assert.Equal(t, money.Amount(), result.Amount())
@@ -229,7 +229,7 @@ func TestMoney_Abs(t *testing.T) {
 }
 
 func TestMoney_Multiply(t *testing.T) {
-	money, err := money.NewMoney(100.0, "USD")
+	money, err := money.New(100.0, "USD")
 	require.NoError(t, err)
 
 	t.Run("Multiply by 2", func(t *testing.T) {
@@ -262,7 +262,7 @@ func TestMoney_Multiply(t *testing.T) {
 }
 
 func TestMoney_Divide(t *testing.T) {
-	money, err := money.NewMoney(100.0, "USD")
+	money, err := money.New(100.0, "USD")
 	require.NoError(t, err)
 
 	t.Run("Divide by 2", func(t *testing.T) {
@@ -294,7 +294,7 @@ func TestMoney_Divide(t *testing.T) {
 
 func TestNewMoney_JPY(t *testing.T) {
 	t.Run("JPY whole number valid", func(t *testing.T) {
-		m, err := money.NewMoney(1000, "JPY")
+		m, err := money.New(1000, "JPY")
 		require.NoError(t, err)
 		assert.Equal(t, int64(1000), m.Amount())
 		assert.Equal(t, "JPY", string(m.Currency()))
@@ -302,7 +302,7 @@ func TestNewMoney_JPY(t *testing.T) {
 	})
 
 	t.Run("JPY with .0 valid", func(t *testing.T) {
-		m, err := money.NewMoney(5000.0, "JPY")
+		m, err := money.New(5000.0, "JPY")
 		require.NoError(t, err)
 		assert.Equal(t, int64(5000), m.Amount())
 		assert.Equal(t, "JPY", string(m.Currency()))
@@ -310,7 +310,7 @@ func TestNewMoney_JPY(t *testing.T) {
 	})
 
 	t.Run("JPY with decimals rounds up", func(t *testing.T) {
-		m, err := money.NewMoney(1000.5, "JPY")
+		m, err := money.New(1000.5, "JPY")
 		require.NoError(t, err)
 		assert.Equal(t, int64(1001), m.Amount())
 		assert.Equal(t, "JPY", string(m.Currency()))
@@ -318,7 +318,7 @@ func TestNewMoney_JPY(t *testing.T) {
 	})
 
 	t.Run("JPY with two decimals rounds", func(t *testing.T) {
-		m, err := money.NewMoney(1234.56, "JPY")
+		m, err := money.New(1234.56, "JPY")
 		require.NoError(t, err)
 		assert.Equal(t, int64(1235), m.Amount())
 		assert.Equal(t, "JPY", string(m.Currency()))
@@ -326,7 +326,7 @@ func TestNewMoney_JPY(t *testing.T) {
 	})
 
 	t.Run("JPY negative whole number valid", func(t *testing.T) {
-		m, err := money.NewMoney(-2000, "JPY")
+		m, err := money.New(-2000, "JPY")
 		require.NoError(t, err)
 		assert.Equal(t, int64(-2000), m.Amount())
 		assert.Equal(t, "JPY", string(m.Currency()))
@@ -334,7 +334,7 @@ func TestNewMoney_JPY(t *testing.T) {
 	})
 
 	t.Run("JPY zero valid", func(t *testing.T) {
-		m, err := money.NewMoney(0, "JPY")
+		m, err := money.New(0, "JPY")
 		require.NoError(t, err)
 		assert.Equal(t, int64(0), m.Amount())
 		assert.Equal(t, "JPY", string(m.Currency()))

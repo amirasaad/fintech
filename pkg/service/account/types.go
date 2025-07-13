@@ -4,7 +4,9 @@ package account
 // OperationType represents the type of account operation
 type OperationType string
 
+// Operation type constants define the types of account operations.
 const (
 	OperationDeposit  OperationType = "deposit"
 	OperationWithdraw OperationType = "withdraw"
+	OperationTransfer OperationType = "transfer"
 )

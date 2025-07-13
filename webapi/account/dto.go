@@ -66,21 +66,10 @@ func ToTransactionDTO(tx *domain.Transaction) *TransactionDTO {
 		ID:        tx.ID.String(),
 		UserID:    tx.UserID.String(),
 		AccountID: tx.AccountID.String(),
-		Amount:    float64(tx.Amount) / 100.0, // assuming cents
-		Balance:   float64(tx.Balance) / 100.0,
+		Amount:    tx.Amount.AmountFloat(),
+		Currency:  string(tx.Amount.Currency()),
+		Balance:   tx.Balance.AmountFloat(),
 		CreatedAt: tx.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
-		Currency:  string(tx.Currency),
-	}
-
-	// Include conversion fields if they exist
-	if tx.OriginalAmount != nil {
-		dto.OriginalAmount = tx.OriginalAmount
-	}
-	if tx.OriginalCurrency != nil {
-		dto.OriginalCurrency = tx.OriginalCurrency
-	}
-	if tx.ConversionRate != nil {
-		dto.ConversionRate = tx.ConversionRate
 	}
 
 	return dto
@@ -101,14 +90,14 @@ func ToConversionResponseDTO(tx *domain.Transaction, convInfo *domain.Conversion
 	}
 
 	// If no conversion info provided but transaction has stored conversion data, use that
-	if tx.OriginalAmount != nil && tx.OriginalCurrency != nil && tx.ConversionRate != nil {
+	if convInfo != nil {
 		return &ConversionResponseDTO{
 			Transaction:       ToTransactionDTO(tx),
-			OriginalAmount:    *tx.OriginalAmount,
-			OriginalCurrency:  *tx.OriginalCurrency,
-			ConvertedAmount:   float64(tx.Amount) / 100.0, // Convert from cents
-			ConvertedCurrency: string(tx.Currency),
-			ConversionRate:    *tx.ConversionRate,
+			OriginalAmount:    convInfo.OriginalAmount,
+			OriginalCurrency:  convInfo.OriginalCurrency,
+			ConvertedAmount:   convInfo.ConvertedAmount,
+			ConvertedCurrency: convInfo.ConvertedCurrency,
+			ConversionRate:    convInfo.ConversionRate,
 		}
 	}
 

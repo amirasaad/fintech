@@ -25,14 +25,31 @@ type Money struct {
 	currency currency.Code
 }
 
-// NewMoney creates a new Money value object with the given amount and currency code.
+// Zero creates a Money object with zero amount in the specified currency.
+func Zero(cur currency.Code) Money {
+	return Money{
+		amount:   0,
+		currency: cur,
+	}
+}
+
+// NewFromData creates a Money object from raw data (used for DB hydration).
+// This bypasses invariants and should only be used for repository hydration or tests.
+func NewFromData(amount int64, cc string) Money {
+	return Money{
+		amount:   amount,
+		currency: currency.Code(cc),
+	}
+}
+
+// New creates a new Money value object with the given amount and currency code.
 // Invariants enforced:
 //   - Currency code must be valid ISO 4217 (3 uppercase letters).
 //   - Amount must not have more decimal places than allowed by the currency.
 //   - Amount is converted to the smallest currency unit.
 //
 // Returns Money or an error if any invariant is violated.
-func NewMoney(
+func New(
 	amount float64,
 	currencyCode currency.Code,
 ) (

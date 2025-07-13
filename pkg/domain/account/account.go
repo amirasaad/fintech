@@ -35,15 +35,14 @@ var (
 // Account represents a user's financial account, supporting multi-currency.
 // Invariants:
 //   - Only the account owner can perform actions.
-//   - Currency must be valid and match the account’s currency.
+//   - Currency must be valid and match the account's currency.
 //   - Balance cannot overflow int64.
 //   - Balance cannot be negative.
 //   - All operations are thread-safe.
 type Account struct {
 	ID        uuid.UUID
 	UserID    uuid.UUID
-	Balance   int64         // Account balance snapshot
-	Currency  currency.Code // ISO 4217 currency code
+	Balance   money.Money // Account balance as a value object
 	UpdatedAt time.Time
 	CreatedAt time.Time
 	mu        sync.Mutex
@@ -112,11 +111,14 @@ func (b *Builder) Build() (*Account, error) {
 	if b.userID == uuid.Nil {
 		return nil, errors.New("userID is required")
 	}
+	bal, err := money.NewMoneyFromSmallestUnit(b.balance, b.currency)
+	if err != nil {
+		return nil, err
+	}
 	return &Account{
 		ID:        b.id,
 		UserID:    b.userID,
-		Balance:   b.balance,
-		Currency:  b.currency,
+		Balance:   bal,
 		CreatedAt: b.createdAt,
 		UpdatedAt: b.updatedAt,
 		mu:        sync.Mutex{},
@@ -140,15 +142,13 @@ func NewAccountWithCurrency(userID uuid.UUID, currencyCode currency.Code) (acc *
 // This bypasses invariants and should only be used for repository hydration or tests.
 func NewAccountFromData(
 	id, userID uuid.UUID,
-	balance int64,
-	currencyCode currency.Code,
+	balance money.Money,
 	created, updated time.Time,
 ) *Account {
 	return &Account{
 		ID:        id,
 		UserID:    userID,
 		Balance:   balance,
-		Currency:  currencyCode,
 		CreatedAt: created,
 		UpdatedAt: updated,
 		mu:        sync.Mutex{},
@@ -166,12 +166,12 @@ func (a *Account) GetBalance(userID uuid.UUID) (balance float64, err error) {
 		err = user.ErrUserUnauthorized
 		return
 	}
-	meta, err := currency.Get(string(a.Currency))
+	meta, err := currency.Get(string(a.Balance.Currency()))
 	if err != nil {
 		return 0, err
 	}
 	divisor := math.Pow10(meta.Decimals)
-	balance = float64(a.Balance) / divisor
+	balance = float64(a.Balance.Amount()) / divisor
 	return
 }
 
@@ -186,7 +186,7 @@ func (a *Account) GetBalanceAsMoney(userID uuid.UUID) (m money.Money, err error)
 		err = user.ErrUserUnauthorized
 		return
 	}
-	m, err = money.NewMoneyFromSmallestUnit(a.Balance, a.Currency)
+	m = a.Balance
 	return
 }
 
@@ -211,14 +211,14 @@ func (a *Account) Deposit(userID uuid.UUID, m money.Money) (tx *Transaction, err
 		return
 	}
 
-	if string(m.Currency()) != string(a.Currency) {
+	if string(m.Currency()) != string(a.Balance.Currency()) {
 		err = common.ErrInvalidCurrencyCode
 		return
 	}
 
 	// Check for overflow before performing the addition
 	depositAmount := int64(m.Amount())
-	if depositAmount > 0 && a.Balance > 0 && depositAmount > math.MaxInt64-a.Balance {
+	if depositAmount > 0 && a.Balance.Amount() > 0 && depositAmount > math.MaxInt64-a.Balance.Amount() {
 		err = ErrDepositAmountExceedsMaxSafeInt
 		return
 	}
@@ -238,14 +238,13 @@ func (a *Account) Deposit(userID uuid.UUID, m money.Money) (tx *Transaction, err
 	}
 
 	// Update account balance
-	a.Balance = int64(newBalance.Amount())
+	a.Balance = newBalance
 
 	tx = &Transaction{
 		ID:        uuid.New(),
 		UserID:    userID,
 		AccountID: a.ID,
-		Amount:    depositAmount,
-		Currency:  m.Currency(),
+		Amount:    m,
 		Balance:   a.Balance,
 		CreatedAt: time.Now().UTC(),
 	}
@@ -299,14 +298,13 @@ func (a *Account) Withdraw(userID uuid.UUID, m money.Money) (tx *Transaction, er
 	}
 
 	// Update account balance
-	a.Balance = int64(newBalance.Amount())
+	a.Balance = newBalance
 
 	tx = &Transaction{
 		ID:        uuid.New(),
 		UserID:    userID,
 		AccountID: a.ID,
-		Amount:    -int64(m.Amount()),
-		Currency:  m.Currency(),
+		Amount:    m.Negate(),
 		Balance:   a.Balance,
 		CreatedAt: time.Now().UTC(),
 	}
@@ -314,23 +312,48 @@ func (a *Account) Withdraw(userID uuid.UUID, m money.Money) (tx *Transaction, er
 }
 
 // Transfer moves funds from this account to another account.
-func (a *Account) Transfer(initiatorUserID uuid.UUID, dest *Account, amount int64) (txIn, txOut Transaction, err error) {
+func (a *Account) Transfer(initiatorUserID uuid.UUID, dest *Account, amount money.Money) (txIn, txOut *Transaction, err error) {
 	if a == nil || dest == nil {
-		return txIn, txOut, fmt.Errorf("nil account")
+		return nil, nil, fmt.Errorf("nil account")
 	}
 	if a.UserID != initiatorUserID {
-		return txIn, txOut, fmt.Errorf("not owner")
+		return nil, nil, fmt.Errorf("not owner")
 	}
-	if amount <= 0 {
-		return txIn, txOut, fmt.Errorf("amount must be positive")
+	if !amount.IsPositive() {
+		return nil, nil, fmt.Errorf("amount must be positive")
 	}
-	if a.Currency != dest.Currency {
-		return txIn, txOut, fmt.Errorf("currency mismatch")
+	if !a.Balance.IsSameCurrency(amount) || !dest.Balance.IsSameCurrency(amount) {
+		return nil, nil, fmt.Errorf("currency mismatch")
 	}
-	if a.Balance < amount {
-		return txIn, txOut, fmt.Errorf("insufficient funds")
+	hasEnough, _ := a.Balance.GreaterThan(amount)
+	if !hasEnough && !a.Balance.Equals(amount) {
+		return nil, nil, fmt.Errorf("insufficient funds")
 	}
-	a.Balance -= amount
-	dest.Balance += amount
+	nb, err := a.Balance.Subtract(amount)
+	if err != nil {
+		return nil, nil, err
+	}
+	db, err := dest.Balance.Add(amount)
+	if err != nil {
+		return nil, nil, err
+	}
+	a.Balance = nb
+	dest.Balance = db
+	txOut = &Transaction{
+		ID:        uuid.New(),
+		UserID:    a.UserID,
+		AccountID: a.ID,
+		Amount:    amount.Negate(),
+		Balance:   a.Balance,
+		CreatedAt: time.Now().UTC(),
+	}
+	txIn = &Transaction{
+		ID:        uuid.New(),
+		UserID:    dest.UserID,
+		AccountID: dest.ID,
+		Amount:    amount,
+		Balance:   dest.Balance,
+		CreatedAt: time.Now().UTC(),
+	}
 	return txIn, txOut, nil
 }

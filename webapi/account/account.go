@@ -1,18 +1,3 @@
-// Routes registers HTTP routes for account-related operations using the Fiber web framework.
-// It sets up endpoints for creating accounts, depositing and withdrawing funds, retrieving account balances,
-// and listing account transactions. All routes are protected by authentication middleware and require a valid user context.
-//
-//	@param app The Fiber application instance to register routes on.
-//	@param accountSvc A pointer to the AccountService.
-//	@param authSvc A pointer to the AuthService.
-//
-// Routes:
-//   - POST   /account                   : Create a new account for the authenticated user.
-//   - POST   /account/:id/deposit       : Deposit funds into the specified account.
-//   - POST   /account/:id/withdraw      : Withdraw funds from the specified account.
-//   - GET    /account/:id/balance       : Retrieve the balance of the specified account.
-//   - GET    /account/:id/transactions  : List transactions for the specified account.
-
 package account
 
 import (
@@ -28,7 +13,21 @@ import (
 	"github.com/google/uuid"
 )
 
-func Routes(app *fiber.App, accountSvc *accountsvc.AccountService, authSvc *authsvc.AuthService, cfg *config.AppConfig) {
+// Routes registers HTTP routes for account-related operations using the Fiber web framework.
+// It sets up endpoints for creating accounts, depositing and withdrawing funds, retrieving account balances,
+// and listing account transactions. All routes are protected by authentication middleware and require a valid user context.
+//
+//	@param app The Fiber application instance to register routes on.
+//	@param accountSvc A pointer to the Service.
+//	@param authSvc A pointer to the AuthService.
+//
+// Routes:
+//   - POST   /account                   : Create a new account for the authenticated user.
+//   - POST   /account/:id/deposit       : Deposit funds into the specified account.
+//   - POST   /account/:id/withdraw      : Withdraw funds from the specified account.
+//   - GET    /account/:id/balance       : Retrieve the balance of the specified account.
+//   - GET    /account/:id/transactions  : List transactions for the specified account.
+func Routes(app *fiber.App, accountSvc *accountsvc.Service, authSvc *authsvc.AuthService, cfg *config.AppConfig) {
 	app.Post("/account", middleware.JwtProtected(cfg.Jwt), CreateAccount(accountSvc, authSvc))
 	app.Post("/account/:id/deposit", middleware.JwtProtected(cfg.Jwt), Deposit(accountSvc, authSvc))
 	app.Post("/account/:id/withdraw", middleware.JwtProtected(cfg.Jwt), Withdraw(accountSvc, authSvc))
@@ -53,7 +52,7 @@ func Routes(app *fiber.App, accountSvc *accountsvc.AccountService, authSvc *auth
 // @Router /account [post]
 // @Security Bearer
 func CreateAccount(
-	accountSvc *accountsvc.AccountService,
+	accountSvc *accountsvc.Service,
 	authSvc *authsvc.AuthService,
 ) fiber.Handler {
 	return func(c *fiber.Ctx) error {
@@ -106,7 +105,7 @@ func CreateAccount(
 // @Router /account/{id}/deposit [post]
 // @Security Bearer
 func Deposit(
-	accountSvc *accountsvc.AccountService,
+	accountSvc *accountsvc.Service,
 	authSvc *authsvc.AuthService,
 ) fiber.Handler {
 	return func(c *fiber.Ctx) error {
@@ -174,7 +173,7 @@ func Deposit(
 // @Router /account/{id}/withdraw [post]
 // @Security Bearer
 func Withdraw(
-	accountSvc *accountsvc.AccountService,
+	accountSvc *accountsvc.Service,
 	authSvc *authsvc.AuthService,
 ) fiber.Handler {
 	return func(c *fiber.Ctx) error {
@@ -231,7 +230,7 @@ func Withdraw(
 // @Router /account/{id}/transactions [get]
 // @Security Bearer
 func GetTransactions(
-	accountSvc *accountsvc.AccountService,
+	accountSvc *accountsvc.Service,
 	authSvc *authsvc.AuthService,
 ) fiber.Handler {
 	return func(c *fiber.Ctx) error {
@@ -277,7 +276,7 @@ func GetTransactions(
 // @Router /account/{id}/balance [get]
 // @Security Bearer
 func GetBalance(
-	accountSvc *accountsvc.AccountService,
+	accountSvc *accountsvc.Service,
 	authSvc *authsvc.AuthService,
 ) fiber.Handler {
 	return func(c *fiber.Ctx) error {

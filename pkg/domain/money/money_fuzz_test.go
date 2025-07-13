@@ -19,7 +19,7 @@ func FuzzNewMoney(f *testing.F) {
 				t.Errorf("NewMoney panicked: %v (amount=%v, currency=%q)", r, amount, cc)
 			}
 		}()
-		m, err := money.NewMoney(amount, currency.Code(cc))
+		m, err := money.New(amount, currency.Code(cc))
 		if err == nil {
 			if !currency.IsValidCurrencyFormat(string(m.Currency())) {
 

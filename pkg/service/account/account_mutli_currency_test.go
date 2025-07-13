@@ -9,6 +9,7 @@ import (
 	"github.com/amirasaad/fintech/pkg/currency"
 	accountdomain "github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/domain/common"
+	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/amirasaad/fintech/pkg/repository"
 	accountsvc "github.com/amirasaad/fintech/pkg/service/account"
 	"github.com/google/uuid"
@@ -42,7 +43,7 @@ func TestDeposit_AcceptsMatchingCurrency(t *testing.T) {
 		Build()
 	accountRepo.EXPECT().Get(account.ID).Return(account, nil).Once()
 	accountRepo.EXPECT().Update(mock.Anything).Return(nil).Once()
-	transactionRepo.EXPECT().Create(mock.Anything).Return(nil).Once()
+	transactionRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Once()
 
 	svc := accountsvc.NewAccountService(uow, nil, slog.Default())
 	gotTx, _, err := svc.Deposit(account.UserID, account.ID, 100.0, currency.Code("EUR"))
@@ -76,7 +77,7 @@ func TestWithdraw_AcceptsMatchingCurrency(t *testing.T) {
 		Build()
 	accountRepo.EXPECT().Get(account.ID).Return(account, nil).Once()
 	accountRepo.EXPECT().Update(mock.Anything).Return(nil).Once()
-	transactionRepo.EXPECT().Create(mock.Anything).Return(nil).Once()
+	transactionRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Once()
 
 	svc := accountsvc.NewAccountService(uow, nil, slog.Default())
 	gotTx, _, err := svc.Withdraw(account.UserID, account.ID, 100.0, currency.Code("EUR"))
@@ -104,10 +105,10 @@ func TestDeposit_ConvertsCurrency(t *testing.T) {
 	uow.EXPECT().AccountRepository().Return(accountRepo, nil).Once()
 	uow.EXPECT().TransactionRepository().Return(transactionRepo, nil).Once()
 
-	account := &accountdomain.Account{ID: uuid.New(), UserID: uuid.New(), Currency: currency.Code("USD"), Balance: 0}
+	account := &accountdomain.Account{ID: uuid.New(), UserID: uuid.New(), Balance: money.Zero(currency.USD)}
 	accountRepo.EXPECT().Get(account.ID).Return(account, nil).Once()
 	accountRepo.EXPECT().Update(mock.Anything).Return(nil).Once()
-	transactionRepo.EXPECT().Create(mock.Anything).Return(nil).Once()
+	transactionRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Once()
 
 	// Fix: Return the correct type for converter.EXPECT().Convert
 	converter.EXPECT().Convert(100.0, "EUR", "USD").Return(&common.ConversionInfo{
@@ -151,7 +152,7 @@ func TestWithdraw_ConvertsCurrency(t *testing.T) {
 		Build()
 	accountRepo.EXPECT().Get(account.ID).Return(account, nil).Once()
 	accountRepo.EXPECT().Update(mock.Anything).Return(nil).Once()
-	transactionRepo.EXPECT().Create(mock.Anything).Return(nil).Once()
+	transactionRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Once()
 
 	converter.EXPECT().Convert(100.0, "EUR", "USD").Return(&common.ConversionInfo{
 		OriginalAmount:    100.0,

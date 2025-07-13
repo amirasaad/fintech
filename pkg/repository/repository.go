@@ -2,9 +2,11 @@ package repository
 
 import (
 	"github.com/amirasaad/fintech/pkg/domain"
+	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/google/uuid"
 )
 
+// AccountRepository defines the interface for account data access operations.
 type AccountRepository interface {
 	Get(id uuid.UUID) (*domain.Account, error)
 	Create(account *domain.Account) error
@@ -12,12 +14,14 @@ type AccountRepository interface {
 	Delete(id uuid.UUID) error
 }
 
+// TransactionRepository defines the interface for transaction data access operations.
 type TransactionRepository interface {
-	Create(transaction *domain.Transaction) error
+	Create(transaction *domain.Transaction, convInfo *common.ConversionInfo) error
 	Get(id uuid.UUID) (*domain.Transaction, error)
 	List(userID, accountID uuid.UUID) ([]*domain.Transaction, error)
 }
 
+// UserRepository defines the interface for user data access operations.
 type UserRepository interface {
 	Get(id uuid.UUID) (*domain.User, error)
 	GetByUsername(username string) (*domain.User, error)

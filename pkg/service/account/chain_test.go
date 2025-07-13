@@ -179,11 +179,11 @@ func TestMoneyCreationHandler_Handle_InvalidMoney(t *testing.T) {
 func TestCurrencyConversionHandler_Handle_NoConversionNeeded(t *testing.T) {
 	converter := mocks.NewMockCurrencyConverter(t)
 	logger := newTestLogger()
-	money, _ := money.NewMoney(100.0, currency.Code("USD"))
+	money, _ := money.New(100.0, currency.Code("USD"))
 	req := &OperationRequest{
 		Money: money,
 		Account: &account.Account{
-			Currency: currency.Code("USD"),
+			Balance: money,
 		},
 	}
 	handler := &CurrencyConversionHandler{
@@ -200,11 +200,11 @@ func TestCurrencyConversionHandler_Handle_NoConversionNeeded(t *testing.T) {
 func TestCurrencyConversionHandler_Handle_ConversionNeeded(t *testing.T) {
 	converter := mocks.NewMockCurrencyConverter(t)
 	logger := newTestLogger()
-	money, _ := money.NewMoney(100.0, currency.Code("USD"))
+	moneyVal, _ := money.New(100.0, currency.Code("USD"))
 	req := &OperationRequest{
-		Money: money,
+		Money: moneyVal,
 		Account: &account.Account{
-			Currency: currency.Code("EUR"),
+			Balance: func() money.Money { m, _ := money.NewMoneyFromSmallestUnit(0, currency.Code("EUR")); return m }(),
 		},
 	}
 	convInfo := &common.ConversionInfo{
@@ -232,11 +232,11 @@ func TestCurrencyConversionHandler_Handle_ConversionNeeded(t *testing.T) {
 func TestCurrencyConversionHandler_Handle_ConversionError(t *testing.T) {
 	converter := mocks.NewMockCurrencyConverter(t)
 	logger := newTestLogger()
-	money, _ := money.NewMoney(100.0, currency.Code("USD"))
+	moneyVal, _ := money.New(100.0, currency.Code("USD"))
 	req := &OperationRequest{
-		Money: money,
+		Money: moneyVal,
 		Account: &account.Account{
-			Currency: currency.Code("EUR"),
+			Balance: func() money.Money { m, _ := money.NewMoneyFromSmallestUnit(0, currency.Code("EUR")); return m }(),
 		},
 	}
 	converter.On("Convert", 100.0, "USD", "EUR").Return(nil, assert.AnError)
@@ -251,23 +251,23 @@ func TestCurrencyConversionHandler_Handle_ConversionError(t *testing.T) {
 	converter.AssertExpectations(t)
 }
 
-// Test DomainOperationHandler
-func TestDomainOperationHandler_Handle_Deposit(t *testing.T) {
+// Test DepositOperationHandler
+func TestDepositOperationHandler_Handle_Success(t *testing.T) {
 	logger := newTestLogger()
-	money, _ := money.NewMoney(100.0, currency.Code("USD"))
+	moneyVal, _ := money.New(100.0, currency.Code("USD"))
 	userID := uuid.New()
 	account := &account.Account{
-		ID:       uuid.New(),
-		UserID:   userID, // Set the correct user ID
-		Currency: currency.Code("USD"),
+		ID:      uuid.New(),
+		UserID:  userID,
+		Balance: func() money.Money { m, _ := money.NewMoneyFromSmallestUnit(0, currency.Code("USD")); return m }(),
 	}
 	req := &OperationRequest{
-		UserID:         userID, // Use the same user ID
+		UserID:         userID,
 		Operation:      OperationDeposit,
-		ConvertedMoney: money,
+		ConvertedMoney: moneyVal,
 		Account:        account,
 	}
-	handler := &DomainOperationHandler{
+	handler := &DepositOperationHandler{
 		logger: logger,
 	}
 	resp, err := handler.Handle(context.Background(), req)
@@ -277,23 +277,23 @@ func TestDomainOperationHandler_Handle_Deposit(t *testing.T) {
 	assert.Equal(t, account.ID, req.Transaction.AccountID)
 }
 
-func TestDomainOperationHandler_Handle_Withdraw(t *testing.T) {
+// Test WithdrawOperationHandler
+func TestWithdrawOperationHandler_Handle_Success(t *testing.T) {
 	logger := newTestLogger()
-	money, _ := money.NewMoney(100.0, currency.Code("USD"))
+	moneyVal, _ := money.New(100.0, currency.Code("USD"))
 	userID := uuid.New()
 	account := &account.Account{
-		ID:       uuid.New(),
-		UserID:   userID, // Set the correct user ID
-		Currency: currency.Code("USD"),
-		Balance:  10000, // Set sufficient balance (100.00 USD in cents)
+		ID:      uuid.New(),
+		UserID:  userID,
+		Balance: func() money.Money { m, _ := money.NewMoneyFromSmallestUnit(10000, currency.Code("USD")); return m }(),
 	}
 	req := &OperationRequest{
-		UserID:         userID, // Use the same user ID
+		UserID:         userID,
 		Operation:      OperationWithdraw,
-		ConvertedMoney: money,
+		ConvertedMoney: moneyVal,
 		Account:        account,
 	}
-	handler := &DomainOperationHandler{
+	handler := &WithdrawOperationHandler{
 		logger: logger,
 	}
 	resp, err := handler.Handle(context.Background(), req)
@@ -303,18 +303,38 @@ func TestDomainOperationHandler_Handle_Withdraw(t *testing.T) {
 	assert.Equal(t, account.ID, req.Transaction.AccountID)
 }
 
-func TestDomainOperationHandler_Handle_UnsupportedOperation(t *testing.T) {
+// Test TransferOperationHandler
+func TestTransferOperationHandler_Handle_Success(t *testing.T) {
 	logger := newTestLogger()
-	req := &OperationRequest{
-		Operation: "invalid",
+	moneyVal, _ := money.New(100.0, currency.Code("USD"))
+	userID := uuid.New()
+	sourceAccount := &account.Account{
+		ID:      uuid.New(),
+		UserID:  userID,
+		Balance: func() money.Money { m, _ := money.NewMoneyFromSmallestUnit(10000, currency.Code("USD")); return m }(),
 	}
-	handler := &DomainOperationHandler{
+	destAccount := &account.Account{
+		ID:      uuid.New(),
+		UserID:  uuid.New(),
+		Balance: func() money.Money { m, _ := money.NewMoneyFromSmallestUnit(0, currency.Code("USD")); return m }(),
+	}
+	req := &OperationRequest{
+		UserID:         userID,
+		Operation:      OperationTransfer,
+		ConvertedMoney: moneyVal,
+		Account:        sourceAccount,
+		DestAccount:    destAccount,
+	}
+	handler := &TransferOperationHandler{
 		logger: logger,
 	}
 	resp, err := handler.Handle(context.Background(), req)
 	assert.NoError(t, err)
-	require.Error(t, resp.Error)
-	assert.Contains(t, resp.Error.Error(), "unsupported operation")
+	assert.NoError(t, resp.Error)
+	assert.NotNil(t, req.Transaction)
+	assert.NotNil(t, req.TransactionIn)
+	assert.Equal(t, sourceAccount.ID, req.Transaction.AccountID)
+	assert.Equal(t, destAccount.ID, req.TransactionIn.AccountID)
 }
 
 // Test PersistenceHandler
@@ -352,7 +372,7 @@ func TestPersistenceHandler_Handle_Success(t *testing.T) {
 	uow.EXPECT().TransactionRepository().Return(txRepo, nil).Once()
 
 	accountRepo.EXPECT().Update(account).Return(nil).Once()
-	txRepo.EXPECT().Create(transaction).Return(nil).Once()
+	txRepo.EXPECT().Create(transaction, mock.Anything).Return(nil).Once()
 
 	handler := &PersistenceHandler{
 		uow:    uow,
@@ -363,8 +383,6 @@ func TestPersistenceHandler_Handle_Success(t *testing.T) {
 	assert.NoError(t, resp.Error)
 	assert.Equal(t, transaction, resp.Transaction)
 	assert.Equal(t, convInfo, resp.ConvInfo)
-	assert.Equal(t, &convInfo.OriginalAmount, transaction.OriginalAmount)
-	assert.Equal(t, &convInfo.ConversionRate, transaction.ConversionRate)
 }
 
 func TestPersistenceHandler_Handle_AccountUpdateError(t *testing.T) {
@@ -401,7 +419,7 @@ func TestPersistenceHandler_Handle_AccountUpdateError(t *testing.T) {
 }
 
 // Test ChainBuilder
-func TestChainBuilder_BuildOperationChain(t *testing.T) {
+func TestChainBuilder_BuildDepositChain(t *testing.T) {
 	userID := uuid.New()
 	acc, _ := account.New().WithUserID(userID).Build()
 	uow := mocks.NewMockUnitOfWork(t)
@@ -424,12 +442,12 @@ func TestChainBuilder_BuildOperationChain(t *testing.T) {
 	uow.EXPECT().TransactionRepository().Return(transactionRepo, nil).Once()
 
 	accountRepo.EXPECT().Get(mock.Anything).Return(acc, nil).Once()
-	transactionRepo.EXPECT().Create(mock.Anything).Return(nil).Once()
+	transactionRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Once()
 	accountRepo.EXPECT().Update(acc).Return(nil).Once()
 
 	logger := newTestLogger()
 	builder := NewChainBuilder(uow, converter, logger)
-	chain := builder.BuildOperationChain()
+	chain := builder.BuildDepositChain()
 	assert.NotNil(t, chain)
 	req := &OperationRequest{
 		UserID:       userID,
@@ -441,6 +459,96 @@ func TestChainBuilder_BuildOperationChain(t *testing.T) {
 	resp, err := chain.Handle(context.Background(), req)
 	assert.NoError(t, err)
 	assert.NoError(t, resp.Error)
+}
+
+func TestChainBuilder_BuildWithdrawChain(t *testing.T) {
+	userID := uuid.New()
+	acc, _ := account.New().WithUserID(userID).WithBalance(10000).Build()
+	uow := mocks.NewMockUnitOfWork(t)
+	accountRepo := mocks.NewMockAccountRepository(t)
+	transactionRepo := mocks.NewMockTransactionRepository(t)
+	converter := mocks.NewMockCurrencyConverter(t)
+
+	// AccountRepository called once by AccountValidationHandler
+	uow.EXPECT().AccountRepository().Return(accountRepo, nil).Once()
+
+	// Do called once by PersistenceHandler
+	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).RunAndReturn(
+		func(ctx context.Context, fn func(repository.UnitOfWork) error) error {
+			return fn(uow)
+		},
+	).Once()
+
+	// Inside Do callback: AccountRepository and TransactionRepository called once each
+	uow.EXPECT().AccountRepository().Return(accountRepo, nil).Once()
+	uow.EXPECT().TransactionRepository().Return(transactionRepo, nil).Once()
+
+	accountRepo.EXPECT().Get(mock.Anything).Return(acc, nil).Once()
+	transactionRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Once()
+	accountRepo.EXPECT().Update(acc).Return(nil).Once()
+
+	logger := newTestLogger()
+	builder := NewChainBuilder(uow, converter, logger)
+	chain := builder.BuildWithdrawChain()
+	assert.NotNil(t, chain)
+	req := &OperationRequest{
+		UserID:       userID,
+		AccountID:    acc.ID,
+		Amount:       50.0,
+		CurrencyCode: currency.Code("USD"),
+		Operation:    OperationWithdraw,
+	}
+	resp, err := chain.Handle(context.Background(), req)
+	assert.NoError(t, err)
+	assert.NoError(t, resp.Error)
+}
+
+func TestChainBuilder_BuildTransferChain(t *testing.T) {
+	userID := uuid.New()
+	sourceAcc, _ := account.New().WithUserID(userID).WithBalance(10000).Build()
+	destAcc, _ := account.New().WithUserID(uuid.New()).WithBalance(0).Build()
+	uow := mocks.NewMockUnitOfWork(t)
+	accountRepo := mocks.NewMockAccountRepository(t)
+	transactionRepo := mocks.NewMockTransactionRepository(t)
+	converter := mocks.NewMockCurrencyConverter(t)
+
+	// AccountRepository called twice by TransferValidationHandler (source and dest)
+	uow.EXPECT().AccountRepository().Return(accountRepo, nil).Twice()
+
+	// Do called once by TransferPersistenceHandler
+	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).RunAndReturn(
+		func(ctx context.Context, fn func(repository.UnitOfWork) error) error {
+			return fn(uow)
+		},
+	).Once()
+
+	// Inside Do callback: AccountRepository and TransactionRepository called
+	uow.EXPECT().TransactionRepository().Return(transactionRepo, nil).Once()
+
+	accountRepo.EXPECT().Get(sourceAcc.ID).Return(sourceAcc, nil).Once()
+	accountRepo.EXPECT().Get(destAcc.ID).Return(destAcc, nil).Once()
+	transactionRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Once()
+	transactionRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Once()
+	accountRepo.EXPECT().Update(sourceAcc).Return(nil).Once()
+	accountRepo.EXPECT().Update(destAcc).Return(nil).Once()
+
+	logger := newTestLogger()
+	builder := NewChainBuilder(uow, converter, logger)
+	chain := builder.BuildTransferChain()
+	assert.NotNil(t, chain)
+	req := &OperationRequest{
+		UserID:        userID,
+		AccountID:     sourceAcc.ID,
+		DestAccountID: destAcc.ID,
+		Amount:        50.0,
+		CurrencyCode:  currency.Code("USD"),
+		Operation:     OperationTransfer,
+	}
+	resp, err := chain.Handle(context.Background(), req)
+	assert.NoError(t, err)
+	assert.NoError(t, resp.Error)
+	assert.NotNil(t, resp.TransactionOut)
+	assert.NotNil(t, resp.TransactionIn)
 }
 
 // Helper function to create a test logger

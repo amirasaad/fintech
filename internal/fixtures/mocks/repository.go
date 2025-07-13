@@ -8,6 +8,7 @@ import (
 	"context"
 
 	"github.com/amirasaad/fintech/pkg/domain"
+	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
@@ -283,16 +284,16 @@ func (_m *MockTransactionRepository) EXPECT() *MockTransactionRepository_Expecte
 }
 
 // Create provides a mock function for the type MockTransactionRepository
-func (_mock *MockTransactionRepository) Create(transaction *domain.Transaction) error {
-	ret := _mock.Called(transaction)
+func (_mock *MockTransactionRepository) Create(transaction *domain.Transaction, convInfo *common.ConversionInfo) error {
+	ret := _mock.Called(transaction, convInfo)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Create")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(*domain.Transaction) error); ok {
-		r0 = returnFunc(transaction)
+	if returnFunc, ok := ret.Get(0).(func(*domain.Transaction, *common.ConversionInfo) error); ok {
+		r0 = returnFunc(transaction, convInfo)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -306,18 +307,24 @@ type MockTransactionRepository_Create_Call struct {
 
 // Create is a helper method to define mock.On call
 //   - transaction *domain.Transaction
-func (_e *MockTransactionRepository_Expecter) Create(transaction interface{}) *MockTransactionRepository_Create_Call {
-	return &MockTransactionRepository_Create_Call{Call: _e.mock.On("Create", transaction)}
+//   - convInfo *common.ConversionInfo
+func (_e *MockTransactionRepository_Expecter) Create(transaction interface{}, convInfo interface{}) *MockTransactionRepository_Create_Call {
+	return &MockTransactionRepository_Create_Call{Call: _e.mock.On("Create", transaction, convInfo)}
 }
 
-func (_c *MockTransactionRepository_Create_Call) Run(run func(transaction *domain.Transaction)) *MockTransactionRepository_Create_Call {
+func (_c *MockTransactionRepository_Create_Call) Run(run func(transaction *domain.Transaction, convInfo *common.ConversionInfo)) *MockTransactionRepository_Create_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 *domain.Transaction
 		if args[0] != nil {
 			arg0 = args[0].(*domain.Transaction)
 		}
+		var arg1 *common.ConversionInfo
+		if args[1] != nil {
+			arg1 = args[1].(*common.ConversionInfo)
+		}
 		run(
 			arg0,
+			arg1,
 		)
 	})
 	return _c
@@ -328,7 +335,7 @@ func (_c *MockTransactionRepository_Create_Call) Return(err error) *MockTransact
 	return _c
 }
 
-func (_c *MockTransactionRepository_Create_Call) RunAndReturn(run func(transaction *domain.Transaction) error) *MockTransactionRepository_Create_Call {
+func (_c *MockTransactionRepository_Create_Call) RunAndReturn(run func(transaction *domain.Transaction, convInfo *common.ConversionInfo) error) *MockTransactionRepository_Create_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -20,7 +20,7 @@ func FuzzAccountDeposit(f *testing.F) {
 		if err != nil {
 			t.Skip()
 		}
-		money, err := money.NewMoney(amount, currency.Code(cc))
+		mon, err := money.New(amount, currency.Code(cc))
 		if err != nil {
 			t.Skip()
 		}
@@ -29,14 +29,16 @@ func FuzzAccountDeposit(f *testing.F) {
 				t.Errorf("Deposit panicked: %v (amount=%v, currency=%q)", r, amount, cc)
 			}
 		}()
-		_, _ = acc.Deposit(userID, money)
+		_, _ = acc.Deposit(userID, mon)
 		// Invariant: balance should never be negative
-		if acc.Balance < 0 {
-			t.Errorf("Account balance is negative after deposit: %d (amount=%v, currency=%q)", acc.Balance, amount, cc)
+		if notNegative, err := acc.Balance.GreaterThan(money.Zero(acc.Balance.Currency())); err != nil {
+			if !notNegative {
+				t.Errorf("Account balance is negative after deposit: %v (amount=%v, currency=%q)", acc.Balance, amount, cc)
+			}
 		}
 		// Invariant: currency format is always valid
-		if !currency.IsValidCurrencyFormat(string(acc.Currency)) {
-			t.Errorf("Account currency is invalid: %q", acc.Currency)
+		if !currency.IsValidCurrencyFormat(string(acc.Balance.Currency())) {
+			t.Errorf("Account currency is invalid: %q", acc.Balance.Currency())
 		}
 	})
 }
@@ -54,12 +56,12 @@ func FuzzAccountWithdraw(f *testing.F) {
 			t.Skip()
 		}
 		// Deposit some funds first
-		depositMoney, err := money.NewMoney(1e6, "USD")
+		depositMoney, err := money.New(1e6, "USD")
 		if err != nil {
 			t.Skip()
 		}
 		_, _ = acc.Deposit(userID, depositMoney)
-		money, err := money.NewMoney(amount, currency.Code(cc))
+		mon, err := money.New(amount, currency.Code(cc))
 		if err != nil {
 			t.Skip()
 		}
@@ -68,15 +70,17 @@ func FuzzAccountWithdraw(f *testing.F) {
 				t.Errorf("Withdraw panicked: %v (amount=%v, currency=%q)", r, amount, cc)
 			}
 		}()
-		_, _ = acc.Withdraw(userID, money)
+		_, _ = acc.Withdraw(userID, mon)
 		// Invariant: balance should never be negative
-		if acc.Balance < 0 {
-			t.Errorf("Account balance is negative after withdraw: %d (amount=%v, currency=%q)", acc.Balance, amount, cc)
+		if notNegative, err := acc.Balance.GreaterThan(money.Zero(acc.Balance.Currency())); err != nil {
+			if !notNegative {
+				t.Errorf("Account balance is negative after deposit: %v (amount=%v, currency=%q)", acc.Balance, amount, cc)
+			}
 		}
 		// Invariant: currency format is always valid
 		// Explicitly convert string to currency.Code for validation
-		if !IsValidCurrencyFormat(currency.Code(cc)) {
-			t.Errorf("Account currency is invalid: %q", acc.Currency)
+		if !currency.IsValidCurrencyFormat(string(acc.Balance.Currency())) {
+			t.Errorf("Account currency is invalid: %q", acc.Balance.Currency())
 		}
 	})
 }
