@@ -1,12 +1,14 @@
 // Package account provides business logic for account operations including creation, deposits, withdrawals, and balance inquiries.
 package account
 
-// OperationType represents the type of account operation
-type OperationType string
+import "github.com/amirasaad/fintech/pkg/handler"
 
-// Operation type constants define the types of account operations.
+// OperationType represents the type of account operation
+type OperationType = handler.OperationType
+
+// Operation type constants for backward compatibility
 const (
-	OperationDeposit  OperationType = "deposit"
-	OperationWithdraw OperationType = "withdraw"
-	OperationTransfer OperationType = "transfer"
+	OperationDeposit  = handler.OperationDeposit
+	OperationWithdraw = handler.OperationWithdraw
+	OperationTransfer = handler.OperationTransfer
 )

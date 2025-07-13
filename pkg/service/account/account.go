@@ -20,12 +20,10 @@ import (
 
 // Service provides business logic for account operations including creation, deposits, withdrawals, and balance inquiries.
 type Service struct {
-	uow           repository.UnitOfWork
-	converter     money.CurrencyConverter
-	logger        *slog.Logger
-	depositChain  OperationHandler
-	withdrawChain OperationHandler
-	transferChain OperationHandler
+	uow          repository.UnitOfWork
+	converter    money.CurrencyConverter
+	logger       *slog.Logger
+	accountChain *Chain
 }
 
 // NewAccountService creates a new Service with a UnitOfWork, CurrencyConverter, and logger.
@@ -34,14 +32,12 @@ func NewAccountService(
 	converter money.CurrencyConverter,
 	logger *slog.Logger,
 ) *Service {
-	builder := NewChainBuilder(uow, converter, logger)
+	accountChain := NewChain(uow, converter, logger)
 	return &Service{
-		uow:           uow,
-		converter:     converter,
-		logger:        logger,
-		depositChain:  builder.BuildDepositChain(),
-		withdrawChain: builder.BuildWithdrawChain(),
-		transferChain: builder.BuildTransferChain(),
+		uow:          uow,
+		converter:    converter,
+		logger:       logger,
+		accountChain: accountChain,
 	}
 }
 
@@ -183,21 +179,9 @@ func (s *Service) Deposit(
 	amount float64,
 	currencyCode currency.Code,
 ) (tx *account.Transaction, convInfo *common.ConversionInfo, err error) {
-	m, err := money.New(amount, currencyCode)
-	if err != nil {
-		return nil, nil, err
-	}
-	s.logger.Info("Deposit: starting", "userID", userID, "accountID", accountID, "amount", m.Amount(), "currency", currencyCode, "chain_nil", s.depositChain == nil)
+	s.logger.Info("Deposit: starting", "userID", userID, "accountID", accountID, "amount", amount, "currency", currencyCode)
 
-	req := &OperationRequest{
-		UserID:       userID,
-		AccountID:    accountID,
-		Amount:       amount,
-		CurrencyCode: currencyCode,
-		Operation:    OperationDeposit,
-	}
-
-	resp, err := s.depositChain.Handle(context.Background(), req)
+	resp, err := s.accountChain.Deposit(context.Background(), userID, accountID, amount, currencyCode)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -272,15 +256,7 @@ func (s *Service) Withdraw(
 	convInfo *common.ConversionInfo,
 	err error,
 ) {
-	req := &OperationRequest{
-		UserID:       userID,
-		AccountID:    accountID,
-		Amount:       amount,
-		CurrencyCode: currencyCode,
-		Operation:    OperationWithdraw,
-	}
-
-	resp, err := s.withdrawChain.Handle(context.Background(), req)
+	resp, err := s.accountChain.Withdraw(context.Background(), userID, accountID, amount, currencyCode)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -303,21 +279,9 @@ func (s *Service) Transfer(
 	txOut, txIn *account.Transaction,
 	err error,
 ) {
-	m, err := money.New(amount, currencyCode)
-	if err != nil {
-		return
-	}
-	s.logger.Info("Transfer: starting", "userID", userID, "sourceAccountID", sourceAccountID, "destAccountID", destAccountID, "amount", m.Amount(), "currency", currencyCode, "moneySource", moneySource)
-	req := &OperationRequest{
-		UserID:        userID,
-		AccountID:     sourceAccountID,
-		Amount:        amount,
-		CurrencyCode:  currencyCode,
-		Operation:     OperationTransfer,
-		DestAccountID: destAccountID,
-		DestUserID:    userID, // TODO: fetch actual dest user if needed
-	}
-	resp, err := s.transferChain.Handle(context.Background(), req)
+	s.logger.Info("Transfer: starting", "userID", userID, "sourceAccountID", sourceAccountID, "destAccountID", destAccountID, "amount", amount, "currency", currencyCode, "moneySource", moneySource)
+
+	resp, err := s.accountChain.Transfer(context.Background(), userID, sourceAccountID, destAccountID, amount, currencyCode)
 	if err != nil {
 		s.logger.Error("Transfer: chain failed", "error", err)
 		return
