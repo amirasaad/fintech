@@ -98,15 +98,19 @@ func (r *transactionRepository) Create(transaction *account.Transaction, convInf
 			CreatedAt: transaction.CreatedAt,
 			UpdatedAt: transaction.CreatedAt,
 		},
-		ID:               transaction.ID,
-		AccountID:        transaction.AccountID,
-		UserID:           transaction.UserID,
-		Amount:           transaction.Amount.Amount(),
-		Currency:         string(transaction.Amount.Currency()),
-		Balance:          transaction.Balance.Amount(),
-		OriginalAmount:   &convInfo.OriginalAmount,
-		OriginalCurrency: &convInfo.OriginalCurrency,
-		ConversionRate:   &convInfo.ConversionRate,
+		ID:        transaction.ID,
+		AccountID: transaction.AccountID,
+		UserID:    transaction.UserID,
+		Amount:    transaction.Amount.Amount(),
+		Currency:  string(transaction.Amount.Currency()),
+		Balance:   transaction.Balance.Amount(),
+	}
+
+	// Only set conversion fields if conversion info is provided
+	if convInfo != nil {
+		dbTransaction.OriginalAmount = &convInfo.OriginalAmount
+		dbTransaction.OriginalCurrency = &convInfo.OriginalCurrency
+		dbTransaction.ConversionRate = &convInfo.ConversionRate
 	}
 
 	result := r.db.Create(&dbTransaction)
