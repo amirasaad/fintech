@@ -6,7 +6,6 @@ package mocks
 
 import (
 	"context"
-	"reflect"
 
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/repository"
@@ -1027,7 +1026,7 @@ func (_c *MockUnitOfWork_Do_Call) RunAndReturn(run func(ctx context.Context, fn 
 }
 
 // GetRepository provides a mock function for the type MockUnitOfWork
-func (_mock *MockUnitOfWork) GetRepository(repoType reflect.Type) (any, error) {
+func (_mock *MockUnitOfWork) GetRepository(repoType any) (any, error) {
 	ret := _mock.Called(repoType)
 
 	if len(ret) == 0 {
@@ -1036,17 +1035,17 @@ func (_mock *MockUnitOfWork) GetRepository(repoType reflect.Type) (any, error) {
 
 	var r0 any
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(reflect.Type) (any, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(any) (any, error)); ok {
 		return returnFunc(repoType)
 	}
-	if returnFunc, ok := ret.Get(0).(func(reflect.Type) any); ok {
+	if returnFunc, ok := ret.Get(0).(func(any) any); ok {
 		r0 = returnFunc(repoType)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(any)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(reflect.Type) error); ok {
+	if returnFunc, ok := ret.Get(1).(func(any) error); ok {
 		r1 = returnFunc(repoType)
 	} else {
 		r1 = ret.Error(1)
@@ -1060,16 +1059,16 @@ type MockUnitOfWork_GetRepository_Call struct {
 }
 
 // GetRepository is a helper method to define mock.On call
-//   - repoType reflect.Type
+//   - repoType any
 func (_e *MockUnitOfWork_Expecter) GetRepository(repoType interface{}) *MockUnitOfWork_GetRepository_Call {
 	return &MockUnitOfWork_GetRepository_Call{Call: _e.mock.On("GetRepository", repoType)}
 }
 
-func (_c *MockUnitOfWork_GetRepository_Call) Run(run func(repoType reflect.Type)) *MockUnitOfWork_GetRepository_Call {
+func (_c *MockUnitOfWork_GetRepository_Call) Run(run func(repoType any)) *MockUnitOfWork_GetRepository_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 reflect.Type
+		var arg0 any
 		if args[0] != nil {
-			arg0 = args[0].(reflect.Type)
+			arg0 = args[0].(any)
 		}
 		run(
 			arg0,
@@ -1083,7 +1082,7 @@ func (_c *MockUnitOfWork_GetRepository_Call) Return(v any, err error) *MockUnitO
 	return _c
 }
 
-func (_c *MockUnitOfWork_GetRepository_Call) RunAndReturn(run func(repoType reflect.Type) (any, error)) *MockUnitOfWork_GetRepository_Call {
+func (_c *MockUnitOfWork_GetRepository_Call) RunAndReturn(run func(repoType any) (any, error)) *MockUnitOfWork_GetRepository_Call {
 	_c.Call.Return(run)
 	return _c
 }

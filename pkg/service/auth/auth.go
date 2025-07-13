@@ -139,11 +139,10 @@ func (s *JWTAuthStrategy) Login(
 ) {
 	s.logger.Info("Login called", "identity", identity)
 	err = s.uow.Do(ctx, func(uow repository.UnitOfWork) error {
-		repoAny, err := uow.UserRepository()
+		repo, err := uow.UserRepository()
 		if err != nil {
 			return err
 		}
-		repo := repoAny.(repository.UserRepository)
 		if utils.IsEmail(identity) {
 			u, err = repo.GetByEmail(identity)
 		} else {
@@ -208,11 +207,10 @@ func (s *BasicAuthStrategy) Login(
 ) {
 	s.logger.Info("Login called", "identity", identity)
 	err = s.uow.Do(ctx, func(uow repository.UnitOfWork) error {
-		repoAny, err := uow.UserRepository()
+		repo, err := uow.UserRepository()
 		if err != nil {
 			return err
 		}
-		repo := repoAny.(repository.UserRepository)
 		if utils.IsEmail(identity) {
 			user, err = repo.GetByEmail(identity)
 		} else {
