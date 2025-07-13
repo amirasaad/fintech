@@ -2,6 +2,7 @@ package account
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"regexp"
 	"sync"
@@ -54,8 +55,8 @@ func IsValidCurrencyFormat(code currency.Code) bool {
 	return re.MatchString(string(code))
 }
 
-// accountBuilder is used to build Account instances using a fluent API.
-type accountBuilder struct {
+// Builder is used to build Account instances using a fluent API.
+type Builder struct {
 	id        uuid.UUID
 	userID    uuid.UUID
 	balance   int64
@@ -64,9 +65,9 @@ type accountBuilder struct {
 	createdAt time.Time
 }
 
-// New creates a new accountBuilder with default values.
-func New() *accountBuilder {
-	return &accountBuilder{
+// New creates a new Builder with default values.
+func New() *Builder {
+	return &Builder{
 		id:        uuid.New(),
 		currency:  currency.DefaultCurrency,
 		createdAt: time.Now(),
@@ -74,37 +75,37 @@ func New() *accountBuilder {
 }
 
 // WithUserID sets the user ID for the account.
-func (b *accountBuilder) WithUserID(userID uuid.UUID) *accountBuilder {
+func (b *Builder) WithUserID(userID uuid.UUID) *Builder {
 	b.userID = userID
 	return b
 }
 
 // WithCurrency sets the currency for the account.
-func (b *accountBuilder) WithCurrency(currencyCode currency.Code) *accountBuilder {
+func (b *Builder) WithCurrency(currencyCode currency.Code) *Builder {
 	b.currency = currencyCode
 	return b
 }
 
 // WithBalance sets the initial balance for the account (for test/data hydration only).
-func (b *accountBuilder) WithBalance(balance int64) *accountBuilder {
+func (b *Builder) WithBalance(balance int64) *Builder {
 	b.balance = balance
 	return b
 }
 
 // WithCreatedAt sets the createdAt timestamp (for test/data hydration only).
-func (b *accountBuilder) WithCreatedAt(t time.Time) *accountBuilder {
+func (b *Builder) WithCreatedAt(t time.Time) *Builder {
 	b.createdAt = t
 	return b
 }
 
 // WithUpdatedAt sets the updatedAt timestamp (for test/data hydration only).
-func (b *accountBuilder) WithUpdatedAt(t time.Time) *accountBuilder {
+func (b *Builder) WithUpdatedAt(t time.Time) *Builder {
 	b.updatedAt = t
 	return b
 }
 
 // Build validates invariants and returns a new Account instance.
-func (b *accountBuilder) Build() (*Account, error) {
+func (b *Builder) Build() (*Account, error) {
 	if !currency.IsValidCurrencyFormat(string(b.currency)) {
 		return nil, common.ErrInvalidCurrencyCode
 	}
@@ -122,12 +123,14 @@ func (b *accountBuilder) Build() (*Account, error) {
 	}, nil
 }
 
+// NewAccount creates a new Account for the given user ID.
 // Deprecated: Use New().WithUserID(...).WithCurrency(...).Build() instead.
 func NewAccount(userID uuid.UUID) (acc *Account) {
 	acc, _ = New().WithUserID(userID).Build()
 	return
 }
 
+// NewAccountWithCurrency creates a new Account for the given user ID and currency.
 // Deprecated: Use New().WithUserID(...).WithCurrency(...).Build() instead.
 func NewAccountWithCurrency(userID uuid.UUID, currencyCode currency.Code) (acc *Account, err error) {
 	return New().WithUserID(userID).WithCurrency(currencyCode).Build()
@@ -308,4 +311,26 @@ func (a *Account) Withdraw(userID uuid.UUID, m money.Money) (tx *Transaction, er
 		CreatedAt: time.Now().UTC(),
 	}
 	return
+}
+
+// Transfer moves funds from this account to another account.
+func (a *Account) Transfer(initiatorUserID uuid.UUID, dest *Account, amount int64) (txIn, txOut Transaction, err error) {
+	if a == nil || dest == nil {
+		return txIn, txOut, fmt.Errorf("nil account")
+	}
+	if a.UserID != initiatorUserID {
+		return txIn, txOut, fmt.Errorf("not owner")
+	}
+	if amount <= 0 {
+		return txIn, txOut, fmt.Errorf("amount must be positive")
+	}
+	if a.Currency != dest.Currency {
+		return txIn, txOut, fmt.Errorf("currency mismatch")
+	}
+	if a.Balance < amount {
+		return txIn, txOut, fmt.Errorf("insufficient funds")
+	}
+	a.Balance -= amount
+	dest.Balance += amount
+	return txIn, txOut, nil
 }
