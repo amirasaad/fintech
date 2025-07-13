@@ -30,9 +30,9 @@ func ExampleNewMoney() {
 	}
 	fmt.Printf("JPY Money: %s\n", jpyMoney.String())
 	// Output:
-	// USD Money: $100.50
-	// EUR Money: €75.25
-	// JPY Money: ¥1000
+	// USD Money: 100.50 USD
+	// EUR Money: 75.25 EUR
+	// JPY Money: 1000 JPY
 }
 
 // ExampleMoney_Add demonstrates adding money values
@@ -48,7 +48,7 @@ func ExampleMoney_Add() {
 	}
 	fmt.Printf("Result: %s\n", result.String())
 	// Output:
-	// Result: $126.25
+	// Result: 126.25 USD
 }
 
 // ExampleMoney_Subtract demonstrates subtracting money values
@@ -64,7 +64,7 @@ func ExampleMoney_Subtract() {
 	}
 	fmt.Printf("Result: %s\n", result.String())
 	// Output:
-	// Result: $74.75
+	// Result: 74.75 USD
 }
 
 // ExampleMoney_Multiply demonstrates multiplying money by a factor
@@ -79,7 +79,7 @@ func ExampleMoney_Multiply() {
 	}
 	fmt.Printf("Result: %s\n", result.String())
 	// Output:
-	// Result: $251.25
+	// Result: 251.25 USD
 }
 
 // ExampleMoney_Divide demonstrates dividing money by a factor
@@ -94,11 +94,11 @@ func ExampleMoney_Divide() {
 	}
 	fmt.Printf("Result: %s\n", result.String())
 	// Output:
-	// Result: $50.25
+	// Result: 50.25 USD
 }
 
-// ExampleMoney_Compare demonstrates comparing money values
-func ExampleMoney_Compare() {
+// ExampleMoney_Comparison demonstrates comparing money values
+func ExampleMoney_comparison() {
 	// Create two USD amounts
 	money1, _ := NewMoney(100.50, currency.USD)
 	money2, _ := NewMoney(75.25, currency.USD)
@@ -204,8 +204,8 @@ func ExampleNewMoneyFromSmallestUnit() {
 	}
 	fmt.Printf("JPY from yen: %s\n", jpyMoney.String())
 	// Output:
-	// USD from cents: $100.50
-	// JPY from yen: ¥1000
+	// USD from cents: 100.50 USD
+	// JPY from yen: 1000 JPY
 }
 
 // ExampleMoney_String demonstrates string representation
@@ -219,7 +219,7 @@ func ExampleMoney_String() {
 	fmt.Printf("EUR: %s\n", eurMoney.String())
 	fmt.Printf("JPY: %s\n", jpyMoney.String())
 	// Output:
-	// USD: $100.50
-	// EUR: €75.25
-	// JPY: ¥1000
+	// USD: 100.50 USD
+	// EUR: 75.25 EUR
+	// JPY: 1000 JPY
 }

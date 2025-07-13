@@ -2,7 +2,7 @@
 
 ## Problem Statement
 
-The original `AccountService` has significant code duplication and branching in the `Deposit` and `Withdraw` methods. Both methods follow nearly identical patterns:
+The original `AccountService` had significant code duplication and branching in the `Deposit` and `Withdraw` methods. Both methods followed nearly identical patterns:
 
 1. Get repositories from Unit of Work
 2. Retrieve account by ID
@@ -13,136 +13,160 @@ The original `AccountService` has significant code duplication and branching in 
 7. Update account
 8. Create transaction record
 
-## Refactoring Solution
+## Refactoring Solution: Chain of Responsibility Pattern
 
-### 1. Extract Common Logic
+### Overview
 
-Create a generic `processTransaction` method that handles the common flow:
+The account service has been refactored using the **Chain of Responsibility** pattern, which eliminates branching complexity and provides excellent extensibility. Each handler in the chain has a single responsibility and can either process the request or pass it to the next handler.
+
+### Architecture
+
+The refactored solution consists of:
+
+1. **OperationHandler Interface**: Defines the contract for all handlers in the chain
+2. **OperationRequest/Response**: Data structures for passing information through the chain
+3. **Specialized Handlers**: Each handling a specific aspect of the operation
+4. **ChainBuilder**: Constructs the complete operation chain
+
+### Handler Chain Structure
 
 ```go
-// TransactionOperation defines the signature for deposit/withdraw operations
-type TransactionOperation func(*account.Account, uuid.UUID, mon.Money) (*account.Transaction, error)
-
-// processTransaction handles the common logic for both deposit and withdraw operations
-func (s *AccountService) processTransaction(
-    userID, accountID uuid.UUID,
-    amount float64,
-    currencyCode currency.Code,
-    operation TransactionOperation,
-) (tx *account.Transaction, convInfo *common.ConversionInfo, err error) {
-    // Common implementation here
-}
+// The complete chain for deposit/withdraw operations:
+ValidationHandler → MoneyCreationHandler → CurrencyConversionHandler → DomainOperationHandler → PersistenceHandler
 ```
 
-### 2. Create Operation-Specific Functions
+### Individual Handlers
 
-Extract the actual deposit and withdraw logic into separate functions:
+#### 1. ValidationHandler
+
+- **Responsibility**: Validates account exists and belongs to the user
+- **Input**: UserID, AccountID
+- **Output**: Account entity or error
+
+#### 2. MoneyCreationHandler
+
+- **Responsibility**: Creates Money value object from amount and currency
+- **Input**: Amount, CurrencyCode
+- **Output**: Money object or error
+
+#### 3. CurrencyConversionHandler
+
+- **Responsibility**: Converts currency if different from account currency
+- **Input**: Money object, Account currency
+- **Output**: Converted Money object and conversion info
+
+#### 4. DomainOperationHandler
+
+- **Responsibility**: Executes the actual domain operation (deposit/withdraw)
+- **Input**: Account, Money, Operation type
+- **Output**: Transaction object
+
+#### 5. PersistenceHandler
+
+- **Responsibility**: Persists account and transaction changes
+- **Input**: Account, Transaction, Conversion info
+- **Output**: Final response with transaction and conversion info
+
+### Implementation Example
 
 ```go
-// depositOperation performs the actual deposit operation
-func (s *AccountService) depositOperation(account *account.Account, userID uuid.UUID, money mon.Money) (*account.Transaction, error) {
-    return account.Deposit(userID, money)
-}
-
-// withdrawOperation performs the actual withdraw operation
-func (s *AccountService) withdrawOperation(account *account.Account, userID uuid.UUID, money mon.Money) (*account.Transaction, error) {
-    return account.Withdraw(userID, money)
-}
-```
-
-### 3. Simplify Main Methods
-
-The main `Deposit` and `Withdraw` methods become much simpler:
-
-```go
-// Deposit adds funds to the specified account and creates a transaction record.
+// Simplified Deposit method using the chain
 func (s *AccountService) Deposit(
     userID, accountID uuid.UUID,
     amount float64,
     currencyCode currency.Code,
 ) (tx *account.Transaction, convInfo *common.ConversionInfo, err error) {
-    s.logger.Info("Deposit started", "userID", userID, "accountID", accountID, "amount", amount, "currency", currencyCode)
-    defer func() {
-        if err != nil {
-            s.logger.Error("Deposit failed", "userID", userID, "accountID", accountID, "amount", amount, "currency", currencyCode, "error", err)
-        } else {
-            s.logger.Info("Deposit successful", "userID", userID, "accountID", accountID, "amount", amount, "currency", currencyCode, "transactionID", tx.ID)
-        }
-    }()
+    req := &OperationRequest{
+        UserID:       userID,
+        AccountID:    accountID,
+        Amount:       amount,
+        CurrencyCode: currencyCode,
+        Operation:    OperationDeposit,
+    }
 
-    return s.processTransaction(userID, accountID, amount, currencyCode, s.depositOperation)
-}
+    resp, err := s.chain.Handle(context.Background(), req)
+    if err != nil {
+        return nil, nil, err
+    }
 
-// Withdraw removes funds from the specified account and creates a transaction record.
-func (s *AccountService) Withdraw(
-    userID, accountID uuid.UUID,
-    amount float64,
-    currencyCode currency.Code,
-) (tx *account.Transaction, convInfo *common.ConversionInfo, err error) {
-    s.logger.Info("Withdraw started", "userID", userID, "accountID", accountID, "amount", amount, "currency", currencyCode)
-    defer func() {
-        if err != nil {
-            s.logger.Error("Withdraw failed", "userID", userID, "accountID", accountID, "amount", amount, "currency", currencyCode, "error", err)
-        } else {
-            s.logger.Info("Withdraw successful", "userID", userID, "accountID", accountID, "amount", amount, "currency", currencyCode, "transactionID", tx.ID)
-        }
-    }()
-
-    return s.processTransaction(userID, accountID, amount, currencyCode, s.withdrawOperation)
+    return resp.Transaction, resp.ConvInfo, resp.Error
 }
 ```
 
-### 4. Extract Helper Methods
-
-Break down the `processTransaction` method into smaller, focused helper methods:
+### Chain Builder
 
 ```go
-// getRepositories retrieves the required repositories from the unit of work
-func (s *AccountService) getRepositories(uow repository.UnitOfWork) (repository.AccountRepository, repository.TransactionRepository, error)
+// ChainBuilder constructs the complete operation chain
+func (b *ChainBuilder) BuildOperationChain() OperationHandler {
+    validation := &ValidationHandler{uow: b.uow, logger: b.logger}
+    moneyCreation := &MoneyCreationHandler{logger: b.logger}
+    conversion := &CurrencyConversionHandler{converter: b.converter, logger: b.logger}
+    domainOp := &DomainOperationHandler{logger: b.logger}
+    persistence := &PersistenceHandler{uow: b.uow, logger: b.logger}
 
-// getAccount retrieves an account by ID
-func (s *AccountService) getAccount(repo repository.AccountRepository, accountID uuid.UUID) (*account.Account, error)
+    // Build the chain
+    validation.SetNext(moneyCreation)
+    moneyCreation.SetNext(conversion)
+    conversion.SetNext(domainOp)
+    domainOp.SetNext(persistence)
 
-// createMoney creates a money object from amount and currency
-func (s *AccountService) createMoney(amount float64, currencyCode currency.Code) (mon.Money, error)
-
-// convertCurrencyIfNeeded converts the money to the account's currency if different
-func (s *AccountService) convertCurrencyIfNeeded(money mon.Money, accountCurrency currency.Code, logger *slog.Logger) (mon.Money, *common.ConversionInfo, error)
-
-// storeConversionInfo stores conversion information in the transaction
-func (s *AccountService) storeConversionInfo(tx *account.Transaction, convInfo *common.ConversionInfo, logger *slog.Logger)
+    return validation
+}
 ```
 
 ## Benefits of This Refactoring
 
-### 1. **Reduced Code Duplication**
-- Common logic is centralized in `processTransaction`
-- Helper methods are reusable across different operations
+### 1. **Zero Branching Complexity**
 
-### 2. **Improved Readability**
-- Each method has a single responsibility
-- The main `Deposit` and `Withdraw` methods are now very clear about their intent
+- Each handler has a single responsibility
+- No complex conditional logic in the main service methods
+- Clear separation of concerns
 
-### 3. **Easier Testing**
-- Helper methods can be tested independently
-- Mocking becomes simpler with smaller, focused functions
+### 2. **Excellent Extensibility**
+
+- Easy to add new handlers (e.g., audit logging, notifications)
+- Easy to modify existing handlers without affecting others
+- Easy to reorder handlers or create different chains
+
+### 3. **Improved Testability**
+
+- Each handler can be tested independently
+- Mock handlers can be easily substituted
+- Clear input/output contracts
 
 ### 4. **Better Maintainability**
-- Changes to common logic only need to be made in one place
-- New transaction types can easily reuse the same pattern
 
-### 5. **Reduced Branching**
-- The complex conditional logic is broken down into smaller, more manageable pieces
-- Each helper method handles a specific concern
+- Changes to one aspect don't affect others
+- Clear data flow through the chain
+- Easy to understand and debug
 
-## Implementation Steps
+### 5. **Go Idiomatic**
 
-1. **Create the `TransactionOperation` type** to define the function signature
-2. **Extract helper methods** one by one, starting with the simplest ones
-3. **Create the `processTransaction` method** that orchestrates the common flow
-4. **Create operation-specific functions** (`depositOperation`, `withdrawOperation`)
-5. **Refactor the main methods** to use the new structure
-6. **Update tests** to reflect the new structure
+- Uses interfaces and composition
+- Follows Go patterns and conventions
+- Clean and readable code
+
+## File Structure
+
+```
+pkg/service/account/
+├── account.go          # Service definition and account creation
+├── types.go            # Common types and interfaces
+├── chain.go            # Chain of Responsibility implementation
+├── chain_test.go       # Chain tests
+├── operations.go       # Operation types and request/response
+├── queries.go          # Query operations (GetAccount, GetTransactions, GetBalance)
+└── account_test.go     # Service tests
+```
+
+## Migration Strategy
+
+The refactoring has been completed with the following approach:
+
+1. ✅ **Phase 1**: Implemented Chain of Responsibility pattern
+2. ✅ **Phase 2**: Updated all service methods to use the chain
+3. ✅ **Phase 3**: Added comprehensive tests for all handlers
+4. ✅ **Phase 4**: Removed old implementation code
 
 ## Example Usage
 
@@ -156,14 +180,33 @@ tx, convInfo, err := accountService.Deposit(userID, accountID, 100.0, currency.C
 tx, convInfo, err := accountService.Withdraw(userID, accountID, 50.0, currency.Code("USD"))
 ```
 
-## Migration Strategy
+## Adding New Handlers
 
-1. **Phase 1**: Create the new structure alongside the existing code
-2. **Phase 2**: Update tests to use the new structure
-3. **Phase 3**: Replace the old implementation with the refactored version
-4. **Phase 4**: Remove the old code
+To add a new handler (e.g., for audit logging):
 
-This approach ensures zero downtime and allows for easy rollback if issues arise.
+```go
+// AuditHandler logs all operations for audit purposes
+type AuditHandler struct {
+    BaseHandler
+    logger *slog.Logger
+}
+
+func (h *AuditHandler) Handle(ctx context.Context, req *OperationRequest) (*OperationResponse, error) {
+    h.logger.Info("Operation executed",
+        "userID", req.UserID,
+        "accountID", req.AccountID,
+        "operation", req.Operation,
+        "amount", req.Amount,
+        "currency", req.CurrencyCode)
+    
+    return h.BaseHandler.Handle(ctx, req)
+}
+
+// Add to chain in ChainBuilder
+audit := &AuditHandler{logger: b.logger}
+validation.SetNext(audit)
+audit.SetNext(moneyCreation)
+```
 
 ## Currency HTTP Requests
 
@@ -175,4 +218,4 @@ I've also created a comprehensive `currencies.http` file with all the currency A
 - **Workflow examples**: Complete currency lifecycle management
 - **Bulk operations**: Register multiple currencies
 
-The file is located at `docs/requests/currencies.http` and provides ready-to-use HTTP requests for testing all currency-related functionality. 
+The file is located at `docs/requests/currencies.http` and provides ready-to-use HTTP requests for testing all currency-related functionality.

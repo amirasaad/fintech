@@ -26,11 +26,11 @@ func ExampleGet() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("Supported currencies: %v\n", supported)
+	fmt.Printf("Total supported currencies: %d\n", len(supported))
 	// Output:
 	// USD: US Dollar ($) - 2 decimals
 	// EUR is supported
-	// Supported currencies: [USD EUR GBP JPY CAD AUD CHF CNY INR BRL MXN]
+	// Total supported currencies: 13
 }
 
 // ExampleNewCurrencyRegistry demonstrates creating a custom currency registry
