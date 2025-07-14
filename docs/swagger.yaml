@@ -6,8 +6,25 @@ definitions:
         type: number
       currency:
         type: string
+      money_source:
+        maxLength: 64
+        minLength: 2
+        type: string
     required:
     - amount
+    - money_source
+    type: object
+  account.TransferRequest:
+    properties:
+      amount:
+        type: number
+      currency:
+        type: string
+      destination_account_id:
+        type: string
+    required:
+    - amount
+    - destination_account_id
     type: object
   account.WithdrawRequest:
     properties:
@@ -160,16 +177,17 @@ paths:
     post:
       consumes:
       - application/json
-      description: Create a new account for the authenticated user
+      description: Creates a new account for the authenticated user. You can specify
+        the currency for the account. Returns the created account details.
       produces:
       - application/json
       responses:
         "201":
-          description: Created
+          description: Account created successfully
           schema:
             $ref: '#/definitions/common.Response'
         "400":
-          description: Bad Request
+          description: Invalid request
           schema:
             $ref: '#/definitions/common.ProblemDetails'
         "401":
@@ -177,11 +195,11 @@ paths:
           schema:
             $ref: '#/definitions/common.ProblemDetails'
         "429":
-          description: Too Many Requests
+          description: Too many requests
           schema:
             $ref: '#/definitions/common.ProblemDetails'
         "500":
-          description: Internal Server Error
+          description: Internal server error
           schema:
             $ref: '#/definitions/common.ProblemDetails'
       security:
@@ -193,7 +211,8 @@ paths:
     get:
       consumes:
       - application/json
-      description: Retrieve the balance of a specific account
+      description: Retrieves the current balance for the specified account. Returns
+        the balance amount and currency.
       parameters:
       - description: Account ID
         in: path
@@ -204,11 +223,11 @@ paths:
       - application/json
       responses:
         "200":
-          description: OK
+          description: Balance fetched
           schema:
             $ref: '#/definitions/common.Response'
         "400":
-          description: Bad Request
+          description: Invalid request
           schema:
             $ref: '#/definitions/common.ProblemDetails'
         "401":
@@ -216,11 +235,11 @@ paths:
           schema:
             $ref: '#/definitions/common.ProblemDetails'
         "429":
-          description: Too Many Requests
+          description: Too many requests
           schema:
             $ref: '#/definitions/common.ProblemDetails'
         "500":
-          description: Internal Server Error
+          description: Internal server error
           schema:
             $ref: '#/definitions/common.ProblemDetails'
       security:
@@ -232,14 +251,15 @@ paths:
     post:
       consumes:
       - application/json
-      description: Deposit a specified amount into the user's account
+      description: Adds funds to the specified account. Specify the amount, currency,
+        and optional money source. Returns the transaction details.
       parameters:
       - description: Account ID
         in: path
         name: id
         required: true
         type: string
-      - description: Deposit request with amount
+      - description: Deposit details
         in: body
         name: request
         required: true
@@ -249,11 +269,11 @@ paths:
       - application/json
       responses:
         "200":
-          description: OK
+          description: Deposit successful
           schema:
             $ref: '#/definitions/common.Response'
         "400":
-          description: Bad Request
+          description: Invalid request
           schema:
             $ref: '#/definitions/common.ProblemDetails'
         "401":
@@ -261,11 +281,11 @@ paths:
           schema:
             $ref: '#/definitions/common.ProblemDetails'
         "429":
-          description: Too Many Requests
+          description: Too many requests
           schema:
             $ref: '#/definitions/common.ProblemDetails'
         "500":
-          description: Internal Server Error
+          description: Internal server error
           schema:
             $ref: '#/definitions/common.ProblemDetails'
       security:
@@ -277,7 +297,8 @@ paths:
     get:
       consumes:
       - application/json
-      description: Retrieve the list of transactions for a specific account
+      description: Retrieves a list of transactions for the specified account. Returns
+        an array of transaction details.
       parameters:
       - description: Account ID
         in: path
@@ -288,11 +309,11 @@ paths:
       - application/json
       responses:
         "200":
-          description: OK
+          description: Transactions fetched
           schema:
             $ref: '#/definitions/common.Response'
         "400":
-          description: Bad Request
+          description: Invalid request
           schema:
             $ref: '#/definitions/common.ProblemDetails'
         "401":
@@ -300,11 +321,11 @@ paths:
           schema:
             $ref: '#/definitions/common.ProblemDetails'
         "429":
-          description: Too Many Requests
+          description: Too many requests
           schema:
             $ref: '#/definitions/common.ProblemDetails'
         "500":
-          description: Internal Server Error
+          description: Internal server error
           schema:
             $ref: '#/definitions/common.ProblemDetails'
       security:
@@ -312,18 +333,70 @@ paths:
       summary: Get account transactions
       tags:
       - accounts
+  /account/{id}/transfer:
+    post:
+      consumes:
+      - application/json
+      description: Transfers a specified amount from one account to another. Specify
+        the source and destination account IDs, amount, and currency. Returns the
+        transaction details.
+      parameters:
+      - description: Source Account ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Transfer details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/account.TransferRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Transfer successful
+          schema:
+            $ref: '#/definitions/common.Response'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/common.ProblemDetails'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/common.ProblemDetails'
+        "422":
+          description: Unprocessable entity
+          schema:
+            $ref: '#/definitions/common.ProblemDetails'
+        "429":
+          description: Too many requests
+          schema:
+            $ref: '#/definitions/common.ProblemDetails'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/common.ProblemDetails'
+      security:
+      - Bearer: []
+      summary: Transfer funds between accounts
+      tags:
+      - accounts
   /account/{id}/withdraw:
     post:
       consumes:
       - application/json
-      description: Withdraw a specified amount from the user's account
+      description: Withdraws a specified amount from the user's account. Specify the
+        amount and currency. Returns the transaction details.
       parameters:
       - description: Account ID
         in: path
         name: id
         required: true
         type: string
-      - description: Withdrawal request with amount
+      - description: Withdrawal details
         in: body
         name: request
         required: true
@@ -333,11 +406,11 @@ paths:
       - application/json
       responses:
         "200":
-          description: OK
+          description: Withdrawal successful
           schema:
             $ref: '#/definitions/common.Response'
         "400":
-          description: Bad Request
+          description: Invalid request
           schema:
             $ref: '#/definitions/common.ProblemDetails'
         "401":
@@ -345,11 +418,11 @@ paths:
           schema:
             $ref: '#/definitions/common.ProblemDetails'
         "429":
-          description: Too Many Requests
+          description: Too many requests
           schema:
             $ref: '#/definitions/common.ProblemDetails'
         "500":
-          description: Internal Server Error
+          description: Internal server error
           schema:
             $ref: '#/definitions/common.ProblemDetails'
       security:

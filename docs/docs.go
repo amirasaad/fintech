@@ -30,7 +30,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "Create a new account for the authenticated user",
+                "description": "Creates a new account for the authenticated user. You can specify the currency for the account. Returns the created account details.",
                 "consumes": [
                     "application/json"
                 ],
@@ -43,13 +43,13 @@ const docTemplate = `{
                 "summary": "Create a new account",
                 "responses": {
                     "201": {
-                        "description": "Created",
+                        "description": "Account created successfully",
                         "schema": {
                             "$ref": "#/definitions/common.Response"
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Invalid request",
                         "schema": {
                             "$ref": "#/definitions/common.ProblemDetails"
                         }
@@ -61,13 +61,13 @@ const docTemplate = `{
                         }
                     },
                     "429": {
-                        "description": "Too Many Requests",
+                        "description": "Too many requests",
                         "schema": {
                             "$ref": "#/definitions/common.ProblemDetails"
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/common.ProblemDetails"
                         }
@@ -82,7 +82,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "Retrieve the balance of a specific account",
+                "description": "Retrieves the current balance for the specified account. Returns the balance amount and currency.",
                 "consumes": [
                     "application/json"
                 ],
@@ -104,13 +104,13 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Balance fetched",
                         "schema": {
                             "$ref": "#/definitions/common.Response"
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Invalid request",
                         "schema": {
                             "$ref": "#/definitions/common.ProblemDetails"
                         }
@@ -122,13 +122,13 @@ const docTemplate = `{
                         }
                     },
                     "429": {
-                        "description": "Too Many Requests",
+                        "description": "Too many requests",
                         "schema": {
                             "$ref": "#/definitions/common.ProblemDetails"
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/common.ProblemDetails"
                         }
@@ -143,7 +143,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "Deposit a specified amount into the user's account",
+                "description": "Adds funds to the specified account. Specify the amount, currency, and optional money source. Returns the transaction details.",
                 "consumes": [
                     "application/json"
                 ],
@@ -163,7 +163,7 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "Deposit request with amount",
+                        "description": "Deposit details",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -174,13 +174,13 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Deposit successful",
                         "schema": {
                             "$ref": "#/definitions/common.Response"
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Invalid request",
                         "schema": {
                             "$ref": "#/definitions/common.ProblemDetails"
                         }
@@ -192,13 +192,13 @@ const docTemplate = `{
                         }
                     },
                     "429": {
-                        "description": "Too Many Requests",
+                        "description": "Too many requests",
                         "schema": {
                             "$ref": "#/definitions/common.ProblemDetails"
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/common.ProblemDetails"
                         }
@@ -213,7 +213,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "Retrieve the list of transactions for a specific account",
+                "description": "Retrieves a list of transactions for the specified account. Returns an array of transaction details.",
                 "consumes": [
                     "application/json"
                 ],
@@ -235,13 +235,13 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Transactions fetched",
                         "schema": {
                             "$ref": "#/definitions/common.Response"
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Invalid request",
                         "schema": {
                             "$ref": "#/definitions/common.ProblemDetails"
                         }
@@ -253,13 +253,89 @@ const docTemplate = `{
                         }
                     },
                     "429": {
-                        "description": "Too Many Requests",
+                        "description": "Too many requests",
                         "schema": {
                             "$ref": "#/definitions/common.ProblemDetails"
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/common.ProblemDetails"
+                        }
+                    }
+                }
+            }
+        },
+        "/account/{id}/transfer": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Transfers a specified amount from one account to another. Specify the source and destination account IDs, amount, and currency. Returns the transaction details.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "accounts"
+                ],
+                "summary": "Transfer funds between accounts",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Source Account ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Transfer details",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/account.TransferRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Transfer successful",
+                        "schema": {
+                            "$ref": "#/definitions/common.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/common.ProblemDetails"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/common.ProblemDetails"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable entity",
+                        "schema": {
+                            "$ref": "#/definitions/common.ProblemDetails"
+                        }
+                    },
+                    "429": {
+                        "description": "Too many requests",
+                        "schema": {
+                            "$ref": "#/definitions/common.ProblemDetails"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/common.ProblemDetails"
                         }
@@ -274,7 +350,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "Withdraw a specified amount from the user's account",
+                "description": "Withdraws a specified amount from the user's account. Specify the amount and currency. Returns the transaction details.",
                 "consumes": [
                     "application/json"
                 ],
@@ -294,7 +370,7 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "Withdrawal request with amount",
+                        "description": "Withdrawal details",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -305,13 +381,13 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Withdrawal successful",
                         "schema": {
                             "$ref": "#/definitions/common.Response"
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Invalid request",
                         "schema": {
                             "$ref": "#/definitions/common.ProblemDetails"
                         }
@@ -323,13 +399,13 @@ const docTemplate = `{
                         }
                     },
                     "429": {
-                        "description": "Too Many Requests",
+                        "description": "Too many requests",
                         "schema": {
                             "$ref": "#/definitions/common.ProblemDetails"
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/common.ProblemDetails"
                         }
@@ -1199,13 +1275,37 @@ const docTemplate = `{
         "account.DepositRequest": {
             "type": "object",
             "required": [
-                "amount"
+                "amount",
+                "money_source"
             ],
             "properties": {
                 "amount": {
                     "type": "number"
                 },
                 "currency": {
+                    "type": "string"
+                },
+                "money_source": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "minLength": 2
+                }
+            }
+        },
+        "account.TransferRequest": {
+            "type": "object",
+            "required": [
+                "amount",
+                "destination_account_id"
+            ],
+            "properties": {
+                "amount": {
+                    "type": "number"
+                },
+                "currency": {
+                    "type": "string"
+                },
+                "destination_account_id": {
                     "type": "string"
                 }
             }

@@ -6,6 +6,8 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+// Routes registers HTTP routes for authentication operations.
+// Sets up endpoints for user login and authentication.
 func Routes(app *fiber.App, authSvc *authsvc.AuthService) {
 	app.Post("/auth/login", Login(authSvc))
 }
