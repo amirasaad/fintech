@@ -13,6 +13,7 @@ import (
 	accountdomain "github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/amirasaad/fintech/pkg/domain/user"
+	"github.com/amirasaad/fintech/pkg/handler"
 	"github.com/amirasaad/fintech/pkg/repository"
 	accountsvc "github.com/amirasaad/fintech/pkg/service/account"
 	"github.com/google/uuid"
@@ -257,7 +258,8 @@ func TestWithdraw_Success(t *testing.T) {
 	accountRepo.EXPECT().Update(acc).Return(nil)
 	transactionRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Once()
 
-	gotTx, _, err := accountsvc.NewAccountService(uow, nil, slog.Default()).Withdraw(userID, acc.ID, 50.0, currency.USD)
+	externalTarget := handler.ExternalTarget{BankAccountNumber: "1234567890"}
+	gotTx, _, err := accountsvc.NewAccountService(uow, nil, slog.Default()).Withdraw(userID, acc.ID, 50.0, currency.USD, &externalTarget)
 	require.NoError(t, err)
 	assert.NotNil(t, gotTx)
 	balance, _ := acc.GetBalance(userID)
@@ -275,7 +277,8 @@ func TestWithdraw_InsufficientFunds(t *testing.T) {
 	accountRepo.EXPECT().Get(accountID).Return(account, nil).Once()
 
 	svc := accountsvc.NewAccountService(uow, nil, slog.Default())
-	tx, _, err := svc.Withdraw(userID, accountID, 50.0, currency.USD)
+	externalTarget := handler.ExternalTarget{BankAccountNumber: "1234567890"}
+	tx, _, err := svc.Withdraw(userID, accountID, 50.0, currency.USD, &externalTarget)
 	require.Error(t, err)
 	assert.Nil(t, tx)
 }
@@ -298,7 +301,8 @@ func TestWithdraw_UpdateError(t *testing.T) {
 	accountRepo.EXPECT().Update(mock.Anything).Return(errors.New("update error")).Once()
 
 	svc := accountsvc.NewAccountService(uow, nil, slog.Default())
-	tx, _, err := svc.Withdraw(userID, accountID, 50.0, currency.USD)
+	externalTarget := handler.ExternalTarget{BankAccountNumber: "1234567890"}
+	tx, _, err := svc.Withdraw(userID, accountID, 50.0, currency.USD, &externalTarget)
 	require.Error(t, err)
 	assert.Nil(t, tx)
 }

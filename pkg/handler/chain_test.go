@@ -292,6 +292,7 @@ func TestWithdrawOperationHandler_Handle_Success(t *testing.T) {
 		Operation:      OperationWithdraw,
 		ConvertedMoney: moneyVal,
 		Account:        account,
+		ExternalTarget: &ExternalTarget{BankAccountNumber: "1234567890"},
 	}
 	handler := &WithdrawOperationHandler{
 		logger: logger,
@@ -492,11 +493,12 @@ func TestChainBuilder_BuildWithdrawChain(t *testing.T) {
 	chain := builder.BuildWithdrawChain()
 	assert.NotNil(t, chain)
 	req := &OperationRequest{
-		UserID:       userID,
-		AccountID:    acc.ID,
-		Amount:       50.0,
-		CurrencyCode: currency.Code("USD"),
-		Operation:    OperationWithdraw,
+		UserID:         userID,
+		AccountID:      acc.ID,
+		Amount:         50.0,
+		CurrencyCode:   currency.Code("USD"),
+		Operation:      OperationWithdraw,
+		ExternalTarget: &ExternalTarget{BankAccountNumber: "1234567890"},
 	}
 	resp, err := chain.Handle(context.Background(), req)
 	require.NoError(t, err)

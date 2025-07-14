@@ -8,12 +8,14 @@ package account
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/amirasaad/fintech/pkg/domain/money"
+	"github.com/amirasaad/fintech/pkg/handler"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/google/uuid"
 )
@@ -194,78 +196,27 @@ func (s *Service) Deposit(
 	return resp.Transaction, resp.ConvInfo, nil
 }
 
-// Withdraw removes funds from the specified account and creates a transaction record.
-// The method supports multi-currency withdrawals with automatic currency conversion
-// when the withdrawal currency differs from the account currency.
-//
-// The operation is wrapped with automatic transaction management and includes
-// comprehensive validation, error handling, and logging.
-//
-// Key Features:
-// - Multi-currency support with real-time conversion
-// - Automatic transaction record creation
-// - Comprehensive validation (positive amounts, valid currencies)
-// - User authorization checks
-// - Insufficient funds validation
-// - Detailed logging for observability
-//
-// Parameters:
-//   - userID: The UUID of the user making the withdrawal (must own the account)
-//   - accountID: The UUID of the account to withdraw from
-//   - amount: The amount to withdraw (must be positive)
-//   - currencyCode: The ISO 4217 currency code of the withdrawal amount
-//
-// Returns:
-//   - A pointer to the created transaction record
-//   - A pointer to conversion information (if currency conversion occurred)
-//   - An error if the operation fails
-//
-// Currency Conversion:
-// If the withdrawal currency differs from the account currency, the system will:
-// 1. Fetch real-time exchange rates from the configured provider
-// 2. Convert the amount to the account's currency
-// 3. Store conversion details for audit purposes
-// 4. Update the account balance with the converted amount
-//
-// Error Scenarios:
-// - Account not found: Returns domain.ErrAccountNotFound
-// - User not authorized: Returns domain.ErrUserUnauthorized
-// - Invalid amount: Returns domain.ErrTransactionAmountMustBePositive
-// - Invalid currency: Returns domain.ErrInvalidCurrencyCode
-// - Insufficient funds: Returns domain.ErrInsufficientFunds
-// - Conversion failure: Returns conversion service error
-//
-// Example:
-//
-//	tx, convInfo, err := service.Withdraw(userID, accountID, 50.0, currency.Code("USD"))
-//	if err != nil {
-//	    log.Error("Withdraw failed", "error", err)
-//	    return
-//	}
-//	if convInfo != nil {
-//	    log.Info("Currency conversion applied",
-//	        "originalAmount", convInfo.OriginalAmount,
-//	        "convertedAmount", convInfo.ConvertedAmount,
-//	        "rate", convInfo.ConversionRate)
-//	}
+// Withdraw removes funds from the specified account to an external target and creates a transaction record.
 func (s *Service) Withdraw(
 	userID, accountID uuid.UUID,
 	amount float64,
 	currencyCode currency.Code,
+	externalTarget *handler.ExternalTarget,
 ) (
 	tx *account.Transaction,
 	convInfo *common.ConversionInfo,
 	err error,
 ) {
-	resp, err := s.accountChain.Withdraw(context.Background(), userID, accountID, amount, currencyCode, "Internal")
+	if externalTarget == nil {
+		return nil, nil, errors.New("external target is required for withdraw")
+	}
+	resp, err := s.accountChain.WithdrawExternal(context.Background(), userID, accountID, amount, currencyCode, *externalTarget)
 	if err != nil {
 		return nil, nil, err
 	}
-
 	if resp.Error != nil {
 		return nil, nil, resp.Error
 	}
-
 	return resp.Transaction, resp.ConvInfo, nil
 }
 

@@ -122,21 +122,21 @@ func (s *AccountTestSuite) TestWithdraw() {
 	s.Equal(fiber.StatusOK, depositResp.StatusCode)
 
 	s.Run("Withdraw successfully", func() {
-		withdrawBody := `{"amount":50,"currency":"USD"}`
+		withdrawBody := `{"amount":50,"currency":"USD","external_target":{"bank_account_number":"1234567890"}}`
 		resp := s.MakeRequest("POST", fmt.Sprintf("/account/%s/withdraw", accountID), withdrawBody, s.token)
 		defer resp.Body.Close() //nolint: errcheck
 		s.Equal(fiber.StatusOK, resp.StatusCode)
 	})
 
 	s.Run("Withdraw without auth", func() {
-		withdrawBody := `{"amount":50,"currency":"USD"}`
+		withdrawBody := `{"amount":50,"currency":"USD","external_target":{"bank_account_number":"1234567890"}}`
 		resp := s.MakeRequest("POST", fmt.Sprintf("/account/%s/withdraw", accountID), withdrawBody, "")
 		defer resp.Body.Close() //nolint: errcheck
 		s.Equal(fiber.StatusUnauthorized, resp.StatusCode)
 	})
 
 	s.Run("Withdraw insufficient funds", func() {
-		withdrawBody := `{"amount":200,"currency":"USD"}`
+		withdrawBody := `{"amount":200,"currency":"USD","external_target":{"bank_account_number":"1234567890"}}`
 		resp := s.MakeRequest("POST", fmt.Sprintf("/account/%s/withdraw", accountID), withdrawBody, s.token)
 		defer resp.Body.Close() //nolint: errcheck
 		s.Equal(fiber.StatusUnprocessableEntity, resp.StatusCode)
@@ -150,6 +150,27 @@ func (s *AccountTestSuite) TestWithdraw() {
 		s.Equal(fiber.StatusUnprocessableEntity, errorResponse.Status)
 		s.Equal("about:blank", errorResponse.Type)
 		s.NotEmpty(errorResponse.Instance)
+	})
+
+	s.Run("Withdraw successfully with external target", func() {
+		withdrawBody := `{"amount":50,"currency":"USD","external_target":{"bank_account_number":"1234567890"}}`
+		resp := s.MakeRequest("POST", fmt.Sprintf("/account/%s/withdraw", accountID), withdrawBody, s.token)
+		defer resp.Body.Close() //nolint: errcheck
+		s.Equal(fiber.StatusOK, resp.StatusCode)
+	})
+
+	s.Run("Withdraw missing external target", func() {
+		withdrawBody := `{"amount":50,"currency":"USD"}`
+		resp := s.MakeRequest("POST", fmt.Sprintf("/account/%s/withdraw", accountID), withdrawBody, s.token)
+		defer resp.Body.Close() //nolint: errcheck
+		s.Equal(fiber.StatusBadRequest, resp.StatusCode)
+	})
+
+	s.Run("Withdraw with empty external target", func() {
+		withdrawBody := `{"amount":50,"currency":"USD","external_target":{}}`
+		resp := s.MakeRequest("POST", fmt.Sprintf("/account/%s/withdraw", accountID), withdrawBody, s.token)
+		defer resp.Body.Close() //nolint: errcheck
+		s.Equal(fiber.StatusBadRequest, resp.StatusCode)
 	})
 }
 

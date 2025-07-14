@@ -39,6 +39,13 @@ type WithdrawOperationHandler struct {
 func (h *WithdrawOperationHandler) Handle(ctx context.Context, req *OperationRequest) (*OperationResponse, error) {
 	logger := h.logger.With("operation", "withdraw")
 
+	// Enforce that ExternalTarget is present for withdrawals
+	if req.ExternalTarget == nil || (req.ExternalTarget.BankAccountNumber == "" && req.ExternalTarget.RoutingNumber == "" && req.ExternalTarget.ExternalWalletAddress == "") {
+		logger.Error("WithdrawOperationHandler: missing or invalid external target")
+		return &OperationResponse{Error: account.ErrAccountNotFound}, nil // Use a more specific error if desired
+	}
+	logger.Info("WithdrawOperationHandler: external target details", "bank_account_number", req.ExternalTarget.BankAccountNumber, "routing_number", req.ExternalTarget.RoutingNumber, "external_wallet_address", req.ExternalTarget.ExternalWalletAddress)
+
 	tx, err := req.Account.Withdraw(req.UserID, req.ConvertedMoney, account.MoneySource(req.MoneySource))
 	if err != nil {
 		logger.Error("WithdrawOperationHandler failed: domain operation error", "error", err)

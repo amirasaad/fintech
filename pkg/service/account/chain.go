@@ -33,6 +33,12 @@ func (c *Chain) Withdraw(ctx context.Context, userID, accountID uuid.UUID, amoun
 	return c.chain.Withdraw(ctx, userID, accountID, amount, currencyCode, moneySource)
 }
 
+// WithdrawExternal executes a withdraw operation to an external target using the chain of responsibility pattern
+func (c *Chain) WithdrawExternal(ctx context.Context, userID, accountID uuid.UUID, amount float64, currencyCode currency.Code, externalTarget handler.ExternalTarget) (*handler.OperationResponse, error) {
+	// Add a new WithdrawExternal method to AccountChain to support this
+	return c.chain.WithdrawExternal(ctx, userID, accountID, amount, currencyCode, externalTarget)
+}
+
 // Transfer executes a transfer operation using the chain of responsibility pattern
 func (c *Chain) Transfer(ctx context.Context, userID, sourceAccountID, destAccountID uuid.UUID, amount float64, currencyCode currency.Code, moneySource string) (*handler.OperationResponse, error) {
 	return c.chain.Transfer(ctx, userID, sourceAccountID, destAccountID, amount, currencyCode, moneySource)

@@ -54,6 +54,23 @@ func (c *AccountChain) Withdraw(ctx context.Context, userID, accountID uuid.UUID
 	return chain.Handle(ctx, req)
 }
 
+// WithdrawExternal executes a withdraw operation to an external target using the chain of responsibility pattern
+func (c *AccountChain) WithdrawExternal(ctx context.Context, userID, accountID uuid.UUID, amount float64, currencyCode currency.Code, externalTarget ExternalTarget) (*OperationResponse, error) {
+	chain := c.builder.BuildWithdrawChain()
+
+	req := &OperationRequest{
+		UserID:         userID,
+		AccountID:      accountID,
+		Amount:         amount,
+		CurrencyCode:   currencyCode,
+		Operation:      OperationWithdraw,
+		MoneySource:    "External",
+		ExternalTarget: &externalTarget,
+	}
+
+	return chain.Handle(ctx, req)
+}
+
 // Transfer executes a transfer operation using the chain of responsibility pattern
 func (c *AccountChain) Transfer(ctx context.Context, userID, sourceAccountID, destAccountID uuid.UUID, amount float64, currencyCode currency.Code, moneySource string) (*OperationResponse, error) {
 	chain := c.builder.BuildTransferChain()

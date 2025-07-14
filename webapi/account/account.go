@@ -3,6 +3,7 @@ package account
 import (
 	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/currency"
+	"github.com/amirasaad/fintech/pkg/handler"
 	"github.com/amirasaad/fintech/pkg/middleware"
 	accountsvc "github.com/amirasaad/fintech/pkg/service/account"
 	authsvc "github.com/amirasaad/fintech/pkg/service/auth"
@@ -192,11 +193,20 @@ func Withdraw(
 		if input == nil {
 			return err // error response already written
 		}
+		// Validate that at least one field in ExternalTarget is present
+		if input.ExternalTarget.BankAccountNumber == "" && input.ExternalTarget.RoutingNumber == "" && input.ExternalTarget.ExternalWalletAddress == "" {
+			return common.ProblemDetailsJSON(c, "Invalid external target", nil, "At least one external target field must be provided", fiber.StatusBadRequest)
+		}
 		currencyCode := currency.Code("USD")
 		if input.Currency != "" {
 			currencyCode = currency.Code(input.Currency)
 		}
-		tx, convInfo, err := accountSvc.Withdraw(userID, accountID, input.Amount, currencyCode)
+		handlerTarget := handler.ExternalTarget{
+			BankAccountNumber:     input.ExternalTarget.BankAccountNumber,
+			RoutingNumber:         input.ExternalTarget.RoutingNumber,
+			ExternalWalletAddress: input.ExternalTarget.ExternalWalletAddress,
+		}
+		tx, convInfo, err := accountSvc.Withdraw(userID, accountID, input.Amount, currencyCode, &handlerTarget)
 		if err != nil {
 			log.Errorf("Failed to withdraw: %v", err)
 			return common.ProblemDetailsJSON(c, "Failed to withdraw", err)

@@ -15,6 +15,8 @@ import (
 	"github.com/amirasaad/fintech/infra"
 	infra_repository "github.com/amirasaad/fintech/infra/repository"
 	"github.com/amirasaad/fintech/pkg/config"
+	"github.com/amirasaad/fintech/pkg/currency"
+	"github.com/amirasaad/fintech/pkg/handler"
 	"github.com/amirasaad/fintech/pkg/service/account"
 	"github.com/amirasaad/fintech/pkg/service/auth"
 	"github.com/fatih/color"
@@ -236,7 +238,26 @@ func handleWithdraw(args []string, scv *account.Service, errorMsg, successMsg fu
 		return
 	}
 
-	account, _, err := scv.Withdraw(userID, uuid.MustParse(accountID), amount, "USD")
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Print("Bank Account Number (leave blank if not applicable): ")
+	bankAccountNumber, _ := reader.ReadString('\n')
+	bankAccountNumber = strings.TrimSpace(bankAccountNumber)
+
+	fmt.Print("Routing Number (leave blank if not applicable): ")
+	routingNumber, _ := reader.ReadString('\n')
+	routingNumber = strings.TrimSpace(routingNumber)
+
+	fmt.Print("External Wallet Address (leave blank if not applicable): ")
+	externalWalletAddress, _ := reader.ReadString('\n')
+	externalWalletAddress = strings.TrimSpace(externalWalletAddress)
+
+	externalTarget := &handler.ExternalTarget{
+		BankAccountNumber:     bankAccountNumber,
+		RoutingNumber:         routingNumber,
+		ExternalWalletAddress: externalWalletAddress,
+	}
+
+	account, _, err := scv.Withdraw(userID, uuid.MustParse(accountID), amount, currency.Code("USD"), externalTarget)
 	if err != nil {
 		fmt.Println(errorMsg("Error withdrawing:"), err)
 		return

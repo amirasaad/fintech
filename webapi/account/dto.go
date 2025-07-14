@@ -16,10 +16,18 @@ type DepositRequest struct {
 	MoneySource string  `json:"money_source" validate:"required,min=2,max=64"`
 }
 
+// ExternalTarget represents the destination for an external withdrawal, such as a bank account or wallet.
+type ExternalTarget struct {
+	BankAccountNumber     string `json:"bank_account_number,omitempty" validate:"omitempty,min=6,max=34"`
+	RoutingNumber         string `json:"routing_number,omitempty" validate:"omitempty,min=6,max=12"`
+	ExternalWalletAddress string `json:"external_wallet_address,omitempty" validate:"omitempty,min=6,max=128"`
+}
+
 // WithdrawRequest represents the request body for withdrawing funds from an account.
 type WithdrawRequest struct {
-	Amount   float64 `json:"amount" xml:"amount" form:"amount" validate:"required,gt=0"`
-	Currency string  `json:"currency" validate:"omitempty,len=3,uppercase"`
+	Amount         float64        `json:"amount" xml:"amount" form:"amount" validate:"required,gt=0"`
+	Currency       string         `json:"currency" validate:"omitempty,len=3,uppercase"`
+	ExternalTarget ExternalTarget `json:"external_target" validate:"required,dive"`
 }
 
 // TransferRequest represents the request body for transferring funds between accounts.

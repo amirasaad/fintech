@@ -26,7 +26,14 @@ type OperationHandler interface {
 	SetNext(handler OperationHandler)
 }
 
-// OperationRequest contains all the data needed for account operations
+// ExternalTarget represents the destination for an external withdrawal, such as a bank account or wallet.
+type ExternalTarget struct {
+	BankAccountNumber     string
+	RoutingNumber         string
+	ExternalWalletAddress string
+}
+
+// OperationRequest contains all the data needed for account operations.
 type OperationRequest struct {
 	UserID         uuid.UUID
 	AccountID      uuid.UUID
@@ -46,6 +53,9 @@ type OperationRequest struct {
 	DestAccount   *account.Account
 	DestUserID    uuid.UUID
 	MoneySource   string // Origin of funds for deposit (e.g., Cash, Stripe, etc.)
+
+	// For withdraw externalization
+	ExternalTarget *ExternalTarget
 }
 
 // OperationResponse contains the result of an account operation
