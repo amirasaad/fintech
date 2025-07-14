@@ -62,6 +62,11 @@ func (h *PersistenceHandler) Handle(ctx context.Context, req *OperationRequest) 
 	}, nil
 }
 
+// OperationResponse contains the result of an account operation
+// For transfers, both TransactionOut (from source) and TransactionIn (to dest) may be set.
+// Add ConvInfoOut and ConvInfoIn for transfer conversion info.
+// (This comment is for context; actual struct is in types.go)
+
 // TransferPersistenceHandler handles persistence for transfer operations
 type TransferPersistenceHandler struct {
 	BaseHandler
@@ -98,12 +103,12 @@ func (h *TransferPersistenceHandler) Handle(ctx context.Context, req *OperationR
 			return err
 		}
 
-		if err = txRepo.Create(req.Transaction, req.ConvInfo); err != nil {
+		if err = txRepo.Create(req.Transaction, req.ConvInfoOut); err != nil {
 			logger.Error("TransferPersistenceHandler failed: outgoing transaction create error", "error", err)
 			return err
 		}
 
-		if err = txRepo.Create(req.TransactionIn, nil); err != nil {
+		if err = txRepo.Create(req.TransactionIn, req.ConvInfoIn); err != nil {
 			logger.Error("TransferPersistenceHandler failed: incoming transaction create error", "error", err)
 			return err
 		}
@@ -119,6 +124,7 @@ func (h *TransferPersistenceHandler) Handle(ctx context.Context, req *OperationR
 		Transaction:    req.Transaction,
 		TransactionOut: req.Transaction,
 		TransactionIn:  req.TransactionIn,
-		ConvInfo:       req.ConvInfo,
+		ConvInfoOut:    req.ConvInfoOut,
+		ConvInfoIn:     req.ConvInfoIn,
 	}, nil
 }

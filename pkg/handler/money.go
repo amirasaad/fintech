@@ -59,7 +59,12 @@ func (h *CurrencyConversionHandler) Handle(ctx context.Context, req *OperationRe
 	}
 
 	req.ConvertedMoney = convertedMoney
-	req.ConvInfo = convInfo
+	if req.Operation == OperationTransfer {
+		req.ConvInfoOut = convInfo
+		req.ConvInfoIn = convInfo
+	} else {
+		req.ConvInfo = convInfo
+	}
 	logger.Info("CurrencyConversionHandler: conversion completed", "rate", convInfo.ConversionRate)
 
 	return h.BaseHandler.Handle(ctx, req)

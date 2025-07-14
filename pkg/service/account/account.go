@@ -277,6 +277,7 @@ func (s *Service) Transfer(
 	currencyCode currency.Code,
 ) (
 	txOut, txIn *account.Transaction,
+	convInfo *common.ConversionInfo,
 	err error,
 ) {
 	s.logger.Info("Transfer: starting", "userID", userID, "sourceAccountID", sourceAccountID, "destAccountID", destAccountID, "amount", amount, "currency", currencyCode)
@@ -293,5 +294,10 @@ func (s *Service) Transfer(
 	}
 	txOut = resp.TransactionOut
 	txIn = resp.TransactionIn
-	return txOut, txIn, nil
+	if resp.ConvInfoOut != nil {
+		convInfo = resp.ConvInfoOut
+	} else if resp.ConvInfoIn != nil {
+		convInfo = resp.ConvInfoIn
+	}
+	return
 }

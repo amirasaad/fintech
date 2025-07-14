@@ -322,7 +322,7 @@ func (a *Account) Withdraw(userID uuid.UUID, m money.Money, moneySource MoneySou
 }
 
 // Transfer moves funds from this account to another account.
-func (a *Account) Transfer(initiatorUserID uuid.UUID, dest *Account, amount money.Money) (txIn, txOut *Transaction, err error) {
+func (a *Account) Transfer(initiatorUserID uuid.UUID, dest *Account, amount money.Money, moneySource MoneySource) (txIn, txOut *Transaction, err error) {
 	if a == nil || dest == nil {
 		return nil, nil, ErrNilAccount
 	}
@@ -353,20 +353,22 @@ func (a *Account) Transfer(initiatorUserID uuid.UUID, dest *Account, amount mone
 	a.Balance = nb
 	dest.Balance = db
 	txOut = &Transaction{
-		ID:        uuid.New(),
-		UserID:    a.UserID,
-		AccountID: a.ID,
-		Amount:    amount.Negate(),
-		Balance:   a.Balance,
-		CreatedAt: time.Now().UTC(),
+		ID:          uuid.New(),
+		UserID:      a.UserID,
+		AccountID:   a.ID,
+		Amount:      amount.Negate(),
+		Balance:     a.Balance,
+		MoneySource: moneySource, // Set to 'Internal' by caller
+		CreatedAt:   time.Now().UTC(),
 	}
 	txIn = &Transaction{
-		ID:        uuid.New(),
-		UserID:    dest.UserID,
-		AccountID: dest.ID,
-		Amount:    amount,
-		Balance:   dest.Balance,
-		CreatedAt: time.Now().UTC(),
+		ID:          uuid.New(),
+		UserID:      dest.UserID,
+		AccountID:   dest.ID,
+		Amount:      amount,
+		Balance:     dest.Balance,
+		MoneySource: moneySource, // Set to 'Internal' by caller
+		CreatedAt:   time.Now().UTC(),
 	}
 	return txIn, txOut, nil
 }

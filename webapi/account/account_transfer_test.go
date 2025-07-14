@@ -61,10 +61,18 @@ func (s *AccountTransferTestSuite) TestTransfer_Success() {
 	data, ok := transferResponse.Data.(map[string]any)
 	s.Require().True(ok, "Expected response data to be a map")
 	// Check outgoing and incoming transactions
-	_, ok = data["outgoing_transaction"]
+	outgoing, ok := data["outgoing_transaction"].(map[string]any)
 	s.True(ok, "Outgoing transaction should be present in response")
-	_, ok = data["incoming_transaction"]
+	incoming, ok := data["incoming_transaction"].(map[string]any)
 	s.True(ok, "Incoming transaction should be present in response")
+	// Assert money_source is 'Internal' for both
+	s.Equal("Internal", outgoing["money_source"], "Outgoing transaction money_source should be 'Internal'")
+	s.Equal("Internal", incoming["money_source"], "Incoming transaction money_source should be 'Internal'")
+	// Check conversion info fields (should be nil/absent for same-currency transfer)
+	_, hasOutgoingConv := data["outgoing_conversion"]
+	_, hasIncomingConv := data["incoming_conversion"]
+	s.False(hasOutgoingConv, "Outgoing conversion info should be absent for same-currency transfer")
+	s.False(hasIncomingConv, "Incoming conversion info should be absent for same-currency transfer")
 }
 
 func TestTransferE2ETestSuite(t *testing.T) {

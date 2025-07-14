@@ -510,8 +510,9 @@ func TestTransfer_Success(t *testing.T) {
 		},
 	)
 
-	txOut, txIn, err := svc.Transfer(userID, sourceAccountID, destAccountID, amount.AmountFloat(), currency.USD)
+	txOut, txIn, convInfo, err := svc.Transfer(userID, sourceAccountID, destAccountID, amount.AmountFloat(), currency.USD)
 	require.NoError(t, err)
+	assert.Nil(t, convInfo)
 	assert.NotNil(t, txOut)
 	assert.NotNil(t, txIn)
 }

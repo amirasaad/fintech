@@ -56,20 +56,20 @@ type TransactionDTO struct {
 	ConversionRate   *float64 `json:"conversion_rate,omitempty"`
 }
 
-// ConversionResponseDTO wraps a transaction and conversion details for API responses.
+// ConversionResponseDTO wraps conversion details for API responses (no transaction field for transfer response).
 type ConversionResponseDTO struct {
-	Transaction       *TransactionDTO `json:"transaction"`
-	OriginalAmount    float64         `json:"original_amount,omitempty"`
-	OriginalCurrency  string          `json:"original_currency,omitempty"`
-	ConvertedAmount   float64         `json:"converted_amount,omitempty"`
-	ConvertedCurrency string          `json:"converted_currency,omitempty"`
-	ConversionRate    float64         `json:"conversion_rate,omitempty"`
+	OriginalAmount    float64 `json:"original_amount,omitempty"`
+	OriginalCurrency  string  `json:"original_currency,omitempty"`
+	ConvertedAmount   float64 `json:"converted_amount,omitempty"`
+	ConvertedCurrency string  `json:"converted_currency,omitempty"`
+	ConversionRate    float64 `json:"conversion_rate,omitempty"`
 }
 
-// TransferResponseDTO is the API response for a transfer operation, containing both outgoing and incoming transactions.
+// TransferResponseDTO is the API response for a transfer operation, containing both transactions and a single conversion_info field (like deposit/withdraw).
 type TransferResponseDTO struct {
-	Outgoing *TransactionDTO `json:"outgoing_transaction"`
-	Incoming *TransactionDTO `json:"incoming_transaction"`
+	Outgoing       *TransactionDTO        `json:"outgoing_transaction"`
+	Incoming       *TransactionDTO        `json:"incoming_transaction"`
+	ConversionInfo *ConversionResponseDTO `json:"conversion_info,omitempty"`
 }
 
 // ToTransactionDTO maps a domain.Transaction to a TransactionDTO.
@@ -91,12 +91,10 @@ func ToTransactionDTO(tx *domain.Transaction) *TransactionDTO {
 	return dto
 }
 
-// ToConversionResponseDTO maps a transaction and conversion info to a ConversionResponseDTO.
-func ToConversionResponseDTO(tx *domain.Transaction, convInfo *domain.ConversionInfo) *ConversionResponseDTO {
-	// If conversion info is provided (from service layer), use it
+// ToConversionResponseDTO maps conversion info to a ConversionResponseDTO (no transaction field).
+func ToConversionResponseDTO(_ *domain.Transaction, convInfo *domain.ConversionInfo) *ConversionResponseDTO {
 	if convInfo != nil {
 		return &ConversionResponseDTO{
-			Transaction:       ToTransactionDTO(tx),
 			OriginalAmount:    convInfo.OriginalAmount,
 			OriginalCurrency:  convInfo.OriginalCurrency,
 			ConvertedAmount:   convInfo.ConvertedAmount,
@@ -104,15 +102,19 @@ func ToConversionResponseDTO(tx *domain.Transaction, convInfo *domain.Conversion
 			ConversionRate:    convInfo.ConversionRate,
 		}
 	}
-
-	// No conversion occurred
 	return nil
 }
 
-// ToTransferResponseDTO maps domain transactions to a TransferResponseDTO.
-func ToTransferResponseDTO(txOut, txIn *domain.Transaction) *TransferResponseDTO {
-	return &TransferResponseDTO{
+// ToTransferResponseDTO maps domain transactions and conversion info to a TransferResponseDTO with a single conversion_info field.
+func ToTransferResponseDTO(txOut, txIn *domain.Transaction, convOut, convIn *domain.ConversionInfo) *TransferResponseDTO {
+	resp := &TransferResponseDTO{
 		Outgoing: ToTransactionDTO(txOut),
 		Incoming: ToTransactionDTO(txIn),
 	}
+	if convOut != nil {
+		resp.ConversionInfo = ToConversionResponseDTO(nil, convOut)
+	} else if convIn != nil {
+		resp.ConversionInfo = ToConversionResponseDTO(nil, convIn)
+	}
+	return resp
 }

@@ -124,7 +124,7 @@ func TestAccount_Transfer(t *testing.T) {
 	}
 
 	callTransfer := func(initiator uuid.UUID, source, dest *Account, amount money.Money) error {
-		_, _, err := source.Transfer(initiator, dest, amount)
+		_, _, err := source.Transfer(initiator, dest, amount, MoneySourceCard)
 		return err
 	}
 

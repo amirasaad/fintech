@@ -37,6 +37,8 @@ type OperationRequest struct {
 	Money          mon.Money
 	ConvertedMoney mon.Money
 	ConvInfo       *common.ConversionInfo
+	ConvInfoOut    *common.ConversionInfo // Outgoing (source) conversion info for transfer
+	ConvInfoIn     *common.ConversionInfo // Incoming (dest) conversion info for transfer
 	Transaction    *account.Transaction
 	TransactionIn  *account.Transaction // For transfer operations
 	// For transfer
@@ -53,5 +55,7 @@ type OperationResponse struct {
 	TransactionOut *account.Transaction // Outgoing (source) transaction for transfer
 	TransactionIn  *account.Transaction // Incoming (dest) transaction for transfer
 	ConvInfo       *common.ConversionInfo
+	ConvInfoOut    *common.ConversionInfo // Outgoing (source) conversion info for transfer
+	ConvInfoIn     *common.ConversionInfo // Incoming (dest) conversion info for transfer
 	Error          error
 }

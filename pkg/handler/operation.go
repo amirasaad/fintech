@@ -61,7 +61,7 @@ type TransferOperationHandler struct {
 func (h *TransferOperationHandler) Handle(ctx context.Context, req *OperationRequest) (*OperationResponse, error) {
 	logger := h.logger.With("operation", "transfer")
 
-	txIn, txOut, err := req.Account.Transfer(req.UserID, req.DestAccount, req.ConvertedMoney)
+	txIn, txOut, err := req.Account.Transfer(req.UserID, req.DestAccount, req.ConvertedMoney, account.MoneySourceInternal)
 	if err != nil {
 		logger.Error("TransferOperationHandler failed: domain operation error", "error", err)
 		return &OperationResponse{Error: err}, nil

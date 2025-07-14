@@ -256,12 +256,12 @@ func Transfer(accountSvc *accountsvc.Service, authSvc *authsvc.AuthService) fibe
 			currencyCode = currency.Code(input.Currency)
 		}
 		log.Infof("Transfer handler: calling service for user %s, source account %s, dest account %s, amount %v, currency %s", userID, sourceAccountID, destAccountID, input.Amount, currencyCode)
-		txOut, txIn, err := accountSvc.Transfer(userID, sourceAccountID, destAccountID, input.Amount, currencyCode)
+		txOut, txIn, convInfo, err := accountSvc.Transfer(userID, sourceAccountID, destAccountID, input.Amount, currencyCode)
 		if err != nil {
 			log.Errorf("Failed to transfer: %v", err)
 			return common.ProblemDetailsJSON(c, "Failed to transfer", err)
 		}
-		resp := ToTransferResponseDTO(txOut, txIn)
+		resp := ToTransferResponseDTO(txOut, txIn, convInfo, nil)
 		return common.SuccessResponseJSON(c, fiber.StatusOK, "Transfer successful", resp)
 	}
 }
