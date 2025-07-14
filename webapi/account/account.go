@@ -136,11 +136,11 @@ func Deposit(
 			log.Errorf("Failed to deposit: %v", err)
 			return common.ProblemDetailsJSON(c, "Failed to deposit", err)
 		}
-		if convInfo != nil {
-			resp := ToConversionResponseDTO(tx, convInfo)
-			return common.SuccessResponseJSON(c, fiber.StatusOK, "Deposit successful (converted)", resp)
+		resp := fiber.Map{
+			"transaction":     ToTransactionDTO(tx),
+			"conversion_info": ToConversionInfoDTO(convInfo),
 		}
-		return common.SuccessResponseJSON(c, fiber.StatusOK, "Deposit successful", ToTransactionDTO(tx))
+		return common.SuccessResponseJSON(c, fiber.StatusOK, "Deposit successful", resp)
 	}
 }
 
@@ -211,11 +211,11 @@ func Withdraw(
 			log.Errorf("Failed to withdraw: %v", err)
 			return common.ProblemDetailsJSON(c, "Failed to withdraw", err)
 		}
-		if convInfo != nil {
-			resp := ToConversionResponseDTO(tx, convInfo)
-			return common.SuccessResponseJSON(c, fiber.StatusOK, "Withdrawal successful (converted)", resp)
+		resp := fiber.Map{
+			"transaction":     ToTransactionDTO(tx),
+			"conversion_info": ToConversionInfoDTO(convInfo),
 		}
-		return common.SuccessResponseJSON(c, fiber.StatusOK, "Withdrawal successful", ToTransactionDTO(tx))
+		return common.SuccessResponseJSON(c, fiber.StatusOK, "Withdrawal successful", resp)
 	}
 }
 
@@ -271,7 +271,7 @@ func Transfer(accountSvc *accountsvc.Service, authSvc *authsvc.AuthService) fibe
 			log.Errorf("Failed to transfer: %v", err)
 			return common.ProblemDetailsJSON(c, "Failed to transfer", err)
 		}
-		resp := ToTransferResponseDTO(txOut, txIn, convInfo, nil)
+		resp := ToTransferResponseDTO(txOut, txIn, convInfo)
 		return common.SuccessResponseJSON(c, fiber.StatusOK, "Transfer successful", resp)
 	}
 }
@@ -318,7 +318,11 @@ func GetTransactions(
 			log.Errorf("Failed to list transactions for account ID %s: %v", id, err)
 			return common.ProblemDetailsJSON(c, "Failed to list transactions", err)
 		}
-		return common.SuccessResponseJSON(c, fiber.StatusOK, "Transactions fetched", tx)
+		dtos := make([]*TransactionDTO, 0, len(tx))
+		for _, t := range tx {
+			dtos = append(dtos, ToTransactionDTO(t))
+		}
+		return common.SuccessResponseJSON(c, fiber.StatusOK, "Transactions fetched", dtos)
 	}
 }
 

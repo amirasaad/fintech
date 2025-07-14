@@ -91,20 +91,21 @@ func NewTransactionRepository(db *gorm.DB) repository.TransactionRepository {
 	return &transactionRepository{db: db}
 }
 
-func (r *transactionRepository) Create(transaction *account.Transaction, convInfo *common.ConversionInfo) error {
+func (r *transactionRepository) Create(transaction *account.Transaction, convInfo *common.ConversionInfo, externalTargetMasked string) error {
 	// Convert domain transaction to GORM model
 	dbTransaction := Transaction{
 		Model: gorm.Model{
 			CreatedAt: transaction.CreatedAt,
 			UpdatedAt: transaction.CreatedAt,
 		},
-		ID:          transaction.ID,
-		AccountID:   transaction.AccountID,
-		UserID:      transaction.UserID,
-		Amount:      transaction.Amount.Amount(),
-		Currency:    string(transaction.Amount.Currency()),
-		Balance:     transaction.Balance.Amount(),
-		MoneySource: string(transaction.MoneySource),
+		ID:                   transaction.ID,
+		AccountID:            transaction.AccountID,
+		UserID:               transaction.UserID,
+		Amount:               transaction.Amount.Amount(),
+		Currency:             string(transaction.Amount.Currency()),
+		Balance:              transaction.Balance.Amount(),
+		MoneySource:          string(transaction.MoneySource),
+		ExternalTargetMasked: externalTargetMasked,
 	}
 
 	// Only set conversion fields if conversion info is provided

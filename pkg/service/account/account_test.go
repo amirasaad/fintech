@@ -106,7 +106,7 @@ func TestDeposit_Success(t *testing.T) {
 
 	accountRepo.EXPECT().Get(accountID).Return(account, nil).Once()
 	accountRepo.EXPECT().Update(mock.Anything).Return(nil).Once()
-	transactionRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Once()
+	transactionRepo.EXPECT().Create(mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 
 	tx, _, err := svc.Deposit(userID, accountID, 100.0, currency.USD, "Cash")
 	require.NoError(t, err)
@@ -230,7 +230,7 @@ func TestDeposit_TransactionRepoError(t *testing.T) {
 	uow.EXPECT().TransactionRepository().Return(transactionRepo, nil).Once()
 	accountRepo.EXPECT().Get(accountID).Return(account, nil).Once()
 	accountRepo.EXPECT().Update(account).Return(nil).Once()
-	transactionRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(errors.New("create error")).Once()
+	transactionRepo.EXPECT().Create(mock.Anything, mock.Anything, mock.Anything).Return(errors.New("create error")).Once()
 
 	svc := accountsvc.NewAccountService(uow, nil, slog.Default())
 	tx, _, err := svc.Deposit(userID, accountID, 100.0, currency.USD, "Cash")
@@ -256,7 +256,7 @@ func TestWithdraw_Success(t *testing.T) {
 	_, _ = acc.Deposit(userID, amount, accountdomain.MoneySourceCash)
 	accountRepo.EXPECT().Get(acc.ID).Return(acc, nil)
 	accountRepo.EXPECT().Update(acc).Return(nil)
-	transactionRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Once()
+	transactionRepo.EXPECT().Create(mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 
 	externalTarget := handler.ExternalTarget{BankAccountNumber: "1234567890"}
 	gotTx, _, err := accountsvc.NewAccountService(uow, nil, slog.Default()).Withdraw(userID, acc.ID, 50.0, currency.USD, &externalTarget)
@@ -505,7 +505,7 @@ func TestTransfer_Success(t *testing.T) {
 	uow.EXPECT().AccountRepository().Return(accountRepo, nil).Times(2) // Update source + Update dest
 	uow.EXPECT().TransactionRepository().Return(transactionRepo, nil).Once()
 	accountRepo.EXPECT().Update(mock.AnythingOfType("*account.Account")).Return(nil).Twice()
-	transactionRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Twice()
+	transactionRepo.EXPECT().Create(mock.Anything, mock.Anything, mock.Anything).Return(nil).Twice()
 
 	// Single Do call for the entire transfer operation
 	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).RunAndReturn(

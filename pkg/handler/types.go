@@ -55,7 +55,8 @@ type OperationRequest struct {
 	MoneySource   string // Origin of funds for deposit (e.g., Cash, Stripe, etc.)
 
 	// For withdraw externalization
-	ExternalTarget *ExternalTarget
+	ExternalTarget       *ExternalTarget
+	ExternalTargetMasked string // Masked version for persistence
 }
 
 // OperationResponse contains the result of an account operation

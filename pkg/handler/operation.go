@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"log/slog"
+	"strings"
 
 	"github.com/amirasaad/fintech/pkg/domain/account"
 )
@@ -35,6 +36,29 @@ type WithdrawOperationHandler struct {
 	logger *slog.Logger
 }
 
+func maskExternalTarget(target *ExternalTarget) string {
+	if target == nil {
+		return ""
+	}
+	if target.BankAccountNumber != "" {
+		return maskString(target.BankAccountNumber)
+	}
+	if target.ExternalWalletAddress != "" {
+		return maskString(target.ExternalWalletAddress)
+	}
+	if target.RoutingNumber != "" {
+		return maskString(target.RoutingNumber)
+	}
+	return ""
+}
+
+func maskString(s string) string {
+	if len(s) <= 4 {
+		return s
+	}
+	return strings.Repeat("*", len(s)-4) + s[len(s)-4:]
+}
+
 // Handle executes the withdraw domain operation
 func (h *WithdrawOperationHandler) Handle(ctx context.Context, req *OperationRequest) (*OperationResponse, error) {
 	logger := h.logger.With("operation", "withdraw")
@@ -45,6 +69,7 @@ func (h *WithdrawOperationHandler) Handle(ctx context.Context, req *OperationReq
 		return &OperationResponse{Error: account.ErrAccountNotFound}, nil // Use a more specific error if desired
 	}
 	logger.Info("WithdrawOperationHandler: external target details", "bank_account_number", req.ExternalTarget.BankAccountNumber, "routing_number", req.ExternalTarget.RoutingNumber, "external_wallet_address", req.ExternalTarget.ExternalWalletAddress)
+	req.ExternalTargetMasked = maskExternalTarget(req.ExternalTarget)
 
 	tx, err := req.Account.Withdraw(req.UserID, req.ConvertedMoney, account.MoneySource(req.MoneySource))
 	if err != nil {

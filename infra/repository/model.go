@@ -41,5 +41,6 @@ type Transaction struct {
 	ConversionRate   *float64 `gorm:"type:decimal(20,8)"`
 
 	// MoneySource indicates the origin of funds (e.g., Cash, BankAccount, Stripe, etc.)
-	MoneySource string `gorm:"type:varchar(64);not null;default:'Internal'"`
+	MoneySource          string `gorm:"type:varchar(64);not null;default:'Internal'"`
+	ExternalTargetMasked string `gorm:"type:varchar(128);column:external_target_masked"`
 }

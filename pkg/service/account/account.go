@@ -245,6 +245,7 @@ func (s *Service) Transfer(
 	}
 	txOut = resp.TransactionOut
 	txIn = resp.TransactionIn
+	convInfo = nil
 	if resp.ConvInfoOut != nil {
 		convInfo = resp.ConvInfoOut
 	} else if resp.ConvInfoIn != nil {

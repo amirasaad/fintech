@@ -44,7 +44,7 @@ func (h *PersistenceHandler) Handle(ctx context.Context, req *OperationRequest) 
 			return err
 		}
 
-		if err = txRepo.Create(req.Transaction, req.ConvInfo); err != nil {
+		if err = txRepo.Create(req.Transaction, req.ConvInfo, req.ExternalTargetMasked); err != nil {
 			logger.Error("PersistenceHandler failed: transaction create error", "error", err)
 			return err
 		}
@@ -103,12 +103,12 @@ func (h *TransferPersistenceHandler) Handle(ctx context.Context, req *OperationR
 			return err
 		}
 
-		if err = txRepo.Create(req.Transaction, req.ConvInfoOut); err != nil {
+		if err = txRepo.Create(req.Transaction, req.ConvInfoOut, ""); err != nil {
 			logger.Error("TransferPersistenceHandler failed: outgoing transaction create error", "error", err)
 			return err
 		}
 
-		if err = txRepo.Create(req.TransactionIn, req.ConvInfoIn); err != nil {
+		if err = txRepo.Create(req.TransactionIn, req.ConvInfoIn, ""); err != nil {
 			logger.Error("TransferPersistenceHandler failed: incoming transaction create error", "error", err)
 			return err
 		}
