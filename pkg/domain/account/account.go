@@ -2,7 +2,6 @@ package account
 
 import (
 	"errors"
-	"fmt"
 	"math"
 	"regexp"
 	"sync"
@@ -30,6 +29,15 @@ var (
 
 	// ErrAccountNotFound is returned when an account cannot be found.
 	ErrAccountNotFound = errors.New("account not found") // Account does not exist
+
+	// ErrCannotTransferToSameAccount is returned when a transfer is attempted to the same account.
+	ErrCannotTransferToSameAccount = errors.New("cannot transfer to same account")
+	// ErrNilAccount is returned when a nil account is encountered in a transfer or operation.
+	ErrNilAccount = errors.New("nil account")
+	// ErrNotOwner is returned when an operation is attempted by a non-owner.
+	ErrNotOwner = errors.New("not owner")
+	// ErrCurrencyMismatch is returned when there is a currency mismatch in an operation.
+	ErrCurrencyMismatch = errors.New("currency mismatch")
 )
 
 // Account represents a user's financial account, supporting multi-currency.
@@ -314,23 +322,23 @@ func (a *Account) Withdraw(userID uuid.UUID, m money.Money) (tx *Transaction, er
 // Transfer moves funds from this account to another account.
 func (a *Account) Transfer(initiatorUserID uuid.UUID, dest *Account, amount money.Money) (txIn, txOut *Transaction, err error) {
 	if a == nil || dest == nil {
-		return nil, nil, fmt.Errorf("nil account")
+		return nil, nil, ErrNilAccount
 	}
 	if a.ID == dest.ID {
-		return nil, nil, fmt.Errorf("cannot transfer to same account")
+		return nil, nil, ErrCannotTransferToSameAccount
 	}
 	if a.UserID != initiatorUserID {
-		return nil, nil, fmt.Errorf("not owner")
+		return nil, nil, ErrNotOwner
 	}
 	if !amount.IsPositive() {
-		return nil, nil, fmt.Errorf("amount must be positive")
+		return nil, nil, ErrTransactionAmountMustBePositive
 	}
 	if !a.Balance.IsSameCurrency(amount) || !dest.Balance.IsSameCurrency(amount) {
-		return nil, nil, fmt.Errorf("currency mismatch")
+		return nil, nil, ErrCurrencyMismatch
 	}
 	hasEnough, _ := a.Balance.GreaterThan(amount)
 	if !hasEnough && !a.Balance.Equals(amount) {
-		return nil, nil, fmt.Errorf("insufficient funds")
+		return nil, nil, ErrInsufficientFunds
 	}
 	nb, err := a.Balance.Subtract(amount)
 	if err != nil {
