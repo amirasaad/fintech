@@ -37,7 +37,8 @@ Authorization: Bearer {{login.response.body.$.data.$.token}}
 
 {
     "amount": 1000000000,
-    "currency": "JPY"
+    "currency": "JPY",
+    "money_source": "Cash"
 }
 
 ### Withdraw from account
@@ -49,6 +50,29 @@ Authorization: Bearer {{login.response.body.$.data.$.token}}
 
 {
     "amount": 100
+}
+
+
+### Create Account
+# @name destAccount
+POST {{host}}/account
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.$.data.$.token}}
+
+{
+    "currency": "USD"
+}
+
+### Transfer
+# @name transfer
+POST {{host}}/account/{{account.response.body.$.data.$.ID}}/transfer HTTP/1.1
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.$.data.$.token}}
+
+{
+    "amount": 10000,
+    "currency": "JPY",
+    "destination_account_id": "{{destAccount.response.body.$.data.$.ID}}"
 }
 
 ### List Transactions
