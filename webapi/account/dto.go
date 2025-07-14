@@ -22,6 +22,13 @@ type WithdrawRequest struct {
 	Currency string  `json:"currency" validate:"omitempty,len=3,uppercase"`
 }
 
+// TransferRequest represents the request body for transferring funds between accounts.
+type TransferRequest struct {
+	Amount               float64 `json:"amount" validate:"required,gt=0"`
+	Currency             string  `json:"currency" validate:"omitempty,len=3,uppercase,alpha"`
+	DestinationAccountID string  `json:"destination_account_id" validate:"required,uuid4"`
+}
+
 // ConversionResponse wraps a transaction and conversion details if a currency conversion occurred.
 type ConversionResponse struct {
 	Transaction       *domain.Transaction `json:"transaction"`
@@ -59,6 +66,12 @@ type ConversionResponseDTO struct {
 	ConversionRate    float64         `json:"conversion_rate,omitempty"`
 }
 
+// TransferResponseDTO is the API response for a transfer operation, containing both outgoing and incoming transactions.
+type TransferResponseDTO struct {
+	Outgoing *TransactionDTO `json:"outgoing_transaction"`
+	Incoming *TransactionDTO `json:"incoming_transaction"`
+}
+
 // ToTransactionDTO maps a domain.Transaction to a TransactionDTO.
 func ToTransactionDTO(tx *domain.Transaction) *TransactionDTO {
 	if tx == nil {
@@ -94,4 +107,12 @@ func ToConversionResponseDTO(tx *domain.Transaction, convInfo *domain.Conversion
 
 	// No conversion occurred
 	return nil
+}
+
+// ToTransferResponseDTO maps domain transactions to a TransferResponseDTO.
+func ToTransferResponseDTO(txOut, txIn *domain.Transaction) *TransferResponseDTO {
+	return &TransferResponseDTO{
+		Outgoing: ToTransactionDTO(txOut),
+		Incoming: ToTransactionDTO(txIn),
+	}
 }

@@ -31,6 +31,7 @@ func Routes(app *fiber.App, accountSvc *accountsvc.Service, authSvc *authsvc.Aut
 	app.Post("/account", middleware.JwtProtected(cfg.Jwt), CreateAccount(accountSvc, authSvc))
 	app.Post("/account/:id/deposit", middleware.JwtProtected(cfg.Jwt), Deposit(accountSvc, authSvc))
 	app.Post("/account/:id/withdraw", middleware.JwtProtected(cfg.Jwt), Withdraw(accountSvc, authSvc))
+	app.Post("/account/:id/transfer", middleware.JwtProtected(cfg.Jwt), Transfer(accountSvc, authSvc))
 	app.Get("/account/:id/balance", middleware.JwtProtected(cfg.Jwt), GetBalance(accountSvc, authSvc))
 	app.Get("/account/:id/transactions", middleware.JwtProtected(cfg.Jwt), GetTransactions(accountSvc, authSvc))
 }
@@ -209,6 +210,63 @@ func Withdraw(
 			return common.SuccessResponseJSON(c, fiber.StatusOK, "Withdrawal successful (converted)", resp)
 		}
 		return common.SuccessResponseJSON(c, fiber.StatusOK, "Withdrawal successful", ToTransactionDTO(tx))
+	}
+}
+
+// Transfer returns a Fiber handler for transferring funds between accounts.
+// @Summary Transfer funds between accounts
+// @Description Transfer a specified amount from the source account to the destination account
+// @Tags accounts
+// @Accept json
+// @Produce json
+// @Param id path string true "Source Account ID"
+// @Param request body TransferRequest true "Transfer request with amount and destination account ID"
+// @Success 200 {object} common.Response
+// @Failure 400 {object} common.ProblemDetails
+// @Failure 401 {object} common.ProblemDetails
+// @Failure 422 {object} common.ProblemDetails
+// @Failure 429 {object} common.ProblemDetails
+// @Failure 500 {object} common.ProblemDetails
+// @Router /account/{id}/transfer [post]
+// @Security Bearer
+func Transfer(accountSvc *accountsvc.Service, authSvc *authsvc.AuthService) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		log.Infof("Transfer handler: called for account %s", c.Params("id"))
+		token, ok := c.Locals("user").(*jwt.Token)
+		if !ok {
+			return common.ProblemDetailsJSON(c, "Unauthorized", nil, "missing user context")
+		}
+		userID, err := authSvc.GetCurrentUserId(token)
+		if err != nil {
+			log.Errorf("Failed to parse user ID from token: %v", err)
+			return common.ProblemDetailsJSON(c, "Invalid user ID", err)
+		}
+		sourceAccountID, err := uuid.Parse(c.Params("id"))
+		if err != nil {
+			log.Errorf("Invalid source account ID for transfer: %v", err)
+			return common.ProblemDetailsJSON(c, "Invalid account ID", err, "Account ID must be a valid UUID", fiber.StatusBadRequest)
+		}
+		input, err := common.BindAndValidate[TransferRequest](c)
+		if input == nil {
+			return err // error response already written
+		}
+		destAccountID, err := uuid.Parse(input.DestinationAccountID)
+		if err != nil {
+			log.Errorf("Invalid destination account ID for transfer: %v", err)
+			return common.ProblemDetailsJSON(c, "Invalid destination account ID", err, "Destination Account ID must be a valid UUID", fiber.StatusBadRequest)
+		}
+		currencyCode := currency.USD
+		if input.Currency != "" {
+			currencyCode = currency.Code(input.Currency)
+		}
+		log.Infof("Transfer handler: calling service for user %s, source account %s, dest account %s, amount %v, currency %s", userID, sourceAccountID, destAccountID, input.Amount, currencyCode)
+		txOut, txIn, err := accountSvc.Transfer(userID, sourceAccountID, destAccountID, input.Amount, currencyCode)
+		if err != nil {
+			log.Errorf("Failed to transfer: %v", err)
+			return common.ProblemDetailsJSON(c, "Failed to transfer", err)
+		}
+		resp := ToTransferResponseDTO(txOut, txIn)
+		return common.SuccessResponseJSON(c, fiber.StatusOK, "Transfer successful", resp)
 	}
 }
 
