@@ -129,7 +129,12 @@ func (s *E2ETestSuite) setupApp() {
 	authStrategy := auth.NewJWTAuthStrategy(uow, s.cfg.Jwt, logger)
 	authService := auth.NewAuthService(uow, authStrategy, logger)
 	currencyConverter := provider.NewStubCurrencyConverter()
-	accountSvc := account.NewAccountService(uow, currencyConverter, logger)
+	accountSvc := account.NewService(account.ServiceDeps{
+		Uow:             uow,
+		Converter:       currencyConverter,
+		Logger:          logger,
+		PaymentProvider: provider.NewMockPaymentProvider(),
+	})
 	userSvc := userservice.NewUserService(uow, logger)
 
 	// Setup currency service

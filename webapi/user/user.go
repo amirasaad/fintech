@@ -13,6 +13,8 @@ import (
 	"github.com/google/uuid"
 )
 
+// Routes registers HTTP routes for user-related operations.
+// Sets up endpoints for user creation, retrieval, update, and deletion.
 func Routes(app *fiber.App, userSvc *usersvc.UserService, authSvc *authsvc.AuthService, cfg *config.AppConfig) {
 	app.Get("/user/:id", middleware.JwtProtected(cfg.Jwt), GetUser(userSvc))
 	app.Post("/user", CreateUser(userSvc))

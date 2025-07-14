@@ -10,6 +10,7 @@ import (
 	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/currency"
 
+	"github.com/amirasaad/fintech/infra/provider"
 	infra_repository "github.com/amirasaad/fintech/infra/repository"
 
 	"github.com/amirasaad/fintech/pkg/service/account"
@@ -63,7 +64,12 @@ func handler() http.HandlerFunc {
 	uow := infra_repository.NewUoW(db)
 
 	app := webapi.NewApp(
-		account.NewAccountService(uow, currencyConverter, logger),
+		account.NewService(account.ServiceDeps{
+			Uow:             uow,
+			Converter:       currencyConverter,
+			Logger:          logger,
+			PaymentProvider: provider.NewMockPaymentProvider(),
+		}),
 		user.NewUserService(uow, logger),
 		auth.NewAuthService(uow,
 			auth.NewJWTAuthStrategy(

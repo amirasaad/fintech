@@ -29,20 +29,28 @@ var (
 
 	// ErrAccountNotFound is returned when an account cannot be found.
 	ErrAccountNotFound = errors.New("account not found") // Account does not exist
+
+	// ErrCannotTransferToSameAccount is returned when a transfer is attempted to the same account.
+	ErrCannotTransferToSameAccount = errors.New("cannot transfer to same account")
+	// ErrNilAccount is returned when a nil account is encountered in a transfer or operation.
+	ErrNilAccount = errors.New("nil account")
+	// ErrNotOwner is returned when an operation is attempted by a non-owner.
+	ErrNotOwner = errors.New("not owner")
+	// ErrCurrencyMismatch is returned when there is a currency mismatch in an operation.
+	ErrCurrencyMismatch = errors.New("currency mismatch")
 )
 
 // Account represents a user's financial account, supporting multi-currency.
 // Invariants:
 //   - Only the account owner can perform actions.
-//   - Currency must be valid and match the account’s currency.
+//   - Currency must be valid and match the account's currency.
 //   - Balance cannot overflow int64.
 //   - Balance cannot be negative.
 //   - All operations are thread-safe.
 type Account struct {
 	ID        uuid.UUID
 	UserID    uuid.UUID
-	Balance   int64         // Account balance snapshot
-	Currency  currency.Code // ISO 4217 currency code
+	Balance   money.Money // Account balance as a value object
 	UpdatedAt time.Time
 	CreatedAt time.Time
 	mu        sync.Mutex
@@ -54,8 +62,8 @@ func IsValidCurrencyFormat(code currency.Code) bool {
 	return re.MatchString(string(code))
 }
 
-// accountBuilder is used to build Account instances using a fluent API.
-type accountBuilder struct {
+// Builder is used to build Account instances using a fluent API.
+type Builder struct {
 	id        uuid.UUID
 	userID    uuid.UUID
 	balance   int64
@@ -64,9 +72,9 @@ type accountBuilder struct {
 	createdAt time.Time
 }
 
-// New creates a new accountBuilder with default values.
-func New() *accountBuilder {
-	return &accountBuilder{
+// New creates a new Builder with default values.
+func New() *Builder {
+	return &Builder{
 		id:        uuid.New(),
 		currency:  currency.DefaultCurrency,
 		createdAt: time.Now(),
@@ -74,60 +82,65 @@ func New() *accountBuilder {
 }
 
 // WithUserID sets the user ID for the account.
-func (b *accountBuilder) WithUserID(userID uuid.UUID) *accountBuilder {
+func (b *Builder) WithUserID(userID uuid.UUID) *Builder {
 	b.userID = userID
 	return b
 }
 
 // WithCurrency sets the currency for the account.
-func (b *accountBuilder) WithCurrency(currencyCode currency.Code) *accountBuilder {
+func (b *Builder) WithCurrency(currencyCode currency.Code) *Builder {
 	b.currency = currencyCode
 	return b
 }
 
 // WithBalance sets the initial balance for the account (for test/data hydration only).
-func (b *accountBuilder) WithBalance(balance int64) *accountBuilder {
+func (b *Builder) WithBalance(balance int64) *Builder {
 	b.balance = balance
 	return b
 }
 
 // WithCreatedAt sets the createdAt timestamp (for test/data hydration only).
-func (b *accountBuilder) WithCreatedAt(t time.Time) *accountBuilder {
+func (b *Builder) WithCreatedAt(t time.Time) *Builder {
 	b.createdAt = t
 	return b
 }
 
 // WithUpdatedAt sets the updatedAt timestamp (for test/data hydration only).
-func (b *accountBuilder) WithUpdatedAt(t time.Time) *accountBuilder {
+func (b *Builder) WithUpdatedAt(t time.Time) *Builder {
 	b.updatedAt = t
 	return b
 }
 
 // Build validates invariants and returns a new Account instance.
-func (b *accountBuilder) Build() (*Account, error) {
+func (b *Builder) Build() (*Account, error) {
 	if !currency.IsValidCurrencyFormat(string(b.currency)) {
 		return nil, common.ErrInvalidCurrencyCode
 	}
 	if b.userID == uuid.Nil {
 		return nil, errors.New("userID is required")
 	}
+	bal, err := money.NewMoneyFromSmallestUnit(b.balance, b.currency)
+	if err != nil {
+		return nil, err
+	}
 	return &Account{
 		ID:        b.id,
 		UserID:    b.userID,
-		Balance:   b.balance,
-		Currency:  b.currency,
+		Balance:   bal,
 		CreatedAt: b.createdAt,
 		UpdatedAt: b.updatedAt,
 		mu:        sync.Mutex{},
 	}, nil
 }
 
+// NewAccount creates a new Account for the given user ID.
 // Deprecated: Use New().WithUserID(...).WithCurrency(...).Build() instead.
 func NewAccount(userID uuid.UUID) (acc *Account) {
 	acc, _ = New().WithUserID(userID).Build()
 	return
 }
 
+// NewAccountWithCurrency creates a new Account for the given user ID and currency.
 // Deprecated: Use New().WithUserID(...).WithCurrency(...).Build() instead.
 func NewAccountWithCurrency(userID uuid.UUID, currencyCode currency.Code) (acc *Account, err error) {
 	return New().WithUserID(userID).WithCurrency(currencyCode).Build()
@@ -137,15 +150,13 @@ func NewAccountWithCurrency(userID uuid.UUID, currencyCode currency.Code) (acc *
 // This bypasses invariants and should only be used for repository hydration or tests.
 func NewAccountFromData(
 	id, userID uuid.UUID,
-	balance int64,
-	currencyCode currency.Code,
+	balance money.Money,
 	created, updated time.Time,
 ) *Account {
 	return &Account{
 		ID:        id,
 		UserID:    userID,
 		Balance:   balance,
-		Currency:  currencyCode,
 		CreatedAt: created,
 		UpdatedAt: updated,
 		mu:        sync.Mutex{},
@@ -163,12 +174,12 @@ func (a *Account) GetBalance(userID uuid.UUID) (balance float64, err error) {
 		err = user.ErrUserUnauthorized
 		return
 	}
-	meta, err := currency.Get(string(a.Currency))
+	meta, err := currency.Get(string(a.Balance.Currency()))
 	if err != nil {
 		return 0, err
 	}
 	divisor := math.Pow10(meta.Decimals)
-	balance = float64(a.Balance) / divisor
+	balance = float64(a.Balance.Amount()) / divisor
 	return
 }
 
@@ -183,7 +194,7 @@ func (a *Account) GetBalanceAsMoney(userID uuid.UUID) (m money.Money, err error)
 		err = user.ErrUserUnauthorized
 		return
 	}
-	m, err = money.NewMoneyFromSmallestUnit(a.Balance, a.Currency)
+	m = a.Balance
 	return
 }
 
@@ -195,7 +206,7 @@ func (a *Account) GetBalanceAsMoney(userID uuid.UUID) (m money.Money, err error)
 //   - Deposit must not cause integer overflow.
 //
 // Returns a Transaction or an error if any invariant is violated.
-func (a *Account) Deposit(userID uuid.UUID, m money.Money) (tx *Transaction, err error) {
+func (a *Account) Deposit(userID uuid.UUID, m money.Money, moneySource MoneySource) (tx *Transaction, err error) {
 	if a.UserID != userID {
 		err = user.ErrUserUnauthorized
 		return
@@ -208,14 +219,14 @@ func (a *Account) Deposit(userID uuid.UUID, m money.Money) (tx *Transaction, err
 		return
 	}
 
-	if string(m.Currency()) != string(a.Currency) {
+	if string(m.Currency()) != string(a.Balance.Currency()) {
 		err = common.ErrInvalidCurrencyCode
 		return
 	}
 
 	// Check for overflow before performing the addition
 	depositAmount := int64(m.Amount())
-	if depositAmount > 0 && a.Balance > 0 && depositAmount > math.MaxInt64-a.Balance {
+	if depositAmount > 0 && a.Balance.Amount() > 0 && depositAmount > math.MaxInt64-a.Balance.Amount() {
 		err = ErrDepositAmountExceedsMaxSafeInt
 		return
 	}
@@ -235,16 +246,16 @@ func (a *Account) Deposit(userID uuid.UUID, m money.Money) (tx *Transaction, err
 	}
 
 	// Update account balance
-	a.Balance = int64(newBalance.Amount())
+	a.Balance = newBalance
 
 	tx = &Transaction{
-		ID:        uuid.New(),
-		UserID:    userID,
-		AccountID: a.ID,
-		Amount:    depositAmount,
-		Currency:  m.Currency(),
-		Balance:   a.Balance,
-		CreatedAt: time.Now().UTC(),
+		ID:          uuid.New(),
+		UserID:      userID,
+		AccountID:   a.ID,
+		Amount:      m,
+		Balance:     a.Balance,
+		MoneySource: moneySource,
+		CreatedAt:   time.Now().UTC(),
 	}
 	return
 }
@@ -257,7 +268,7 @@ func (a *Account) Deposit(userID uuid.UUID, m money.Money) (tx *Transaction, err
 //   - Cannot withdraw more than the current balance.
 //
 // Returns a Transaction or an error if any invariant is violated.
-func (a *Account) Withdraw(userID uuid.UUID, m money.Money) (tx *Transaction, err error) {
+func (a *Account) Withdraw(userID uuid.UUID, m money.Money, moneySource MoneySource) (tx *Transaction, err error) {
 	if a.UserID != userID {
 		err = user.ErrUserUnauthorized
 		return
@@ -296,16 +307,68 @@ func (a *Account) Withdraw(userID uuid.UUID, m money.Money) (tx *Transaction, er
 	}
 
 	// Update account balance
-	a.Balance = int64(newBalance.Amount())
+	a.Balance = newBalance
 
 	tx = &Transaction{
-		ID:        uuid.New(),
-		UserID:    userID,
-		AccountID: a.ID,
-		Amount:    -int64(m.Amount()),
-		Currency:  m.Currency(),
-		Balance:   a.Balance,
-		CreatedAt: time.Now().UTC(),
+		ID:          uuid.New(),
+		UserID:      userID,
+		AccountID:   a.ID,
+		Amount:      m.Negate(),
+		Balance:     a.Balance,
+		MoneySource: moneySource,
+		CreatedAt:   time.Now().UTC(),
 	}
 	return
+}
+
+// Transfer moves funds from this account to another account.
+func (a *Account) Transfer(initiatorUserID uuid.UUID, dest *Account, amount money.Money, moneySource MoneySource) (txIn, txOut *Transaction, err error) {
+	if a == nil || dest == nil {
+		return nil, nil, ErrNilAccount
+	}
+	if a.ID == dest.ID {
+		return nil, nil, ErrCannotTransferToSameAccount
+	}
+	if a.UserID != initiatorUserID {
+		return nil, nil, ErrNotOwner
+	}
+	if !amount.IsPositive() {
+		return nil, nil, ErrTransactionAmountMustBePositive
+	}
+	if !a.Balance.IsSameCurrency(amount) || !dest.Balance.IsSameCurrency(amount) {
+		return nil, nil, ErrCurrencyMismatch
+	}
+	hasEnough, _ := a.Balance.GreaterThan(amount)
+	if !hasEnough && !a.Balance.Equals(amount) {
+		return nil, nil, ErrInsufficientFunds
+	}
+	nb, err := a.Balance.Subtract(amount)
+	if err != nil {
+		return nil, nil, err
+	}
+	db, err := dest.Balance.Add(amount)
+	if err != nil {
+		return nil, nil, err
+	}
+	a.Balance = nb
+	dest.Balance = db
+	txOut = &Transaction{
+		ID:          uuid.New(),
+		UserID:      a.UserID,
+		AccountID:   a.ID,
+		Amount:      amount.Negate(),
+		Balance:     a.Balance,
+		MoneySource: moneySource, // Set to 'Internal' by caller
+		CreatedAt:   time.Now().UTC(),
+	}
+	txIn = &Transaction{
+		ID:          uuid.New(),
+		UserID:      dest.UserID,
+		AccountID:   dest.ID,
+		Amount:      amount,
+		Balance:     dest.Balance,
+		MoneySource: moneySource, // Set to 'Internal' by caller
+		CreatedAt:   time.Now().UTC(),
+	}
+	return txIn, txOut, nil
 }

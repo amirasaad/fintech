@@ -221,10 +221,10 @@ func TestCurrencyValidator(t *testing.T) {
 			if tt.expectError {
 				require.Error(t, err)
 				if tt.errorType != nil {
-					assert.ErrorIs(t, err, tt.errorType)
+					require.ErrorIs(t, err, tt.errorType)
 				}
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}
@@ -651,7 +651,7 @@ func TestValidationHelpers(t *testing.T) {
 			Symbol:   "$",
 			Decimals: 2,
 		}
-		assert.NoError(t, validateCurrencyMeta(validMeta))
+		require.NoError(t, validateCurrencyMeta(validMeta))
 
 		invalidMeta := CurrencyMeta{
 			Code:     "invalid",
@@ -660,6 +660,6 @@ func TestValidationHelpers(t *testing.T) {
 			Decimals: 2,
 		}
 		require.Error(t, validateCurrencyMeta(invalidMeta))
-		assert.ErrorIs(t, validateCurrencyMeta(invalidMeta), ErrInvalidCurrencyCode)
+		require.ErrorIs(t, validateCurrencyMeta(invalidMeta), ErrInvalidCurrencyCode)
 	})
 }

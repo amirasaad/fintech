@@ -28,7 +28,7 @@ The original `Deposit` and `Withdraw` methods in `pkg/service/account/account.go
 
 **File Structure:**
 
-```
+```ascii
 pkg/service/account/
 ├── account.go          # Service definition and account creation
 ├── types.go            # Common types and interfaces
@@ -76,7 +76,7 @@ func (s *AccountService) executeOperation(req operationRequest, handler operatio
 // deposit.go
 func (s *AccountService) Deposit(userID, accountID uuid.UUID, amount float64, currencyCode currency.Code) (*account.Transaction, *common.ConversionInfo, error) {
     req := operationRequest{
-        userID: userID, accountID: accountID, amount: amount, 
+        userID: userID, accountID: accountID, amount: amount,
         currencyCode: currencyCode, operation: OperationDeposit,
     }
     result, err := s.executeOperation(req, &depositHandler{})
@@ -322,23 +322,23 @@ type AccountValidationHandler struct {
 
 func (h *AccountValidationHandler) Handle(ctx context.Context, req *OperationRequest) (*OperationResponse, error) {
     logger := h.logger.With("userID", req.UserID, "accountID", req.AccountID)
-    
+
     repoAny, err := h.uow.GetRepository(reflect.TypeOf((*repository.AccountRepository)(nil)).Elem())
     if err != nil {
         logger.Error("AccountValidationHandler failed: repository error", "error", err)
         return &OperationResponse{Error: err}, nil
     }
-    
+
     repo := repoAny.(repository.AccountRepository)
     account, err := repo.Get(req.AccountID)
     if err != nil {
         logger.Error("AccountValidationHandler failed: account not found", "error", err)
         return &OperationResponse{Error: account.ErrAccountNotFound}, nil
     }
-    
+
     req.Account = account
     logger.Info("AccountValidationHandler: account validated successfully")
-    
+
     return h.BaseHandler.Handle(ctx, req)
 }
 
@@ -350,16 +350,16 @@ type MoneyCreationHandler struct {
 
 func (h *MoneyCreationHandler) Handle(ctx context.Context, req *OperationRequest) (*OperationResponse, error) {
     logger := h.logger.With("amount", req.Amount, "currency", req.CurrencyCode)
-    
+
     money, err := mon.NewMoney(req.Amount, req.CurrencyCode)
     if err != nil {
         logger.Error("MoneyCreationHandler failed: invalid money", "error", err)
         return &OperationResponse{Error: err}, nil
     }
-    
+
     req.Money = money
     logger.Info("MoneyCreationHandler: money created successfully")
-    
+
     return h.BaseHandler.Handle(ctx, req)
 }
 
@@ -372,29 +372,29 @@ type CurrencyConversionHandler struct {
 
 func (h *CurrencyConversionHandler) Handle(ctx context.Context, req *OperationRequest) (*OperationResponse, error) {
     logger := h.logger.With("fromCurrency", req.Money.Currency(), "toCurrency", req.Account.Currency)
-    
+
     if req.Money.Currency() == req.Account.Currency {
         req.ConvertedMoney = req.Money
         logger.Info("CurrencyConversionHandler: no conversion needed")
         return h.BaseHandler.Handle(ctx, req)
     }
-    
+
     convInfo, err := h.converter.Convert(req.Money.AmountFloat(), string(req.Money.Currency()), string(req.Account.Currency))
     if err != nil {
         logger.Error("CurrencyConversionHandler failed: conversion error", "error", err)
         return &OperationResponse{Error: err}, nil
     }
-    
+
     convertedMoney, err := mon.NewMoney(convInfo.ConvertedAmount, req.Account.Currency)
     if err != nil {
         logger.Error("CurrencyConversionHandler failed: converted money creation error", "error", err)
         return &OperationResponse{Error: err}, nil
     }
-    
+
     req.ConvertedMoney = convertedMoney
     req.ConvInfo = convInfo
     logger.Info("CurrencyConversionHandler: conversion completed", "rate", convInfo.ConversionRate)
-    
+
     return h.BaseHandler.Handle(ctx, req)
 }
 
@@ -406,10 +406,10 @@ type DomainOperationHandler struct {
 
 func (h *DomainOperationHandler) Handle(ctx context.Context, req *OperationRequest) (*OperationResponse, error) {
     logger := h.logger.With("operation", req.Operation)
-    
+
     var tx *account.Transaction
     var err error
-    
+
     switch req.Operation {
     case OperationDeposit:
         tx, err = req.Account.Deposit(req.UserID, req.ConvertedMoney)
@@ -418,15 +418,15 @@ func (h *DomainOperationHandler) Handle(ctx context.Context, req *OperationReque
     default:
         err = fmt.Errorf("unsupported operation: %s", req.Operation)
     }
-    
+
     if err != nil {
         logger.Error("DomainOperationHandler failed: domain operation error", "error", err)
         return &OperationResponse{Error: err}, nil
     }
-    
+
     req.Transaction = tx
     logger.Info("DomainOperationHandler: domain operation completed", "transactionID", tx.ID)
-    
+
     return h.BaseHandler.Handle(ctx, req)
 }
 
@@ -439,40 +439,40 @@ type PersistenceHandler struct {
 
 func (h *PersistenceHandler) Handle(ctx context.Context, req *OperationRequest) (*OperationResponse, error) {
     logger := h.logger.With("transactionID", req.Transaction.ID)
-    
+
     if req.ConvInfo != nil {
         req.Transaction.OriginalAmount = &req.ConvInfo.OriginalAmount
         req.Transaction.OriginalCurrency = &req.ConvInfo.OriginalCurrency
         req.Transaction.ConversionRate = &req.ConvInfo.ConversionRate
         logger.Info("PersistenceHandler: conversion info stored")
     }
-    
+
     repoAny, err := h.uow.GetRepository(reflect.TypeOf((*repository.AccountRepository)(nil)).Elem())
     if err != nil {
         logger.Error("PersistenceHandler failed: AccountRepository error", "error", err)
         return &OperationResponse{Error: err}, nil
     }
     repo := repoAny.(repository.AccountRepository)
-    
+
     if err = repo.Update(req.Account); err != nil {
         logger.Error("PersistenceHandler failed: account update error", "error", err)
         return &OperationResponse{Error: err}, nil
     }
-    
+
     txRepoAny, err := h.uow.GetRepository(reflect.TypeOf((*repository.TransactionRepository)(nil)).Elem())
     if err != nil {
         logger.Error("PersistenceHandler failed: TransactionRepository error", "error", err)
         return &OperationResponse{Error: err}, nil
     }
     txRepo := txRepoAny.(repository.TransactionRepository)
-    
+
     if err = txRepo.Create(req.Transaction); err != nil {
         logger.Error("PersistenceHandler failed: transaction create error", "error", err)
         return &OperationResponse{Error: err}, nil
     }
-    
+
     logger.Info("PersistenceHandler: persistence completed successfully")
-    
+
     return &OperationResponse{
         Transaction: req.Transaction,
         ConvInfo:    req.ConvInfo,
@@ -499,31 +499,31 @@ func (b *ChainBuilder) BuildOperationChain() OperationHandler {
         uow:    b.uow,
         logger: b.logger,
     }
-    
+
     moneyCreation := &MoneyCreationHandler{
         logger: b.logger,
     }
-    
+
     currencyConversion := &CurrencyConversionHandler{
         converter: b.converter,
         logger:    b.logger,
     }
-    
+
     domainOperation := &DomainOperationHandler{
         logger: b.logger,
     }
-    
+
     persistence := &PersistenceHandler{
         uow:    b.uow,
         logger: b.logger,
     }
-    
+
     // Chain them together
     accountValidation.SetNext(moneyCreation)
     moneyCreation.SetNext(currencyConversion)
     currencyConversion.SetNext(domainOperation)
     domainOperation.SetNext(persistence)
-    
+
     return accountValidation
 }
 
@@ -553,12 +553,12 @@ func (s *AccountService) Deposit(userID, accountID uuid.UUID, amount float64, cu
         CurrencyCode: currencyCode,
         Operation:    OperationDeposit,
     }
-    
+
     resp, err := s.chain.Handle(context.Background(), req)
     if err != nil {
         return nil, nil, err
     }
-    
+
     return resp.Transaction, resp.ConvInfo, resp.Error
 }
 
@@ -570,12 +570,12 @@ func (s *AccountService) Withdraw(userID, accountID uuid.UUID, amount float64, c
         CurrencyCode: currencyCode,
         Operation:    OperationWithdraw,
     }
-    
+
     resp, err := s.chain.Handle(context.Background(), req)
     if err != nil {
         return nil, nil, err
     }
-    
+
     return resp.Transaction, resp.ConvInfo, resp.Error
 }
 ```
@@ -704,7 +704,7 @@ func (b *InMemoryEventBus) Publish(event Event) error {
     b.mu.RLock()
     handlers := b.handlers[event.EventType()]
     b.mu.RUnlock()
-    
+
     for _, handler := range handlers {
         if err := handler(context.Background(), event); err != nil {
             return fmt.Errorf("handler failed for event %s: %w", event.EventType(), err)
@@ -738,20 +738,20 @@ func NewAccountValidationHandler(uow repository.UnitOfWork, bus EventBus, logger
         bus:    bus,
         logger: logger,
     }
-    
+
     bus.Subscribe("AccountDepositRequested", handler.Handle)
     bus.Subscribe("AccountWithdrawalRequested", handler.Handle)
-    
+
     return handler
 }
 
 func (h *AccountValidationHandler) Handle(ctx context.Context, event Event) error {
     logger := h.logger.With("eventType", event.EventType(), "correlationID", event.CorrelationID())
-    
+
     var userID, accountID uuid.UUID
     var amount float64
     var currencyCode currency.Code
-    
+
     switch e := event.(type) {
     case AccountDepositRequested:
         userID, accountID, amount, currencyCode = e.UserID, e.AccountID, e.Amount, e.CurrencyCode
@@ -760,7 +760,7 @@ func (h *AccountValidationHandler) Handle(ctx context.Context, event Event) erro
     default:
         return fmt.Errorf("unsupported event type: %T", event)
     }
-    
+
     repoAny, err := h.uow.GetRepository(reflect.TypeOf((*repository.AccountRepository)(nil)).Elem())
     if err != nil {
         logger.Error("AccountValidationHandler failed: repository error", "error", err)
@@ -772,7 +772,7 @@ func (h *AccountValidationHandler) Handle(ctx context.Context, event Event) erro
             CorrelationID: event.CorrelationID(),
         })
     }
-    
+
     repo := repoAny.(repository.AccountRepository)
     account, err := repo.Get(accountID)
     if err != nil {
@@ -785,9 +785,9 @@ func (h *AccountValidationHandler) Handle(ctx context.Context, event Event) erro
             CorrelationID: event.CorrelationID(),
         })
     }
-    
+
     logger.Info("AccountValidationHandler: account validated successfully")
-    
+
     return h.bus.Publish(AccountValidated{
         Account:       account,
         UserID:        userID,
@@ -805,11 +805,11 @@ type AccountService struct {
 
 func NewAccountService(uow repository.UnitOfWork, converter mon.CurrencyConverter, logger *slog.Logger) *AccountService {
     bus := NewInMemoryEventBus()
-    
+
     // Initialize all handlers
     NewAccountValidationHandler(uow, bus, logger)
     // Add more handlers as needed
-    
+
     return &AccountService{
         bus:    bus,
         logger: logger,
@@ -818,7 +818,7 @@ func NewAccountService(uow repository.UnitOfWork, converter mon.CurrencyConverte
 
 func (s *AccountService) Deposit(userID, accountID uuid.UUID, amount float64, currencyCode currency.Code) (*account.Transaction, *common.ConversionInfo, error) {
     correlationID := uuid.New().String()
-    
+
     event := AccountDepositRequested{
         UserID:        userID,
         AccountID:     accountID,
@@ -827,12 +827,12 @@ func (s *AccountService) Deposit(userID, accountID uuid.UUID, amount float64, cu
         Timestamp:     time.Now(),
         CorrelationID: correlationID,
     }
-    
+
     // Publish the event
     if err := s.bus.Publish(event); err != nil {
         return nil, nil, err
     }
-    
+
     // In a real implementation, you'd need to wait for completion
     // This is a simplified version
     return nil, nil, nil
@@ -854,6 +854,35 @@ func (s *AccountService) Deposit(userID, accountID uuid.UUID, amount float64, cu
 - ❌ Transaction management difficulties
 - ❌ Error propagation complexity
 - ❌ Event correlation challenges
+
+## Mock Payment Provider Pattern
+
+The MockPaymentProvider (see infra/provider/mock_payment_provider.go) is used for simulating payment flows in tests and local development.
+
+- InitiateDeposit/InitiateWithdraw simulate async payment completion after a short delay.
+- The service polls GetPaymentStatus until PaymentCompleted is returned (see pkg/service/account/account.go).
+- This pattern is suitable for local development, integration tests, and MVPs.
+- **Not for production:** Real payment providers use webhooks or callbacks for async confirmation.
+
+### When to Use
+
+- Local development
+- Integration and E2E tests
+- MVPs or internal tools
+
+### When NOT to Use
+
+- Production payment flows
+- When integrating with real payment providers (Stripe, banks, etc.)
+
+### Migration Path
+
+For production, migrate to an event-driven model:
+
+- Initiate payment, return "pending" status
+- Listen for webhook/callback from provider
+- Update transaction status asynchronously
+- Notify user if needed
 
 ## Pattern Comparison
 

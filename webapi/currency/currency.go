@@ -10,7 +10,8 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-// Routes sets up currency-related routes
+// Routes registers HTTP routes for currency-related operations.
+// Sets up endpoints for listing, searching, and managing currencies.
 func Routes(app *fiber.App, currencySvc *currencysvc.CurrencyService, authSvc *authsvc.AuthService, cfg *config.AppConfig) {
 	currencyGroup := app.Group("/api/currencies")
 

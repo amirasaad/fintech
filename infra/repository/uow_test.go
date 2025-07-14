@@ -7,18 +7,21 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
 func TestUoW_DoAndGetRepository(t *testing.T) {
+	require := require.New(t)
+	assert := assert.New(t)
 	mockDb, mock, _ := sqlmock.New() // get the mock handle
 	dialector := postgres.New(postgres.Config{
 		Conn:       mockDb,
 		DriverName: "postgres",
 	})
 	db, err := gorm.Open(dialector, &gorm.Config{})
-	assert.NoError(t, err)
+	require.NoError(err)
 
 	uow := NewUoW(db)
 
@@ -28,54 +31,56 @@ func TestUoW_DoAndGetRepository(t *testing.T) {
 
 	err = uow.Do(context.Background(), func(txUow repository.UnitOfWork) error {
 		repoAny, err := txUow.GetRepository((*repository.AccountRepository)(nil))
-		assert.NoError(t, err)
+		require.NoError(err)
 		acctRepo := repoAny.(repository.AccountRepository)
-		assert.NotNil(t, acctRepo)
+		assert.NotNil(acctRepo)
 		_, ok := acctRepo.(*accountRepository)
-		assert.True(t, ok)
+		assert.True(ok)
 
 		repoAny, err = txUow.GetRepository((*repository.TransactionRepository)(nil))
-		assert.NoError(t, err)
+		require.NoError(err)
 		txRepo := repoAny.(repository.TransactionRepository)
-		assert.NotNil(t, txRepo)
+		assert.NotNil(txRepo)
 		_, ok = txRepo.(*transactionRepository)
-		assert.True(t, ok)
+		assert.True(ok)
 
 		repoAny, err = txUow.GetRepository((*repository.UserRepository)(nil))
-		assert.NoError(t, err)
+		require.NoError(err)
 		userRepo := repoAny.(repository.UserRepository)
-		assert.NotNil(t, userRepo)
+		assert.NotNil(userRepo)
 		_, ok = userRepo.(*userRepository)
-		assert.True(t, ok)
+		assert.True(ok)
 
 		return nil
 	})
-	assert.NoError(t, err)
+	assert.NoError(err)
 }
 
 func TestUoW_TypeSafeMethods(t *testing.T) {
+	require := require.New(t)
+	assert := assert.New(t)
 	mockDb, mock, _ := sqlmock.New()
 	dialector := postgres.New(postgres.Config{
 		Conn:       mockDb,
 		DriverName: "postgres",
 	})
 	db, err := gorm.Open(dialector, &gorm.Config{})
-	assert.NoError(t, err)
+	require.NoError(err)
 
 	uow := NewUoW(db)
 
 	// Test type-safe methods outside transaction
 	accountRepo, err := uow.AccountRepository()
-	assert.NoError(t, err)
-	assert.NotNil(t, accountRepo)
+	require.NoError(err)
+	assert.NotNil(accountRepo)
 
 	transactionRepo, err := uow.TransactionRepository()
-	assert.NoError(t, err)
-	assert.NotNil(t, transactionRepo)
+	require.NoError(err)
+	assert.NotNil(transactionRepo)
 
 	userRepo, err := uow.UserRepository()
-	assert.NoError(t, err)
-	assert.NotNil(t, userRepo)
+	require.NoError(err)
+	assert.NotNil(userRepo)
 
 	// Test type-safe methods inside transaction
 	mock.ExpectBegin()
@@ -83,18 +88,18 @@ func TestUoW_TypeSafeMethods(t *testing.T) {
 
 	err = uow.Do(context.Background(), func(txUow repository.UnitOfWork) error {
 		accountRepo, err := txUow.AccountRepository()
-		assert.NoError(t, err)
-		assert.NotNil(t, accountRepo)
+		require.NoError(err)
+		assert.NotNil(accountRepo)
 
 		transactionRepo, err := txUow.TransactionRepository()
-		assert.NoError(t, err)
-		assert.NotNil(t, transactionRepo)
+		require.NoError(err)
+		assert.NotNil(transactionRepo)
 
 		userRepo, err := txUow.UserRepository()
-		assert.NoError(t, err)
-		assert.NotNil(t, userRepo)
+		require.NoError(err)
+		assert.NotNil(userRepo)
 
 		return nil
 	})
-	assert.NoError(t, err)
+	assert.NoError(err)
 }

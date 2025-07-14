@@ -69,7 +69,7 @@ func TestJPYToUSDConversion(t *testing.T) {
 		amountJPY := 1_000_000_000.0 // 1 billion JPY
 		convInfo, err := converter.Convert(amountJPY, "JPY", "USD")
 		require.NoError(t, err)
-		usd, err := money.NewMoney(convInfo.ConvertedAmount, "USD")
+		usd, err := money.New(convInfo.ConvertedAmount, "USD")
 		require.NoError(t, err)
 		assert.Equal(t, "USD", string(usd.Currency()))
 		assert.InDelta(t, convInfo.ConvertedAmount, usd.AmountFloat(), 0.01)
@@ -79,7 +79,7 @@ func TestJPYToUSDConversion(t *testing.T) {
 		amountJPY := 6832299.83 // value that could cause float imprecision
 		convInfo, err := converter.Convert(amountJPY, "JPY", "USD")
 		require.NoError(t, err)
-		usd, err := money.NewMoney(convInfo.ConvertedAmount, "USD")
+		usd, err := money.New(convInfo.ConvertedAmount, "USD")
 		require.NoError(t, err)
 		assert.Equal(t, "USD", string(usd.Currency()))
 		// Should be rounded to 2 decimals
@@ -95,7 +95,7 @@ func TestJPYToUSDConversion(t *testing.T) {
 		require.NoError(t, err)
 		// Manually add extra decimals to simulate imprecision
 		usdAmount := convInfo.ConvertedAmount + 0.001234
-		usd, err := money.NewMoney(usdAmount, "USD")
+		usd, err := money.New(usdAmount, "USD")
 		require.NoError(t, err)
 		meta, _ := currency.Get("USD")
 		factor := math.Pow10(meta.Decimals)
@@ -106,7 +106,7 @@ func TestJPYToUSDConversion(t *testing.T) {
 	t.Run("JPY to USD conversion with zero", func(t *testing.T) {
 		convInfo, err := converter.Convert(0, "JPY", "USD")
 		require.NoError(t, err)
-		usd, err := money.NewMoney(convInfo.ConvertedAmount, "USD")
+		usd, err := money.New(convInfo.ConvertedAmount, "USD")
 		require.NoError(t, err)
 		assert.Equal(t, int64(0), usd.Amount())
 	})

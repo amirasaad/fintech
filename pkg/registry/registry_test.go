@@ -160,6 +160,9 @@ func TestGlobalFunctions(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 
+	// Reset global registry to ensure clean state
+	globalRegistry = NewRegistry()
+
 	// Test global Register function
 	Register("global1", Meta{Name: "Global 1", Active: true})
 	assert.True(IsRegistered("global1"))

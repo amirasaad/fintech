@@ -40,7 +40,7 @@ func TestCreateUser_Success(t *testing.T) {
 	)
 
 	u, err := svc.CreateUser(context.Background(), "alice", "alice@example.com", "password")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, u)
 	assert.Equal(t, "alice", u.Username)
 }
@@ -72,7 +72,7 @@ func TestGetUser_Success(t *testing.T) {
 	)
 
 	got, err := svc.GetUser(context.Background(), user.ID.String())
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, user, got)
 }
 
@@ -118,7 +118,7 @@ func TestGetUserByEmail_Success(t *testing.T) {
 	)
 
 	got, err := svc.GetUserByEmail(context.Background(), user.Email)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, user, got)
 }
 
@@ -163,7 +163,7 @@ func TestGetUserByUsername_Success(t *testing.T) {
 	)
 
 	got, err := svc.GetUserByUsername(context.Background(), user.Username)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, user, got)
 }
 
@@ -213,7 +213,7 @@ func TestUpdateUser_Success(t *testing.T) {
 		u.Username = "updated"
 		return nil
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func TestUpdateUser_RepoError(t *testing.T) {
@@ -277,7 +277,7 @@ func TestUpdateUser_CallsGetRepositoryOnce(t *testing.T) {
 		u.Username = "updated"
 		return nil
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, 1, callCount, "GetRepository should be called exactly once")
 }
 
@@ -293,7 +293,7 @@ func TestDeleteUser_Success(t *testing.T) {
 	)
 
 	err := svc.DeleteUser(context.Background(), id.String())
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func TestDeleteUser_RepoError(t *testing.T) {
@@ -323,7 +323,7 @@ func TestValidUser_True(t *testing.T) {
 	)
 
 	ok, _ := svc.ValidUser(context.Background(), id.String(), "password")
-	assert.True(t, ok)
+	require.True(t, ok)
 }
 
 func TestValidUser_False(t *testing.T) {
@@ -338,5 +338,5 @@ func TestValidUser_False(t *testing.T) {
 	)
 
 	ok, _ := svc.ValidUser(context.Background(), id.String(), "wrongpass")
-	assert.False(t, ok)
+	require.False(t, ok)
 }

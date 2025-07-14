@@ -5,6 +5,7 @@ import (
 	"gorm.io/gorm"
 )
 
+// User represents a user record in the database.
 type User struct {
 	gorm.Model
 	ID       uuid.UUID `gorm:"type:uuid;primary_key"`
@@ -14,6 +15,7 @@ type User struct {
 	Names    string    `json:"names"`
 }
 
+// Account represents an account record in the database.
 type Account struct {
 	gorm.Model
 	ID           uuid.UUID `gorm:"type:uuid;primary_key"`
@@ -23,6 +25,7 @@ type Account struct {
 	Transactions []Transaction
 }
 
+// Transaction represents a persisted financial transaction.
 type Transaction struct {
 	gorm.Model
 	ID        uuid.UUID `gorm:"type:uuid;primary_key"`
@@ -36,4 +39,8 @@ type Transaction struct {
 	OriginalAmount   *float64 `gorm:"type:decimal(20,8)"`
 	OriginalCurrency *string  `gorm:"type:varchar(3)"`
 	ConversionRate   *float64 `gorm:"type:decimal(20,8)"`
+
+	// MoneySource indicates the origin of funds (e.g., Cash, BankAccount, Stripe, etc.)
+	MoneySource          string `gorm:"type:varchar(64);not null;default:'Internal'"`
+	ExternalTargetMasked string `gorm:"type:varchar(128);column:external_target_masked"`
 }

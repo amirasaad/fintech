@@ -4,8 +4,9 @@ import (
 	"errors"
 	"time"
 
-	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/account"
+	"github.com/amirasaad/fintech/pkg/domain/common"
+	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/amirasaad/fintech/pkg/domain/user"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/amirasaad/fintech/pkg/utils"
@@ -17,12 +18,13 @@ type accountRepository struct {
 	db *gorm.DB
 }
 
+// NewAccountRepository creates a new account repository instance.
 func NewAccountRepository(db *gorm.DB) repository.AccountRepository {
 	return &accountRepository{db: db}
 }
 
 func (r *accountRepository) Get(id uuid.UUID) (*account.Account, error) {
-	var a account.Account
+	var a Account
 	result := r.db.First(&a, id)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
@@ -30,11 +32,22 @@ func (r *accountRepository) Get(id uuid.UUID) (*account.Account, error) {
 		}
 		return nil, result.Error
 	}
-	return account.NewAccountFromData(a.ID, a.UserID, a.Balance, a.Currency, a.CreatedAt, a.UpdatedAt), nil
+	accBalance := money.NewFromData(a.Balance, a.Currency)
+	return account.NewAccountFromData(a.ID, a.UserID, accBalance, a.CreatedAt, a.UpdatedAt), nil
 }
 
-func (r *accountRepository) Create(a *account.Account) error {
-	result := r.db.Create(a)
+func (r *accountRepository) Create(acc *account.Account) error {
+	a := Account{
+		Model: gorm.Model{
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		},
+		ID:       acc.ID,
+		UserID:   acc.UserID,
+		Balance:  acc.Balance.Amount(),
+		Currency: string(acc.Balance.Currency()),
+	}
+	result := r.db.Create(&a)
 	if result.Error != nil {
 		return result.Error
 	}
@@ -51,8 +64,8 @@ func (r *accountRepository) Update(a *account.Account) error {
 		},
 		ID:       a.ID,
 		UserID:   a.UserID,
-		Balance:  a.Balance,
-		Currency: string(a.Currency),
+		Balance:  a.Balance.Amount(),
+		Currency: string(a.Balance.Currency()),
 	}
 	result := r.db.Save(&dbModel)
 	if result.Error != nil {
@@ -73,26 +86,33 @@ type transactionRepository struct {
 	db *gorm.DB
 }
 
+// NewTransactionRepository creates a new transaction repository instance.
 func NewTransactionRepository(db *gorm.DB) repository.TransactionRepository {
 	return &transactionRepository{db: db}
 }
 
-func (r *transactionRepository) Create(transaction *account.Transaction) error {
+func (r *transactionRepository) Create(transaction *account.Transaction, convInfo *common.ConversionInfo, externalTargetMasked string) error {
 	// Convert domain transaction to GORM model
 	dbTransaction := Transaction{
 		Model: gorm.Model{
 			CreatedAt: transaction.CreatedAt,
 			UpdatedAt: transaction.CreatedAt,
 		},
-		ID:               transaction.ID,
-		AccountID:        transaction.AccountID,
-		UserID:           transaction.UserID,
-		Amount:           transaction.Amount,
-		Currency:         string(transaction.Currency),
-		Balance:          transaction.Balance,
-		OriginalAmount:   transaction.OriginalAmount,
-		OriginalCurrency: transaction.OriginalCurrency,
-		ConversionRate:   transaction.ConversionRate,
+		ID:                   transaction.ID,
+		AccountID:            transaction.AccountID,
+		UserID:               transaction.UserID,
+		Amount:               transaction.Amount.Amount(),
+		Currency:             string(transaction.Amount.Currency()),
+		Balance:              transaction.Balance.Amount(),
+		MoneySource:          string(transaction.MoneySource),
+		ExternalTargetMasked: externalTargetMasked,
+	}
+
+	// Only set conversion fields if conversion info is provided
+	if convInfo != nil {
+		dbTransaction.OriginalAmount = &convInfo.OriginalAmount
+		dbTransaction.OriginalCurrency = &convInfo.OriginalCurrency
+		dbTransaction.ConversionRate = &convInfo.ConversionRate
 	}
 
 	result := r.db.Create(&dbTransaction)
@@ -116,7 +136,11 @@ func (r *transactionRepository) Get(
 		}
 		return nil, result.Error
 	}
-	return account.NewTransactionFromData(t.ID, t.UserID, t.AccountID, t.Amount, t.Balance, currency.Code(t.Currency), t.CreatedAt, t.OriginalAmount, t.OriginalCurrency, t.ConversionRate), nil
+	amount := money.NewFromData(t.Balance, t.Currency)
+	balance := money.NewFromData(t.Amount, t.Currency)
+	return account.NewTransactionFromData(
+		t.ID,
+		t.UserID, t.AccountID, amount, balance, account.MoneySource(t.MoneySource), t.CreatedAt), nil
 }
 
 func (r *transactionRepository) List(
@@ -129,7 +153,9 @@ func (r *transactionRepository) List(
 	}
 	tx := make([]*account.Transaction, 0, len(dbTransactions))
 	for _, t := range dbTransactions {
-		tx = append(tx, account.NewTransactionFromData(t.ID, t.UserID, t.AccountID, t.Amount, t.Balance, currency.Code(t.Currency), t.CreatedAt, t.OriginalAmount, t.OriginalCurrency, t.ConversionRate))
+		amount := money.NewFromData(t.Balance, t.Currency)
+		balance := money.NewFromData(t.Amount, t.Currency)
+		tx = append(tx, account.NewTransactionFromData(t.ID, t.UserID, t.AccountID, amount, balance, account.MoneySource(t.MoneySource), t.CreatedAt))
 	}
 	return tx, nil
 }
@@ -215,6 +241,7 @@ func (u *userRepository) Update(user *user.User) error {
 	return nil
 }
 
+// NewUserRepository creates a new user repository instance.
 func NewUserRepository(db *gorm.DB) repository.UserRepository {
 	return &userRepository{db: db}
 }

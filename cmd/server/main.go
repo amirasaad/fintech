@@ -7,6 +7,7 @@ import (
 	"log/slog"
 
 	"github.com/amirasaad/fintech/infra"
+	"github.com/amirasaad/fintech/infra/provider"
 	infra_repository "github.com/amirasaad/fintech/infra/repository"
 	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/currency"
@@ -71,7 +72,12 @@ func main() {
 	}
 
 	// Create services
-	accountSvc := account.NewAccountService(uow, currencyConverter, logger)
+	accountSvc := account.NewService(account.ServiceDeps{
+		Uow:             uow,
+		Converter:       currencyConverter,
+		Logger:          logger,
+		PaymentProvider: provider.NewMockPaymentProvider(),
+	})
 	userSvc := user.NewUserService(uow, logger)
 	authStrategy := auth.NewJWTAuthStrategy(uow, cfg.Jwt, logger)
 	authSvc := auth.NewAuthService(uow, authStrategy, logger)

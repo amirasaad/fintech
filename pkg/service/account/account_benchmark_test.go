@@ -7,6 +7,8 @@ import (
 
 	"github.com/amirasaad/fintech/pkg/currency"
 	accountdomain "github.com/amirasaad/fintech/pkg/domain/account"
+	"github.com/amirasaad/fintech/pkg/domain/money"
+	"github.com/amirasaad/fintech/pkg/handler"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/mock"
@@ -44,7 +46,7 @@ func BenchmarkDeposit(b *testing.B) {
 	transactionRepo.On("Create", mock.Anything).Return(nil)
 	b.ResetTimer()
 	for b.Loop() {
-		_, _, err := svc.Deposit(userID, acc.ID, 100.0, "USD")
+		_, _, err := svc.Deposit(userID, acc.ID, 100.0, "USD", "Cash")
 		require.NoError(err)
 	}
 }
@@ -58,13 +60,13 @@ func BenchmarkWithdraw(b *testing.B) {
 	})
 	userID := uuid.New()
 	acc, _ := accountdomain.New().WithUserID(userID).WithCurrency(currency.USD).Build() //nolint:errcheck
-	acc.Balance = int64(math.MaxInt64)
+	acc.Balance, _ = money.New(math.MaxInt64, acc.Balance.Currency())
 	accountRepo.On("Get", acc.ID).Return(acc, nil)
 	accountRepo.On("Update", mock.Anything).Return(nil)
-	transactionRepo.On("Create", mock.Anything).Return(nil)
+	transactionRepo.On("Create", mock.Anything, mock.Anything).Return(nil)
 	b.ResetTimer()
 	for b.Loop() {
-		_, _, err := svc.Withdraw(userID, acc.ID, 50.0, "USD")
+		_, _, err := svc.Withdraw(userID, acc.ID, 50.0, "USD", &handler.ExternalTarget{BankAccountNumber: "12355433234"})
 		require.NoError(err)
 	}
 }

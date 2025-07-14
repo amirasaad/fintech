@@ -44,6 +44,9 @@ func TestValidEmail(t *testing.T) {
 }
 
 func TestLogin_Success(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	assert := assert.New(t)
 	uow := mocks.NewMockUnitOfWork(t)
 	userRepo := mocks.NewMockUserRepository(t)
 	logger := slog.Default()
@@ -59,9 +62,9 @@ func TestLogin_Success(t *testing.T) {
 
 	svc := authsvc.NewBasicAuthService(uow, logger)
 	loggedInUser, err := svc.Login(context.Background(), u.Username, "password") // password matches hash
-	assert.NoError(t, err)
-	assert.NotNil(t, loggedInUser)
-	assert.Equal(t, u.Username, loggedInUser.Username)
+	require.NoError(err)
+	assert.NotNil(loggedInUser)
+	assert.Equal(u.Username, loggedInUser.Username)
 }
 
 func TestLogin_InvalidPassword(t *testing.T) {
@@ -145,13 +148,14 @@ func TestGetCurrentUserId_MissingClaim(t *testing.T) {
 func TestLogin_BasicAuthSuccess(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
+	require := require.New(t)
 	hash, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
 	user := &domain.User{ID: uuid.New(), Username: "user", Email: "user@example.com", Password: string(hash)}
 	authStrategy := mocks.NewMockAuthStrategy(t)
 	authStrategy.EXPECT().Login(mock.Anything, "user", "password").Return(user, nil).Once()
 	s := authsvc.NewAuthService(nil, authStrategy, slog.Default())
 	gotUser, err := s.Login(context.Background(), "user", "password")
-	assert.NoError(err)
+	require.NoError(err)
 	assert.NotNil(gotUser)
 }
 
