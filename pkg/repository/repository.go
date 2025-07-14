@@ -19,6 +19,9 @@ type TransactionRepository interface {
 	Create(transaction *domain.Transaction, convInfo *common.ConversionInfo, externalTargetMasked string) error
 	Get(id uuid.UUID) (*domain.Transaction, error)
 	List(userID, accountID uuid.UUID) ([]*domain.Transaction, error)
+	// GetByPaymentID returns a transaction by its payment provider ID.
+	GetByPaymentID(paymentID string) (*domain.Transaction, error)
+	Update(tx *domain.Transaction) error
 }
 
 // UserRepository defines the interface for user data access operations.

@@ -27,3 +27,37 @@ type PaymentEvent struct {
 	Timestamp     int64             // Unix timestamp (UTC)
 	Metadata      map[string]string // Optional extra info
 }
+
+// DepositRequestedEvent is emitted when a deposit is requested (pure event-driven domain).
+type DepositRequestedEvent struct {
+	EventID   string
+	AccountID string
+	UserID    string
+	Amount    float64
+	Currency  string
+	Source    MoneySource
+	Timestamp int64
+}
+
+// WithdrawRequestedEvent is emitted when a withdrawal is requested (pure event-driven domain).
+type WithdrawRequestedEvent struct {
+	EventID   string
+	AccountID string
+	UserID    string
+	Amount    float64
+	Currency  string
+	Source    MoneySource
+	Timestamp int64
+}
+
+// TransferRequestedEvent is emitted when a transfer is requested (pure event-driven domain).
+type TransferRequestedEvent struct {
+	EventID         string
+	SourceAccountID string
+	DestAccountID   string
+	UserID          string
+	Amount          float64
+	Currency        string
+	Source          MoneySource
+	Timestamp       int64
+}

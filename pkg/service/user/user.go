@@ -6,6 +6,7 @@ import (
 	"context"
 	"log/slog"
 
+	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/domain/user"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/google/uuid"
@@ -19,12 +20,11 @@ type UserService struct {
 
 // NewUserService creates a new UserService with a UnitOfWork and logger.
 func NewUserService(
-	uow repository.UnitOfWork,
-	logger *slog.Logger,
+	deps config.Deps,
 ) *UserService {
 	return &UserService{
-		uow:    uow,
-		logger: logger,
+		uow:    deps.Uow,
+		logger: deps.Logger,
 	}
 }
 

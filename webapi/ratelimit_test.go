@@ -32,13 +32,15 @@ func TestRateLimit(t *testing.T) {
 
 	// Provide dummy services for required arguments
 	dummyUow := repository.UnitOfWork(nil)
-	accountSvc := account.NewService(account.ServiceDeps{
+	accountSvc := account.NewService(config.Deps{
 		Uow:             dummyUow,
 		Converter:       infra_provider.NewStubCurrencyConverter(),
 		Logger:          slog.Default(),
 		PaymentProvider: infra_provider.NewMockPaymentProvider(),
 	})
-	userSvc := userservice.NewUserService(dummyUow, slog.Default())
+	userSvc := userservice.NewUserService(config.Deps{
+		Uow: dummyUow, Logger: slog.Default(),
+	})
 
 	// Create a dummy auth strategy and service
 	dummyAuthStrategy := auth.NewJWTAuthStrategy(dummyUow, config.JwtConfig{}, slog.Default())

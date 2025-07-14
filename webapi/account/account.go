@@ -131,15 +131,12 @@ func Deposit(
 			currencyCode = currency.Code(input.Currency)
 		}
 		log.Infof("Deposit handler: calling service for user %s, account %s, amount %v, currency %s, money_source %s", userID, accountID, input.Amount, currencyCode, input.MoneySource)
-		tx, convInfo, err := accountSvc.Deposit(userID, accountID, input.Amount, currencyCode, input.MoneySource)
+		err = accountSvc.Deposit(userID, accountID, input.Amount, currencyCode, input.MoneySource)
 		if err != nil {
 			log.Errorf("Failed to deposit: %v", err)
 			return common.ProblemDetailsJSON(c, "Failed to deposit", err)
 		}
-		resp := fiber.Map{
-			"transaction":     ToTransactionDTO(tx),
-			"conversion_info": ToConversionInfoDTO(convInfo),
-		}
+		resp := fiber.Map{}
 		return common.SuccessResponseJSON(c, fiber.StatusOK, "Deposit successful", resp)
 	}
 }
@@ -206,15 +203,12 @@ func Withdraw(
 			RoutingNumber:         input.ExternalTarget.RoutingNumber,
 			ExternalWalletAddress: input.ExternalTarget.ExternalWalletAddress,
 		}
-		tx, convInfo, err := accountSvc.Withdraw(userID, accountID, input.Amount, currencyCode, &handlerTarget)
+		err = accountSvc.Withdraw(userID, accountID, input.Amount, currencyCode, &handlerTarget)
 		if err != nil {
 			log.Errorf("Failed to withdraw: %v", err)
 			return common.ProblemDetailsJSON(c, "Failed to withdraw", err)
 		}
-		resp := fiber.Map{
-			"transaction":     ToTransactionDTO(tx),
-			"conversion_info": ToConversionInfoDTO(convInfo),
-		}
+		resp := fiber.Map{}
 		return common.SuccessResponseJSON(c, fiber.StatusOK, "Withdrawal successful", resp)
 	}
 }
@@ -266,12 +260,12 @@ func Transfer(accountSvc *accountsvc.Service, authSvc *authsvc.AuthService) fibe
 			currencyCode = currency.Code(input.Currency)
 		}
 		log.Infof("Transfer handler: calling service for user %s, source account %s, dest account %s, amount %v, currency %s", userID, sourceAccountID, destAccountID, input.Amount, currencyCode)
-		txOut, txIn, convInfo, err := accountSvc.Transfer(userID, sourceAccountID, destAccountID, input.Amount, currencyCode)
+		err = accountSvc.Transfer(userID, sourceAccountID, destAccountID, input.Amount, currencyCode)
 		if err != nil {
 			log.Errorf("Failed to transfer: %v", err)
 			return common.ProblemDetailsJSON(c, "Failed to transfer", err)
 		}
-		resp := ToTransferResponseDTO(txOut, txIn, convInfo)
+		resp := fiber.Map{}
 		return common.SuccessResponseJSON(c, fiber.StatusOK, "Transfer successful", resp)
 	}
 }

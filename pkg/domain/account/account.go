@@ -54,6 +54,7 @@ type Account struct {
 	UpdatedAt time.Time
 	CreatedAt time.Time
 	mu        sync.Mutex
+	events    []common.Event // buffer for domain events
 }
 
 // IsValidCurrencyFormat returns true if the code is a well-formed ISO 4217 currency code (3 uppercase letters).
@@ -198,6 +199,13 @@ func (a *Account) GetBalanceAsMoney(userID uuid.UUID) (m money.Money, err error)
 	return
 }
 
+// PullEvents returns and clears the buffered domain events.
+func (a *Account) PullEvents() []common.Event {
+	events := a.events
+	a.events = nil
+	return events
+}
+
 // Deposit adds funds to the account if all business invariants are satisfied.
 // Invariants enforced:
 //   - Only the account owner can deposit.
@@ -206,58 +214,26 @@ func (a *Account) GetBalanceAsMoney(userID uuid.UUID) (m money.Money, err error)
 //   - Deposit must not cause integer overflow.
 //
 // Returns a Transaction or an error if any invariant is violated.
-func (a *Account) Deposit(userID uuid.UUID, m money.Money, moneySource MoneySource) (tx *Transaction, err error) {
+func (a *Account) Deposit(userID uuid.UUID, m money.Money, moneySource MoneySource) error {
 	if a.UserID != userID {
-		err = user.ErrUserUnauthorized
-		return
+		return ErrNotOwner
 	}
-	a.mu.Lock()
-	defer a.mu.Unlock()
-
 	if !m.IsPositive() {
-		err = ErrTransactionAmountMustBePositive
-		return
+		return ErrTransactionAmountMustBePositive
 	}
-
 	if string(m.Currency()) != string(a.Balance.Currency()) {
-		err = common.ErrInvalidCurrencyCode
-		return
+		return common.ErrInvalidCurrencyCode
 	}
-
-	// Check for overflow before performing the addition
-	depositAmount := int64(m.Amount())
-	if depositAmount > 0 && a.Balance.Amount() > 0 && depositAmount > math.MaxInt64-a.Balance.Amount() {
-		err = ErrDepositAmountExceedsMaxSafeInt
-		return
-	}
-
-	// Get current balance as Money
-	var currentBalance money.Money
-	currentBalance, err = a.GetBalanceAsMoney(userID)
-	if err != nil {
-		return
-	}
-
-	// Add the deposit amount to current balance
-	var newBalance money.Money
-	newBalance, err = currentBalance.Add(m)
-	if err != nil {
-		return
-	}
-
-	// Update account balance
-	a.Balance = newBalance
-
-	tx = &Transaction{
-		ID:          uuid.New(),
-		UserID:      userID,
-		AccountID:   a.ID,
-		Amount:      m,
-		Balance:     a.Balance,
-		MoneySource: moneySource,
-		CreatedAt:   time.Now().UTC(),
-	}
-	return
+	a.events = append(a.events, DepositRequestedEvent{
+		EventID:   uuid.NewString(),
+		AccountID: a.ID.String(),
+		UserID:    userID.String(),
+		Amount:    m.AmountFloat(),
+		Currency:  string(m.Currency()),
+		Source:    moneySource,
+		Timestamp: time.Now().Unix(),
+	})
+	return nil
 }
 
 // Withdraw removes funds from the account if all business invariants are satisfied.
@@ -268,107 +244,67 @@ func (a *Account) Deposit(userID uuid.UUID, m money.Money, moneySource MoneySour
 //   - Cannot withdraw more than the current balance.
 //
 // Returns a Transaction or an error if any invariant is violated.
-func (a *Account) Withdraw(userID uuid.UUID, m money.Money, moneySource MoneySource) (tx *Transaction, err error) {
+func (a *Account) Withdraw(userID uuid.UUID, m money.Money, moneySource MoneySource) error {
 	if a.UserID != userID {
-		err = user.ErrUserUnauthorized
-		return
+		return ErrNotOwner
 	}
-	a.mu.Lock()
-	defer a.mu.Unlock()
-
 	if !m.IsPositive() {
-		err = ErrWithdrawalAmountMustBePositive
-		return
+		return ErrWithdrawalAmountMustBePositive
 	}
-
-	// Get current balance as Money
-	var currentBalance money.Money
-	currentBalance, err = a.GetBalanceAsMoney(userID)
-	if err != nil {
-		return
+	if string(m.Currency()) != string(a.Balance.Currency()) {
+		return common.ErrInvalidCurrencyCode
 	}
-
-	// Check if we have sufficient funds
-	var hasEnough bool
-	hasEnough, err = currentBalance.GreaterThan(m)
-	if err != nil {
-		return
-	}
-	if !hasEnough && !currentBalance.Equals(m) {
-		err = ErrInsufficientFunds
-		return
-	}
-
-	// Subtract the withdrawal amount from current balance
-	var newBalance money.Money
-	newBalance, err = currentBalance.Subtract(m)
-	if err != nil {
-		return
-	}
-
-	// Update account balance
-	a.Balance = newBalance
-
-	tx = &Transaction{
-		ID:          uuid.New(),
-		UserID:      userID,
-		AccountID:   a.ID,
-		Amount:      m.Negate(),
-		Balance:     a.Balance,
-		MoneySource: moneySource,
-		CreatedAt:   time.Now().UTC(),
-	}
-	return
+	a.events = append(a.events, WithdrawRequestedEvent{
+		EventID:   uuid.NewString(),
+		AccountID: a.ID.String(),
+		UserID:    userID.String(),
+		Amount:    m.AmountFloat(),
+		Currency:  string(m.Currency()),
+		Source:    moneySource,
+		Timestamp: time.Now().Unix(),
+	})
+	return nil
 }
 
 // Transfer moves funds from this account to another account.
-func (a *Account) Transfer(initiatorUserID uuid.UUID, dest *Account, amount money.Money, moneySource MoneySource) (txIn, txOut *Transaction, err error) {
+func (a *Account) Transfer(initiatorUserID uuid.UUID, dest *Account, amount money.Money, moneySource MoneySource) error {
 	if a == nil || dest == nil {
-		return nil, nil, ErrNilAccount
+		return ErrNilAccount
 	}
 	if a.ID == dest.ID {
-		return nil, nil, ErrCannotTransferToSameAccount
+		return ErrCannotTransferToSameAccount
 	}
 	if a.UserID != initiatorUserID {
-		return nil, nil, ErrNotOwner
+		return ErrNotOwner
 	}
 	if !amount.IsPositive() {
-		return nil, nil, ErrTransactionAmountMustBePositive
+		return ErrTransactionAmountMustBePositive
 	}
 	if !a.Balance.IsSameCurrency(amount) || !dest.Balance.IsSameCurrency(amount) {
-		return nil, nil, ErrCurrencyMismatch
+		return ErrCurrencyMismatch
 	}
 	hasEnough, _ := a.Balance.GreaterThan(amount)
 	if !hasEnough && !a.Balance.Equals(amount) {
-		return nil, nil, ErrInsufficientFunds
+		return ErrInsufficientFunds
 	}
-	nb, err := a.Balance.Subtract(amount)
+	_, err := a.Balance.Subtract(amount)
 	if err != nil {
-		return nil, nil, err
+		return err
 	}
-	db, err := dest.Balance.Add(amount)
+	_, err = dest.Balance.Add(amount)
 	if err != nil {
-		return nil, nil, err
+		return err
 	}
-	a.Balance = nb
-	dest.Balance = db
-	txOut = &Transaction{
-		ID:          uuid.New(),
-		UserID:      a.UserID,
-		AccountID:   a.ID,
-		Amount:      amount.Negate(),
-		Balance:     a.Balance,
-		MoneySource: moneySource, // Set to 'Internal' by caller
-		CreatedAt:   time.Now().UTC(),
-	}
-	txIn = &Transaction{
-		ID:          uuid.New(),
-		UserID:      dest.UserID,
-		AccountID:   dest.ID,
-		Amount:      amount,
-		Balance:     dest.Balance,
-		MoneySource: moneySource, // Set to 'Internal' by caller
-		CreatedAt:   time.Now().UTC(),
-	}
-	return txIn, txOut, nil
+
+	a.events = append(a.events, TransferRequestedEvent{
+		EventID:         uuid.NewString(),
+		SourceAccountID: a.ID.String(),
+		DestAccountID:   dest.ID.String(),
+		UserID:          initiatorUserID.String(),
+		Amount:          amount.AmountFloat(),
+		Currency:        string(amount.Currency()),
+		Source:          moneySource,
+		Timestamp:       time.Now().Unix(),
+	})
+	return nil
 }

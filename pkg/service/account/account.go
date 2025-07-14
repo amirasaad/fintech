@@ -12,38 +12,29 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/amirasaad/fintech/infra/provider"
+	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/account"
-	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/amirasaad/fintech/pkg/handler"
+	"github.com/amirasaad/fintech/pkg/provider"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/google/uuid"
 )
-
-// ServiceDeps contains all dependencies for constructing a Service.
-type ServiceDeps struct {
-	Uow             repository.UnitOfWork
-	Converter       money.CurrencyConverter
-	Logger          *slog.Logger
-	PaymentProvider *provider.MockPaymentProvider
-	EventBus        eventbus.EventBus
-}
 
 // Service provides business logic for account operations including creation, deposits, withdrawals, and balance inquiries.
 type Service struct {
 	uow             repository.UnitOfWork
 	converter       money.CurrencyConverter
 	accountChain    *Chain
-	paymentProvider *provider.MockPaymentProvider
+	paymentProvider provider.PaymentProvider
 	logger          *slog.Logger
 	eventBus        eventbus.EventBus
 }
 
 // NewService creates a new Service with the provided dependencies.
-func NewService(deps ServiceDeps) *Service {
+func NewService(deps config.Deps) *Service {
 	accountChain := NewChain(deps.Uow, deps.Converter, deps.Logger)
 	return &Service{
 		uow:             deps.Uow,
@@ -193,132 +184,20 @@ func (s *Service) Deposit(
 	amount float64,
 	currencyCode currency.Code,
 	moneySource string,
-) (tx *account.Transaction, convInfo *common.ConversionInfo, err error) {
-	s.logger.Info("Deposit: starting", "userID", userID, "accountID", accountID, "amount", amount, "currency", currencyCode, "moneySource", moneySource)
-
-	// Publish initiated event (user requested)
-	_ = s.eventBus.PublishPaymentEvent(account.PaymentEvent{
-		EventID:       uuid.NewString(),
-		TransactionID: "",
-		AccountID:     accountID.String(),
-		UserID:        userID.String(),
-		Amount:        int64(amount * 100),
-		Currency:      string(currencyCode),
-		Status:        account.PaymentStatusInitiated,
-		Provider:      "mock",
-		Timestamp:     time.Now().Unix(),
-		Metadata:      map[string]string{"operation": "deposit"},
-	})
-
-	paymentID, err := s.paymentProvider.InitiateDeposit(context.Background(), userID, accountID, amount, string(currencyCode))
-	if err != nil {
-		s.logger.Error("Deposit: payment provider error", "error", err)
-		_ = s.eventBus.PublishPaymentEvent(account.PaymentEvent{
-			EventID:       uuid.NewString(),
-			TransactionID: "",
-			AccountID:     accountID.String(),
-			UserID:        userID.String(),
-			Amount:        int64(amount * 100),
-			Currency:      string(currencyCode),
-			Status:        account.PaymentStatusFailed,
-			Provider:      "mock",
-			Timestamp:     time.Now().Unix(),
-			Metadata:      map[string]string{"operation": "deposit", "error": err.Error()},
-		})
-		return nil, nil, err
+) error {
+	if amount <= 0 {
+		return errors.New("amount must be positive")
 	}
-
-	// Publish pending event (after provider call, waiting for confirmation)
-	_ = s.eventBus.PublishPaymentEvent(account.PaymentEvent{
-		EventID:       uuid.NewString(),
-		TransactionID: "",
-		AccountID:     accountID.String(),
-		UserID:        userID.String(),
-		Amount:        int64(amount * 100),
-		Currency:      string(currencyCode),
-		Status:        account.PaymentStatusPending,
-		Provider:      "mock",
-		Timestamp:     time.Now().Unix(),
-		Metadata:      map[string]string{"operation": "deposit"},
-	})
-
-	// Poll for payment completion (timeout after 5s)
-	timeout := time.After(5 * time.Second)
-	tick := time.Tick(100 * time.Millisecond)
-	var status provider.PaymentStatus
-	completed := false
-	for !completed {
-		select {
-		case <-timeout:
-			s.logger.Error("Deposit: payment did not complete in time")
-			_ = s.eventBus.PublishPaymentEvent(account.PaymentEvent{
-				EventID:       uuid.NewString(),
-				TransactionID: "",
-				AccountID:     accountID.String(),
-				UserID:        userID.String(),
-				Amount:        int64(amount * 100),
-				Currency:      string(currencyCode),
-				Status:        account.PaymentStatusFailed,
-				Provider:      "mock",
-				Timestamp:     time.Now().Unix(),
-				Metadata:      map[string]string{"operation": "deposit", "error": "timeout"},
-			})
-			return nil, nil, errors.New("payment not completed (timeout)")
-		case <-tick:
-			status, _ = s.paymentProvider.GetPaymentStatus(context.Background(), paymentID)
-			if status == provider.PaymentCompleted {
-				completed = true
-			}
-		}
+	evt := account.DepositRequestedEvent{
+		EventID:   uuid.NewString(),
+		AccountID: accountID.String(),
+		UserID:    userID.String(),
+		Amount:    amount,
+		Currency:  string(currencyCode),
+		Source:    account.MoneySource(moneySource),
+		Timestamp: time.Now().Unix(),
 	}
-
-	resp, err := s.accountChain.Deposit(context.Background(), userID, accountID, amount, currencyCode, moneySource)
-	if err != nil {
-		_ = s.eventBus.PublishPaymentEvent(account.PaymentEvent{
-			EventID:       uuid.NewString(),
-			TransactionID: "",
-			AccountID:     accountID.String(),
-			UserID:        userID.String(),
-			Amount:        int64(amount * 100),
-			Currency:      string(currencyCode),
-			Status:        account.PaymentStatusFailed,
-			Provider:      "mock",
-			Timestamp:     time.Now().Unix(),
-			Metadata:      map[string]string{"operation": "deposit", "error": err.Error()},
-		})
-		return nil, nil, err
-	}
-	if resp.Error != nil {
-		_ = s.eventBus.PublishPaymentEvent(account.PaymentEvent{
-			EventID:       uuid.NewString(),
-			TransactionID: "",
-			AccountID:     accountID.String(),
-			UserID:        userID.String(),
-			Amount:        int64(amount * 100),
-			Currency:      string(currencyCode),
-			Status:        account.PaymentStatusFailed,
-			Provider:      "mock",
-			Timestamp:     time.Now().Unix(),
-			Metadata:      map[string]string{"operation": "deposit", "error": resp.Error.Error()},
-		})
-		return nil, nil, resp.Error
-	}
-
-	// Publish completed event
-	_ = s.eventBus.PublishPaymentEvent(account.PaymentEvent{
-		EventID:       uuid.NewString(),
-		TransactionID: resp.Transaction.ID.String(),
-		AccountID:     accountID.String(),
-		UserID:        userID.String(),
-		Amount:        int64(amount * 100),
-		Currency:      string(currencyCode),
-		Status:        account.PaymentStatusCompleted,
-		Provider:      "mock",
-		Timestamp:     time.Now().Unix(),
-		Metadata:      map[string]string{"operation": "deposit"},
-	})
-
-	return resp.Transaction, resp.ConvInfo, nil
+	return s.eventBus.Publish(evt)
 }
 
 // Withdraw removes funds from the specified account to an external target and creates a transaction record.
@@ -327,138 +206,21 @@ func (s *Service) Withdraw(
 	amount float64,
 	currencyCode currency.Code,
 	externalTarget *handler.ExternalTarget,
-) (
-	tx *account.Transaction,
-	convInfo *common.ConversionInfo,
-	err error,
-) {
-	if externalTarget == nil {
-		return nil, nil, errors.New("external target is required for withdraw")
+) error {
+	if amount <= 0 {
+		return errors.New("amount must be positive")
 	}
-
-	// Publish initiated event
-	_ = s.eventBus.PublishPaymentEvent(account.PaymentEvent{
-		EventID:       uuid.NewString(),
-		TransactionID: "", // Not yet created
-		AccountID:     accountID.String(),
-		UserID:        userID.String(),
-		Amount:        int64(amount * 100),
-		Currency:      string(currencyCode),
-		Status:        account.PaymentStatusInitiated,
-		Provider:      "mock",
-		Timestamp:     time.Now().Unix(),
-		Metadata:      map[string]string{"operation": "withdraw"},
-	})
-
-	paymentID, err := s.paymentProvider.InitiateWithdraw(context.Background(), userID, accountID, amount, string(currencyCode), externalTarget.BankAccountNumber)
-	if err != nil {
-		s.logger.Error("Withdraw: payment provider error", "error", err)
-		_ = s.eventBus.PublishPaymentEvent(account.PaymentEvent{
-			EventID:       uuid.NewString(),
-			TransactionID: "",
-			AccountID:     accountID.String(),
-			UserID:        userID.String(),
-			Amount:        int64(amount * 100),
-			Currency:      string(currencyCode),
-			Status:        account.PaymentStatusFailed,
-			Provider:      "mock",
-			Timestamp:     time.Now().Unix(),
-			Metadata:      map[string]string{"operation": "withdraw", "error": err.Error()},
-		})
-		return nil, nil, err
+	// Only emit and publish event
+	evt := account.WithdrawRequestedEvent{
+		EventID:   uuid.NewString(),
+		AccountID: accountID.String(),
+		UserID:    userID.String(),
+		Amount:    amount,
+		Currency:  string(currencyCode),
+		Source:    account.MoneySourceExternalWallet,
+		Timestamp: time.Now().Unix(),
 	}
-
-	// Publish pending event (after provider call, waiting for confirmation)
-	_ = s.eventBus.PublishPaymentEvent(account.PaymentEvent{
-		EventID:       uuid.NewString(),
-		TransactionID: "",
-		AccountID:     accountID.String(),
-		UserID:        userID.String(),
-		Amount:        int64(amount * 100),
-		Currency:      string(currencyCode),
-		Status:        account.PaymentStatusPending,
-		Provider:      "mock",
-		Timestamp:     time.Now().Unix(),
-		Metadata:      map[string]string{"operation": "withdraw"},
-	})
-
-	// Poll for payment completion (timeout after 5s)
-	timeout := time.After(5 * time.Second)
-	tick := time.Tick(100 * time.Millisecond)
-	var status provider.PaymentStatus
-	completed := false
-	for !completed {
-		select {
-		case <-timeout:
-			s.logger.Error("Withdraw: payment did not complete in time")
-			_ = s.eventBus.PublishPaymentEvent(account.PaymentEvent{
-				EventID:       uuid.NewString(),
-				TransactionID: "",
-				AccountID:     accountID.String(),
-				UserID:        userID.String(),
-				Amount:        int64(amount * 100),
-				Currency:      string(currencyCode),
-				Status:        account.PaymentStatusFailed,
-				Provider:      "mock",
-				Timestamp:     time.Now().Unix(),
-				Metadata:      map[string]string{"operation": "withdraw", "error": "timeout"},
-			})
-			return nil, nil, errors.New("payment not completed (timeout)")
-		case <-tick:
-			status, _ = s.paymentProvider.GetPaymentStatus(context.Background(), paymentID)
-			if status == provider.PaymentCompleted {
-				completed = true
-			}
-		}
-	}
-
-	resp, err := s.accountChain.WithdrawExternal(context.Background(), userID, accountID, amount, currencyCode, *externalTarget)
-	if err != nil {
-		_ = s.eventBus.PublishPaymentEvent(account.PaymentEvent{
-			EventID:       uuid.NewString(),
-			TransactionID: "",
-			AccountID:     accountID.String(),
-			UserID:        userID.String(),
-			Amount:        int64(amount * 100),
-			Currency:      string(currencyCode),
-			Status:        account.PaymentStatusFailed,
-			Provider:      "mock",
-			Timestamp:     time.Now().Unix(),
-			Metadata:      map[string]string{"operation": "withdraw", "error": err.Error()},
-		})
-		return nil, nil, err
-	}
-	if resp.Error != nil {
-		_ = s.eventBus.PublishPaymentEvent(account.PaymentEvent{
-			EventID:       uuid.NewString(),
-			TransactionID: "",
-			AccountID:     accountID.String(),
-			UserID:        userID.String(),
-			Amount:        int64(amount * 100),
-			Currency:      string(currencyCode),
-			Status:        account.PaymentStatusFailed,
-			Provider:      "mock",
-			Timestamp:     time.Now().Unix(),
-			Metadata:      map[string]string{"operation": "withdraw", "error": resp.Error.Error()},
-		})
-		return nil, nil, resp.Error
-	}
-
-	// Publish completed event
-	_ = s.eventBus.PublishPaymentEvent(account.PaymentEvent{
-		EventID:       uuid.NewString(),
-		TransactionID: resp.Transaction.ID.String(),
-		AccountID:     accountID.String(),
-		UserID:        userID.String(),
-		Amount:        int64(amount * 100),
-		Currency:      string(currencyCode),
-		Status:        account.PaymentStatusCompleted,
-		Provider:      "mock",
-		Timestamp:     time.Now().Unix(),
-		Metadata:      map[string]string{"operation": "withdraw"},
-	})
-
-	return resp.Transaction, resp.ConvInfo, nil
+	return s.eventBus.Publish(evt)
 }
 
 // Transfer moves funds from one account to another account.
@@ -467,81 +229,36 @@ func (s *Service) Transfer(
 	sourceAccountID, destAccountID uuid.UUID,
 	amount float64,
 	currencyCode currency.Code,
-) (
-	txOut, txIn *account.Transaction,
-	convInfo *common.ConversionInfo,
-	err error,
-) {
-	s.logger.Info("Transfer: starting", "userID", userID, "sourceAccountID", sourceAccountID, "destAccountID", destAccountID, "amount", amount, "currency", currencyCode)
+) error {
+	if amount <= 0 {
+		return errors.New("amount must be positive")
+	}
+	// Only emit and publish event
+	evt := account.TransferRequestedEvent{
+		EventID:         uuid.NewString(),
+		SourceAccountID: sourceAccountID.String(),
+		DestAccountID:   destAccountID.String(),
+		UserID:          userID.String(),
+		Amount:          amount,
+		Currency:        string(currencyCode),
+		Source:          account.MoneySourceInternal,
+		Timestamp:       time.Now().Unix(),
+	}
+	return s.eventBus.Publish(evt)
+}
 
-	// Publish initiated event
-	_ = s.eventBus.PublishPaymentEvent(account.PaymentEvent{
-		EventID:       uuid.NewString(),
-		TransactionID: "",
-		AccountID:     sourceAccountID.String(),
-		UserID:        userID.String(),
-		Amount:        int64(amount * 100),
-		Currency:      string(currencyCode),
-		Status:        account.PaymentStatusInitiated,
-		Provider:      "internal",
-		Timestamp:     time.Now().Unix(),
-		Metadata:      map[string]string{"operation": "transfer"},
-	})
-
-	resp, err := s.accountChain.Transfer(context.Background(), userID, sourceAccountID, destAccountID, amount, currencyCode, "Internal")
+func (s *Service) UpdateTransactionStatusByPaymentID(paymentID, status string) error {
+	repo, err := s.uow.TransactionRepository()
 	if err != nil {
-		_ = s.eventBus.PublishPaymentEvent(account.PaymentEvent{
-			EventID:       uuid.NewString(),
-			TransactionID: "",
-			AccountID:     sourceAccountID.String(),
-			UserID:        userID.String(),
-			Amount:        int64(amount * 100),
-			Currency:      string(currencyCode),
-			Status:        account.PaymentStatusFailed,
-			Provider:      "internal",
-			Timestamp:     time.Now().Unix(),
-			Metadata:      map[string]string{"operation": "transfer", "error": err.Error()},
-		})
-		return
+		return err
 	}
-	if resp.Error != nil {
-		_ = s.eventBus.PublishPaymentEvent(account.PaymentEvent{
-			EventID:       uuid.NewString(),
-			TransactionID: "",
-			AccountID:     sourceAccountID.String(),
-			UserID:        userID.String(),
-			Amount:        int64(amount * 100),
-			Currency:      string(currencyCode),
-			Status:        account.PaymentStatusFailed,
-			Provider:      "internal",
-			Timestamp:     time.Now().Unix(),
-			Metadata:      map[string]string{"operation": "transfer", "error": resp.Error.Error()},
-		})
-		err = resp.Error
-		return
+	tx, err := repo.GetByPaymentID(paymentID)
+	if err != nil {
+		return err
 	}
-
-	// Publish completed event
-	_ = s.eventBus.PublishPaymentEvent(account.PaymentEvent{
-		EventID:       uuid.NewString(),
-		TransactionID: resp.TransactionOut.ID.String(),
-		AccountID:     sourceAccountID.String(),
-		UserID:        userID.String(),
-		Amount:        int64(amount * 100),
-		Currency:      string(currencyCode),
-		Status:        account.PaymentStatusCompleted,
-		Provider:      "internal",
-		Timestamp:     time.Now().Unix(),
-		Metadata:      map[string]string{"operation": "transfer"},
-	})
-
-	txOut = resp.TransactionOut
-	txIn = resp.TransactionIn
-	convInfo = nil
-	if resp.ConvInfoOut != nil {
-		convInfo = resp.ConvInfoOut
-	} else if resp.ConvInfoIn != nil {
-		convInfo = resp.ConvInfoIn
+	tx.Status = account.TransactionStatus(status)
+	if err := repo.Update(tx); err != nil {
+		return err
 	}
-	return
+	return nil
 }

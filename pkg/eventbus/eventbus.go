@@ -1,8 +1,13 @@
 package eventbus
 
-import "github.com/amirasaad/fintech/pkg/domain/account"
+import (
+	"github.com/amirasaad/fintech/pkg/domain"
+)
 
-// EventBus defines the contract for publishing payment events.
+// DomainEvent is a marker interface for all domain events.
+
+// EventBus defines the contract for publishing and subscribing to domain events.
 type EventBus interface {
-	PublishPaymentEvent(event account.PaymentEvent) error
+	Publish(event domain.Event) error
+	Subscribe(eventType string, handler func(domain.Event))
 }

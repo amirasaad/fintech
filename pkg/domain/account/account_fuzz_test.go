@@ -30,7 +30,7 @@ func FuzzAccountDeposit(f *testing.F) {
 				t.Errorf("Deposit panicked: %v (amount=%v, currency=%q)", r, amount, cc)
 			}
 		}()
-		_, _ = acc.Deposit(userID, mon, domainaccount.MoneySourceCash)
+		_ = acc.Deposit(userID, mon, domainaccount.MoneySourceCash)
 		// Invariant: balance should never be negative
 		if notNegative, err := acc.Balance.GreaterThan(money.Zero(acc.Balance.Currency())); err != nil {
 			if !notNegative {
@@ -61,7 +61,7 @@ func FuzzAccountWithdraw(f *testing.F) {
 		if err != nil {
 			t.Skip()
 		}
-		_, _ = acc.Deposit(userID, depositMoney, domainaccount.MoneySourceCash)
+		_ = acc.Deposit(userID, depositMoney, domainaccount.MoneySourceCash)
 		mon, err := money.New(amount, currency.Code(cc))
 		if err != nil {
 			t.Skip()
@@ -71,7 +71,7 @@ func FuzzAccountWithdraw(f *testing.F) {
 				t.Errorf("Withdraw panicked: %v (amount=%v, currency=%q)", r, amount, cc)
 			}
 		}()
-		_, _ = acc.Withdraw(userID, mon, domainaccount.MoneySourceCash)
+		_ = acc.Withdraw(userID, mon, domainaccount.MoneySourceCash)
 		// Invariant: balance should never be negative
 		if notNegative, err := acc.Balance.GreaterThan(money.Zero(acc.Balance.Currency())); err != nil {
 			if !notNegative {

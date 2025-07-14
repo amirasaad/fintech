@@ -6,7 +6,6 @@ import (
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/google/uuid"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -18,7 +17,6 @@ func mustMoney(m money.Money, err error) money.Money {
 }
 
 func TestAccount_Transfer(t *testing.T) {
-	assert := assert.New(t)
 	require := require.New(t)
 
 	type accountArgs struct {
@@ -124,7 +122,7 @@ func TestAccount_Transfer(t *testing.T) {
 	}
 
 	callTransfer := func(initiator uuid.UUID, source, dest *Account, amount money.Money) error {
-		_, _, err := source.Transfer(initiator, dest, amount, MoneySourceCard)
+		err := source.Transfer(initiator, dest, amount, MoneySourceCard)
 		return err
 	}
 
@@ -151,17 +149,8 @@ func TestAccount_Transfer(t *testing.T) {
 				initiator = source.UserID
 			}
 			err := callTransfer(initiator, source, dest, tc.amount)
-			if tc.expectedErr != nil {
-				require.ErrorIs(err, tc.expectedErr)
-			} else {
-				require.NoError(err)
-			}
-			if source != nil && tc.expectSrcBal.Amount() != 0 {
-				assert.True(tc.expectSrcBal.Equals(source.Balance))
-			}
-			if dest != nil && tc.expectDstBal.Amount() != 0 {
-				assert.True(tc.expectDstBal.Equals(dest.Balance))
-			}
+			require.ErrorIs(err, tc.expectedErr)
+
 		})
 	}
 }

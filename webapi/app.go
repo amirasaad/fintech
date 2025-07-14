@@ -84,6 +84,8 @@ func NewApp(
 		return c.SendString("App is working! 🚀")
 	})
 
+	app.Post("/webhook/payment", account.PaymentWebhookHandler(accountSvc))
+
 	account.Routes(app, accountSvc, authSvc, cfg)
 	user.Routes(app, userSvc, authSvc, cfg)
 	auth.Routes(app, authSvc)

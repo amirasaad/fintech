@@ -7,7 +7,17 @@ import (
 	"github.com/google/uuid"
 )
 
-// Transaction represents a financial transaction, supporting multi-currency and tracking money source.
+// TransactionStatus represents the status of a transaction in the payment lifecycle.
+type TransactionStatus string
+
+const (
+	TransactionStatusInitiated TransactionStatus = "initiated"
+	TransactionStatusPending   TransactionStatus = "pending"
+	TransactionStatusCompleted TransactionStatus = "completed"
+	TransactionStatusFailed    TransactionStatus = "failed"
+)
+
+// Transaction represents a financial transaction for an account.
 type Transaction struct {
 	ID          uuid.UUID
 	UserID      uuid.UUID
@@ -15,6 +25,8 @@ type Transaction struct {
 	Amount      money.Money
 	Balance     money.Money // Account balance snapshot
 	MoneySource MoneySource // Origin of funds (e.g., Cash, BankAccount, Stripe, etc.)
+	Status      TransactionStatus
+	PaymentID   string // External payment provider ID for webhook correlation
 	CreatedAt   time.Time
 }
 

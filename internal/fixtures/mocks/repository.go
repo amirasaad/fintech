@@ -408,6 +408,68 @@ func (_c *MockTransactionRepository_Get_Call) RunAndReturn(run func(id uuid.UUID
 	return _c
 }
 
+// GetByPaymentID provides a mock function for the type MockTransactionRepository
+func (_mock *MockTransactionRepository) GetByPaymentID(paymentID string) (*domain.Transaction, error) {
+	ret := _mock.Called(paymentID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetByPaymentID")
+	}
+
+	var r0 *domain.Transaction
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(string) (*domain.Transaction, error)); ok {
+		return returnFunc(paymentID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(string) *domain.Transaction); ok {
+		r0 = returnFunc(paymentID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*domain.Transaction)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(string) error); ok {
+		r1 = returnFunc(paymentID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockTransactionRepository_GetByPaymentID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetByPaymentID'
+type MockTransactionRepository_GetByPaymentID_Call struct {
+	*mock.Call
+}
+
+// GetByPaymentID is a helper method to define mock.On call
+//   - paymentID string
+func (_e *MockTransactionRepository_Expecter) GetByPaymentID(paymentID interface{}) *MockTransactionRepository_GetByPaymentID_Call {
+	return &MockTransactionRepository_GetByPaymentID_Call{Call: _e.mock.On("GetByPaymentID", paymentID)}
+}
+
+func (_c *MockTransactionRepository_GetByPaymentID_Call) Run(run func(paymentID string)) *MockTransactionRepository_GetByPaymentID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTransactionRepository_GetByPaymentID_Call) Return(v *domain.Transaction, err error) *MockTransactionRepository_GetByPaymentID_Call {
+	_c.Call.Return(v, err)
+	return _c
+}
+
+func (_c *MockTransactionRepository_GetByPaymentID_Call) RunAndReturn(run func(paymentID string) (*domain.Transaction, error)) *MockTransactionRepository_GetByPaymentID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // List provides a mock function for the type MockTransactionRepository
 func (_mock *MockTransactionRepository) List(userID uuid.UUID, accountID uuid.UUID) ([]*domain.Transaction, error) {
 	ret := _mock.Called(userID, accountID)
@@ -472,6 +534,57 @@ func (_c *MockTransactionRepository_List_Call) Return(vs []*domain.Transaction, 
 }
 
 func (_c *MockTransactionRepository_List_Call) RunAndReturn(run func(userID uuid.UUID, accountID uuid.UUID) ([]*domain.Transaction, error)) *MockTransactionRepository_List_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// Update provides a mock function for the type MockTransactionRepository
+func (_mock *MockTransactionRepository) Update(tx *domain.Transaction) error {
+	ret := _mock.Called(tx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Update")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(*domain.Transaction) error); ok {
+		r0 = returnFunc(tx)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockTransactionRepository_Update_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Update'
+type MockTransactionRepository_Update_Call struct {
+	*mock.Call
+}
+
+// Update is a helper method to define mock.On call
+//   - tx *domain.Transaction
+func (_e *MockTransactionRepository_Expecter) Update(tx interface{}) *MockTransactionRepository_Update_Call {
+	return &MockTransactionRepository_Update_Call{Call: _e.mock.On("Update", tx)}
+}
+
+func (_c *MockTransactionRepository_Update_Call) Run(run func(tx *domain.Transaction)) *MockTransactionRepository_Update_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 *domain.Transaction
+		if args[0] != nil {
+			arg0 = args[0].(*domain.Transaction)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTransactionRepository_Update_Call) Return(err error) *MockTransactionRepository_Update_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockTransactionRepository_Update_Call) RunAndReturn(run func(tx *domain.Transaction) error) *MockTransactionRepository_Update_Call {
 	_c.Call.Return(run)
 	return _c
 }

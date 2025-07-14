@@ -18,3 +18,5 @@ type ConversionInfo struct {
 	ConvertedCurrency string
 	ConversionRate    float64
 }
+
+type Event any

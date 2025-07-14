@@ -40,3 +40,5 @@ var (
 	ErrExchangeRateExpired     = money.ErrExchangeRateExpired
 	ErrExchangeRateInvalid     = money.ErrExchangeRateInvalid
 )
+
+type Event = common.Event

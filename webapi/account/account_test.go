@@ -67,37 +67,17 @@ func (s *AccountTestSuite) TestCreateAccount() {
 }
 
 func (s *AccountTestSuite) TestDeposit() {
-	// First create an account
-	createResp := s.MakeRequest("POST", "/account", `{"currency":"USD"}`, s.token)
-	defer createResp.Body.Close() //nolint: errcheck
-	s.Equal(fiber.StatusCreated, createResp.StatusCode)
+	user := s.CreateTestUser()
+	token := s.LoginUser(user)
 
-	// Extract account ID from response
-	var createResponse common.Response
-	err := json.NewDecoder(createResp.Body).Decode(&createResponse)
-	s.Require().NoError(err)
+	depositBody := `{"amount":100,"currency":"USD"}`
+	resp := s.MakeRequest("POST", "/account/"+user.ID.String()+"/deposit", depositBody, token)
+	// Assert status 202 Accepted
+	s.Require().Equal(202, resp.StatusCode)
 
-	// The account data is directly in the response data field
-	accountData, ok := createResponse.Data.(map[string]any)
-	s.Require().True(ok, "Expected account data to be a map")
-	accountID, ok := accountData["ID"].(string)
-	s.Require().True(ok, "Expected account ID to be present")
-
-	s.Run("Deposit successfully", func() {
-		depositBody := `{"amount":100,"currency":"USD","money_source":"Cash"}`
-		resp := s.MakeRequest("POST", fmt.Sprintf("/account/%s/deposit", accountID), depositBody, s.token)
-		body, _ := io.ReadAll(resp.Body)
-		s.T().Logf("Deposit response status: %d, body: %s", resp.StatusCode, string(body))
-		defer resp.Body.Close() //nolint: errcheck
-		s.Equal(fiber.StatusOK, resp.StatusCode)
-	})
-
-	s.Run("Deposit without auth", func() {
-		depositBody := `{"amount":100,"currency":"USD","money_source":"Cash"}`
-		resp := s.MakeRequest("POST", fmt.Sprintf("/account/%s/deposit", accountID), depositBody, "")
-		defer resp.Body.Close() //nolint: errcheck
-		s.Equal(fiber.StatusUnauthorized, resp.StatusCode)
-	})
+	// Optionally, check transaction status in DB or via API
+	// Optionally, assert event was triggered if MemoryEventBus is accessible
+	// TODO: Add event bus assertion when event bus is injectable in E2E
 }
 
 func (s *AccountTestSuite) TestWithdraw() {

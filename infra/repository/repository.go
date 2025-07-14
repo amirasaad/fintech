@@ -160,6 +160,34 @@ func (r *transactionRepository) List(
 	return tx, nil
 }
 
+func (r *transactionRepository) GetByPaymentID(paymentID string) (*account.Transaction, error) {
+	var m Transaction
+	if err := r.db.Where("payment_id = ?", paymentID).First(&m).Error; err != nil {
+		return nil, err
+	}
+	return account.NewTransactionFromData(m.ID, m.UserID, m.AccountID, money.NewFromData(m.Balance, m.Currency), money.NewFromData(m.Amount, m.Currency), account.MoneySource(m.MoneySource), m.CreatedAt), nil
+}
+
+func (r *transactionRepository) Update(tx *account.Transaction) error {
+	dbTx := Transaction{
+		ID:          tx.ID,
+		AccountID:   tx.AccountID,
+		UserID:      tx.UserID,
+		Amount:      tx.Amount.Amount(),
+		Currency:    string(tx.Amount.Currency()),
+		Balance:     tx.Balance.Amount(),
+		Status:      string(tx.Status),
+		PaymentID:   tx.PaymentID,
+		MoneySource: string(tx.MoneySource),
+		// Add other fields as needed (conversion, external target, etc.)
+	}
+	result := r.db.Model(&Transaction{}).Where("id = ?", tx.ID).Updates(&dbTx)
+	if result.Error != nil {
+		return result.Error
+	}
+	return nil
+}
+
 type userRepository struct {
 	db *gorm.DB
 }

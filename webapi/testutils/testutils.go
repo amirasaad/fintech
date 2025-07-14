@@ -5,8 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"log"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -109,7 +107,7 @@ func (s *E2ETestSuite) SetupSuite() {
 
 	// Setup services and app
 	s.setupApp()
-	log.SetOutput(io.Discard)
+	// log.SetOutput(io.Discard)
 }
 
 // TearDownSuite cleans up the test suite resources
@@ -129,13 +127,16 @@ func (s *E2ETestSuite) setupApp() {
 	authStrategy := auth.NewJWTAuthStrategy(uow, s.cfg.Jwt, logger)
 	authService := auth.NewAuthService(uow, authStrategy, logger)
 	currencyConverter := provider.NewStubCurrencyConverter()
-	accountSvc := account.NewService(account.ServiceDeps{
+	accountSvc := account.NewService(config.Deps{
 		Uow:             uow,
 		Converter:       currencyConverter,
 		Logger:          logger,
 		PaymentProvider: provider.NewMockPaymentProvider(),
 	})
-	userSvc := userservice.NewUserService(uow, logger)
+	userSvc := userservice.NewUserService(config.Deps{
+		Uow:    uow,
+		Logger: logger,
+	})
 
 	// Setup currency service
 	ctx := context.Background()
