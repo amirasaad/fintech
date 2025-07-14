@@ -1,9 +1,10 @@
-package account
+package account_test
 
 import (
 	"testing"
 
 	"github.com/amirasaad/fintech/pkg/currency"
+	domainaccount "github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/google/uuid"
 )
@@ -16,7 +17,7 @@ func FuzzAccountDeposit(f *testing.F) {
 	f.Add(0.0, "JPY")
 	f.Add(1e12, "ZZZ")
 	f.Fuzz(func(t *testing.T, amount float64, cc string) {
-		acc, err := New().WithUserID(userID).WithCurrency("USD").Build()
+		acc, err := domainaccount.New().WithUserID(userID).WithCurrency("USD").Build()
 		if err != nil {
 			t.Skip()
 		}
@@ -29,7 +30,7 @@ func FuzzAccountDeposit(f *testing.F) {
 				t.Errorf("Deposit panicked: %v (amount=%v, currency=%q)", r, amount, cc)
 			}
 		}()
-		_, _ = acc.Deposit(userID, mon)
+		_, _ = acc.Deposit(userID, mon, domainaccount.MoneySourceCash)
 		// Invariant: balance should never be negative
 		if notNegative, err := acc.Balance.GreaterThan(money.Zero(acc.Balance.Currency())); err != nil {
 			if !notNegative {
@@ -51,7 +52,7 @@ func FuzzAccountWithdraw(f *testing.F) {
 	f.Add(0.0, "JPY")
 	f.Add(1e6, "ZZZ")
 	f.Fuzz(func(t *testing.T, amount float64, cc string) {
-		acc, err := New().WithUserID(userID).WithCurrency("USD").Build()
+		acc, err := domainaccount.New().WithUserID(userID).WithCurrency("USD").Build()
 		if err != nil {
 			t.Skip()
 		}
@@ -60,7 +61,7 @@ func FuzzAccountWithdraw(f *testing.F) {
 		if err != nil {
 			t.Skip()
 		}
-		_, _ = acc.Deposit(userID, depositMoney)
+		_, _ = acc.Deposit(userID, depositMoney, domainaccount.MoneySourceCash)
 		mon, err := money.New(amount, currency.Code(cc))
 		if err != nil {
 			t.Skip()
@@ -70,7 +71,7 @@ func FuzzAccountWithdraw(f *testing.F) {
 				t.Errorf("Withdraw panicked: %v (amount=%v, currency=%q)", r, amount, cc)
 			}
 		}()
-		_, _ = acc.Withdraw(userID, mon)
+		_, _ = acc.Withdraw(userID, mon, domainaccount.MoneySourceCash)
 		// Invariant: balance should never be negative
 		if notNegative, err := acc.Balance.GreaterThan(money.Zero(acc.Balance.Currency())); err != nil {
 			if !notNegative {

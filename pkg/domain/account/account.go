@@ -206,7 +206,7 @@ func (a *Account) GetBalanceAsMoney(userID uuid.UUID) (m money.Money, err error)
 //   - Deposit must not cause integer overflow.
 //
 // Returns a Transaction or an error if any invariant is violated.
-func (a *Account) Deposit(userID uuid.UUID, m money.Money) (tx *Transaction, err error) {
+func (a *Account) Deposit(userID uuid.UUID, m money.Money, moneySource MoneySource) (tx *Transaction, err error) {
 	if a.UserID != userID {
 		err = user.ErrUserUnauthorized
 		return
@@ -249,12 +249,13 @@ func (a *Account) Deposit(userID uuid.UUID, m money.Money) (tx *Transaction, err
 	a.Balance = newBalance
 
 	tx = &Transaction{
-		ID:        uuid.New(),
-		UserID:    userID,
-		AccountID: a.ID,
-		Amount:    m,
-		Balance:   a.Balance,
-		CreatedAt: time.Now().UTC(),
+		ID:          uuid.New(),
+		UserID:      userID,
+		AccountID:   a.ID,
+		Amount:      m,
+		Balance:     a.Balance,
+		MoneySource: moneySource,
+		CreatedAt:   time.Now().UTC(),
 	}
 	return
 }
@@ -267,7 +268,7 @@ func (a *Account) Deposit(userID uuid.UUID, m money.Money) (tx *Transaction, err
 //   - Cannot withdraw more than the current balance.
 //
 // Returns a Transaction or an error if any invariant is violated.
-func (a *Account) Withdraw(userID uuid.UUID, m money.Money) (tx *Transaction, err error) {
+func (a *Account) Withdraw(userID uuid.UUID, m money.Money, moneySource MoneySource) (tx *Transaction, err error) {
 	if a.UserID != userID {
 		err = user.ErrUserUnauthorized
 		return
@@ -309,12 +310,13 @@ func (a *Account) Withdraw(userID uuid.UUID, m money.Money) (tx *Transaction, er
 	a.Balance = newBalance
 
 	tx = &Transaction{
-		ID:        uuid.New(),
-		UserID:    userID,
-		AccountID: a.ID,
-		Amount:    m.Negate(),
-		Balance:   a.Balance,
-		CreatedAt: time.Now().UTC(),
+		ID:          uuid.New(),
+		UserID:      userID,
+		AccountID:   a.ID,
+		Amount:      m.Negate(),
+		Balance:     a.Balance,
+		MoneySource: moneySource,
+		CreatedAt:   time.Now().UTC(),
 	}
 	return
 }

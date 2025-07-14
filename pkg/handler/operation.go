@@ -3,6 +3,8 @@ package handler
 import (
 	"context"
 	"log/slog"
+
+	"github.com/amirasaad/fintech/pkg/domain/account"
 )
 
 // DepositOperationHandler executes deposit domain operations
@@ -15,7 +17,7 @@ type DepositOperationHandler struct {
 func (h *DepositOperationHandler) Handle(ctx context.Context, req *OperationRequest) (*OperationResponse, error) {
 	logger := h.logger.With("operation", "deposit")
 
-	tx, err := req.Account.Deposit(req.UserID, req.ConvertedMoney)
+	tx, err := req.Account.Deposit(req.UserID, req.ConvertedMoney, account.MoneySource(req.MoneySource))
 	if err != nil {
 		logger.Error("DepositOperationHandler failed: domain operation error", "error", err)
 		return &OperationResponse{Error: err}, nil
@@ -37,7 +39,7 @@ type WithdrawOperationHandler struct {
 func (h *WithdrawOperationHandler) Handle(ctx context.Context, req *OperationRequest) (*OperationResponse, error) {
 	logger := h.logger.With("operation", "withdraw")
 
-	tx, err := req.Account.Withdraw(req.UserID, req.ConvertedMoney)
+	tx, err := req.Account.Withdraw(req.UserID, req.ConvertedMoney, account.MoneySource(req.MoneySource))
 	if err != nil {
 		logger.Error("WithdrawOperationHandler failed: domain operation error", "error", err)
 		return &OperationResponse{Error: err}, nil

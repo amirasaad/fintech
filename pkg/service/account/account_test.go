@@ -252,7 +252,7 @@ func TestWithdraw_Success(t *testing.T) {
 	acc, _ := accountdomain.New().WithUserID(userID).WithCurrency(currency.USD).Build()
 	// Deposit first
 	amount, _ := money.New(100, acc.Balance.Currency())
-	_, _ = acc.Deposit(userID, amount)
+	_, _ = acc.Deposit(userID, amount, accountdomain.MoneySourceCash)
 	accountRepo.EXPECT().Get(acc.ID).Return(acc, nil)
 	accountRepo.EXPECT().Update(acc).Return(nil)
 	transactionRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Once()
@@ -445,7 +445,7 @@ func TestGetBalance_Success(t *testing.T) {
 	userID := uuid.New()
 	acc, _ := accountdomain.New().WithUserID(userID).WithCurrency(currency.USD).Build()
 	balanceMoney, _ := money.New(123.0, acc.Balance.Currency())
-	_, _ = acc.Deposit(userID, balanceMoney)
+	_, _ = acc.Deposit(userID, balanceMoney, accountdomain.MoneySourceCard)
 	accountRepo.EXPECT().Get(acc.ID).Return(acc, nil)
 
 	balance, err := accountsvc.NewAccountService(uow, nil, slog.Default()).GetBalance(userID, acc.ID)
