@@ -1,17 +1,16 @@
 package account
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestAccount_Transfer(t *testing.T) {
-	require := require.New(t)
 	assert := assert.New(t)
 
 	type accountArgs struct {
@@ -34,10 +33,13 @@ func TestAccount_Transfer(t *testing.T) {
 		expectedErr  error
 		expectSrcBal money.Money
 		expectDstBal money.Money
+		useSameAcct  bool // new: if true, use same account for source and dest
+		sourceNil    bool // new: if true, source is nil
+		destNil      bool // new: if true, dest is nil
 	}{
 		{
 			name:         "success: owner transfers to another account",
-			initiator:    uuid.New(),
+			initiator:    uuid.Nil, // will be set to sourceArgs.userID below
 			sourceArgs:   &accountArgs{userID: uuid.New(), currency: currency.USD, balance: 100},
 			destArgs:     &accountArgs{userID: uuid.New(), currency: currency.USD, balance: 0},
 			amount:       func() money.Money { m, _ := money.NewMoneyFromSmallestUnit(50, currency.USD); return m }(),
@@ -45,7 +47,77 @@ func TestAccount_Transfer(t *testing.T) {
 			expectSrcBal: func() money.Money { m, _ := money.NewMoneyFromSmallestUnit(50, currency.USD); return m }(),
 			expectDstBal: func() money.Money { m, _ := money.NewMoneyFromSmallestUnit(50, currency.USD); return m }(),
 		},
-		// ... add other cases as needed ...
+		{
+			name:         "fail: cannot transfer to same account",
+			initiator:    uuid.Nil, // will be set to sourceArgs.userID below
+			sourceArgs:   &accountArgs{userID: uuid.New(), currency: currency.USD, balance: 100},
+			destArgs:     &accountArgs{userID: uuid.Nil, currency: currency.USD, balance: 0},
+			amount:       func() money.Money { m, _ := money.NewMoneyFromSmallestUnit(10, currency.USD); return m }(),
+			expectedErr:  fmt.Errorf("cannot transfer to same account"),
+			expectSrcBal: func() money.Money { m, _ := money.NewMoneyFromSmallestUnit(100, currency.USD); return m }(),
+			expectDstBal: func() money.Money { m, _ := money.NewMoneyFromSmallestUnit(100, currency.USD); return m }(),
+			useSameAcct:  true,
+		},
+		{
+			name:        "fail: nil source account",
+			initiator:   uuid.New(),
+			sourceArgs:  nil,
+			destArgs:    &accountArgs{userID: uuid.New(), currency: currency.USD, balance: 0},
+			amount:      func() money.Money { m, _ := money.NewMoneyFromSmallestUnit(10, currency.USD); return m }(),
+			expectedErr: fmt.Errorf("nil account"),
+			sourceNil:   true,
+		},
+		{
+			name:        "fail: nil dest account",
+			initiator:   uuid.Nil, // will be set to sourceArgs.userID below
+			sourceArgs:  &accountArgs{userID: uuid.New(), currency: currency.USD, balance: 100},
+			destArgs:    nil,
+			amount:      func() money.Money { m, _ := money.NewMoneyFromSmallestUnit(10, currency.USD); return m }(),
+			expectedErr: fmt.Errorf("nil account"),
+			destNil:     true,
+		},
+		{
+			name:        "fail: not owner",
+			initiator:   uuid.New(), // not the source account owner
+			sourceArgs:  &accountArgs{userID: uuid.New(), currency: currency.USD, balance: 100},
+			destArgs:    &accountArgs{userID: uuid.New(), currency: currency.USD, balance: 0},
+			amount:      func() money.Money { m, _ := money.NewMoneyFromSmallestUnit(10, currency.USD); return m }(),
+			expectedErr: fmt.Errorf("not owner"),
+		},
+		{
+			name:        "fail: negative amount",
+			initiator:   uuid.Nil, // will be set to sourceArgs.userID below
+			sourceArgs:  &accountArgs{userID: uuid.New(), currency: currency.USD, balance: 100},
+			destArgs:    &accountArgs{userID: uuid.New(), currency: currency.USD, balance: 0},
+			amount:      func() money.Money { m, _ := money.NewMoneyFromSmallestUnit(-10, currency.USD); return m }(),
+			expectedErr: fmt.Errorf("amount must be positive"),
+		},
+		{
+			name:        "fail: zero amount",
+			initiator:   uuid.Nil, // will be set to sourceArgs.userID below
+			sourceArgs:  &accountArgs{userID: uuid.New(), currency: currency.USD, balance: 100},
+			destArgs:    &accountArgs{userID: uuid.New(), currency: currency.USD, balance: 0},
+			amount:      func() money.Money { m, _ := money.NewMoneyFromSmallestUnit(0, currency.USD); return m }(),
+			expectedErr: fmt.Errorf("amount must be positive"),
+		},
+		{
+			name:        "fail: currency mismatch",
+			initiator:   uuid.Nil, // will be set to sourceArgs.userID below
+			sourceArgs:  &accountArgs{userID: uuid.New(), currency: currency.USD, balance: 100},
+			destArgs:    &accountArgs{userID: uuid.New(), currency: currency.EUR, balance: 0},
+			amount:      func() money.Money { m, _ := money.NewMoneyFromSmallestUnit(10, currency.USD); return m }(),
+			expectedErr: fmt.Errorf("currency mismatch"),
+		},
+		{
+			name:         "fail: insufficient funds",
+			initiator:    uuid.Nil, // will be set to sourceArgs.userID below
+			sourceArgs:   &accountArgs{userID: uuid.New(), currency: currency.USD, balance: 5},
+			destArgs:     &accountArgs{userID: uuid.New(), currency: currency.USD, balance: 0},
+			amount:       func() money.Money { m, _ := money.NewMoneyFromSmallestUnit(10, currency.USD); return m }(),
+			expectedErr:  fmt.Errorf("insufficient funds"),
+			expectSrcBal: func() money.Money { m, _ := money.NewMoneyFromSmallestUnit(5, currency.USD); return m }(),
+			expectDstBal: func() money.Money { m, _ := money.NewMoneyFromSmallestUnit(0, currency.USD); return m }(),
+		},
 	}
 
 	callTransfer := func(initiator uuid.UUID, source, dest *Account, amount money.Money) error {
@@ -54,27 +126,37 @@ func TestAccount_Transfer(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc // capture range variable
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			var source, dest *Account
-			if tc.sourceArgs != nil {
+			switch {
+			case tc.sourceNil:
+				source = nil
+			case tc.sourceArgs != nil:
 				source = newAccount(tc.sourceArgs.userID, tc.sourceArgs.currency, tc.sourceArgs.balance)
 			}
-			if tc.destArgs != nil {
+			switch {
+			case tc.destNil:
+				dest = nil
+			case tc.useSameAcct:
+				dest = source
+			case tc.destArgs != nil:
 				dest = newAccount(tc.destArgs.userID, tc.destArgs.currency, tc.destArgs.balance)
 			}
-			// For the first test case, use the source account owner as the initiator
 			initiator := tc.initiator
-			if tc.name == "success: owner transfers to another account" {
-				initiator = tc.sourceArgs.userID
+			if initiator == uuid.Nil && source != nil {
+				initiator = source.UserID
 			}
 			err := callTransfer(initiator, source, dest, tc.amount)
-			require.Equal(tc.expectedErr, err)
-			if source != nil {
+			if tc.expectedErr != nil {
+				assert.EqualError(err, tc.expectedErr.Error())
+			} else {
+				assert.NoError(err)
+			}
+			if source != nil && tc.expectSrcBal.Amount() != 0 {
 				assert.True(tc.expectSrcBal.Equals(source.Balance))
 			}
-			if dest != nil {
+			if dest != nil && tc.expectDstBal.Amount() != 0 {
 				assert.True(tc.expectDstBal.Equals(dest.Balance))
 			}
 		})

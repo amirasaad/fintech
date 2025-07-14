@@ -316,6 +316,9 @@ func (a *Account) Transfer(initiatorUserID uuid.UUID, dest *Account, amount mone
 	if a == nil || dest == nil {
 		return nil, nil, fmt.Errorf("nil account")
 	}
+	if a.ID == dest.ID {
+		return nil, nil, fmt.Errorf("cannot transfer to same account")
+	}
 	if a.UserID != initiatorUserID {
 		return nil, nil, fmt.Errorf("not owner")
 	}
