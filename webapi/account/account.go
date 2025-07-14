@@ -132,8 +132,8 @@ func Deposit(
 		if input.Currency != "" {
 			currencyCode = currency.Code(input.Currency)
 		}
-		log.Infof("Deposit handler: calling service for user %s, account %s, amount %v, currency %s", userID, accountID, input.Amount, currencyCode)
-		tx, convInfo, err := accountSvc.Deposit(userID, accountID, input.Amount, currencyCode)
+		log.Infof("Deposit handler: calling service for user %s, account %s, amount %v, currency %s, money_source %s", userID, accountID, input.Amount, currencyCode, input.MoneySource)
+		tx, convInfo, err := accountSvc.Deposit(userID, accountID, input.Amount, currencyCode, input.MoneySource)
 		if err != nil {
 			log.Errorf("Failed to deposit: %v", err)
 			return common.ProblemDetailsJSON(c, "Failed to deposit", err)

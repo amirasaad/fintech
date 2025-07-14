@@ -208,7 +208,7 @@ func handleDeposit(args []string, scv *account.Service, errorMsg, successMsg fun
 		return
 	}
 
-	account, _, err := scv.Deposit(userID, uuid.MustParse(accountID), amount, "USD")
+	account, _, err := scv.Deposit(userID, uuid.MustParse(accountID), amount, "USD", "Internal")
 	if err != nil {
 		fmt.Println(errorMsg("Error depositing:"), err)
 		return

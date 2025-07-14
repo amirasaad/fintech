@@ -37,11 +37,11 @@ func TestTransactionRepository_Create(t *testing.T) {
 	accountID := uuid.New()
 	amount, _ := money.New(100, currency.USD)
 	balance, _ := money.New(100, currency.USD)
-	transaction := account.NewTransactionFromData(uuid.New(), userID, accountID, amount, balance, time.Now())
+	transaction := account.NewTransactionFromData(uuid.New(), userID, accountID, amount, balance, account.MoneySourceInternal, time.Now())
 
 	mock.ExpectBegin()
 	mock.ExpectQuery(`INSERT INTO "transactions" (.+) VALUES (.+) RETURNING "id"`).
-		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg()).
+		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(transaction.ID))
 	mock.ExpectCommit()
 
@@ -50,7 +50,7 @@ func TestTransactionRepository_Create(t *testing.T) {
 
 	mock.ExpectBegin()
 	mock.ExpectQuery(`INSERT INTO "transactions" (.+) VALUES (.+) RETURNING "id"`).
-		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg()).
+		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg()).
 		WillReturnError(errors.New("create error"))
 	mock.ExpectRollback()
 

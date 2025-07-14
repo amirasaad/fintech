@@ -45,7 +45,7 @@ func BenchmarkDeposit(b *testing.B) {
 	transactionRepo.On("Create", mock.Anything).Return(nil)
 	b.ResetTimer()
 	for b.Loop() {
-		_, _, err := svc.Deposit(userID, acc.ID, 100.0, "USD")
+		_, _, err := svc.Deposit(userID, acc.ID, 100.0, "USD", "Cash")
 		require.NoError(err)
 	}
 }

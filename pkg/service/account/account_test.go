@@ -107,7 +107,7 @@ func TestDeposit_Success(t *testing.T) {
 	accountRepo.EXPECT().Update(mock.Anything).Return(nil).Once()
 	transactionRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Once()
 
-	tx, _, err := svc.Deposit(userID, accountID, 100.0, currency.USD)
+	tx, _, err := svc.Deposit(userID, accountID, 100.0, currency.USD, "Cash")
 	assert.NoError(t, err)
 	assert.NotNil(t, tx)
 }
@@ -136,7 +136,7 @@ func TestDeposit_RepoError(t *testing.T) {
 	accountRepo.EXPECT().Get(accountID).Return(account, nil).Once()
 	accountRepo.EXPECT().Update(account).Return(errors.New("update error")).Once()
 
-	tx, _, err := svc.Deposit(userID, accountID, 100.0, currency.USD)
+	tx, _, err := svc.Deposit(userID, accountID, 100.0, currency.USD, "Cash")
 	require.Error(t, err)
 	assert.Nil(t, tx)
 }
@@ -153,7 +153,7 @@ func TestDeposit_NegativeAmount(t *testing.T) {
 	// No update or create expected for negative amount
 
 	svc := accountsvc.NewAccountService(uow, nil, slog.Default())
-	tx, _, err := svc.Deposit(userID, accountID, -50.0, currency.USD)
+	tx, _, err := svc.Deposit(userID, accountID, -50.0, currency.USD, "Cash")
 	require.Error(t, err)
 	assert.Nil(t, tx)
 }
@@ -168,7 +168,7 @@ func TestDeposit_AccountRepoError(t *testing.T) {
 	// No update or create expected if get fails
 
 	svc := accountsvc.NewAccountService(uow, nil, slog.Default())
-	tx, _, err := svc.Deposit(userID, accountID, 100.0, currency.USD)
+	tx, _, err := svc.Deposit(userID, accountID, 100.0, currency.USD, "Cash")
 	require.Error(t, err)
 	assert.Nil(t, tx)
 }
@@ -184,7 +184,7 @@ func TestDeposit_GetAccountError(t *testing.T) {
 	// No update or create expected if get fails
 
 	svc := accountsvc.NewAccountService(uow, nil, slog.Default())
-	tx, _, err := svc.Deposit(userID, accountID, 100.0, currency.USD)
+	tx, _, err := svc.Deposit(userID, accountID, 100.0, currency.USD, "Cash")
 	require.Error(t, err)
 	assert.Nil(t, tx)
 }
@@ -207,7 +207,7 @@ func TestDeposit_UpdateError(t *testing.T) {
 	// No create expected if update fails
 
 	svc := accountsvc.NewAccountService(uow, nil, slog.Default())
-	tx, _, err := svc.Deposit(userID, accountID, 100.0, currency.USD)
+	tx, _, err := svc.Deposit(userID, accountID, 100.0, currency.USD, "Cash")
 	require.Error(t, err)
 	assert.Nil(t, tx)
 }
@@ -232,7 +232,7 @@ func TestDeposit_TransactionRepoError(t *testing.T) {
 	transactionRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(errors.New("create error")).Once()
 
 	svc := accountsvc.NewAccountService(uow, nil, slog.Default())
-	tx, _, err := svc.Deposit(userID, accountID, 100.0, currency.USD)
+	tx, _, err := svc.Deposit(userID, accountID, 100.0, currency.USD, "Cash")
 	require.Error(t, err)
 	assert.Nil(t, tx)
 }
@@ -488,7 +488,6 @@ func TestTransfer_Success(t *testing.T) {
 	}
 
 	amount, _ := money.New(25.0, currency.USD) // $25.00
-	moneySource := accountdomain.MoneySourceInternal
 
 	// TransferValidationHandler: Get both accounts for validation
 	accountRepo.EXPECT().Get(sourceAccountID).Return(sourceAccount, nil).Once()
@@ -507,7 +506,7 @@ func TestTransfer_Success(t *testing.T) {
 		},
 	)
 
-	txOut, txIn, err := svc.Transfer(userID, sourceAccountID, destAccountID, amount.AmountFloat(), currency.USD, moneySource)
+	txOut, txIn, err := svc.Transfer(userID, sourceAccountID, destAccountID, amount.AmountFloat(), currency.USD)
 	assert.NoError(t, err)
 	assert.NotNil(t, txOut)
 	assert.NotNil(t, txIn)

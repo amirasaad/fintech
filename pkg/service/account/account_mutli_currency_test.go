@@ -46,7 +46,7 @@ func TestDeposit_AcceptsMatchingCurrency(t *testing.T) {
 	transactionRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Once()
 
 	svc := accountsvc.NewAccountService(uow, nil, slog.Default())
-	gotTx, _, err := svc.Deposit(account.UserID, account.ID, 100.0, currency.Code("EUR"))
+	gotTx, _, err := svc.Deposit(account.UserID, account.ID, 100.0, currency.Code("EUR"), "Cash")
 	assert.NoError(t, err)
 	assert.NotNil(t, gotTx)
 }
@@ -120,7 +120,7 @@ func TestDeposit_ConvertsCurrency(t *testing.T) {
 	}, nil).Once()
 
 	svc := accountsvc.NewAccountService(uow, converter, slog.Default())
-	gotTx, _, err := svc.Deposit(account.UserID, account.ID, 100.0, currency.Code("EUR"))
+	gotTx, _, err := svc.Deposit(account.UserID, account.ID, 100.0, currency.Code("EUR"), "Cash")
 	assert.NoError(t, err)
 	assert.NotNil(t, gotTx)
 }

@@ -98,12 +98,13 @@ func (r *transactionRepository) Create(transaction *account.Transaction, convInf
 			CreatedAt: transaction.CreatedAt,
 			UpdatedAt: transaction.CreatedAt,
 		},
-		ID:        transaction.ID,
-		AccountID: transaction.AccountID,
-		UserID:    transaction.UserID,
-		Amount:    transaction.Amount.Amount(),
-		Currency:  string(transaction.Amount.Currency()),
-		Balance:   transaction.Balance.Amount(),
+		ID:          transaction.ID,
+		AccountID:   transaction.AccountID,
+		UserID:      transaction.UserID,
+		Amount:      transaction.Amount.Amount(),
+		Currency:    string(transaction.Amount.Currency()),
+		Balance:     transaction.Balance.Amount(),
+		MoneySource: string(transaction.MoneySource),
 	}
 
 	// Only set conversion fields if conversion info is provided
@@ -138,7 +139,7 @@ func (r *transactionRepository) Get(
 	balance := money.NewFromData(t.Amount, t.Currency)
 	return account.NewTransactionFromData(
 		t.ID,
-		t.UserID, t.AccountID, amount, balance, t.CreatedAt), nil
+		t.UserID, t.AccountID, amount, balance, account.MoneySource(t.MoneySource), t.CreatedAt), nil
 }
 
 func (r *transactionRepository) List(
@@ -153,7 +154,7 @@ func (r *transactionRepository) List(
 	for _, t := range dbTransactions {
 		amount := money.NewFromData(t.Balance, t.Currency)
 		balance := money.NewFromData(t.Amount, t.Currency)
-		tx = append(tx, account.NewTransactionFromData(t.ID, t.UserID, t.AccountID, amount, balance, t.CreatedAt))
+		tx = append(tx, account.NewTransactionFromData(t.ID, t.UserID, t.AccountID, amount, balance, account.MoneySource(t.MoneySource), t.CreatedAt))
 	}
 	return tx, nil
 }

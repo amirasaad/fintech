@@ -43,6 +43,7 @@ type OperationRequest struct {
 	DestAccountID uuid.UUID
 	DestAccount   *account.Account
 	DestUserID    uuid.UUID
+	MoneySource   string // Origin of funds for deposit (e.g., Cash, Stripe, etc.)
 }
 
 // OperationResponse contains the result of an account operation

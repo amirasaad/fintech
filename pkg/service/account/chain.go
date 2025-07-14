@@ -24,18 +24,18 @@ func NewChain(uow repository.UnitOfWork, converter mon.CurrencyConverter, logger
 }
 
 // Deposit executes a deposit operation using the chain of responsibility pattern
-func (c *Chain) Deposit(ctx context.Context, userID, accountID uuid.UUID, amount float64, currencyCode currency.Code) (*handler.OperationResponse, error) {
-	return c.chain.Deposit(ctx, userID, accountID, amount, currencyCode)
+func (c *Chain) Deposit(ctx context.Context, userID, accountID uuid.UUID, amount float64, currencyCode currency.Code, moneySource string) (*handler.OperationResponse, error) {
+	return c.chain.Deposit(ctx, userID, accountID, amount, currencyCode, moneySource)
 }
 
 // Withdraw executes a withdraw operation using the chain of responsibility pattern
-func (c *Chain) Withdraw(ctx context.Context, userID, accountID uuid.UUID, amount float64, currencyCode currency.Code) (*handler.OperationResponse, error) {
-	return c.chain.Withdraw(ctx, userID, accountID, amount, currencyCode)
+func (c *Chain) Withdraw(ctx context.Context, userID, accountID uuid.UUID, amount float64, currencyCode currency.Code, moneySource string) (*handler.OperationResponse, error) {
+	return c.chain.Withdraw(ctx, userID, accountID, amount, currencyCode, moneySource)
 }
 
 // Transfer executes a transfer operation using the chain of responsibility pattern
-func (c *Chain) Transfer(ctx context.Context, userID, sourceAccountID, destAccountID uuid.UUID, amount float64, currencyCode currency.Code) (*handler.OperationResponse, error) {
-	return c.chain.Transfer(ctx, userID, sourceAccountID, destAccountID, amount, currencyCode)
+func (c *Chain) Transfer(ctx context.Context, userID, sourceAccountID, destAccountID uuid.UUID, amount float64, currencyCode currency.Code, moneySource string) (*handler.OperationResponse, error) {
+	return c.chain.Transfer(ctx, userID, sourceAccountID, destAccountID, amount, currencyCode, moneySource)
 }
 
 // OperationHandler defines the interface for handling account operations in the chain

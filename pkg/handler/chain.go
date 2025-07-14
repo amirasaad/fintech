@@ -23,7 +23,7 @@ func NewAccountChain(uow repository.UnitOfWork, converter mon.CurrencyConverter,
 }
 
 // Deposit executes a deposit operation using the chain of responsibility pattern
-func (c *AccountChain) Deposit(ctx context.Context, userID, accountID uuid.UUID, amount float64, currencyCode currency.Code) (*OperationResponse, error) {
+func (c *AccountChain) Deposit(ctx context.Context, userID, accountID uuid.UUID, amount float64, currencyCode currency.Code, moneySource string) (*OperationResponse, error) {
 	chain := c.builder.BuildDepositChain()
 
 	req := &OperationRequest{
@@ -32,13 +32,14 @@ func (c *AccountChain) Deposit(ctx context.Context, userID, accountID uuid.UUID,
 		Amount:       amount,
 		CurrencyCode: currencyCode,
 		Operation:    OperationDeposit,
+		MoneySource:  moneySource,
 	}
 
 	return chain.Handle(ctx, req)
 }
 
 // Withdraw executes a withdraw operation using the chain of responsibility pattern
-func (c *AccountChain) Withdraw(ctx context.Context, userID, accountID uuid.UUID, amount float64, currencyCode currency.Code) (*OperationResponse, error) {
+func (c *AccountChain) Withdraw(ctx context.Context, userID, accountID uuid.UUID, amount float64, currencyCode currency.Code, moneySource string) (*OperationResponse, error) {
 	chain := c.builder.BuildWithdrawChain()
 
 	req := &OperationRequest{
@@ -47,13 +48,14 @@ func (c *AccountChain) Withdraw(ctx context.Context, userID, accountID uuid.UUID
 		Amount:       amount,
 		CurrencyCode: currencyCode,
 		Operation:    OperationWithdraw,
+		MoneySource:  moneySource,
 	}
 
 	return chain.Handle(ctx, req)
 }
 
 // Transfer executes a transfer operation using the chain of responsibility pattern
-func (c *AccountChain) Transfer(ctx context.Context, userID, sourceAccountID, destAccountID uuid.UUID, amount float64, currencyCode currency.Code) (*OperationResponse, error) {
+func (c *AccountChain) Transfer(ctx context.Context, userID, sourceAccountID, destAccountID uuid.UUID, amount float64, currencyCode currency.Code, moneySource string) (*OperationResponse, error) {
 	chain := c.builder.BuildTransferChain()
 
 	req := &OperationRequest{
@@ -63,6 +65,7 @@ func (c *AccountChain) Transfer(ctx context.Context, userID, sourceAccountID, de
 		Amount:        amount,
 		CurrencyCode:  currencyCode,
 		Operation:     OperationTransfer,
+		MoneySource:   moneySource,
 	}
 
 	return chain.Handle(ctx, req)

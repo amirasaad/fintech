@@ -178,10 +178,11 @@ func (s *Service) Deposit(
 	userID, accountID uuid.UUID,
 	amount float64,
 	currencyCode currency.Code,
+	moneySource string,
 ) (tx *account.Transaction, convInfo *common.ConversionInfo, err error) {
-	s.logger.Info("Deposit: starting", "userID", userID, "accountID", accountID, "amount", amount, "currency", currencyCode)
+	s.logger.Info("Deposit: starting", "userID", userID, "accountID", accountID, "amount", amount, "currency", currencyCode, "moneySource", moneySource)
 
-	resp, err := s.accountChain.Deposit(context.Background(), userID, accountID, amount, currencyCode)
+	resp, err := s.accountChain.Deposit(context.Background(), userID, accountID, amount, currencyCode, moneySource)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -256,7 +257,7 @@ func (s *Service) Withdraw(
 	convInfo *common.ConversionInfo,
 	err error,
 ) {
-	resp, err := s.accountChain.Withdraw(context.Background(), userID, accountID, amount, currencyCode)
+	resp, err := s.accountChain.Withdraw(context.Background(), userID, accountID, amount, currencyCode, "Internal")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -274,14 +275,13 @@ func (s *Service) Transfer(
 	sourceAccountID, destAccountID uuid.UUID,
 	amount float64,
 	currencyCode currency.Code,
-	moneySource account.MoneySource,
 ) (
 	txOut, txIn *account.Transaction,
 	err error,
 ) {
-	s.logger.Info("Transfer: starting", "userID", userID, "sourceAccountID", sourceAccountID, "destAccountID", destAccountID, "amount", amount, "currency", currencyCode, "moneySource", moneySource)
+	s.logger.Info("Transfer: starting", "userID", userID, "sourceAccountID", sourceAccountID, "destAccountID", destAccountID, "amount", amount, "currency", currencyCode)
 
-	resp, err := s.accountChain.Transfer(context.Background(), userID, sourceAccountID, destAccountID, amount, currencyCode)
+	resp, err := s.accountChain.Transfer(context.Background(), userID, sourceAccountID, destAccountID, amount, currencyCode, "Internal")
 	if err != nil {
 		s.logger.Error("Transfer: chain failed", "error", err)
 		return

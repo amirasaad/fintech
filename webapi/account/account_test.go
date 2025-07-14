@@ -84,7 +84,7 @@ func (s *AccountTestSuite) TestDeposit() {
 	s.Require().True(ok, "Expected account ID to be present")
 
 	s.Run("Deposit successfully", func() {
-		depositBody := `{"amount":100,"currency":"USD"}`
+		depositBody := `{"amount":100,"currency":"USD","money_source":"Cash"}`
 		resp := s.MakeRequest("POST", fmt.Sprintf("/account/%s/deposit", accountID), depositBody, s.token)
 		body, _ := io.ReadAll(resp.Body)
 		s.T().Logf("Deposit response status: %d, body: %s", resp.StatusCode, string(body))
@@ -93,7 +93,7 @@ func (s *AccountTestSuite) TestDeposit() {
 	})
 
 	s.Run("Deposit without auth", func() {
-		depositBody := `{"amount":100,"currency":"USD"}`
+		depositBody := `{"amount":100,"currency":"USD","money_source":"Cash"}`
 		resp := s.MakeRequest("POST", fmt.Sprintf("/account/%s/deposit", accountID), depositBody, "")
 		defer resp.Body.Close() //nolint: errcheck
 		s.Equal(fiber.StatusUnauthorized, resp.StatusCode)
@@ -116,7 +116,7 @@ func (s *AccountTestSuite) TestWithdraw() {
 	s.Require().True(ok, "Expected account ID to be present")
 
 	// Deposit some money first
-	depositBody := `{"amount":100,"currency":"USD"}`
+	depositBody := `{"amount":100,"currency":"USD","money_source":"Cash"}`
 	depositResp := s.MakeRequest("POST", fmt.Sprintf("/account/%s/deposit", accountID), depositBody, s.token)
 	defer depositResp.Body.Close() //nolint: errcheck
 	s.Equal(fiber.StatusOK, depositResp.StatusCode)

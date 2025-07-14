@@ -11,8 +11,9 @@ type CreateAccountRequest struct {
 
 // DepositRequest represents the request body for depositing funds into an account.
 type DepositRequest struct {
-	Amount   float64 `json:"amount" xml:"amount" form:"amount" validate:"required,gt=0"`
-	Currency string  `json:"currency" validate:"omitempty,len=3,uppercase"`
+	Amount      float64 `json:"amount" xml:"amount" form:"amount" validate:"required,gt=0"`
+	Currency    string  `json:"currency" validate:"omitempty,len=3,uppercase"`
+	MoneySource string  `json:"money_source" validate:"required,min=2,max=64"`
 }
 
 // WithdrawRequest represents the request body for withdrawing funds from an account.
@@ -33,13 +34,14 @@ type ConversionResponse struct {
 
 // TransactionDTO is the API response representation of a transaction.
 type TransactionDTO struct {
-	ID        string  `json:"id"`
-	UserID    string  `json:"user_id"`
-	AccountID string  `json:"account_id"`
-	Amount    float64 `json:"amount"`
-	Balance   float64 `json:"balance"`
-	CreatedAt string  `json:"created_at"`
-	Currency  string  `json:"currency"`
+	ID          string  `json:"id"`
+	UserID      string  `json:"user_id"`
+	AccountID   string  `json:"account_id"`
+	Amount      float64 `json:"amount"`
+	Balance     float64 `json:"balance"`
+	CreatedAt   string  `json:"created_at"`
+	Currency    string  `json:"currency"`
+	MoneySource string  `json:"money_source"`
 
 	// Conversion fields (only present if conversion occurred)
 	OriginalAmount   *float64 `json:"original_amount,omitempty"`
@@ -63,13 +65,14 @@ func ToTransactionDTO(tx *domain.Transaction) *TransactionDTO {
 		return nil
 	}
 	dto := &TransactionDTO{
-		ID:        tx.ID.String(),
-		UserID:    tx.UserID.String(),
-		AccountID: tx.AccountID.String(),
-		Amount:    tx.Amount.AmountFloat(),
-		Currency:  string(tx.Amount.Currency()),
-		Balance:   tx.Balance.AmountFloat(),
-		CreatedAt: tx.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		ID:          tx.ID.String(),
+		UserID:      tx.UserID.String(),
+		AccountID:   tx.AccountID.String(),
+		Amount:      tx.Amount.AmountFloat(),
+		Currency:    string(tx.Amount.Currency()),
+		Balance:     tx.Balance.AmountFloat(),
+		CreatedAt:   tx.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		MoneySource: string(tx.MoneySource),
 	}
 
 	return dto
@@ -78,18 +81,6 @@ func ToTransactionDTO(tx *domain.Transaction) *TransactionDTO {
 // ToConversionResponseDTO maps a transaction and conversion info to a ConversionResponseDTO.
 func ToConversionResponseDTO(tx *domain.Transaction, convInfo *domain.ConversionInfo) *ConversionResponseDTO {
 	// If conversion info is provided (from service layer), use it
-	if convInfo != nil {
-		return &ConversionResponseDTO{
-			Transaction:       ToTransactionDTO(tx),
-			OriginalAmount:    convInfo.OriginalAmount,
-			OriginalCurrency:  convInfo.OriginalCurrency,
-			ConvertedAmount:   convInfo.ConvertedAmount,
-			ConvertedCurrency: convInfo.ConvertedCurrency,
-			ConversionRate:    convInfo.ConversionRate,
-		}
-	}
-
-	// If no conversion info provided but transaction has stored conversion data, use that
 	if convInfo != nil {
 		return &ConversionResponseDTO{
 			Transaction:       ToTransactionDTO(tx),

@@ -7,14 +7,15 @@ import (
 	"github.com/google/uuid"
 )
 
-// Transaction represents a financial transaction, supporting multi-currency.
+// Transaction represents a financial transaction, supporting multi-currency and tracking money source.
 type Transaction struct {
-	ID        uuid.UUID
-	UserID    uuid.UUID
-	AccountID uuid.UUID
-	Amount    money.Money
-	Balance   money.Money // Account balance snapshot
-	CreatedAt time.Time
+	ID          uuid.UUID
+	UserID      uuid.UUID
+	AccountID   uuid.UUID
+	Amount      money.Money
+	Balance     money.Money // Account balance snapshot
+	MoneySource MoneySource // Origin of funds (e.g., Cash, BankAccount, Stripe, etc.)
+	CreatedAt   time.Time
 }
 
 // NewTransactionFromData creates a Transaction from raw data (used for DB hydration or test fixtures).
@@ -23,15 +24,17 @@ func NewTransactionFromData(
 	id, userID, accountID uuid.UUID,
 	amount money.Money,
 	balance money.Money,
+	moneySource MoneySource,
 	created time.Time,
 ) *Transaction {
 	return &Transaction{
-		ID:        id,
-		UserID:    userID,
-		AccountID: accountID,
-		Amount:    amount,
-		Balance:   balance,
-		CreatedAt: created,
+		ID:          id,
+		UserID:      userID,
+		AccountID:   accountID,
+		Amount:      amount,
+		Balance:     balance,
+		MoneySource: moneySource,
+		CreatedAt:   created,
 	}
 }
 

@@ -8,7 +8,7 @@ The handler package was created to refactor the large `chain.go` file in the acc
 
 ## Structure
 
-```
+```ascii
 pkg/handler/
 ├── types.go          # Common types and interfaces
 ├── base.go           # Base handler implementation
