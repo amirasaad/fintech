@@ -10,7 +10,9 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"time"
 
+	"github.com/amirasaad/fintech/infra/provider"
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/domain/common"
@@ -20,26 +22,32 @@ import (
 	"github.com/google/uuid"
 )
 
-// Service provides business logic for account operations including creation, deposits, withdrawals, and balance inquiries.
-type Service struct {
-	uow          repository.UnitOfWork
-	converter    money.CurrencyConverter
-	logger       *slog.Logger
-	accountChain *Chain
+// ServiceDeps contains all dependencies for constructing a Service.
+type ServiceDeps struct {
+	Uow             repository.UnitOfWork
+	Converter       money.CurrencyConverter
+	Logger          *slog.Logger
+	PaymentProvider *provider.MockPaymentProvider
 }
 
-// NewAccountService creates a new Service with a UnitOfWork, CurrencyConverter, and logger.
-func NewAccountService(
-	uow repository.UnitOfWork,
-	converter money.CurrencyConverter,
-	logger *slog.Logger,
-) *Service {
-	accountChain := NewChain(uow, converter, logger)
+// Service provides business logic for account operations including creation, deposits, withdrawals, and balance inquiries.
+type Service struct {
+	uow             repository.UnitOfWork
+	converter       money.CurrencyConverter
+	accountChain    *Chain
+	paymentProvider *provider.MockPaymentProvider
+	logger          *slog.Logger
+}
+
+// NewService creates a new Service with the provided dependencies.
+func NewService(deps ServiceDeps) *Service {
+	accountChain := NewChain(deps.Uow, deps.Converter, deps.Logger)
 	return &Service{
-		uow:          uow,
-		converter:    converter,
-		logger:       logger,
-		accountChain: accountChain,
+		uow:             deps.Uow,
+		converter:       deps.Converter,
+		logger:          deps.Logger,
+		accountChain:    accountChain,
+		paymentProvider: deps.PaymentProvider,
 	}
 }
 
@@ -184,15 +192,37 @@ func (s *Service) Deposit(
 ) (tx *account.Transaction, convInfo *common.ConversionInfo, err error) {
 	s.logger.Info("Deposit: starting", "userID", userID, "accountID", accountID, "amount", amount, "currency", currencyCode, "moneySource", moneySource)
 
+	paymentID, err := s.paymentProvider.InitiateDeposit(context.Background(), userID, accountID, amount, string(currencyCode))
+	if err != nil {
+		s.logger.Error("Deposit: payment provider error", "error", err)
+		return nil, nil, err
+	}
+
+	// Poll for payment completion (timeout after 5s)
+	timeout := time.After(5 * time.Second)
+	tick := time.Tick(100 * time.Millisecond)
+	var status provider.PaymentStatus
+	completed := false
+	for !completed {
+		select {
+		case <-timeout:
+			s.logger.Error("Deposit: payment did not complete in time")
+			return nil, nil, errors.New("payment not completed (timeout)")
+		case <-tick:
+			status, _ = s.paymentProvider.GetPaymentStatus(context.Background(), paymentID)
+			if status == provider.PaymentCompleted {
+				completed = true
+			}
+		}
+	}
+
 	resp, err := s.accountChain.Deposit(context.Background(), userID, accountID, amount, currencyCode, moneySource)
 	if err != nil {
 		return nil, nil, err
 	}
-
 	if resp.Error != nil {
 		return nil, nil, resp.Error
 	}
-
 	return resp.Transaction, resp.ConvInfo, nil
 }
 
@@ -210,6 +240,31 @@ func (s *Service) Withdraw(
 	if externalTarget == nil {
 		return nil, nil, errors.New("external target is required for withdraw")
 	}
+
+	paymentID, err := s.paymentProvider.InitiateWithdraw(context.Background(), userID, accountID, amount, string(currencyCode), externalTarget.BankAccountNumber)
+	if err != nil {
+		s.logger.Error("Withdraw: payment provider error", "error", err)
+		return nil, nil, err
+	}
+
+	// Poll for payment completion (timeout after 5s)
+	timeout := time.After(5 * time.Second)
+	tick := time.Tick(100 * time.Millisecond)
+	var status provider.PaymentStatus
+	completed := false
+	for !completed {
+		select {
+		case <-timeout:
+			s.logger.Error("Withdraw: payment did not complete in time")
+			return nil, nil, errors.New("payment not completed (timeout)")
+		case <-tick:
+			status, _ = s.paymentProvider.GetPaymentStatus(context.Background(), paymentID)
+			if status == provider.PaymentCompleted {
+				completed = true
+			}
+		}
+	}
+
 	resp, err := s.accountChain.WithdrawExternal(context.Background(), userID, accountID, amount, currencyCode, *externalTarget)
 	if err != nil {
 		return nil, nil, err

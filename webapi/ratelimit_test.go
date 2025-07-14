@@ -31,8 +31,13 @@ func TestRateLimit(t *testing.T) {
 	}
 
 	// Provide dummy services for required arguments
-	dummyUow := *new(repository.UnitOfWork)
-	accountSvc := account.NewAccountService(dummyUow, infra_provider.NewStubCurrencyConverter(), slog.Default())
+	dummyUow := repository.UnitOfWork(nil)
+	accountSvc := account.NewService(account.ServiceDeps{
+		Uow:             dummyUow,
+		Converter:       infra_provider.NewStubCurrencyConverter(),
+		Logger:          slog.Default(),
+		PaymentProvider: infra_provider.NewMockPaymentProvider(),
+	})
 	userSvc := userservice.NewUserService(dummyUow, slog.Default())
 
 	// Create a dummy auth strategy and service
@@ -57,7 +62,7 @@ func TestRateLimit(t *testing.T) {
 		if token != "" {
 			req.Header.Set("Authorization", "Bearer "+token)
 		}
-		resp, err := app.Test(req, 1000000)
+		resp, err := app.Test(req)
 		if err != nil {
 			panic(err)
 		}

@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"testing"
 
+	"github.com/amirasaad/fintech/infra/provider"
 	fixtures "github.com/amirasaad/fintech/internal/fixtures/mocks"
 	"github.com/amirasaad/fintech/pkg/currency"
 	accountdomain "github.com/amirasaad/fintech/pkg/domain/account"
@@ -47,7 +48,12 @@ func TestDeposit_AcceptsMatchingCurrency(t *testing.T) {
 	accountRepo.EXPECT().Update(mock.Anything).Return(nil).Once()
 	transactionRepo.EXPECT().Create(mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 
-	svc := accountsvc.NewAccountService(uow, nil, slog.Default())
+	svc := accountsvc.NewService(accountsvc.ServiceDeps{
+		Uow:             uow,
+		Converter:       nil,
+		Logger:          slog.Default(),
+		PaymentProvider: provider.NewMockPaymentProvider(),
+	})
 	gotTx, _, err := svc.Deposit(account.UserID, account.ID, 100.0, currency.Code("EUR"), "Cash")
 	require.NoError(t, err)
 	assert.NotNil(t, gotTx)
@@ -82,7 +88,12 @@ func TestWithdraw_AcceptsMatchingCurrency(t *testing.T) {
 	transactionRepo.EXPECT().Create(mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 
 	externalTarget := handler.ExternalTarget{BankAccountNumber: "1234567890"}
-	svc := accountsvc.NewAccountService(uow, nil, slog.Default())
+	svc := accountsvc.NewService(accountsvc.ServiceDeps{
+		Uow:             uow,
+		Converter:       nil,
+		Logger:          slog.Default(),
+		PaymentProvider: provider.NewMockPaymentProvider(),
+	})
 	gotTx, _, err := svc.Withdraw(account.UserID, account.ID, 100.0, currency.Code("EUR"), &externalTarget)
 	require.NoError(t, err)
 	assert.NotNil(t, gotTx)
@@ -122,7 +133,12 @@ func TestDeposit_ConvertsCurrency(t *testing.T) {
 		ConversionRate:    1.1,
 	}, nil).Once()
 
-	svc := accountsvc.NewAccountService(uow, converter, slog.Default())
+	svc := accountsvc.NewService(accountsvc.ServiceDeps{
+		Uow:             uow,
+		Converter:       converter,
+		Logger:          slog.Default(),
+		PaymentProvider: provider.NewMockPaymentProvider(),
+	})
 	gotTx, _, err := svc.Deposit(account.UserID, account.ID, 100.0, currency.Code("EUR"), "Cash")
 	require.NoError(t, err)
 	assert.NotNil(t, gotTx)
@@ -166,7 +182,12 @@ func TestWithdraw_ConvertsCurrency(t *testing.T) {
 	}, nil).Once()
 
 	externalTarget := handler.ExternalTarget{BankAccountNumber: "1234567890"}
-	svc := accountsvc.NewAccountService(uow, converter, slog.Default())
+	svc := accountsvc.NewService(accountsvc.ServiceDeps{
+		Uow:             uow,
+		Converter:       converter,
+		Logger:          slog.Default(),
+		PaymentProvider: provider.NewMockPaymentProvider(),
+	})
 	gotTx, _, err := svc.Withdraw(account.UserID, account.ID, 100.0, currency.Code("EUR"), &externalTarget)
 	require.NoError(t, err)
 	assert.NotNil(t, gotTx)

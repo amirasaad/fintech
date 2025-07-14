@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/amirasaad/fintech/infra"
+	"github.com/amirasaad/fintech/infra/provider"
 	infra_repository "github.com/amirasaad/fintech/infra/repository"
 	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/currency"
@@ -72,7 +73,12 @@ func main() {
 		return
 	}
 
-	scv := account.NewAccountService(uow, currencyConverter, logger)
+	scv := account.NewService(account.ServiceDeps{
+		Uow:             uow,
+		Converter:       currencyConverter,
+		Logger:          logger,
+		PaymentProvider: provider.NewMockPaymentProvider(),
+	})
 	authSvc := auth.NewBasicAuthService(uow, logger)
 
 	cliApp(scv, authSvc)
