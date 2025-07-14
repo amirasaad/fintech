@@ -1,4 +1,58 @@
-# Event-Driven Payment Flow Migration
+# Current Payment Flow (Synchronous/Polling)
+
+This section documents the current payment flow for deposit, withdraw, and transfer operations in the system. The flow is synchronous and relies on polling the payment provider for completion before proceeding with business logic and persistence.
+
+## Flow Description
+
+1. **API Request**
+   - User sends a request to deposit, withdraw, or transfer funds via the API (`/account/:id/deposit`, `/account/:id/withdraw`, `/account/:id/transfer`).
+   - The Fiber handler parses and validates the request, then calls the corresponding method on the `account.Service`.
+
+2. **Service Layer**
+   - The service method (`Deposit`, `Withdraw`, `Transfer`) initiates the payment with the (mock) payment provider.
+   - For deposits/withdrawals, the service **polls** the payment provider for up to 5 seconds, checking if the payment is completed.
+       - If the payment is not completed in time, it returns an error.
+       - If completed, it proceeds to the next step.
+
+3. **Business Logic (Chain of Responsibility)**
+   - The service calls the `accountChain` (chain of responsibility pattern) to perform the business operation:
+       - **Validation**: Checks account/user validity.
+       - **Money Creation**: Constructs the money value object.
+       - **Currency Conversion**: Converts currency if needed.
+       - **Domain Operation**: Executes the deposit/withdraw/transfer on the domain model.
+       - **Persistence**: Updates the account and creates the transaction in the database.
+
+4. **API Response**
+   - The handler serializes the transaction and conversion info (if any) and returns a success response to the client.
+
+## Mermaid Diagram: Current Payment Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant API
+    participant Service
+    participant PaymentProvider
+    participant Chain
+    participant DB
+
+    User->>API: POST /account/:id/deposit (or withdraw/transfer)
+    API->>Service: Deposit/Withdraw/Transfer(...)
+    Service->>PaymentProvider: InitiateDeposit/Withdraw(...)
+    loop Poll for completion (5s)
+        Service->>PaymentProvider: GetPaymentStatus(paymentID)
+        alt Completed
+            Service->>Chain: Deposit/Withdraw/Transfer(...)
+            Chain->>DB: Update account, create transaction
+            Chain->>Service: Result
+        else Timeout/Error
+            Service->>API: Error
+        end
+    end
+    Service->>API: Success (transaction, conversion info)
+```
+
+## Event-Driven Payment Flow Migration
 
 ## Overview
 
