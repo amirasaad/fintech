@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/amirasaad/fintech/infra/eventbus"
 	"github.com/amirasaad/fintech/infra/provider"
 	"github.com/amirasaad/fintech/internal/fixtures/mocks"
 	"github.com/amirasaad/fintech/pkg/currency"
@@ -13,6 +14,7 @@ import (
 	"github.com/amirasaad/fintech/pkg/repository"
 	accountsvc "github.com/amirasaad/fintech/pkg/service/account"
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
@@ -23,6 +25,7 @@ func TestDepositWithMockPaymentProvider(t *testing.T) {
 	mockConverter := mocks.NewMockCurrencyConverter(t)
 	mockLogger := slog.Default()
 	mockPayment := provider.NewMockPaymentProvider()
+	memBus := &eventbus.MemoryEventBus{}
 
 	userID := uuid.New()
 	accountID := uuid.New()
@@ -52,8 +55,8 @@ func TestDepositWithMockPaymentProvider(t *testing.T) {
 		Converter:       mockConverter,
 		Logger:          mockLogger,
 		PaymentProvider: mockPayment,
+		EventBus:        memBus,
 	})
-
 	ctx := context.Background()
 
 	// Act: initiate deposit (simulate payment)
@@ -72,4 +75,9 @@ func TestDepositWithMockPaymentProvider(t *testing.T) {
 	tx, _, err := svc.Deposit(userID, accountID, amount, currency.Code(curr), "Cash")
 	require.NoError(t, err)
 	require.NotNil(t, tx)
+	// Assert events
+	require.Len(t, memBus.Events, 3)
+	assert.Equal(t, accountdomain.PaymentStatusInitiated, memBus.Events[0].Status)
+	assert.Equal(t, accountdomain.PaymentStatusPending, memBus.Events[1].Status)
+	assert.Equal(t, accountdomain.PaymentStatusCompleted, memBus.Events[2].Status)
 }

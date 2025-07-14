@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"testing"
 
+	"github.com/amirasaad/fintech/infra/eventbus"
 	"github.com/amirasaad/fintech/infra/provider"
 	fixtures "github.com/amirasaad/fintech/internal/fixtures/mocks"
 	"github.com/amirasaad/fintech/pkg/currency"
@@ -24,6 +25,7 @@ func TestDeposit_AcceptsMatchingCurrency(t *testing.T) {
 	uow := fixtures.NewMockUnitOfWork(t)
 	accountRepo := fixtures.NewMockAccountRepository(t)
 	transactionRepo := fixtures.NewMockTransactionRepository(t)
+	memBus := &eventbus.MemoryEventBus{}
 
 	// AccountRepository called once by AccountValidationHandler
 	uow.EXPECT().AccountRepository().Return(accountRepo, nil).Once()
@@ -53,16 +55,23 @@ func TestDeposit_AcceptsMatchingCurrency(t *testing.T) {
 		Converter:       nil,
 		Logger:          slog.Default(),
 		PaymentProvider: provider.NewMockPaymentProvider(),
+		EventBus:        memBus,
 	})
 	gotTx, _, err := svc.Deposit(account.UserID, account.ID, 100.0, currency.Code("EUR"), "Cash")
 	require.NoError(t, err)
 	assert.NotNil(t, gotTx)
+	// Assert events
+	require.Len(t, memBus.Events, 3)
+	assert.Equal(t, accountdomain.PaymentStatusInitiated, memBus.Events[0].Status)
+	assert.Equal(t, accountdomain.PaymentStatusPending, memBus.Events[1].Status)
+	assert.Equal(t, accountdomain.PaymentStatusCompleted, memBus.Events[2].Status)
 }
 
 func TestWithdraw_AcceptsMatchingCurrency(t *testing.T) {
 	uow := fixtures.NewMockUnitOfWork(t)
 	accountRepo := fixtures.NewMockAccountRepository(t)
 	transactionRepo := fixtures.NewMockTransactionRepository(t)
+	memBus := &eventbus.MemoryEventBus{}
 
 	// AccountRepository called once by AccountValidationHandler
 	uow.EXPECT().AccountRepository().Return(accountRepo, nil).Once()
@@ -93,10 +102,16 @@ func TestWithdraw_AcceptsMatchingCurrency(t *testing.T) {
 		Converter:       nil,
 		Logger:          slog.Default(),
 		PaymentProvider: provider.NewMockPaymentProvider(),
+		EventBus:        memBus,
 	})
 	gotTx, _, err := svc.Withdraw(account.UserID, account.ID, 100.0, currency.Code("EUR"), &externalTarget)
 	require.NoError(t, err)
 	assert.NotNil(t, gotTx)
+	// Assert events
+	require.Len(t, memBus.Events, 3)
+	assert.Equal(t, accountdomain.PaymentStatusInitiated, memBus.Events[0].Status)
+	assert.Equal(t, accountdomain.PaymentStatusPending, memBus.Events[1].Status)
+	assert.Equal(t, accountdomain.PaymentStatusCompleted, memBus.Events[2].Status)
 }
 
 func TestDeposit_ConvertsCurrency(t *testing.T) {
@@ -104,6 +119,7 @@ func TestDeposit_ConvertsCurrency(t *testing.T) {
 	accountRepo := fixtures.NewMockAccountRepository(t)
 	transactionRepo := fixtures.NewMockTransactionRepository(t)
 	converter := fixtures.NewMockCurrencyConverter(t)
+	memBus := &eventbus.MemoryEventBus{}
 
 	// AccountRepository called once by AccountValidationHandler
 	uow.EXPECT().AccountRepository().Return(accountRepo, nil).Once()
@@ -138,10 +154,16 @@ func TestDeposit_ConvertsCurrency(t *testing.T) {
 		Converter:       converter,
 		Logger:          slog.Default(),
 		PaymentProvider: provider.NewMockPaymentProvider(),
+		EventBus:        memBus,
 	})
 	gotTx, _, err := svc.Deposit(account.UserID, account.ID, 100.0, currency.Code("EUR"), "Cash")
 	require.NoError(t, err)
 	assert.NotNil(t, gotTx)
+	// Assert events
+	require.Len(t, memBus.Events, 3)
+	assert.Equal(t, accountdomain.PaymentStatusInitiated, memBus.Events[0].Status)
+	assert.Equal(t, accountdomain.PaymentStatusPending, memBus.Events[1].Status)
+	assert.Equal(t, accountdomain.PaymentStatusCompleted, memBus.Events[2].Status)
 }
 
 func TestWithdraw_ConvertsCurrency(t *testing.T) {
@@ -149,6 +171,7 @@ func TestWithdraw_ConvertsCurrency(t *testing.T) {
 	accountRepo := fixtures.NewMockAccountRepository(t)
 	transactionRepo := fixtures.NewMockTransactionRepository(t)
 	converter := fixtures.NewMockCurrencyConverter(t)
+	memBus := &eventbus.MemoryEventBus{}
 
 	// AccountRepository called once by AccountValidationHandler
 	uow.EXPECT().AccountRepository().Return(accountRepo, nil).Once()
@@ -187,8 +210,14 @@ func TestWithdraw_ConvertsCurrency(t *testing.T) {
 		Converter:       converter,
 		Logger:          slog.Default(),
 		PaymentProvider: provider.NewMockPaymentProvider(),
+		EventBus:        memBus,
 	})
 	gotTx, _, err := svc.Withdraw(account.UserID, account.ID, 100.0, currency.Code("EUR"), &externalTarget)
 	require.NoError(t, err)
 	assert.NotNil(t, gotTx)
+	// Assert events
+	require.Len(t, memBus.Events, 3)
+	assert.Equal(t, accountdomain.PaymentStatusInitiated, memBus.Events[0].Status)
+	assert.Equal(t, accountdomain.PaymentStatusPending, memBus.Events[1].Status)
+	assert.Equal(t, accountdomain.PaymentStatusCompleted, memBus.Events[2].Status)
 }

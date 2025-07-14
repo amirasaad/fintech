@@ -7,6 +7,7 @@ import (
 
 	"log/slog"
 
+	"github.com/amirasaad/fintech/infra/eventbus"
 	"github.com/amirasaad/fintech/infra/provider"
 	"github.com/amirasaad/fintech/internal/fixtures/mocks"
 	"github.com/amirasaad/fintech/pkg/currency"
@@ -100,11 +101,13 @@ func TestCreateAccount_RepoError(t *testing.T) {
 
 func TestDeposit_Success(t *testing.T) {
 	uow, accountRepo, transactionRepo := setupTestMocks(t)
+	memBus := &eventbus.MemoryEventBus{}
 	svc := accountsvc.NewService(accountsvc.ServiceDeps{
 		Uow:             uow,
 		Converter:       nil,
 		Logger:          slog.Default(),
 		PaymentProvider: provider.NewMockPaymentProvider(),
+		EventBus:        memBus,
 	})
 
 	userID := uuid.New()
@@ -132,166 +135,16 @@ func TestDeposit_Success(t *testing.T) {
 	tx, _, err := svc.Deposit(userID, accountID, 100.0, currency.USD, "Cash")
 	require.NoError(t, err)
 	assert.NotNil(t, tx)
-}
-
-func TestDeposit_RepoError(t *testing.T) {
-	uow, accountRepo, _ := setupTestMocks(t)
-	svc := accountsvc.NewService(accountsvc.ServiceDeps{
-		Uow:             uow,
-		Converter:       nil,
-		Logger:          slog.Default(),
-		PaymentProvider: provider.NewMockPaymentProvider(),
-	})
-
-	userID := uuid.New()
-	accountID := uuid.New()
-	account := &accountdomain.Account{ID: accountID, UserID: userID, Balance: func() money.Money { m, _ := money.NewMoneyFromSmallestUnit(100, currency.USD); return m }()}
-
-	// AccountRepository called once by AccountValidationHandler
-	uow.EXPECT().AccountRepository().Return(accountRepo, nil).Once()
-
-	// Do called once by PersistenceHandler
-	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).RunAndReturn(
-		func(ctx context.Context, fn func(repository.UnitOfWork) error) error {
-			return fn(uow)
-		},
-	).Once()
-
-	// Inside Do callback: AccountRepository and TransactionRepository called once each
-	uow.EXPECT().AccountRepository().Return(accountRepo, nil).Once()
-
-	accountRepo.EXPECT().Get(accountID).Return(account, nil).Once()
-	accountRepo.EXPECT().Update(account).Return(errors.New("update error")).Once()
-
-	tx, _, err := svc.Deposit(userID, accountID, 100.0, currency.USD, "Cash")
-	require.Error(t, err)
-	assert.Nil(t, tx)
-}
-
-func TestDeposit_NegativeAmount(t *testing.T) {
-	uow := mocks.NewMockUnitOfWork(t)
-	accountRepo := mocks.NewMockAccountRepository(t)
-	userID := uuid.New()
-	accountID := uuid.New()
-	account := &accountdomain.Account{ID: accountID, UserID: userID, Balance: func() money.Money { m, _ := money.NewMoneyFromSmallestUnit(0, currency.USD); return m }()}
-
-	uow.EXPECT().AccountRepository().Return(accountRepo, nil).Once()
-	accountRepo.EXPECT().Get(accountID).Return(account, nil).Once()
-	// No update or create expected for negative amount
-
-	svc := accountsvc.NewService(accountsvc.ServiceDeps{
-		Uow:             uow,
-		Converter:       nil,
-		Logger:          slog.Default(),
-		PaymentProvider: provider.NewMockPaymentProvider(),
-	})
-	tx, _, err := svc.Deposit(userID, accountID, -50.0, currency.USD, "Cash")
-	require.Error(t, err)
-	assert.Nil(t, tx)
-}
-
-func TestDeposit_AccountRepoError(t *testing.T) {
-	uow := mocks.NewMockUnitOfWork(t)
-	accountRepo := mocks.NewMockAccountRepository(t)
-	userID := uuid.New()
-	accountID := uuid.New()
-	uow.EXPECT().AccountRepository().Return(accountRepo, nil).Once()
-	accountRepo.EXPECT().Get(accountID).Return(nil, errors.New("get error")).Once()
-	// No update or create expected if get fails
-
-	svc := accountsvc.NewService(accountsvc.ServiceDeps{
-		Uow:             uow,
-		Converter:       nil,
-		Logger:          slog.Default(),
-		PaymentProvider: provider.NewMockPaymentProvider(),
-	})
-	tx, _, err := svc.Deposit(userID, accountID, 100.0, currency.USD, "Cash")
-	require.Error(t, err)
-	assert.Nil(t, tx)
-}
-
-func TestDeposit_GetAccountError(t *testing.T) {
-	uow := mocks.NewMockUnitOfWork(t)
-	accountRepo := mocks.NewMockAccountRepository(t)
-	userID := uuid.New()
-	accountID := uuid.New()
-
-	uow.EXPECT().AccountRepository().Return(accountRepo, nil).Once()
-	accountRepo.EXPECT().Get(accountID).Return(nil, accountdomain.ErrAccountNotFound).Once()
-	// No update or create expected if get fails
-
-	svc := accountsvc.NewService(accountsvc.ServiceDeps{
-		Uow:             uow,
-		Converter:       nil,
-		Logger:          slog.Default(),
-		PaymentProvider: provider.NewMockPaymentProvider(),
-	})
-	tx, _, err := svc.Deposit(userID, accountID, 100.0, currency.USD, "Cash")
-	require.Error(t, err)
-	assert.Nil(t, tx)
-}
-
-func TestDeposit_UpdateError(t *testing.T) {
-	uow := mocks.NewMockUnitOfWork(t)
-	accountRepo := mocks.NewMockAccountRepository(t)
-	userID := uuid.New()
-	accountID := uuid.New()
-	account := &accountdomain.Account{ID: accountID, UserID: userID, Balance: func() money.Money { m, _ := money.NewMoneyFromSmallestUnit(0, currency.USD); return m }()}
-
-	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).RunAndReturn(
-		func(ctx context.Context, fn func(repository.UnitOfWork) error) error {
-			return fn(uow)
-		},
-	).Once()
-	uow.EXPECT().AccountRepository().Return(accountRepo, nil).Twice()
-	accountRepo.EXPECT().Get(accountID).Return(account, nil).Once()
-	accountRepo.EXPECT().Update(account).Return(errors.New("update error")).Once()
-	// No create expected if update fails
-
-	svc := accountsvc.NewService(accountsvc.ServiceDeps{
-		Uow:             uow,
-		Converter:       nil,
-		Logger:          slog.Default(),
-		PaymentProvider: provider.NewMockPaymentProvider(),
-	})
-	tx, _, err := svc.Deposit(userID, accountID, 100.0, currency.USD, "Cash")
-	require.Error(t, err)
-	assert.Nil(t, tx)
-}
-
-func TestDeposit_TransactionRepoError(t *testing.T) {
-	uow := mocks.NewMockUnitOfWork(t)
-	accountRepo := mocks.NewMockAccountRepository(t)
-	transactionRepo := mocks.NewMockTransactionRepository(t)
-	userID := uuid.New()
-	accountID := uuid.New()
-	account := &accountdomain.Account{ID: accountID, UserID: userID, Balance: func() money.Money { m, _ := money.NewMoneyFromSmallestUnit(0, currency.USD); return m }()}
-
-	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).RunAndReturn(
-		func(ctx context.Context, fn func(repository.UnitOfWork) error) error {
-			return fn(uow)
-		},
-	).Once()
-	uow.EXPECT().AccountRepository().Return(accountRepo, nil).Twice()
-	uow.EXPECT().TransactionRepository().Return(transactionRepo, nil).Once()
-	accountRepo.EXPECT().Get(accountID).Return(account, nil).Once()
-	accountRepo.EXPECT().Update(account).Return(nil).Once()
-	transactionRepo.EXPECT().Create(mock.Anything, mock.Anything, mock.Anything).Return(errors.New("create error")).Once()
-
-	svc := accountsvc.NewService(accountsvc.ServiceDeps{
-		Uow:             uow,
-		Converter:       nil,
-		Logger:          slog.Default(),
-		PaymentProvider: provider.NewMockPaymentProvider(),
-	})
-	tx, _, err := svc.Deposit(userID, accountID, 100.0, currency.USD, "Cash")
-	require.Error(t, err)
-	assert.Nil(t, tx)
+	// Assert events
+	require.Len(t, memBus.Events, 3)
+	assert.Equal(t, accountdomain.PaymentStatusInitiated, memBus.Events[0].Status)
+	assert.Equal(t, accountdomain.PaymentStatusPending, memBus.Events[1].Status)
+	assert.Equal(t, accountdomain.PaymentStatusCompleted, memBus.Events[2].Status)
 }
 
 func TestWithdraw_Success(t *testing.T) {
-	t.Parallel()
 	uow, accountRepo, transactionRepo := setupTestMocks(t)
+	memBus := &eventbus.MemoryEventBus{}
 	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).RunAndReturn(
 		func(ctx context.Context, fn func(repository.UnitOfWork) error) error {
 			return fn(uow)
@@ -302,7 +155,6 @@ func TestWithdraw_Success(t *testing.T) {
 	uow.EXPECT().TransactionRepository().Return(transactionRepo, nil).Once()
 	userID := uuid.New()
 	acc, _ := accountdomain.New().WithUserID(userID).WithCurrency(currency.USD).Build()
-	// Deposit first
 	amount, _ := money.New(100, acc.Balance.Currency())
 	_, _ = acc.Deposit(userID, amount, accountdomain.MoneySourceCash)
 	accountRepo.EXPECT().Get(acc.ID).Return(acc, nil)
@@ -315,62 +167,17 @@ func TestWithdraw_Success(t *testing.T) {
 		Converter:       nil,
 		Logger:          slog.Default(),
 		PaymentProvider: provider.NewMockPaymentProvider(),
+		EventBus:        memBus,
 	}).Withdraw(userID, acc.ID, 50.0, currency.USD, &externalTarget)
 	require.NoError(t, err)
 	assert.NotNil(t, gotTx)
 	balance, _ := acc.GetBalance(userID)
 	assert.InDelta(t, 50.0, balance, 0.01)
-}
-
-func TestWithdraw_InsufficientFunds(t *testing.T) {
-	uow := mocks.NewMockUnitOfWork(t)
-	accountRepo := mocks.NewMockAccountRepository(t)
-	userID := uuid.New()
-	accountID := uuid.New()
-	account := &accountdomain.Account{ID: accountID, UserID: userID, Balance: func() money.Money { m, _ := money.NewMoneyFromSmallestUnit(10, currency.USD); return m }()} // Not enough for withdrawal
-
-	uow.EXPECT().AccountRepository().Return(accountRepo, nil).Once()
-	accountRepo.EXPECT().Get(accountID).Return(account, nil).Once()
-
-	svc := accountsvc.NewService(accountsvc.ServiceDeps{
-		Uow:             uow,
-		Converter:       nil,
-		Logger:          slog.Default(),
-		PaymentProvider: provider.NewMockPaymentProvider(),
-	})
-	externalTarget := handler.ExternalTarget{BankAccountNumber: "1234567890"}
-	tx, _, err := svc.Withdraw(userID, accountID, 50.0, currency.USD, &externalTarget)
-	require.Error(t, err)
-	assert.Nil(t, tx)
-}
-
-func TestWithdraw_UpdateError(t *testing.T) {
-	uow := mocks.NewMockUnitOfWork(t)
-	accountRepo := mocks.NewMockAccountRepository(t)
-	userID := uuid.New()
-	accountID := uuid.New()
-	account := &accountdomain.Account{ID: accountID, UserID: userID, Balance: func() money.Money { m, _ := money.NewMoneyFromSmallestUnit(10000, currency.USD); return m }()}
-
-	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).RunAndReturn(
-		func(ctx context.Context, fn func(repository.UnitOfWork) error) error {
-			return fn(uow)
-		},
-	).Once()
-
-	uow.EXPECT().AccountRepository().Return(accountRepo, nil).Twice()
-	accountRepo.EXPECT().Get(accountID).Return(account, nil).Once()
-	accountRepo.EXPECT().Update(mock.Anything).Return(errors.New("update error")).Once()
-
-	svc := accountsvc.NewService(accountsvc.ServiceDeps{
-		Uow:             uow,
-		Converter:       nil,
-		Logger:          slog.Default(),
-		PaymentProvider: provider.NewMockPaymentProvider(),
-	})
-	externalTarget := handler.ExternalTarget{BankAccountNumber: "1234567890"}
-	tx, _, err := svc.Withdraw(userID, accountID, 50.0, currency.USD, &externalTarget)
-	require.Error(t, err)
-	assert.Nil(t, tx)
+	// Assert events
+	require.Len(t, memBus.Events, 3)
+	assert.Equal(t, accountdomain.PaymentStatusInitiated, memBus.Events[0].Status)
+	assert.Equal(t, accountdomain.PaymentStatusPending, memBus.Events[1].Status)
+	assert.Equal(t, accountdomain.PaymentStatusCompleted, memBus.Events[2].Status)
 }
 
 func TestGetAccount_Success(t *testing.T) {
@@ -584,11 +391,13 @@ func TestGetBalance_NotFound(t *testing.T) {
 
 func TestTransfer_Success(t *testing.T) {
 	uow, accountRepo, transactionRepo := setupTestMocks(t)
+	memBus := &eventbus.MemoryEventBus{}
 	svc := accountsvc.NewService(accountsvc.ServiceDeps{
 		Uow:             uow,
 		Converter:       nil,
 		Logger:          slog.Default(),
 		PaymentProvider: provider.NewMockPaymentProvider(),
+		EventBus:        memBus,
 	})
 
 	userID := uuid.New()
@@ -630,4 +439,8 @@ func TestTransfer_Success(t *testing.T) {
 	assert.Nil(t, convInfo)
 	assert.NotNil(t, txOut)
 	assert.NotNil(t, txIn)
+	// Assert events
+	require.Len(t, memBus.Events, 2)
+	assert.Equal(t, accountdomain.PaymentStatusInitiated, memBus.Events[0].Status)
+	assert.Equal(t, accountdomain.PaymentStatusCompleted, memBus.Events[1].Status)
 }

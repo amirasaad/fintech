@@ -52,7 +52,7 @@ sequenceDiagram
     Service->>API: Success (transaction, conversion info)
 ```
 
-## Event-Driven Payment Flow Migration
+# Event-Driven Payment Flow Migration
 
 ## Overview
 
@@ -68,14 +68,87 @@ This document describes the migration from a synchronous, polling-based payment 
 ## High-Level Architecture
 
 1. **User initiates deposit/withdrawal.**
-   - System creates a transaction with status `pending`.
+   - System creates a transaction with status `initiated`.
+   - **A `PaymentEvent` with status `initiated` is published.**
+2. **Payment is sent to provider and is in progress.**
+   - System publishes a `PaymentEvent` with status `pending`.
    - Returns immediately to the user (no blocking or polling).
-2. **Payment provider processes the payment.**
+3. **Payment provider processes the payment.**
    - When done, it sends a webhook/callback to your service.
-3. **Webhook handler receives confirmation.**
+4. **Webhook handler receives confirmation.**
    - Updates the transaction status to `completed` or `failed`.
+   - **A `PaymentEvent` with status `completed` or `failed` is published.**
    - Triggers business logic (e.g., credit/debit account, notify user).
-4. **User/client can poll or subscribe for status updates.**
+5. **User/client can poll or subscribe for status updates.**
+
+## Event Publishing in the Service Layer
+
+The service publishes a `PaymentEvent` at each stage:
+
+- **Initiated:** When payment is requested by the user
+- **Pending:** After provider call, while waiting for confirmation
+- **Completed:** When payment is confirmed and business logic succeeds
+- **Failed:** On payment provider error, timeout, or business error
+
+**Example:**
+
+```go
+_ = s.eventBus.PublishPaymentEvent(account.PaymentEvent{
+    EventID:       uuid.NewString(),
+    TransactionID: resp.Transaction.ID.String(),
+    AccountID:     accountID.String(),
+    UserID:        userID.String(),
+    Amount:        int64(amount * 100),
+    Currency:      string(currencyCode),
+    Status:        account.PaymentStatusCompleted, // or Initiated/Pending/Failed
+    Provider:      "mock",
+    Timestamp:     time.Now().Unix(),
+    Metadata:      map[string]string{"operation": "deposit"},
+})
+```
+
+## In-Memory Event Bus for Testing
+
+For local development and testing, the `MemoryEventBus` implementation records all published events in a slice. This allows tests to assert on the number, order, and content of events:
+
+```go
+memBus := &eventbus.MemoryEventBus{}
+svc := accountsvc.NewService(accountsvc.ServiceDeps{
+    // ...
+    EventBus: memBus,
+})
+// ...
+tx, _, err := svc.Deposit(userID, accountID, 100.0, currency.USD, "Cash")
+require.NoError(t, err)
+require.Len(t, memBus.Events, 4) // initiated, pending, completed, etc.
+assert.Equal(t, accountdomain.PaymentStatusInitiated, memBus.Events[0].Status)
+assert.Equal(t, accountdomain.PaymentStatusPending, memBus.Events[1].Status)
+assert.Equal(t, accountdomain.PaymentStatusCompleted, memBus.Events[3].Status)
+```
+
+## Mermaid Diagram: Event-Driven Payment Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant API
+    participant Service
+    participant EventBus
+    participant PaymentProvider
+    participant Webhook
+    participant DB
+
+    User->>API: POST /account/:id/deposit (or withdraw)
+    API->>Service: Deposit/Withdraw(...)
+    Service->>EventBus: Publish PaymentEvent (initiated)
+    Service->>PaymentProvider: InitiateDeposit/Withdraw(...)
+    Service->>EventBus: Publish PaymentEvent (pending)
+    PaymentProvider-->>Webhook: Payment completed/failed (webhook)
+    Webhook->>Service: Handle webhook
+    Service->>EventBus: Publish PaymentEvent (completed/failed)
+    Service->>DB: Update account, create transaction
+    Service->>API: Success (transaction, conversion info)
+```
 
 ## Transaction Lifecycle
 
