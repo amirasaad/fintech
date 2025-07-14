@@ -30,7 +30,7 @@ func TestBaseHandler_Handle_WithNoNext(t *testing.T) {
 	base := &BaseHandler{}
 	req := &OperationRequest{}
 	resp, err := base.Handle(context.Background(), req)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, resp)
 	assert.Nil(t, resp.Transaction)
 	assert.Nil(t, resp.ConvInfo)
@@ -63,7 +63,7 @@ func TestBaseHandler_Handle_WithNext(t *testing.T) {
 	next.On("Handle", context.Background(), req).Return(expectedResp, nil)
 	base.SetNext(next)
 	resp, err := base.Handle(context.Background(), req)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, expectedResp, resp)
 	next.AssertExpectations(t)
 }
@@ -90,7 +90,7 @@ func TestAccountValidationHandler_Handle_Success(t *testing.T) {
 		logger: logger,
 	}
 	resp, err := handler.Handle(context.Background(), req)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NoError(t, resp.Error)
 	assert.Equal(t, expectedAccount, req.Account)
 	uow.AssertExpectations(t)
@@ -110,7 +110,7 @@ func TestAccountValidationHandler_Handle_RepositoryError(t *testing.T) {
 		logger: logger,
 	}
 	resp, err := handler.Handle(context.Background(), req)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	require.Error(t, resp.Error)
 	assert.Equal(t, assert.AnError, resp.Error)
 	uow.AssertExpectations(t)
@@ -133,7 +133,7 @@ func TestAccountValidationHandler_Handle_AccountNotFound(t *testing.T) {
 		logger: logger,
 	}
 	resp, err := handler.Handle(context.Background(), req)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	require.Error(t, resp.Error)
 	assert.Equal(t, account.ErrAccountNotFound, resp.Error)
 	uow.AssertExpectations(t)
@@ -151,10 +151,10 @@ func TestMoneyCreationHandler_Handle_Success(t *testing.T) {
 		logger: logger,
 	}
 	resp, err := handler.Handle(context.Background(), req)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NoError(t, resp.Error)
 	assert.NotNil(t, req.Money)
-	assert.Equal(t, float64(100.0), req.Money.AmountFloat())
+	assert.InDelta(t, float64(100.0), req.Money.AmountFloat(), 1e-9)
 	assert.Equal(t, currency.Code("USD"), req.Money.Currency())
 }
 
@@ -168,10 +168,10 @@ func TestMoneyCreationHandler_Handle_InvalidMoney(t *testing.T) {
 		logger: logger,
 	}
 	resp, err := handler.Handle(context.Background(), req)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NoError(t, resp.Error) // Money creation succeeds even for negative amounts
 	assert.NotNil(t, req.Money)
-	assert.Equal(t, float64(-100.0), req.Money.AmountFloat())
+	assert.InDelta(t, float64(-100.0), req.Money.AmountFloat(), 1e-9)
 	assert.Equal(t, currency.Code("USD"), req.Money.Currency())
 }
 
@@ -191,7 +191,7 @@ func TestCurrencyConversionHandler_Handle_NoConversionNeeded(t *testing.T) {
 		logger:    logger,
 	}
 	resp, err := handler.Handle(context.Background(), req)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NoError(t, resp.Error)
 	assert.Equal(t, money, req.ConvertedMoney)
 	assert.Nil(t, req.ConvInfo)
@@ -220,10 +220,10 @@ func TestCurrencyConversionHandler_Handle_ConversionNeeded(t *testing.T) {
 		logger:    logger,
 	}
 	resp, err := handler.Handle(context.Background(), req)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NoError(t, resp.Error)
 	assert.NotNil(t, req.ConvertedMoney)
-	assert.Equal(t, float64(85.0), req.ConvertedMoney.AmountFloat())
+	assert.InDelta(t, float64(85.0), req.ConvertedMoney.AmountFloat(), 1e-9)
 	assert.Equal(t, currency.Code("EUR"), req.ConvertedMoney.Currency())
 	assert.Equal(t, convInfo, req.ConvInfo)
 	converter.AssertExpectations(t)
@@ -245,7 +245,7 @@ func TestCurrencyConversionHandler_Handle_ConversionError(t *testing.T) {
 		logger:    logger,
 	}
 	resp, err := handler.Handle(context.Background(), req)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	require.Error(t, resp.Error)
 	assert.Equal(t, assert.AnError, resp.Error)
 	converter.AssertExpectations(t)
@@ -271,7 +271,7 @@ func TestDepositOperationHandler_Handle_Success(t *testing.T) {
 		logger: logger,
 	}
 	resp, err := handler.Handle(context.Background(), req)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NoError(t, resp.Error)
 	assert.NotNil(t, req.Transaction)
 	assert.Equal(t, account.ID, req.Transaction.AccountID)
@@ -297,7 +297,7 @@ func TestWithdrawOperationHandler_Handle_Success(t *testing.T) {
 		logger: logger,
 	}
 	resp, err := handler.Handle(context.Background(), req)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NoError(t, resp.Error)
 	assert.NotNil(t, req.Transaction)
 	assert.Equal(t, account.ID, req.Transaction.AccountID)
@@ -329,7 +329,7 @@ func TestTransferOperationHandler_Handle_Success(t *testing.T) {
 		logger: logger,
 	}
 	resp, err := handler.Handle(context.Background(), req)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NoError(t, resp.Error)
 	assert.NotNil(t, req.Transaction)
 	assert.NotNil(t, req.TransactionIn)
@@ -379,7 +379,7 @@ func TestPersistenceHandler_Handle_Success(t *testing.T) {
 		logger: logger,
 	}
 	resp, err := handler.Handle(context.Background(), req)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NoError(t, resp.Error)
 	assert.Equal(t, transaction, resp.Transaction)
 	assert.Equal(t, convInfo, resp.ConvInfo)
@@ -413,7 +413,7 @@ func TestPersistenceHandler_Handle_AccountUpdateError(t *testing.T) {
 		logger: logger,
 	}
 	resp, err := handler.Handle(context.Background(), req)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	require.Error(t, resp.Error)
 	assert.Equal(t, assert.AnError, resp.Error)
 }
@@ -457,7 +457,7 @@ func TestChainBuilder_BuildDepositChain(t *testing.T) {
 		Operation:    OperationDeposit,
 	}
 	resp, err := chain.Handle(context.Background(), req)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NoError(t, resp.Error)
 }
 
@@ -499,7 +499,7 @@ func TestChainBuilder_BuildWithdrawChain(t *testing.T) {
 		Operation:    OperationWithdraw,
 	}
 	resp, err := chain.Handle(context.Background(), req)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NoError(t, resp.Error)
 }
 
@@ -545,7 +545,7 @@ func TestChainBuilder_BuildTransferChain(t *testing.T) {
 		Operation:     OperationTransfer,
 	}
 	resp, err := chain.Handle(context.Background(), req)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NoError(t, resp.Error)
 	assert.NotNil(t, resp.TransactionOut)
 	assert.NotNil(t, resp.TransactionIn)

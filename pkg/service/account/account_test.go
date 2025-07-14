@@ -57,7 +57,7 @@ func TestCreateAccount_Success(t *testing.T) {
 
 	svc := accountsvc.NewAccountService(uow, nil, slog.Default())
 	gotAccount, err := svc.CreateAccount(context.Background(), userID)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, gotAccount)
 	assert.Equal(t, userID, gotAccount.UserID)
 }
@@ -108,7 +108,7 @@ func TestDeposit_Success(t *testing.T) {
 	transactionRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Once()
 
 	tx, _, err := svc.Deposit(userID, accountID, 100.0, currency.USD, "Cash")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, tx)
 }
 
@@ -258,7 +258,7 @@ func TestWithdraw_Success(t *testing.T) {
 	transactionRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Once()
 
 	gotTx, _, err := accountsvc.NewAccountService(uow, nil, slog.Default()).Withdraw(userID, acc.ID, 50.0, currency.USD)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, gotTx)
 	balance, _ := acc.GetBalance(userID)
 	assert.InDelta(t, 50.0, balance, 0.01)
@@ -321,7 +321,7 @@ func TestGetAccount_Success(t *testing.T) {
 
 	svc := accountsvc.NewAccountService(uow, nil, slog.Default())
 	gotAccount, err := svc.GetAccount(userID, accountID)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, gotAccount)
 }
 
@@ -388,7 +388,7 @@ func TestGetTransactions_Success(t *testing.T) {
 
 	svc := accountsvc.NewAccountService(uow, nil, slog.Default())
 	gotTxs, err := svc.GetTransactions(userID, accountID)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, txs, gotTxs)
 }
 
@@ -432,6 +432,8 @@ func TestGetTransactions_UoWFactoryError(t *testing.T) {
 
 func TestGetBalance_Success(t *testing.T) {
 	t.Parallel()
+	assert := assert.New(t)
+	require := require.New(t)
 	uow, accountRepo, _ := setupTestMocks(t)
 	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).RunAndReturn(
 		func(ctx context.Context, fn func(repository.UnitOfWork) error) error {
@@ -447,12 +449,14 @@ func TestGetBalance_Success(t *testing.T) {
 	accountRepo.EXPECT().Get(acc.ID).Return(acc, nil)
 
 	balance, err := accountsvc.NewAccountService(uow, nil, slog.Default()).GetBalance(userID, acc.ID)
-	assert.NoError(t, err)
-	assert.InDelta(t, 123.0, balance, 0.01)
+	require.NoError(err)
+	assert.InEpsilon(123.0, balance, 0.01, "Balance should be within epsilon of expected value")
 }
 
 func TestGetBalance_NotFound(t *testing.T) {
 	t.Parallel()
+	assert := assert.New(t)
+	require := require.New(t)
 	uow, accountRepo, _ := setupTestMocks(t)
 	uow.EXPECT().AccountRepository().Return(accountRepo, nil)
 	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).RunAndReturn(
@@ -464,8 +468,8 @@ func TestGetBalance_NotFound(t *testing.T) {
 	accountRepo.EXPECT().Get(mock.Anything).Return(&domain.Account{}, domain.ErrAccountNotFound)
 
 	balance, err := accountsvc.NewAccountService(uow, nil, slog.Default()).GetBalance(uuid.New(), uuid.New())
-	require.Error(t, err)
-	assert.Equal(t, 0.0, balance)
+	require.Error(err)
+	assert.InDelta(0, balance, 0.01)
 }
 
 func TestTransfer_Success(t *testing.T) {
@@ -507,7 +511,7 @@ func TestTransfer_Success(t *testing.T) {
 	)
 
 	txOut, txIn, err := svc.Transfer(userID, sourceAccountID, destAccountID, amount.AmountFloat(), currency.USD)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, txOut)
 	assert.NotNil(t, txIn)
 }

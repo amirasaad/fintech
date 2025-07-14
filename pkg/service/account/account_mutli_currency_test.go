@@ -15,6 +15,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDeposit_AcceptsMatchingCurrency(t *testing.T) {
@@ -47,7 +48,7 @@ func TestDeposit_AcceptsMatchingCurrency(t *testing.T) {
 
 	svc := accountsvc.NewAccountService(uow, nil, slog.Default())
 	gotTx, _, err := svc.Deposit(account.UserID, account.ID, 100.0, currency.Code("EUR"), "Cash")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, gotTx)
 }
 
@@ -81,7 +82,7 @@ func TestWithdraw_AcceptsMatchingCurrency(t *testing.T) {
 
 	svc := accountsvc.NewAccountService(uow, nil, slog.Default())
 	gotTx, _, err := svc.Withdraw(account.UserID, account.ID, 100.0, currency.Code("EUR"))
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, gotTx)
 }
 
@@ -121,7 +122,7 @@ func TestDeposit_ConvertsCurrency(t *testing.T) {
 
 	svc := accountsvc.NewAccountService(uow, converter, slog.Default())
 	gotTx, _, err := svc.Deposit(account.UserID, account.ID, 100.0, currency.Code("EUR"), "Cash")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, gotTx)
 }
 
@@ -164,6 +165,6 @@ func TestWithdraw_ConvertsCurrency(t *testing.T) {
 
 	svc := accountsvc.NewAccountService(uow, converter, slog.Default())
 	gotTx, _, err := svc.Withdraw(account.UserID, account.ID, 100.0, currency.Code("EUR"))
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, gotTx)
 }
