@@ -56,3 +56,21 @@ repos:
         pass_filenames: false
         types: [go]
         language: system
+      - id: go-fmt
+        name: go go-fmt
+        entry: go fmt ./...
+        pass_filenames: false
+        types: [go]
+        language: system
+      - id: go-mod
+        name: go mod tidy
+        entry: go mod tidy
+        pass_filenames: false
+        types: [go]
+        language: system
+      - id: go-testifylint
+        name: go-testifylint
+        entry:  testifylint ./...
+        pass_filenames: false
+        types: [go]
+        language: system
