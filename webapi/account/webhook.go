@@ -5,11 +5,13 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+// PaymentWebhookRequest represents the payload for a payment webhook callback.
 type PaymentWebhookRequest struct {
 	PaymentID string `json:"payment_id" validate:"required"`
 	Status    string `json:"status" validate:"required,oneof=completed failed"`
 }
 
+// PaymentWebhookHandler handles incoming payment webhook callbacks.
 func PaymentWebhookHandler(svc *account.Service) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		var req PaymentWebhookRequest

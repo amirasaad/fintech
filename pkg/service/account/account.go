@@ -189,7 +189,7 @@ func (s *Service) Deposit(
 		return errors.New("amount must be positive")
 	}
 	evt := account.DepositRequestedEvent{
-		EventID:   uuid.NewString(),
+		EventID:   uuid.New(),
 		AccountID: accountID.String(),
 		UserID:    userID.String(),
 		Amount:    amount,
@@ -212,7 +212,7 @@ func (s *Service) Withdraw(
 	}
 	// Only emit and publish event
 	evt := account.WithdrawRequestedEvent{
-		EventID:   uuid.NewString(),
+		EventID:   uuid.New(),
 		AccountID: accountID.String(),
 		UserID:    userID.String(),
 		Amount:    amount,
@@ -235,10 +235,10 @@ func (s *Service) Transfer(
 	}
 	// Only emit and publish event
 	evt := account.TransferRequestedEvent{
-		EventID:         uuid.NewString(),
-		SourceAccountID: sourceAccountID.String(),
-		DestAccountID:   destAccountID.String(),
-		UserID:          userID.String(),
+		EventID:         uuid.New(),
+		SourceAccountID: sourceAccountID,
+		DestAccountID:   destAccountID,
+		SenderUserID:    userID,
 		Amount:          amount,
 		Currency:        string(currencyCode),
 		Source:          account.MoneySourceInternal,
@@ -247,6 +247,7 @@ func (s *Service) Transfer(
 	return s.eventBus.Publish(evt)
 }
 
+// UpdateTransactionStatusByPaymentID updates the status of a transaction identified by its payment ID.
 func (s *Service) UpdateTransactionStatusByPaymentID(paymentID, status string) error {
 	repo, err := s.uow.TransactionRepository()
 	if err != nil {

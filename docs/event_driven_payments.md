@@ -52,7 +52,7 @@ sequenceDiagram
     Service->>API: Success (transaction, conversion info)
 ```
 
-# Event-Driven Payment Flow Migration
+## Event-Driven Payment Flow Migration
 
 ## Overview
 

@@ -14,6 +14,7 @@ type MemoryEventBus struct {
 	mu       sync.RWMutex
 }
 
+// NewMemoryEventBus creates a new in-memory event bus for event-driven communication.
 func NewMemoryEventBus() *MemoryEventBus {
 	return &MemoryEventBus{
 		handlers: make(map[string][]func(domain.Event)),

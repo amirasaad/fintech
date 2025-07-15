@@ -10,24 +10,30 @@ import (
 // TransactionStatus represents the status of a transaction in the payment lifecycle.
 type TransactionStatus string
 
-const (
-	TransactionStatusInitiated TransactionStatus = "initiated"
-	TransactionStatusPending   TransactionStatus = "pending"
-	TransactionStatusCompleted TransactionStatus = "completed"
-	TransactionStatusFailed    TransactionStatus = "failed"
-)
+// TransactionStatusInitiated indicates that a transaction has been initiated but not yet completed.
+const TransactionStatusInitiated = "initiated"
+
+// TransactionStatusPending indicates that a transaction is pending and awaiting completion.
+const TransactionStatusPending = "pending"
+
+// TransactionStatusCompleted indicates that a transaction has been completed successfully.
+const TransactionStatusCompleted = "completed"
+
+// TransactionStatusFailed indicates that a transaction has been failed.
+const TransactionStatusFailed TransactionStatus = "failed"
 
 // Transaction represents a financial transaction for an account.
 type Transaction struct {
-	ID          uuid.UUID
-	UserID      uuid.UUID
-	AccountID   uuid.UUID
-	Amount      money.Money
-	Balance     money.Money // Account balance snapshot
-	MoneySource MoneySource // Origin of funds (e.g., Cash, BankAccount, Stripe, etc.)
-	Status      TransactionStatus
-	PaymentID   string // External payment provider ID for webhook correlation
-	CreatedAt   time.Time
+	ID                   uuid.UUID
+	UserID               uuid.UUID
+	AccountID            uuid.UUID
+	Amount               money.Money
+	Balance              money.Money // Account balance snapshot
+	MoneySource          MoneySource // Origin of funds (e.g., Cash, BankAccount, Stripe, etc.)
+	Status               TransactionStatus
+	ExternalTargetMasked string
+	PaymentID            string // External payment provider ID for webhook correlation
+	CreatedAt            time.Time
 }
 
 // NewTransactionFromData creates a Transaction from raw data (used for DB hydration or test fixtures).

@@ -25,7 +25,6 @@ func (h *DepositOperationHandler) Handle(ctx context.Context, req *OperationRequ
 	}
 
 	logger.Info("DepositOperationHandler: domain operation completed")
-
 	return h.BaseHandler.Handle(ctx, req)
 }
 
@@ -75,8 +74,8 @@ func (h *WithdrawOperationHandler) Handle(ctx context.Context, req *OperationReq
 		logger.Error("WithdrawOperationHandler failed: domain operation error", "error", err)
 		return &OperationResponse{Error: err}, nil
 	}
-	logger.Info("WithdrawOperationHandler: domain operation completed")
 
+	logger.Info("WithdrawOperationHandler: domain operation completed")
 	return h.BaseHandler.Handle(ctx, req)
 }
 
@@ -90,13 +89,12 @@ type TransferOperationHandler struct {
 func (h *TransferOperationHandler) Handle(ctx context.Context, req *OperationRequest) (*OperationResponse, error) {
 	logger := h.logger.With("operation", "transfer")
 
-	err := req.Account.Transfer(req.UserID, req.DestAccount, req.ConvertedMoney, account.MoneySourceInternal)
+	err := req.Account.Transfer(req.UserID, req.DestUserID, req.DestAccount, req.ConvertedMoney, account.MoneySourceInternal)
 	if err != nil {
 		logger.Error("TransferOperationHandler failed: domain operation error", "error", err)
 		return &OperationResponse{Error: err}, nil
 	}
 
 	logger.Info("TransferOperationHandler: domain operation completed")
-
 	return h.BaseHandler.Handle(ctx, req)
 }

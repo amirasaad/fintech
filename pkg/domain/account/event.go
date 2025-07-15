@@ -1,5 +1,7 @@
 package account
 
+import "github.com/google/uuid"
+
 // PaymentStatus represents the status of a payment transaction event.
 type PaymentStatus string
 
@@ -16,7 +18,7 @@ const (
 
 // PaymentEvent represents an event in the payment lifecycle (initiated, pending, completed, failed).
 type PaymentEvent struct {
-	EventID       string            // Unique event ID (UUID)
+	EventID       uuid.UUID         // Unique event ID (UUID)
 	TransactionID string            // Associated transaction
 	AccountID     string            // Account involved
 	UserID        string            // User who initiated
@@ -28,9 +30,12 @@ type PaymentEvent struct {
 	Metadata      map[string]string // Optional extra info
 }
 
+// EventType returns the type of the PaymentEvent.
+func (e PaymentEvent) EventType() string { return "PaymentEvent" }
+
 // DepositRequestedEvent is emitted when a deposit is requested (pure event-driven domain).
 type DepositRequestedEvent struct {
-	EventID   string
+	EventID   uuid.UUID
 	AccountID string
 	UserID    string
 	Amount    float64
@@ -38,10 +43,13 @@ type DepositRequestedEvent struct {
 	Source    MoneySource
 	Timestamp int64
 }
+
+// EventType returns the type of the DepositRequestedEvent.
+func (e DepositRequestedEvent) EventType() string { return "DepositRequestedEvent" }
 
 // WithdrawRequestedEvent is emitted when a withdrawal is requested (pure event-driven domain).
 type WithdrawRequestedEvent struct {
-	EventID   string
+	EventID   uuid.UUID
 	AccountID string
 	UserID    string
 	Amount    float64
@@ -50,14 +58,21 @@ type WithdrawRequestedEvent struct {
 	Timestamp int64
 }
 
+// EventType returns the type of the WithdrawRequestedEvent.
+func (e WithdrawRequestedEvent) EventType() string { return "WithdrawRequestedEvent" }
+
 // TransferRequestedEvent is emitted when a transfer is requested (pure event-driven domain).
 type TransferRequestedEvent struct {
-	EventID         string
-	SourceAccountID string
-	DestAccountID   string
-	UserID          string
+	EventID         uuid.UUID
+	SourceAccountID uuid.UUID
+	DestAccountID   uuid.UUID
+	SenderUserID    uuid.UUID
+	ReceiverUserID  uuid.UUID
 	Amount          float64
 	Currency        string
 	Source          MoneySource
 	Timestamp       int64
 }
+
+// EventType returns the type of the TransferRequestedEvent.
+func (e TransferRequestedEvent) EventType() string { return "TransferRequestedEvent" }

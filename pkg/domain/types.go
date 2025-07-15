@@ -14,12 +14,17 @@ import (
 // Deprecated: Use account.Account directly.
 type Account = account.Account
 
+// Transaction represents a financial transaction in the system.
+// Deprecated: Use account.Transaction directly.
 type Transaction = account.Transaction
 
+// ConversionInfo contains information about currency conversion for a transaction.
 type ConversionInfo = common.ConversionInfo
 
 // CurrencyConverter and related
 type CurrencyConverter = money.CurrencyConverter
+
+// ExchangeRate represents an exchange rate between two currencies.
 type ExchangeRate = money.ExchangeRate
 
 // User and related
@@ -41,4 +46,7 @@ var (
 	ErrExchangeRateInvalid     = money.ErrExchangeRateInvalid
 )
 
-type Event = common.Event
+// Event represents a domain event in the system.
+type Event interface {
+	EventType() string
+}

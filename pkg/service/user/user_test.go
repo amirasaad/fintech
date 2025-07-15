@@ -22,11 +22,11 @@ import (
 func newUserServiceWithMocks(t interface {
 	mock.TestingT
 	Cleanup(func())
-}) (*usersvc.UserService, *mocks.MockUserRepository, *mocks.MockUnitOfWork) {
+}) (*usersvc.Service, *mocks.MockUserRepository, *mocks.MockUnitOfWork) {
 	userRepo := mocks.NewMockUserRepository(t)
 	uow := mocks.NewMockUnitOfWork(t)
 	uow.EXPECT().UserRepository().Return(userRepo, nil).Maybe()
-	svc := usersvc.NewUserService(config.Deps{
+	svc := usersvc.NewService(config.Deps{
 		Uow: uow, Logger: slog.Default(),
 	})
 	return svc, userRepo, uow
@@ -103,7 +103,7 @@ func TestGetUser_UoWFactoryError(t *testing.T) {
 		},
 	)
 
-	svc := usersvc.NewUserService(config.Deps{
+	svc := usersvc.NewService(config.Deps{
 		Uow: uow, Logger: slog.Default(),
 	})
 	_, err := svc.GetUser(context.Background(), uuid.New().String())
@@ -151,7 +151,7 @@ func TestGetUserByEmail_UoWFactoryError(t *testing.T) {
 		},
 	)
 
-	svc := usersvc.NewUserService(config.Deps{
+	svc := usersvc.NewService(config.Deps{
 		Uow: uow, Logger: slog.Default(),
 	})
 	_, err := svc.GetUserByEmail(context.Background(), "user@example.com")
@@ -198,7 +198,7 @@ func TestGetUserByUsername_UoWFactoryError(t *testing.T) {
 		},
 	)
 
-	svc := usersvc.NewUserService(config.Deps{
+	svc := usersvc.NewService(config.Deps{
 		Uow: uow, Logger: slog.Default(),
 	})
 	_, err := svc.GetUserByUsername(context.Background(), "username")
@@ -254,7 +254,7 @@ func TestUpdateUser_UoWFactoryError(t *testing.T) {
 		},
 	)
 
-	svc := usersvc.NewUserService(config.Deps{
+	svc := usersvc.NewService(config.Deps{
 		Uow: uow, Logger: slog.Default(),
 	})
 	err := svc.UpdateUser(context.Background(), uuid.New().String(), nil)
@@ -283,7 +283,7 @@ func TestUpdateUser_CallsGetRepositoryOnce(t *testing.T) {
 	userRepo.EXPECT().Get(userID).Return(user, nil)
 	userRepo.EXPECT().Update(user).Return(nil)
 
-	svc := usersvc.NewUserService(config.Deps{
+	svc := usersvc.NewService(config.Deps{
 		Uow: uow, Logger: slog.Default(),
 	})
 	err := svc.UpdateUser(context.Background(), userID.String(), func(u *domain.User) error {

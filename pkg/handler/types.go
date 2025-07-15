@@ -62,9 +62,10 @@ type OperationRequest struct {
 // OperationResponse contains the result of an account operation
 // For transfers, both TransactionOut (from source) and TransactionIn (to dest) may be set.
 type OperationResponse struct {
-	Transaction    *account.Transaction // For single-op or outgoing transfer
-	TransactionOut *account.Transaction // Outgoing (source) transaction for transfer
-	TransactionIn  *account.Transaction // Incoming (dest) transaction for transfer
+	Transaction    *account.Transaction   // For single-op or outgoing transfer
+	TransactionOut *account.Transaction   // Outgoing (source) transaction for transfer
+	TransactionIn  *account.Transaction   // Incoming (dest) transaction for transfer
+	Transactions   []*account.Transaction // All transactions created (for event-driven persistence)
 	ConvInfo       *common.ConversionInfo
 	ConvInfoOut    *common.ConversionInfo // Outgoing (source) conversion info for transfer
 	ConvInfoIn     *common.ConversionInfo // Incoming (dest) conversion info for transfer

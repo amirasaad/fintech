@@ -44,7 +44,7 @@ func TestTransactionRepository_Create(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(transaction.ID))
 	mock.ExpectCommit()
 
-	err = transRepo.Create(transaction, &common.ConversionInfo{}, "")
+	err = transRepo.Create(transaction, &common.ConversionInfo{})
 	require.NoError(err)
 
 	mock.ExpectBegin()
@@ -53,7 +53,7 @@ func TestTransactionRepository_Create(t *testing.T) {
 		WillReturnError(errors.New("create error"))
 	mock.ExpectRollback()
 
-	err = transRepo.Create(transaction, &common.ConversionInfo{}, "")
+	err = transRepo.Create(transaction, &common.ConversionInfo{})
 	require.Error(err)
 }
 

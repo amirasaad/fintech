@@ -5,7 +5,6 @@ import (
 	"errors"
 	"strings"
 
-	accountdomain "github.com/amirasaad/fintech/pkg/domain/account"
 	accountsvc "github.com/amirasaad/fintech/pkg/service/account"
 	authsvc "github.com/amirasaad/fintech/pkg/service/auth"
 	currencysvc "github.com/amirasaad/fintech/pkg/service/currency"
@@ -23,6 +22,7 @@ import (
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/handler"
 
+	accountdomain "github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/google/uuid"
@@ -32,7 +32,7 @@ import (
 func New(deps config.Deps) *fiber.App {
 	// Build services
 	accountSvc := accountsvc.NewService(deps)
-	userSvc := usersvc.NewUserService(deps)
+	userSvc := usersvc.NewService(deps)
 	authStrategy := authsvc.NewJWTAuthStrategy(deps.Uow, deps.Config.Jwt, deps.Logger)
 	authSvc := authsvc.NewAuthService(deps.Uow, authStrategy, deps.Logger)
 	currencySvc := currencysvc.NewCurrencyService(deps.CurrencyRegistry, deps.Logger)
@@ -40,15 +40,19 @@ func New(deps config.Deps) *fiber.App {
 	// Register event handlers (example for DepositRequestedEvent)
 	accountChain := handler.NewAccountChain(deps.Uow, deps.CurrencyConverter, deps.Logger)
 	deps.EventBus.Subscribe("DepositRequestedEvent", func(e domain.Event) {
-		evt := e.(accountdomain.DepositRequestedEvent)
-		userID := uuid.MustParse(evt.UserID)
-		accountID := uuid.MustParse(evt.AccountID)
-		amount := evt.Amount
-		currencyCode := currency.Code(evt.Currency)
-		moneySource := string(evt.Source)
-		_, err := accountChain.Deposit(context.Background(), userID, accountID, amount, currencyCode, moneySource)
-		if err != nil {
-			deps.Logger.Error("Deposit event handler failed", "error", err)
+		// Use type assertion with ok check
+		if evt, ok := e.(accountdomain.DepositRequestedEvent); ok {
+			userID := uuid.MustParse(evt.UserID)
+			accountID := uuid.MustParse(evt.AccountID)
+			amount := evt.Amount
+			currencyCode := currency.Code(evt.Currency)
+			moneySource := string(evt.Source)
+			_, err := accountChain.Deposit(context.Background(), userID, accountID, amount, currencyCode, moneySource)
+			if err != nil {
+				deps.Logger.Error("Deposit event handler failed", "error", err)
+			}
+		} else {
+			deps.Logger.Error("event type assertion failed", "event", e)
 		}
 	})
 	// TODO: Register other event handlers (WithdrawRequestedEvent, TransferRequestedEvent, etc.)

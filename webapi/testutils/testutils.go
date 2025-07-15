@@ -133,7 +133,7 @@ func (s *E2ETestSuite) setupApp() {
 		Logger:          logger,
 		PaymentProvider: provider.NewMockPaymentProvider(),
 	})
-	userSvc := userservice.NewUserService(config.Deps{
+	userSvc := userservice.NewService(config.Deps{
 		Uow:    uow,
 		Logger: logger,
 	})

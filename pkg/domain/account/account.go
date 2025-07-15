@@ -225,7 +225,6 @@ func (a *Account) Deposit(userID uuid.UUID, m money.Money, moneySource MoneySour
 		return common.ErrInvalidCurrencyCode
 	}
 	a.events = append(a.events, DepositRequestedEvent{
-		EventID:   uuid.NewString(),
 		AccountID: a.ID.String(),
 		UserID:    userID.String(),
 		Amount:    m.AmountFloat(),
@@ -255,7 +254,6 @@ func (a *Account) Withdraw(userID uuid.UUID, m money.Money, moneySource MoneySou
 		return common.ErrInvalidCurrencyCode
 	}
 	a.events = append(a.events, WithdrawRequestedEvent{
-		EventID:   uuid.NewString(),
 		AccountID: a.ID.String(),
 		UserID:    userID.String(),
 		Amount:    m.AmountFloat(),
@@ -267,14 +265,14 @@ func (a *Account) Withdraw(userID uuid.UUID, m money.Money, moneySource MoneySou
 }
 
 // Transfer moves funds from this account to another account.
-func (a *Account) Transfer(initiatorUserID uuid.UUID, dest *Account, amount money.Money, moneySource MoneySource) error {
+func (a *Account) Transfer(senderUserID, receiverUserID uuid.UUID, dest *Account, amount money.Money, moneySource MoneySource) error {
 	if a == nil || dest == nil {
 		return ErrNilAccount
 	}
 	if a.ID == dest.ID {
 		return ErrCannotTransferToSameAccount
 	}
-	if a.UserID != initiatorUserID {
+	if a.UserID != senderUserID {
 		return ErrNotOwner
 	}
 	if !amount.IsPositive() {
@@ -287,20 +285,13 @@ func (a *Account) Transfer(initiatorUserID uuid.UUID, dest *Account, amount mone
 	if !hasEnough && !a.Balance.Equals(amount) {
 		return ErrInsufficientFunds
 	}
-	_, err := a.Balance.Subtract(amount)
-	if err != nil {
-		return err
-	}
-	_, err = dest.Balance.Add(amount)
-	if err != nil {
-		return err
-	}
 
 	a.events = append(a.events, TransferRequestedEvent{
-		EventID:         uuid.NewString(),
-		SourceAccountID: a.ID.String(),
-		DestAccountID:   dest.ID.String(),
-		UserID:          initiatorUserID.String(),
+		EventID:         uuid.New(),
+		SenderUserID:    senderUserID,
+		ReceiverUserID:  receiverUserID,
+		SourceAccountID: a.ID,
+		DestAccountID:   dest.ID,
 		Amount:          amount.AmountFloat(),
 		Currency:        string(amount.Currency()),
 		Source:          moneySource,

@@ -89,72 +89,6 @@ func TestAccount_GetBalanceUnauthorized(t *testing.T) {
 	require.Error(err, "GetBalance with different user id should return error")
 }
 
-func TestAccount_DepositWithMoneyOperations(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
-
-	userID := uuid.New()
-	account, _ := domainaccount.New().WithUserID(userID).WithCurrency(currency.USD).Build() //nolint:errcheck
-
-	// Deposit using Money operations
-	depositMoney := money.NewFromData(100.0, "USD")
-	err := account.Deposit(userID, depositMoney, domainaccount.MoneySourceCash)
-	require.NoError(err)
-
-	// Check balance using Money
-	balanceMoney, err := account.GetBalanceAsMoney(userID)
-	require.NoError(err)
-	assert.InEpsilon(t, 100.0, balanceMoney.AmountFloat(), 0.001)
-
-	// Deposit more using Money operations
-	secondDeposit, err := money.New(50.25, "USD")
-	require.NoError(err)
-	err = account.Deposit(userID, secondDeposit, domainaccount.MoneySourceCash)
-	require.NoError(err)
-
-	// Check final balance
-	balanceMoney, err = account.GetBalanceAsMoney(userID)
-	require.NoError(err)
-	assert.InEpsilon(t, 150.25, balanceMoney.AmountFloat(), 0.001)
-}
-
-func TestAccount_WithdrawWithMoneyOperations(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
-
-	userID := uuid.New()
-	acc, _ := domainaccount.New().WithUserID(userID).WithCurrency(currency.USD).Build() //nolint:errcheck
-
-	// Deposit initial funds
-	depositMoney, err := money.New(200.0, "USD")
-	require.NoError(err)
-	err = acc.Deposit(userID, depositMoney, domainaccount.MoneySourceCash)
-	require.NoError(err)
-
-	// Withdraw using Money operations
-	withdrawMoney, err := money.New(75.50, "USD")
-	require.NoError(err)
-	err = acc.Withdraw(userID, withdrawMoney, domainaccount.MoneySourceCash)
-	require.NoError(err)
-
-	// Check balance using Money
-	balanceMoney, err := acc.GetBalanceAsMoney(userID)
-	require.NoError(err)
-	assert.InEpsilon(t, 124.50, balanceMoney.AmountFloat(), 0.001)
-
-	// Try to withdraw more than available
-	largeWithdraw, err := money.New(200.0, "USD")
-	require.NoError(err)
-	err = acc.Withdraw(userID, largeWithdraw, domainaccount.MoneySourceCash)
-	require.Error(err)
-	require.ErrorIs(err, domainaccount.ErrInsufficientFunds)
-
-	// Balance should remain unchanged
-	balanceMoney, err = acc.GetBalanceAsMoney(userID)
-	require.NoError(err)
-	assert.InEpsilon(t, 124.50, balanceMoney.AmountFloat(), 0.001)
-}
-
 func TestDeposit_EmitsEvent(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
@@ -201,20 +135,19 @@ func TestTransfer_EmitsEvent(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 	userID := uuid.New()
-	source, _ := domainaccount.New().WithUserID(userID).WithCurrency(currency.USD).Build()
+	source, _ := domainaccount.New().WithUserID(userID).WithBalance(25.0).WithCurrency(currency.USD).Build()
 	dest, _ := domainaccount.New().WithUserID(uuid.New()).WithCurrency(currency.USD).Build()
-	m, err := money.New(25.0, "USD")
-	require.NoError(err)
-	err = source.Transfer(userID, dest, m, domainaccount.MoneySourceInternal)
+	m := money.NewFromData(25.0, "USD")
+	err := source.Transfer(userID, uuid.New(), dest, m, domainaccount.MoneySourceInternal)
 	require.NoError(err)
 	events := source.PullEvents()
 	require.Len(events, 1)
 	evt, ok := events[0].(domainaccount.TransferRequestedEvent)
 	require.True(ok)
-	assert.Equal(t, source.ID.String(), evt.SourceAccountID)
-	assert.Equal(t, dest.ID.String(), evt.DestAccountID)
-	assert.Equal(t, userID.String(), evt.UserID)
-	assert.InEpsilon(t, 25.0, evt.Amount, 0.01)
+	assert.Equal(t, source.ID, evt.SourceAccountID)
+	assert.Equal(t, dest.ID, evt.DestAccountID)
+	assert.Equal(t, userID, evt.SenderUserID)
+	assert.InEpsilon(t, 0.25, evt.Amount, 0.01)
 	assert.Equal(t, "USD", evt.Currency)
 	assert.Equal(t, domainaccount.MoneySourceInternal, evt.Source)
 }

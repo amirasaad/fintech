@@ -27,7 +27,7 @@ import (
 // NewApp creates and configures a new Fiber application with all routes, middleware, and services.
 func NewApp(
 	accountSvc *accountsvc.Service,
-	userSvc *usersvc.UserService,
+	userSvc *usersvc.Service,
 	authSvc *authsvc.AuthService,
 	currencySvc *currencysvc.CurrencyService,
 	cfg *config.AppConfig,

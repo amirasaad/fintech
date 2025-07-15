@@ -38,7 +38,7 @@ func TestRateLimit(t *testing.T) {
 		Logger:          slog.Default(),
 		PaymentProvider: infra_provider.NewMockPaymentProvider(),
 	})
-	userSvc := userservice.NewUserService(config.Deps{
+	userSvc := userservice.NewService(config.Deps{
 		Uow: dummyUow, Logger: slog.Default(),
 	})
 
