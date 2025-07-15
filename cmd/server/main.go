@@ -6,16 +6,14 @@ import (
 	"log"
 	"log/slog"
 
+	"github.com/amirasaad/fintech/app"
+
 	"github.com/amirasaad/fintech/infra"
+	"github.com/amirasaad/fintech/infra/eventbus"
 	"github.com/amirasaad/fintech/infra/provider"
 	infra_repository "github.com/amirasaad/fintech/infra/repository"
 	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/currency"
-	"github.com/amirasaad/fintech/pkg/service/account"
-	"github.com/amirasaad/fintech/pkg/service/auth"
-	currencyservice "github.com/amirasaad/fintech/pkg/service/currency"
-	"github.com/amirasaad/fintech/pkg/service/user"
-	"github.com/amirasaad/fintech/webapi"
 )
 
 // @title Fintech API
@@ -71,24 +69,14 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// Create services
-	accountSvc := account.NewService(account.ServiceDeps{
-		Uow:             uow,
-		Converter:       currencyConverter,
-		Logger:          logger,
-		PaymentProvider: provider.NewMockPaymentProvider(),
-	})
-	userSvc := user.NewUserService(uow, logger)
-	authStrategy := auth.NewJWTAuthStrategy(uow, cfg.Jwt, logger)
-	authSvc := auth.NewAuthService(uow, authStrategy, logger)
-	currencySvc := currencyservice.NewCurrencyService(currencyRegistry, logger)
-
 	logger.Info("Starting fintech server", "port", ":3000")
-	log.Fatal(webapi.NewApp(
-		accountSvc,
-		userSvc,
-		authSvc,
-		currencySvc,
-		cfg,
-	).Listen(fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)))
+	log.Fatal(app.New(config.Deps{
+		Uow:               uow,
+		CurrencyConverter: currencyConverter,
+		CurrencyRegistry:  currencyRegistry,
+		Logger:            logger,
+		PaymentProvider:   provider.NewMockPaymentProvider(),
+		EventBus:          eventbus.NewMemoryEventBus(),
+		Config:            cfg,
+	}).Listen(fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)))
 }

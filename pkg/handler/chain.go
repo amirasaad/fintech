@@ -5,6 +5,7 @@ import (
 	"log/slog"
 
 	"github.com/amirasaad/fintech/pkg/currency"
+	"github.com/amirasaad/fintech/pkg/domain/account"
 	mon "github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/google/uuid"
@@ -23,12 +24,13 @@ func NewAccountChain(uow repository.UnitOfWork, converter mon.CurrencyConverter,
 }
 
 // Deposit executes a deposit operation using the chain of responsibility pattern
-func (c *AccountChain) Deposit(ctx context.Context, userID, accountID uuid.UUID, amount float64, currencyCode currency.Code, moneySource string) (*OperationResponse, error) {
+func (c *AccountChain) Deposit(ctx context.Context, userID, accountID uuid.UUID, amount float64, currencyCode currency.Code, moneySource, paymentID string) (*OperationResponse, error) {
 	chain := c.builder.BuildDepositChain()
 
 	req := &OperationRequest{
 		UserID:       userID,
 		AccountID:    accountID,
+		PaymentID:    paymentID,
 		Amount:       amount,
 		CurrencyCode: currencyCode,
 		Operation:    OperationDeposit,
@@ -38,29 +40,14 @@ func (c *AccountChain) Deposit(ctx context.Context, userID, accountID uuid.UUID,
 	return chain.Handle(ctx, req)
 }
 
-// Withdraw executes a withdraw operation using the chain of responsibility pattern
-func (c *AccountChain) Withdraw(ctx context.Context, userID, accountID uuid.UUID, amount float64, currencyCode currency.Code, moneySource string) (*OperationResponse, error) {
-	chain := c.builder.BuildWithdrawChain()
-
-	req := &OperationRequest{
-		UserID:       userID,
-		AccountID:    accountID,
-		Amount:       amount,
-		CurrencyCode: currencyCode,
-		Operation:    OperationWithdraw,
-		MoneySource:  moneySource,
-	}
-
-	return chain.Handle(ctx, req)
-}
-
-// WithdrawExternal executes a withdraw operation to an external target using the chain of responsibility pattern
-func (c *AccountChain) WithdrawExternal(ctx context.Context, userID, accountID uuid.UUID, amount float64, currencyCode currency.Code, externalTarget ExternalTarget) (*OperationResponse, error) {
+// Withdraw executes a withdraw operation to an external target using the chain of responsibility pattern
+func (c *AccountChain) Withdraw(ctx context.Context, userID, accountID uuid.UUID, amount float64, currencyCode currency.Code, externalTarget ExternalTarget, paymentID string) (*OperationResponse, error) {
 	chain := c.builder.BuildWithdrawChain()
 
 	req := &OperationRequest{
 		UserID:         userID,
 		AccountID:      accountID,
+		PaymentID:      paymentID,
 		Amount:         amount,
 		CurrencyCode:   currencyCode,
 		Operation:      OperationWithdraw,
@@ -72,17 +59,18 @@ func (c *AccountChain) WithdrawExternal(ctx context.Context, userID, accountID u
 }
 
 // Transfer executes a transfer operation using the chain of responsibility pattern
-func (c *AccountChain) Transfer(ctx context.Context, userID, sourceAccountID, destAccountID uuid.UUID, amount float64, currencyCode currency.Code, moneySource string) (*OperationResponse, error) {
+func (c *AccountChain) Transfer(ctx context.Context, senderUserID, receiverUserID, sourceAccountID, destAccountID uuid.UUID, amount float64, currencyCode currency.Code) (*OperationResponse, error) {
 	chain := c.builder.BuildTransferChain()
 
 	req := &OperationRequest{
-		UserID:        userID,
+		UserID:        senderUserID,
+		DestUserID:    receiverUserID,
 		AccountID:     sourceAccountID,
 		DestAccountID: destAccountID,
 		Amount:        amount,
 		CurrencyCode:  currencyCode,
 		Operation:     OperationTransfer,
-		MoneySource:   moneySource,
+		MoneySource:   string(account.MoneySourceInternal),
 	}
 
 	return chain.Handle(ctx, req)

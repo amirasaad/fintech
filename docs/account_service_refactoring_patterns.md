@@ -954,3 +954,63 @@ Consider **hybrid approaches**:
 The refactoring journey demonstrates how different design patterns can address the same problem with varying trade-offs. The **Strategy Pattern** provided immediate benefits, while **Chain of Responsibility** offers the best long-term solution for this specific use case.
 
 The key insight is that **pattern selection should be driven by specific requirements** rather than following a one-size-fits-all approach. For fintech applications requiring high reliability and maintainability, the Chain of Responsibility pattern provides the optimal balance of simplicity, extensibility, and Go idiomaticity.
+
+## Mega Refactor: Event-Driven, Operation-Specific Handlers
+
+### Overview
+
+The account service now uses **operation-specific persistence handlers** and an event-driven approach for all account operations (deposit, withdraw, transfer). The legacy monolithic `PersistenceHandler` has been replaced by:
+
+- `DepositPersistenceHandler`
+- `WithdrawPersistenceHandler`
+- `TransferPersistenceHandler`
+
+Transaction creation logic is now centralized in `transaction_factory.go` as reusable helpers, ensuring DRY and consistent transaction records.
+
+### Handler Chain Example (Deposit)
+
+```go
+// Chain for deposit operation:
+ValidationHandler → MoneyCreationHandler → CurrencyConversionHandler → DomainOperationHandler → DepositPersistenceHandler
+```
+
+### Event-Driven Persistence
+
+- Domain methods emit events (e.g., `DepositRequestedEvent`).
+- Persistence handlers pull these events and use factory helpers to create transactions.
+- Each handler is focused, testable, and only responsible for its operation.
+
+### Updated File Structure
+
+```ascii
+pkg/handler/
+├── base.go
+├── builder.go
+├── deposit_persistence.go
+├── withdraw_persistence.go
+├── transfer_persistence.go
+├── transaction_factory.go
+└── ...
+```
+
+### Example: DepositPersistenceHandler
+
+```go
+// DepositPersistenceHandler handles deposit events and persistence
+func (h *DepositPersistenceHandler) Handle(ctx context.Context, req *OperationRequest) (*OperationResponse, error) {
+    events := req.Account.PullEvents()
+    for _, evt := range events {
+        e, ok := evt.(account.DepositRequestedEvent) //nolint:go-critic
+        if !ok { continue }
+        tx := NewDepositTransaction(e)
+        // persist tx and update account
+    }
+    // ...
+}
+```
+
+### Benefits
+
+- Each operation is isolated and testable
+- Transaction creation is DRY and consistent
+- Event-driven: domain emits events, handlers persist them

@@ -6,18 +6,16 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/amirasaad/fintech/app"
+	"github.com/amirasaad/fintech/infra/eventbus"
+
 	"github.com/amirasaad/fintech/infra"
+	"github.com/amirasaad/fintech/infra/provider"
 	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/currency"
 
-	"github.com/amirasaad/fintech/infra/provider"
 	infra_repository "github.com/amirasaad/fintech/infra/repository"
 
-	"github.com/amirasaad/fintech/pkg/service/account"
-	"github.com/amirasaad/fintech/pkg/service/auth"
-	currencyservice "github.com/amirasaad/fintech/pkg/service/currency"
-	"github.com/amirasaad/fintech/pkg/service/user"
-	"github.com/amirasaad/fintech/webapi"
 	"github.com/gofiber/fiber/v2/middleware/adaptor"
 )
 
@@ -51,8 +49,6 @@ func handler() http.HandlerFunc {
 		log.Fatal(err)
 	}
 	logger.Info("Currency registry initialized successfully")
-	currencySvc := currencyservice.NewCurrencyService(currencyRegistry, logger)
-
 	// Initialize DB connection ONCE
 	db, err := infra.NewDBConnection(cfg.DB, cfg.Env)
 	if err != nil {
@@ -63,20 +59,14 @@ func handler() http.HandlerFunc {
 	// Create UOW using the shared db
 	uow := infra_repository.NewUoW(db)
 
-	app := webapi.NewApp(
-		account.NewService(account.ServiceDeps{
-			Uow:             uow,
-			Converter:       currencyConverter,
-			Logger:          logger,
-			PaymentProvider: provider.NewMockPaymentProvider(),
-		}),
-		user.NewUserService(uow, logger),
-		auth.NewAuthService(uow,
-			auth.NewJWTAuthStrategy(
-				uow, cfg.Jwt, logger,
-			), logger),
-		currencySvc,
-		cfg,
-	)
-	return adaptor.FiberApp(app)
+	a := app.New(config.Deps{
+		Uow:               uow,
+		EventBus:          eventbus.NewMemoryEventBus(),
+		CurrencyConverter: currencyConverter,
+		CurrencyRegistry:  currencyRegistry,
+		PaymentProvider:   provider.NewMockPaymentProvider(),
+		Logger:            logger,
+		Config:            cfg,
+	})
+	return adaptor.FiberApp(a)
 }

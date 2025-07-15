@@ -9,51 +9,35 @@ package account
 import (
 	"context"
 	"errors"
-	"log/slog"
 	"time"
 
-	"github.com/amirasaad/fintech/infra/provider"
+	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/account"
-	"github.com/amirasaad/fintech/pkg/domain/common"
-	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/amirasaad/fintech/pkg/handler"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/google/uuid"
 )
 
-// ServiceDeps contains all dependencies for constructing a Service.
-type ServiceDeps struct {
-	Uow             repository.UnitOfWork
-	Converter       money.CurrencyConverter
-	Logger          *slog.Logger
-	PaymentProvider *provider.MockPaymentProvider
-}
-
 // Service provides business logic for account operations including creation, deposits, withdrawals, and balance inquiries.
 type Service struct {
-	uow             repository.UnitOfWork
-	converter       money.CurrencyConverter
-	accountChain    *Chain
-	paymentProvider *provider.MockPaymentProvider
-	logger          *slog.Logger
+	deps         config.Deps
+	accountChain *Chain
 }
 
 // NewService creates a new Service with the provided dependencies.
-func NewService(deps ServiceDeps) *Service {
-	accountChain := NewChain(deps.Uow, deps.Converter, deps.Logger)
+func NewService(deps config.Deps) *Service {
+	accountChain := NewChain(deps)
 	return &Service{
-		uow:             deps.Uow,
-		converter:       deps.Converter,
-		logger:          deps.Logger,
-		accountChain:    accountChain,
-		paymentProvider: deps.PaymentProvider,
+		accountChain: accountChain,
+		deps:         deps,
 	}
 }
 
 // CreateAccount creates a new account for the specified user in a transaction.
 func (s *Service) CreateAccount(ctx context.Context, userID uuid.UUID) (a *account.Account, err error) {
-	err = s.uow.Do(ctx, func(uow repository.UnitOfWork) error {
+	uow := s.deps.Uow
+	err = uow.Do(ctx, func(uow repository.UnitOfWork) error {
 		repo, err := uow.AccountRepository()
 		if err != nil {
 			return err
@@ -100,9 +84,10 @@ func (s *Service) CreateAccountWithCurrency(
 	userID uuid.UUID,
 	currencyCode currency.Code,
 ) (acct *account.Account, err error) {
-	logger := s.logger.With("userID", userID, "currency", currencyCode)
+	logger := s.deps.Logger.With("userID", userID, "currency", currencyCode)
 	logger.Info("CreateAccountWithCurrency started")
-	err = s.uow.Do(context.Background(), func(uow repository.UnitOfWork) error {
+	uow := s.deps.Uow
+	err = uow.Do(context.Background(), func(uow repository.UnitOfWork) error {
 		repo, err := uow.AccountRepository()
 		if err != nil {
 			logger.Error("CreateAccountWithCurrency failed: AccountRepository error", "error", err)
@@ -189,41 +174,35 @@ func (s *Service) Deposit(
 	amount float64,
 	currencyCode currency.Code,
 	moneySource string,
-) (tx *account.Transaction, convInfo *common.ConversionInfo, err error) {
-	s.logger.Info("Deposit: starting", "userID", userID, "accountID", accountID, "amount", amount, "currency", currencyCode, "moneySource", moneySource)
-
-	paymentID, err := s.paymentProvider.InitiateDeposit(context.Background(), userID, accountID, amount, string(currencyCode))
-	if err != nil {
-		s.logger.Error("Deposit: payment provider error", "error", err)
-		return nil, nil, err
+) (*PaymentProcessingRequest, error) {
+	if amount <= 0 {
+		return nil, errors.New("amount must be positive")
 	}
-
-	// Poll for payment completion (timeout after 5s)
-	timeout := time.After(5 * time.Second)
-	tick := time.Tick(100 * time.Millisecond)
-	var status provider.PaymentStatus
-	completed := false
-	for !completed {
-		select {
-		case <-timeout:
-			s.logger.Error("Deposit: payment did not complete in time")
-			return nil, nil, errors.New("payment not completed (timeout)")
-		case <-tick:
-			status, _ = s.paymentProvider.GetPaymentStatus(context.Background(), paymentID)
-			if status == provider.PaymentCompleted {
-				completed = true
-			}
+	// Initiate payment with provider
+	paymentID := ""
+	if s.deps.PaymentProvider != nil {
+		pid, err := s.deps.PaymentProvider.InitiatePayment(context.Background(), userID, accountID, amount, string(currencyCode))
+		if err != nil {
+			return nil, err
 		}
+		paymentID = pid
 	}
-
-	resp, err := s.accountChain.Deposit(context.Background(), userID, accountID, amount, currencyCode, moneySource)
+	// Publish event with paymentID
+	evt := account.DepositRequestedEvent{
+		EventID:   uuid.New(),
+		AccountID: accountID.String(),
+		UserID:    userID.String(),
+		Amount:    amount,
+		Currency:  string(currencyCode),
+		Source:    account.MoneySource(moneySource),
+		Timestamp: time.Now().Unix(),
+		PaymentID: paymentID,
+	}
+	err := s.deps.EventBus.Publish(evt)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	if resp.Error != nil {
-		return nil, nil, resp.Error
-	}
-	return resp.Transaction, resp.ConvInfo, nil
+	return &PaymentProcessingRequest{PaymentID: paymentID}, nil
 }
 
 // Withdraw removes funds from the specified account to an external target and creates a transaction record.
@@ -231,48 +210,36 @@ func (s *Service) Withdraw(
 	userID, accountID uuid.UUID,
 	amount float64,
 	currencyCode currency.Code,
-	externalTarget *handler.ExternalTarget,
-) (
-	tx *account.Transaction,
-	convInfo *common.ConversionInfo,
-	err error,
-) {
-	if externalTarget == nil {
-		return nil, nil, errors.New("external target is required for withdraw")
+	externalTarget handler.ExternalTarget,
+) (*PaymentProcessingRequest, error) {
+	if amount <= 0 {
+		return nil, errors.New("amount must be positive")
 	}
-
-	paymentID, err := s.paymentProvider.InitiateWithdraw(context.Background(), userID, accountID, amount, string(currencyCode), externalTarget.BankAccountNumber)
-	if err != nil {
-		s.logger.Error("Withdraw: payment provider error", "error", err)
-		return nil, nil, err
-	}
-
-	// Poll for payment completion (timeout after 5s)
-	timeout := time.After(5 * time.Second)
-	tick := time.Tick(100 * time.Millisecond)
-	var status provider.PaymentStatus
-	completed := false
-	for !completed {
-		select {
-		case <-timeout:
-			s.logger.Error("Withdraw: payment did not complete in time")
-			return nil, nil, errors.New("payment not completed (timeout)")
-		case <-tick:
-			status, _ = s.paymentProvider.GetPaymentStatus(context.Background(), paymentID)
-			if status == provider.PaymentCompleted {
-				completed = true
-			}
+	// Initiate payment with provider
+	paymentID := ""
+	if s.deps.PaymentProvider != nil {
+		pid, err := s.deps.PaymentProvider.InitiatePayment(context.Background(), userID, accountID, amount, string(currencyCode))
+		if err != nil {
+			return nil, err
 		}
+		paymentID = pid
 	}
-
-	resp, err := s.accountChain.WithdrawExternal(context.Background(), userID, accountID, amount, currencyCode, *externalTarget)
+	// Publish event with paymentID
+	evt := account.WithdrawRequestedEvent{
+		EventID:   uuid.New(),
+		AccountID: accountID.String(),
+		UserID:    userID.String(),
+		Amount:    amount,
+		Currency:  string(currencyCode),
+		Target:    account.ExternalTarget(externalTarget),
+		Timestamp: time.Now().Unix(),
+		PaymentID: paymentID,
+	}
+	err := s.deps.EventBus.Publish(evt)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	if resp.Error != nil {
-		return nil, nil, resp.Error
-	}
-	return resp.Transaction, resp.ConvInfo, nil
+	return &PaymentProcessingRequest{PaymentID: paymentID}, nil
 }
 
 // Transfer moves funds from one account to another account.
@@ -281,30 +248,58 @@ func (s *Service) Transfer(
 	sourceAccountID, destAccountID uuid.UUID,
 	amount float64,
 	currencyCode currency.Code,
-) (
-	txOut, txIn *account.Transaction,
-	convInfo *common.ConversionInfo,
-	err error,
-) {
-	s.logger.Info("Transfer: starting", "userID", userID, "sourceAccountID", sourceAccountID, "destAccountID", destAccountID, "amount", amount, "currency", currencyCode)
+) error {
+	if amount <= 0 {
+		return errors.New("amount must be positive")
+	}
+	// Only emit and publish event
+	evt := account.TransferRequestedEvent{
+		EventID:         uuid.New(),
+		SourceAccountID: sourceAccountID,
+		DestAccountID:   destAccountID,
+		SenderUserID:    userID,
+		Amount:          amount,
+		Currency:        string(currencyCode),
+		Source:          account.MoneySourceInternal,
+		Timestamp:       time.Now().Unix(),
+	}
+	return s.deps.EventBus.Publish(evt)
+}
 
-	resp, err := s.accountChain.Transfer(context.Background(), userID, sourceAccountID, destAccountID, amount, currencyCode, "Internal")
-	if err != nil {
-		s.logger.Error("Transfer: chain failed", "error", err)
-		return
-	}
-	if resp.Error != nil {
-		s.logger.Error("Transfer: business error", "error", resp.Error)
-		err = resp.Error
-		return
-	}
-	txOut = resp.TransactionOut
-	txIn = resp.TransactionIn
-	convInfo = nil
-	if resp.ConvInfoOut != nil {
-		convInfo = resp.ConvInfoOut
-	} else if resp.ConvInfoIn != nil {
-		convInfo = resp.ConvInfoIn
-	}
-	return
+// UpdateTransactionStatusByPaymentID updates the status of a transaction identified by its payment ID.
+// If the status is "completed", it also updates the account balance accordingly.
+func (s *Service) UpdateTransactionStatusByPaymentID(paymentID, status string) error {
+	// Use a unit of work for atomicity
+	return s.deps.Uow.Do(context.Background(), func(uow repository.UnitOfWork) error {
+		txRepo, err := uow.TransactionRepository()
+		if err != nil {
+			return err
+		}
+		accRepo, err := uow.AccountRepository()
+		if err != nil {
+			return err
+		}
+		tx, err := txRepo.GetByPaymentID(paymentID)
+		if err != nil {
+			return err
+		}
+		// Only update account if status is changing to completed and wasn't already completed
+		if status == "completed" && tx.Status != account.TransactionStatusCompleted {
+			acc, err := accRepo.Get(tx.AccountID)
+			if err != nil {
+				return err
+			}
+			newBalance, errAdd := acc.Balance.Add(tx.Amount)
+			if errAdd != nil {
+				return errAdd
+			}
+			acc.Balance = newBalance
+
+			if err := accRepo.Update(acc); err != nil {
+				return err
+			}
+		}
+		tx.Status = account.TransactionStatus(status)
+		return txRepo.Update(tx)
+	})
 }

@@ -25,9 +25,10 @@ import (
 )
 
 // NewApp creates and configures a new Fiber application with all routes, middleware, and services.
+// Deprecated: use app.New
 func NewApp(
 	accountSvc *accountsvc.Service,
-	userSvc *usersvc.UserService,
+	userSvc *usersvc.Service,
 	authSvc *authsvc.AuthService,
 	currencySvc *currencysvc.CurrencyService,
 	cfg *config.AppConfig,
@@ -83,6 +84,8 @@ func NewApp(
 	app.Get("/", func(c *fiber.Ctx) error {
 		return c.SendString("App is working! 🚀")
 	})
+
+	app.Post("/webhook/payment", account.PaymentWebhookHandler(accountSvc))
 
 	account.Routes(app, accountSvc, authSvc, cfg)
 	user.Routes(app, userSvc, authSvc, cfg)

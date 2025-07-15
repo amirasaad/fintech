@@ -13,7 +13,7 @@ test-e2e:
 cov:
 	go test -p 4 -v -coverprofile cover.out $$(go list ./... | grep -v '/internal' | grep -v '/api' | grep -v '/cmd')
 cov_report: cov
-	go tool cover -html cover.out -o docs/cover.html
+	go tool cover -html cover.out -o docs/coverage.html
 
 run:
 	go run cmd/server/main.go

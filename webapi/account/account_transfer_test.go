@@ -46,33 +46,17 @@ func (s *AccountTransferTestSuite) TestTransfer_Success() {
 	depositBody := `{"amount":100,"currency":"USD","money_source":"Cash"}`
 	depositResp := s.MakeRequest("POST", fmt.Sprintf("/account/%s/deposit", sourceAccountID), depositBody, s.token)
 	defer depositResp.Body.Close() //nolint:errcheck
-	s.Equal(fiber.StatusOK, depositResp.StatusCode)
+	s.Equal(fiber.StatusAccepted, depositResp.StatusCode)
 
 	// Attempt transfer
 	transferBody := fmt.Sprintf(`{"amount":50,"currency":"USD","destination_account_id":"%s"}`, destAccountID)
 	transferResp := s.MakeRequest("POST", fmt.Sprintf("/account/%s/transfer", sourceAccountID), transferBody, s.token)
 	defer transferResp.Body.Close() //nolint:errcheck
 
-	s.Equal(fiber.StatusOK, transferResp.StatusCode, "Transfer endpoint should return 200 OK")
-
-	// Parse and validate response structure
+	s.Equal(fiber.StatusAccepted, transferResp.StatusCode, "Transfer endpoint should return 202 Accepted")
 	var transferResponse common.Response
 	s.Require().NoError(json.NewDecoder(transferResp.Body).Decode(&transferResponse))
-	data, ok := transferResponse.Data.(map[string]any)
-	s.Require().True(ok, "Expected response data to be a map")
-	// Check outgoing and incoming transactions
-	outgoing, ok := data["outgoing_transaction"].(map[string]any)
-	s.True(ok, "Outgoing transaction should be present in response")
-	incoming, ok := data["incoming_transaction"].(map[string]any)
-	s.True(ok, "Incoming transaction should be present in response")
-	// Assert money_source is 'Internal' for both
-	s.Equal("Internal", outgoing["money_source"], "Outgoing transaction money_source should be 'Internal'")
-	s.Equal("Internal", incoming["money_source"], "Incoming transaction money_source should be 'Internal'")
-	// Check conversion info fields (should be nil/absent for same-currency transfer)
-	_, hasOutgoingConv := data["outgoing_conversion"]
-	_, hasIncomingConv := data["incoming_conversion"]
-	s.False(hasOutgoingConv, "Outgoing conversion info should be absent for same-currency transfer")
-	s.False(hasIncomingConv, "Incoming conversion info should be absent for same-currency transfer")
+	s.Contains(transferResponse.Message, "Transfer request is being processed")
 }
 
 func TestTransferE2ETestSuite(t *testing.T) {

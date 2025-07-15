@@ -7,8 +7,9 @@ package mocks
 import (
 	"context"
 
-	"github.com/amirasaad/fintech/pkg/domain"
+	"github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/domain/common"
+	"github.com/amirasaad/fintech/pkg/domain/user"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
@@ -42,16 +43,16 @@ func (_m *MockAccountRepository) EXPECT() *MockAccountRepository_Expecter {
 }
 
 // Create provides a mock function for the type MockAccountRepository
-func (_mock *MockAccountRepository) Create(account *domain.Account) error {
-	ret := _mock.Called(account)
+func (_mock *MockAccountRepository) Create(account1 *account.Account) error {
+	ret := _mock.Called(account1)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Create")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(*domain.Account) error); ok {
-		r0 = returnFunc(account)
+	if returnFunc, ok := ret.Get(0).(func(*account.Account) error); ok {
+		r0 = returnFunc(account1)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -64,16 +65,16 @@ type MockAccountRepository_Create_Call struct {
 }
 
 // Create is a helper method to define mock.On call
-//   - account *domain.Account
-func (_e *MockAccountRepository_Expecter) Create(account interface{}) *MockAccountRepository_Create_Call {
-	return &MockAccountRepository_Create_Call{Call: _e.mock.On("Create", account)}
+//   - account1 *account.Account
+func (_e *MockAccountRepository_Expecter) Create(account1 interface{}) *MockAccountRepository_Create_Call {
+	return &MockAccountRepository_Create_Call{Call: _e.mock.On("Create", account1)}
 }
 
-func (_c *MockAccountRepository_Create_Call) Run(run func(account *domain.Account)) *MockAccountRepository_Create_Call {
+func (_c *MockAccountRepository_Create_Call) Run(run func(account1 *account.Account)) *MockAccountRepository_Create_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 *domain.Account
+		var arg0 *account.Account
 		if args[0] != nil {
-			arg0 = args[0].(*domain.Account)
+			arg0 = args[0].(*account.Account)
 		}
 		run(
 			arg0,
@@ -87,7 +88,7 @@ func (_c *MockAccountRepository_Create_Call) Return(err error) *MockAccountRepos
 	return _c
 }
 
-func (_c *MockAccountRepository_Create_Call) RunAndReturn(run func(account *domain.Account) error) *MockAccountRepository_Create_Call {
+func (_c *MockAccountRepository_Create_Call) RunAndReturn(run func(account1 *account.Account) error) *MockAccountRepository_Create_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -144,23 +145,23 @@ func (_c *MockAccountRepository_Delete_Call) RunAndReturn(run func(id uuid.UUID)
 }
 
 // Get provides a mock function for the type MockAccountRepository
-func (_mock *MockAccountRepository) Get(id uuid.UUID) (*domain.Account, error) {
+func (_mock *MockAccountRepository) Get(id uuid.UUID) (*account.Account, error) {
 	ret := _mock.Called(id)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Get")
 	}
 
-	var r0 *domain.Account
+	var r0 *account.Account
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(uuid.UUID) (*domain.Account, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(uuid.UUID) (*account.Account, error)); ok {
 		return returnFunc(id)
 	}
-	if returnFunc, ok := ret.Get(0).(func(uuid.UUID) *domain.Account); ok {
+	if returnFunc, ok := ret.Get(0).(func(uuid.UUID) *account.Account); ok {
 		r0 = returnFunc(id)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*domain.Account)
+			r0 = ret.Get(0).(*account.Account)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(uuid.UUID) error); ok {
@@ -195,27 +196,27 @@ func (_c *MockAccountRepository_Get_Call) Run(run func(id uuid.UUID)) *MockAccou
 	return _c
 }
 
-func (_c *MockAccountRepository_Get_Call) Return(v *domain.Account, err error) *MockAccountRepository_Get_Call {
-	_c.Call.Return(v, err)
+func (_c *MockAccountRepository_Get_Call) Return(account1 *account.Account, err error) *MockAccountRepository_Get_Call {
+	_c.Call.Return(account1, err)
 	return _c
 }
 
-func (_c *MockAccountRepository_Get_Call) RunAndReturn(run func(id uuid.UUID) (*domain.Account, error)) *MockAccountRepository_Get_Call {
+func (_c *MockAccountRepository_Get_Call) RunAndReturn(run func(id uuid.UUID) (*account.Account, error)) *MockAccountRepository_Get_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Update provides a mock function for the type MockAccountRepository
-func (_mock *MockAccountRepository) Update(account *domain.Account) error {
-	ret := _mock.Called(account)
+func (_mock *MockAccountRepository) Update(account1 *account.Account) error {
+	ret := _mock.Called(account1)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Update")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(*domain.Account) error); ok {
-		r0 = returnFunc(account)
+	if returnFunc, ok := ret.Get(0).(func(*account.Account) error); ok {
+		r0 = returnFunc(account1)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -228,16 +229,16 @@ type MockAccountRepository_Update_Call struct {
 }
 
 // Update is a helper method to define mock.On call
-//   - account *domain.Account
-func (_e *MockAccountRepository_Expecter) Update(account interface{}) *MockAccountRepository_Update_Call {
-	return &MockAccountRepository_Update_Call{Call: _e.mock.On("Update", account)}
+//   - account1 *account.Account
+func (_e *MockAccountRepository_Expecter) Update(account1 interface{}) *MockAccountRepository_Update_Call {
+	return &MockAccountRepository_Update_Call{Call: _e.mock.On("Update", account1)}
 }
 
-func (_c *MockAccountRepository_Update_Call) Run(run func(account *domain.Account)) *MockAccountRepository_Update_Call {
+func (_c *MockAccountRepository_Update_Call) Run(run func(account1 *account.Account)) *MockAccountRepository_Update_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 *domain.Account
+		var arg0 *account.Account
 		if args[0] != nil {
-			arg0 = args[0].(*domain.Account)
+			arg0 = args[0].(*account.Account)
 		}
 		run(
 			arg0,
@@ -251,7 +252,7 @@ func (_c *MockAccountRepository_Update_Call) Return(err error) *MockAccountRepos
 	return _c
 }
 
-func (_c *MockAccountRepository_Update_Call) RunAndReturn(run func(account *domain.Account) error) *MockAccountRepository_Update_Call {
+func (_c *MockAccountRepository_Update_Call) RunAndReturn(run func(account1 *account.Account) error) *MockAccountRepository_Update_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -284,16 +285,16 @@ func (_m *MockTransactionRepository) EXPECT() *MockTransactionRepository_Expecte
 }
 
 // Create provides a mock function for the type MockTransactionRepository
-func (_mock *MockTransactionRepository) Create(transaction *domain.Transaction, convInfo *common.ConversionInfo, externalTargetMasked string) error {
-	ret := _mock.Called(transaction, convInfo, externalTargetMasked)
+func (_mock *MockTransactionRepository) Create(transaction *account.Transaction, convInfo *common.ConversionInfo, maskedExternalTarget string) error {
+	ret := _mock.Called(transaction, convInfo, maskedExternalTarget)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Create")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(*domain.Transaction, *common.ConversionInfo, string) error); ok {
-		r0 = returnFunc(transaction, convInfo, externalTargetMasked)
+	if returnFunc, ok := ret.Get(0).(func(*account.Transaction, *common.ConversionInfo, string) error); ok {
+		r0 = returnFunc(transaction, convInfo, maskedExternalTarget)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -306,18 +307,18 @@ type MockTransactionRepository_Create_Call struct {
 }
 
 // Create is a helper method to define mock.On call
-//   - transaction *domain.Transaction
+//   - transaction *account.Transaction
 //   - convInfo *common.ConversionInfo
-//   - externalTargetMasked string
-func (_e *MockTransactionRepository_Expecter) Create(transaction interface{}, convInfo interface{}, externalTargetMasked interface{}) *MockTransactionRepository_Create_Call {
-	return &MockTransactionRepository_Create_Call{Call: _e.mock.On("Create", transaction, convInfo, externalTargetMasked)}
+//   - maskedExternalTarget string
+func (_e *MockTransactionRepository_Expecter) Create(transaction interface{}, convInfo interface{}, maskedExternalTarget interface{}) *MockTransactionRepository_Create_Call {
+	return &MockTransactionRepository_Create_Call{Call: _e.mock.On("Create", transaction, convInfo, maskedExternalTarget)}
 }
 
-func (_c *MockTransactionRepository_Create_Call) Run(run func(transaction *domain.Transaction, convInfo *common.ConversionInfo, externalTargetMasked string)) *MockTransactionRepository_Create_Call {
+func (_c *MockTransactionRepository_Create_Call) Run(run func(transaction *account.Transaction, convInfo *common.ConversionInfo, maskedExternalTarget string)) *MockTransactionRepository_Create_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 *domain.Transaction
+		var arg0 *account.Transaction
 		if args[0] != nil {
-			arg0 = args[0].(*domain.Transaction)
+			arg0 = args[0].(*account.Transaction)
 		}
 		var arg1 *common.ConversionInfo
 		if args[1] != nil {
@@ -341,29 +342,29 @@ func (_c *MockTransactionRepository_Create_Call) Return(err error) *MockTransact
 	return _c
 }
 
-func (_c *MockTransactionRepository_Create_Call) RunAndReturn(run func(transaction *domain.Transaction, convInfo *common.ConversionInfo, externalTargetMasked string) error) *MockTransactionRepository_Create_Call {
+func (_c *MockTransactionRepository_Create_Call) RunAndReturn(run func(transaction *account.Transaction, convInfo *common.ConversionInfo, maskedExternalTarget string) error) *MockTransactionRepository_Create_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Get provides a mock function for the type MockTransactionRepository
-func (_mock *MockTransactionRepository) Get(id uuid.UUID) (*domain.Transaction, error) {
+func (_mock *MockTransactionRepository) Get(id uuid.UUID) (*account.Transaction, error) {
 	ret := _mock.Called(id)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Get")
 	}
 
-	var r0 *domain.Transaction
+	var r0 *account.Transaction
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(uuid.UUID) (*domain.Transaction, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(uuid.UUID) (*account.Transaction, error)); ok {
 		return returnFunc(id)
 	}
-	if returnFunc, ok := ret.Get(0).(func(uuid.UUID) *domain.Transaction); ok {
+	if returnFunc, ok := ret.Get(0).(func(uuid.UUID) *account.Transaction); ok {
 		r0 = returnFunc(id)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*domain.Transaction)
+			r0 = ret.Get(0).(*account.Transaction)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(uuid.UUID) error); ok {
@@ -398,34 +399,96 @@ func (_c *MockTransactionRepository_Get_Call) Run(run func(id uuid.UUID)) *MockT
 	return _c
 }
 
-func (_c *MockTransactionRepository_Get_Call) Return(v *domain.Transaction, err error) *MockTransactionRepository_Get_Call {
-	_c.Call.Return(v, err)
+func (_c *MockTransactionRepository_Get_Call) Return(transaction *account.Transaction, err error) *MockTransactionRepository_Get_Call {
+	_c.Call.Return(transaction, err)
 	return _c
 }
 
-func (_c *MockTransactionRepository_Get_Call) RunAndReturn(run func(id uuid.UUID) (*domain.Transaction, error)) *MockTransactionRepository_Get_Call {
+func (_c *MockTransactionRepository_Get_Call) RunAndReturn(run func(id uuid.UUID) (*account.Transaction, error)) *MockTransactionRepository_Get_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetByPaymentID provides a mock function for the type MockTransactionRepository
+func (_mock *MockTransactionRepository) GetByPaymentID(paymentID string) (*account.Transaction, error) {
+	ret := _mock.Called(paymentID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetByPaymentID")
+	}
+
+	var r0 *account.Transaction
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(string) (*account.Transaction, error)); ok {
+		return returnFunc(paymentID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(string) *account.Transaction); ok {
+		r0 = returnFunc(paymentID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*account.Transaction)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(string) error); ok {
+		r1 = returnFunc(paymentID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockTransactionRepository_GetByPaymentID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetByPaymentID'
+type MockTransactionRepository_GetByPaymentID_Call struct {
+	*mock.Call
+}
+
+// GetByPaymentID is a helper method to define mock.On call
+//   - paymentID string
+func (_e *MockTransactionRepository_Expecter) GetByPaymentID(paymentID interface{}) *MockTransactionRepository_GetByPaymentID_Call {
+	return &MockTransactionRepository_GetByPaymentID_Call{Call: _e.mock.On("GetByPaymentID", paymentID)}
+}
+
+func (_c *MockTransactionRepository_GetByPaymentID_Call) Run(run func(paymentID string)) *MockTransactionRepository_GetByPaymentID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTransactionRepository_GetByPaymentID_Call) Return(transaction *account.Transaction, err error) *MockTransactionRepository_GetByPaymentID_Call {
+	_c.Call.Return(transaction, err)
+	return _c
+}
+
+func (_c *MockTransactionRepository_GetByPaymentID_Call) RunAndReturn(run func(paymentID string) (*account.Transaction, error)) *MockTransactionRepository_GetByPaymentID_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // List provides a mock function for the type MockTransactionRepository
-func (_mock *MockTransactionRepository) List(userID uuid.UUID, accountID uuid.UUID) ([]*domain.Transaction, error) {
+func (_mock *MockTransactionRepository) List(userID uuid.UUID, accountID uuid.UUID) ([]*account.Transaction, error) {
 	ret := _mock.Called(userID, accountID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for List")
 	}
 
-	var r0 []*domain.Transaction
+	var r0 []*account.Transaction
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(uuid.UUID, uuid.UUID) ([]*domain.Transaction, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(uuid.UUID, uuid.UUID) ([]*account.Transaction, error)); ok {
 		return returnFunc(userID, accountID)
 	}
-	if returnFunc, ok := ret.Get(0).(func(uuid.UUID, uuid.UUID) []*domain.Transaction); ok {
+	if returnFunc, ok := ret.Get(0).(func(uuid.UUID, uuid.UUID) []*account.Transaction); ok {
 		r0 = returnFunc(userID, accountID)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*domain.Transaction)
+			r0 = ret.Get(0).([]*account.Transaction)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(uuid.UUID, uuid.UUID) error); ok {
@@ -466,12 +529,63 @@ func (_c *MockTransactionRepository_List_Call) Run(run func(userID uuid.UUID, ac
 	return _c
 }
 
-func (_c *MockTransactionRepository_List_Call) Return(vs []*domain.Transaction, err error) *MockTransactionRepository_List_Call {
-	_c.Call.Return(vs, err)
+func (_c *MockTransactionRepository_List_Call) Return(transactions []*account.Transaction, err error) *MockTransactionRepository_List_Call {
+	_c.Call.Return(transactions, err)
 	return _c
 }
 
-func (_c *MockTransactionRepository_List_Call) RunAndReturn(run func(userID uuid.UUID, accountID uuid.UUID) ([]*domain.Transaction, error)) *MockTransactionRepository_List_Call {
+func (_c *MockTransactionRepository_List_Call) RunAndReturn(run func(userID uuid.UUID, accountID uuid.UUID) ([]*account.Transaction, error)) *MockTransactionRepository_List_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// Update provides a mock function for the type MockTransactionRepository
+func (_mock *MockTransactionRepository) Update(tx *account.Transaction) error {
+	ret := _mock.Called(tx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Update")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(*account.Transaction) error); ok {
+		r0 = returnFunc(tx)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockTransactionRepository_Update_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Update'
+type MockTransactionRepository_Update_Call struct {
+	*mock.Call
+}
+
+// Update is a helper method to define mock.On call
+//   - tx *account.Transaction
+func (_e *MockTransactionRepository_Expecter) Update(tx interface{}) *MockTransactionRepository_Update_Call {
+	return &MockTransactionRepository_Update_Call{Call: _e.mock.On("Update", tx)}
+}
+
+func (_c *MockTransactionRepository_Update_Call) Run(run func(tx *account.Transaction)) *MockTransactionRepository_Update_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 *account.Transaction
+		if args[0] != nil {
+			arg0 = args[0].(*account.Transaction)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTransactionRepository_Update_Call) Return(err error) *MockTransactionRepository_Update_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockTransactionRepository_Update_Call) RunAndReturn(run func(tx *account.Transaction) error) *MockTransactionRepository_Update_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -504,16 +618,16 @@ func (_m *MockUserRepository) EXPECT() *MockUserRepository_Expecter {
 }
 
 // Create provides a mock function for the type MockUserRepository
-func (_mock *MockUserRepository) Create(user *domain.User) error {
-	ret := _mock.Called(user)
+func (_mock *MockUserRepository) Create(user1 *user.User) error {
+	ret := _mock.Called(user1)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Create")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(*domain.User) error); ok {
-		r0 = returnFunc(user)
+	if returnFunc, ok := ret.Get(0).(func(*user.User) error); ok {
+		r0 = returnFunc(user1)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -526,16 +640,16 @@ type MockUserRepository_Create_Call struct {
 }
 
 // Create is a helper method to define mock.On call
-//   - user *domain.User
-func (_e *MockUserRepository_Expecter) Create(user interface{}) *MockUserRepository_Create_Call {
-	return &MockUserRepository_Create_Call{Call: _e.mock.On("Create", user)}
+//   - user1 *user.User
+func (_e *MockUserRepository_Expecter) Create(user1 interface{}) *MockUserRepository_Create_Call {
+	return &MockUserRepository_Create_Call{Call: _e.mock.On("Create", user1)}
 }
 
-func (_c *MockUserRepository_Create_Call) Run(run func(user *domain.User)) *MockUserRepository_Create_Call {
+func (_c *MockUserRepository_Create_Call) Run(run func(user1 *user.User)) *MockUserRepository_Create_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 *domain.User
+		var arg0 *user.User
 		if args[0] != nil {
-			arg0 = args[0].(*domain.User)
+			arg0 = args[0].(*user.User)
 		}
 		run(
 			arg0,
@@ -549,7 +663,7 @@ func (_c *MockUserRepository_Create_Call) Return(err error) *MockUserRepository_
 	return _c
 }
 
-func (_c *MockUserRepository_Create_Call) RunAndReturn(run func(user *domain.User) error) *MockUserRepository_Create_Call {
+func (_c *MockUserRepository_Create_Call) RunAndReturn(run func(user1 *user.User) error) *MockUserRepository_Create_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -606,23 +720,23 @@ func (_c *MockUserRepository_Delete_Call) RunAndReturn(run func(id uuid.UUID) er
 }
 
 // Get provides a mock function for the type MockUserRepository
-func (_mock *MockUserRepository) Get(id uuid.UUID) (*domain.User, error) {
+func (_mock *MockUserRepository) Get(id uuid.UUID) (*user.User, error) {
 	ret := _mock.Called(id)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Get")
 	}
 
-	var r0 *domain.User
+	var r0 *user.User
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(uuid.UUID) (*domain.User, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(uuid.UUID) (*user.User, error)); ok {
 		return returnFunc(id)
 	}
-	if returnFunc, ok := ret.Get(0).(func(uuid.UUID) *domain.User); ok {
+	if returnFunc, ok := ret.Get(0).(func(uuid.UUID) *user.User); ok {
 		r0 = returnFunc(id)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*domain.User)
+			r0 = ret.Get(0).(*user.User)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(uuid.UUID) error); ok {
@@ -657,34 +771,34 @@ func (_c *MockUserRepository_Get_Call) Run(run func(id uuid.UUID)) *MockUserRepo
 	return _c
 }
 
-func (_c *MockUserRepository_Get_Call) Return(v *domain.User, err error) *MockUserRepository_Get_Call {
-	_c.Call.Return(v, err)
+func (_c *MockUserRepository_Get_Call) Return(user1 *user.User, err error) *MockUserRepository_Get_Call {
+	_c.Call.Return(user1, err)
 	return _c
 }
 
-func (_c *MockUserRepository_Get_Call) RunAndReturn(run func(id uuid.UUID) (*domain.User, error)) *MockUserRepository_Get_Call {
+func (_c *MockUserRepository_Get_Call) RunAndReturn(run func(id uuid.UUID) (*user.User, error)) *MockUserRepository_Get_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetByEmail provides a mock function for the type MockUserRepository
-func (_mock *MockUserRepository) GetByEmail(email string) (*domain.User, error) {
+func (_mock *MockUserRepository) GetByEmail(email string) (*user.User, error) {
 	ret := _mock.Called(email)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetByEmail")
 	}
 
-	var r0 *domain.User
+	var r0 *user.User
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(string) (*domain.User, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(string) (*user.User, error)); ok {
 		return returnFunc(email)
 	}
-	if returnFunc, ok := ret.Get(0).(func(string) *domain.User); ok {
+	if returnFunc, ok := ret.Get(0).(func(string) *user.User); ok {
 		r0 = returnFunc(email)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*domain.User)
+			r0 = ret.Get(0).(*user.User)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(string) error); ok {
@@ -719,34 +833,34 @@ func (_c *MockUserRepository_GetByEmail_Call) Run(run func(email string)) *MockU
 	return _c
 }
 
-func (_c *MockUserRepository_GetByEmail_Call) Return(v *domain.User, err error) *MockUserRepository_GetByEmail_Call {
-	_c.Call.Return(v, err)
+func (_c *MockUserRepository_GetByEmail_Call) Return(user1 *user.User, err error) *MockUserRepository_GetByEmail_Call {
+	_c.Call.Return(user1, err)
 	return _c
 }
 
-func (_c *MockUserRepository_GetByEmail_Call) RunAndReturn(run func(email string) (*domain.User, error)) *MockUserRepository_GetByEmail_Call {
+func (_c *MockUserRepository_GetByEmail_Call) RunAndReturn(run func(email string) (*user.User, error)) *MockUserRepository_GetByEmail_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetByUsername provides a mock function for the type MockUserRepository
-func (_mock *MockUserRepository) GetByUsername(username string) (*domain.User, error) {
+func (_mock *MockUserRepository) GetByUsername(username string) (*user.User, error) {
 	ret := _mock.Called(username)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetByUsername")
 	}
 
-	var r0 *domain.User
+	var r0 *user.User
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(string) (*domain.User, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(string) (*user.User, error)); ok {
 		return returnFunc(username)
 	}
-	if returnFunc, ok := ret.Get(0).(func(string) *domain.User); ok {
+	if returnFunc, ok := ret.Get(0).(func(string) *user.User); ok {
 		r0 = returnFunc(username)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*domain.User)
+			r0 = ret.Get(0).(*user.User)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(string) error); ok {
@@ -781,27 +895,27 @@ func (_c *MockUserRepository_GetByUsername_Call) Run(run func(username string)) 
 	return _c
 }
 
-func (_c *MockUserRepository_GetByUsername_Call) Return(v *domain.User, err error) *MockUserRepository_GetByUsername_Call {
-	_c.Call.Return(v, err)
+func (_c *MockUserRepository_GetByUsername_Call) Return(user1 *user.User, err error) *MockUserRepository_GetByUsername_Call {
+	_c.Call.Return(user1, err)
 	return _c
 }
 
-func (_c *MockUserRepository_GetByUsername_Call) RunAndReturn(run func(username string) (*domain.User, error)) *MockUserRepository_GetByUsername_Call {
+func (_c *MockUserRepository_GetByUsername_Call) RunAndReturn(run func(username string) (*user.User, error)) *MockUserRepository_GetByUsername_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Update provides a mock function for the type MockUserRepository
-func (_mock *MockUserRepository) Update(user *domain.User) error {
-	ret := _mock.Called(user)
+func (_mock *MockUserRepository) Update(user1 *user.User) error {
+	ret := _mock.Called(user1)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Update")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(*domain.User) error); ok {
-		r0 = returnFunc(user)
+	if returnFunc, ok := ret.Get(0).(func(*user.User) error); ok {
+		r0 = returnFunc(user1)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -814,16 +928,16 @@ type MockUserRepository_Update_Call struct {
 }
 
 // Update is a helper method to define mock.On call
-//   - user *domain.User
-func (_e *MockUserRepository_Expecter) Update(user interface{}) *MockUserRepository_Update_Call {
-	return &MockUserRepository_Update_Call{Call: _e.mock.On("Update", user)}
+//   - user1 *user.User
+func (_e *MockUserRepository_Expecter) Update(user1 interface{}) *MockUserRepository_Update_Call {
+	return &MockUserRepository_Update_Call{Call: _e.mock.On("Update", user1)}
 }
 
-func (_c *MockUserRepository_Update_Call) Run(run func(user *domain.User)) *MockUserRepository_Update_Call {
+func (_c *MockUserRepository_Update_Call) Run(run func(user1 *user.User)) *MockUserRepository_Update_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 *domain.User
+		var arg0 *user.User
 		if args[0] != nil {
-			arg0 = args[0].(*domain.User)
+			arg0 = args[0].(*user.User)
 		}
 		run(
 			arg0,
@@ -837,7 +951,7 @@ func (_c *MockUserRepository_Update_Call) Return(err error) *MockUserRepository_
 	return _c
 }
 
-func (_c *MockUserRepository_Update_Call) RunAndReturn(run func(user *domain.User) error) *MockUserRepository_Update_Call {
+func (_c *MockUserRepository_Update_Call) RunAndReturn(run func(user1 *user.User) error) *MockUserRepository_Update_Call {
 	_c.Call.Return(run)
 	return _c
 }

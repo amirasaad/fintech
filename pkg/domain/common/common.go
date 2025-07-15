@@ -1,6 +1,8 @@
 package common
 
-import "errors"
+import (
+	"errors"
+)
 
 // ErrInvalidCurrencyCode is returned when a currency code is invalid.
 var ErrInvalidCurrencyCode = errors.New("invalid currency code") // Use error type if needed
@@ -8,7 +10,8 @@ var ErrInvalidCurrencyCode = errors.New("invalid currency code") // Use error ty
 // ErrInvalidDecimalPlaces is returned when a monetary amount has more decimal places than allowed by the currency.
 var ErrInvalidDecimalPlaces = errors.New("amount has more decimal places than allowed by the currency")
 
-var ErrAmountExceedsMaxSafeInt = errors.New("amount exceeds maximum safe integer value") // Deposit would overflow balance
+// ErrAmountExceedsMaxSafeInt is returned when an amount exceeds the maximum safe integer value.
+var ErrAmountExceedsMaxSafeInt = errors.New("amount exceeds max safe int") // Deposit would overflow balance
 
 // ConversionInfo holds details about a currency conversion performed during a transaction.
 type ConversionInfo struct {
@@ -17,4 +20,9 @@ type ConversionInfo struct {
 	ConvertedAmount   float64
 	ConvertedCurrency string
 	ConversionRate    float64
+}
+
+// Event represents a domain event in the common package.
+type Event interface {
+	EventType() string
 }

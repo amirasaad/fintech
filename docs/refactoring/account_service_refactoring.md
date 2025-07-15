@@ -28,12 +28,17 @@ The refactored solution consists of:
 3. **Specialized Handlers**: Each handling a specific aspect of the operation
 4. **ChainBuilder**: Constructs the complete operation chain
 
-### Handler Chain Structure
+### Handler Chain Structure (After Mega Refactor)
 
 ```go
-// The complete chain for deposit/withdraw operations:
-ValidationHandler → MoneyCreationHandler → CurrencyConversionHandler → DomainOperationHandler → PersistenceHandler
+// Deposit: ValidationHandler → MoneyCreationHandler → CurrencyConversionHandler → DomainOperationHandler → DepositPersistenceHandler
+// Withdraw: ... → WithdrawPersistenceHandler
+// Transfer: ... → TransferPersistenceHandler
 ```
+
+- Each operation now has its own persistence handler.
+- Transaction creation logic is in `transaction_factory.go`.
+- Handlers pull domain events and persist them using factory helpers.
 
 ### Individual Handlers
 
@@ -146,27 +151,22 @@ func (b *ChainBuilder) BuildOperationChain() OperationHandler {
 - Follows Go patterns and conventions
 - Clean and readable code
 
-## File Structure
+### Updated File Structure
 
 ```
-pkg/service/account/
-├── account.go          # Service definition and account creation
-├── types.go            # Common types and interfaces
-├── chain.go            # Chain of Responsibility implementation
-├── chain_test.go       # Chain tests
-├── operations.go       # Operation types and request/response
-├── queries.go          # Query operations (GetAccount, GetTransactions, GetBalance)
-└── account_test.go     # Service tests
+pkg/handler/
+├── deposit_persistence.go
+├── withdraw_persistence.go
+├── transfer_persistence.go
+├── transaction_factory.go
+└── ...
 ```
 
-## Migration Strategy
+### Migration Note
 
-The refactoring has been completed with the following approach:
-
-1. ✅ **Phase 1**: Implemented Chain of Responsibility pattern
-2. ✅ **Phase 2**: Updated all service methods to use the chain
-3. ✅ **Phase 3**: Added comprehensive tests for all handlers
-4. ✅ **Phase 4**: Removed old implementation code
+- The legacy `PersistenceHandler` is removed.
+- All persistence is now event-driven and operation-specific.
+- Transaction creation is DRY and unified.
 
 ## Example Usage
 
@@ -198,7 +198,7 @@ func (h *AuditHandler) Handle(ctx context.Context, req *OperationRequest) (*Oper
         "operation", req.Operation,
         "amount", req.Amount,
         "currency", req.CurrencyCode)
-    
+
     return h.BaseHandler.Handle(ctx, req)
 }
 

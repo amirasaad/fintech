@@ -5,8 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"log"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -15,6 +13,8 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/amirasaad/fintech/app"
+	"github.com/amirasaad/fintech/infra/eventbus"
 	"github.com/amirasaad/fintech/infra/provider"
 	infrarepo "github.com/amirasaad/fintech/infra/repository"
 	fixturescurrency "github.com/amirasaad/fintech/internal/fixtures/currency"
@@ -22,11 +22,6 @@ import (
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/domain/user"
-	"github.com/amirasaad/fintech/pkg/service/account"
-	"github.com/amirasaad/fintech/pkg/service/auth"
-	currencyservice "github.com/amirasaad/fintech/pkg/service/currency"
-	userservice "github.com/amirasaad/fintech/pkg/service/user"
-	"github.com/amirasaad/fintech/webapi"
 	"github.com/amirasaad/fintech/webapi/common"
 
 	"github.com/gofiber/fiber/v2"
@@ -109,7 +104,7 @@ func (s *E2ETestSuite) SetupSuite() {
 
 	// Setup services and app
 	s.setupApp()
-	log.SetOutput(io.Discard)
+	// log.SetOutput(io.Discard)
 }
 
 // TearDownSuite cleans up the test suite resources
@@ -122,20 +117,10 @@ func (s *E2ETestSuite) TearDownSuite() {
 
 // setupApp creates all services and the test app
 func (s *E2ETestSuite) setupApp() {
+	// Create deps
 	uow := infrarepo.NewUoW(s.db)
 	logger := slog.Default()
-
-	// Create services
-	authStrategy := auth.NewJWTAuthStrategy(uow, s.cfg.Jwt, logger)
-	authService := auth.NewAuthService(uow, authStrategy, logger)
 	currencyConverter := provider.NewStubCurrencyConverter()
-	accountSvc := account.NewService(account.ServiceDeps{
-		Uow:             uow,
-		Converter:       currencyConverter,
-		Logger:          logger,
-		PaymentProvider: provider.NewMockPaymentProvider(),
-	})
-	userSvc := userservice.NewUserService(uow, logger)
 
 	// Setup currency service
 	ctx := context.Background()
@@ -152,10 +137,18 @@ func (s *E2ETestSuite) setupApp() {
 		s.Require().NoError(currencyRegistry.Register(meta))
 	}
 
-	currencySvc := currencyservice.NewCurrencyService(currencyRegistry, logger)
-
 	// Create test app
-	s.app = webapi.NewApp(accountSvc, userSvc, authService, currencySvc, s.cfg)
+	s.app = app.New(
+		config.Deps{
+			CurrencyConverter: currencyConverter,
+			CurrencyRegistry:  currencyRegistry,
+			Uow:               uow,
+			PaymentProvider:   provider.NewMockPaymentProvider(),
+			EventBus:          eventbus.NewMemoryEventBus(),
+			Logger:            logger,
+			Config:            s.cfg,
+		},
+	)
 }
 
 // findEnvTest searches for the nearest .env.test file

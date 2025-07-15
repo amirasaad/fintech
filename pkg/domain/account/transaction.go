@@ -7,15 +7,40 @@ import (
 	"github.com/google/uuid"
 )
 
-// Transaction represents a financial transaction, supporting multi-currency and tracking money source.
+// TransactionStatus represents the status of a transaction in the payment lifecycle.
+type TransactionStatus string
+
+// TransactionStatusInitiated indicates that a transaction has been initiated but not yet completed.
+const TransactionStatusInitiated = "initiated"
+
+// TransactionStatusPending indicates that a transaction is pending and awaiting completion.
+const TransactionStatusPending = "pending"
+
+// TransactionStatusCompleted indicates that a transaction has been completed successfully.
+const TransactionStatusCompleted = "completed"
+
+// TransactionStatusFailed indicates that a transaction has been failed.
+const TransactionStatusFailed TransactionStatus = "failed"
+
+// ExternalTarget represents the destination for an external withdrawal, such as a bank account or wallet.
+type ExternalTarget struct {
+	BankAccountNumber     string
+	RoutingNumber         string
+	ExternalWalletAddress string
+}
+
+// Transaction represents a financial transaction for an account.
 type Transaction struct {
-	ID          uuid.UUID
-	UserID      uuid.UUID
-	AccountID   uuid.UUID
-	Amount      money.Money
-	Balance     money.Money // Account balance snapshot
-	MoneySource MoneySource // Origin of funds (e.g., Cash, BankAccount, Stripe, etc.)
-	CreatedAt   time.Time
+	ID             uuid.UUID
+	UserID         uuid.UUID
+	AccountID      uuid.UUID
+	Amount         money.Money
+	Balance        money.Money // Account balance snapshot
+	MoneySource    MoneySource // Origin of funds (e.g., Cash, BankAccount, Stripe, etc.)
+	Status         TransactionStatus
+	ExternalTarget ExternalTarget
+	PaymentID      string // External payment provider ID for webhook correlation
+	CreatedAt      time.Time
 }
 
 // NewTransactionFromData creates a Transaction from raw data (used for DB hydration or test fixtures).

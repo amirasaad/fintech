@@ -1,4 +1,4 @@
-// Package service provides business logic for user management operations.
+// Package user provides business logic for user management operations.
 // It uses the decorator pattern for transaction management and includes comprehensive logging.
 package user
 
@@ -6,30 +6,30 @@ import (
 	"context"
 	"log/slog"
 
+	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/domain/user"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/google/uuid"
 )
 
-// UserService provides business logic for user operations including creation, updates, and deletion.
-type UserService struct {
+// Service provides business logic for user operations including creation, updates, and deletion.
+type Service struct {
 	uow    repository.UnitOfWork
 	logger *slog.Logger
 }
 
-// NewUserService creates a new UserService with a UnitOfWork and logger.
-func NewUserService(
-	uow repository.UnitOfWork,
-	logger *slog.Logger,
-) *UserService {
-	return &UserService{
-		uow:    uow,
-		logger: logger,
+// NewService creates a new Service with a UnitOfWork and logger.
+func NewService(
+	deps config.Deps,
+) *Service {
+	return &Service{
+		uow:    deps.Uow,
+		logger: deps.Logger,
 	}
 }
 
 // CreateUser creates a new user account in a transaction.
-func (s *UserService) CreateUser(
+func (s *Service) CreateUser(
 	ctx context.Context,
 	username, email, password string,
 ) (u *user.User, err error) {
@@ -51,7 +51,7 @@ func (s *UserService) CreateUser(
 }
 
 // GetUser retrieves a user by ID in a transaction.
-func (s *UserService) GetUser(ctx context.Context, userID string) (u *user.User, err error) {
+func (s *Service) GetUser(ctx context.Context, userID string) (u *user.User, err error) {
 	err = s.uow.Do(ctx, func(uow repository.UnitOfWork) error {
 		repo, err := uow.UserRepository()
 		if err != nil {
@@ -71,7 +71,7 @@ func (s *UserService) GetUser(ctx context.Context, userID string) (u *user.User,
 }
 
 // GetUserByEmail retrieves a user by email in a transaction.
-func (s *UserService) GetUserByEmail(ctx context.Context, email string) (u *user.User, err error) {
+func (s *Service) GetUserByEmail(ctx context.Context, email string) (u *user.User, err error) {
 	err = s.uow.Do(ctx, func(uow repository.UnitOfWork) error {
 		repo, err := uow.UserRepository()
 		if err != nil {
@@ -87,7 +87,7 @@ func (s *UserService) GetUserByEmail(ctx context.Context, email string) (u *user
 }
 
 // GetUserByUsername retrieves a user by username in a transaction.
-func (s *UserService) GetUserByUsername(ctx context.Context, username string) (u *user.User, err error) {
+func (s *Service) GetUserByUsername(ctx context.Context, username string) (u *user.User, err error) {
 	err = s.uow.Do(ctx, func(uow repository.UnitOfWork) error {
 		repo, err := uow.UserRepository()
 		if err != nil {
@@ -103,7 +103,7 @@ func (s *UserService) GetUserByUsername(ctx context.Context, username string) (u
 }
 
 // UpdateUser updates user information in a transaction.
-func (s *UserService) UpdateUser(ctx context.Context, userID string, updateFn func(u *user.User) error) (err error) {
+func (s *Service) UpdateUser(ctx context.Context, userID string, updateFn func(u *user.User) error) (err error) {
 	err = s.uow.Do(ctx, func(uow repository.UnitOfWork) error {
 		repo, err := uow.UserRepository()
 		if err != nil {
@@ -129,7 +129,7 @@ func (s *UserService) UpdateUser(ctx context.Context, userID string, updateFn fu
 }
 
 // DeleteUser deletes a user account in a transaction.
-func (s *UserService) DeleteUser(ctx context.Context, userID string) (err error) {
+func (s *Service) DeleteUser(ctx context.Context, userID string) (err error) {
 	err = s.uow.Do(ctx, func(uow repository.UnitOfWork) error {
 		repo, err := uow.UserRepository()
 		if err != nil {
@@ -145,7 +145,7 @@ func (s *UserService) DeleteUser(ctx context.Context, userID string) (err error)
 }
 
 // ValidUser validates user credentials in a transaction.
-func (s *UserService) ValidUser(ctx context.Context, userID string, password string) (valid bool, err error) {
+func (s *Service) ValidUser(ctx context.Context, userID string, password string) (valid bool, err error) {
 	err = s.uow.Do(ctx, func(uow repository.UnitOfWork) error {
 		repo, err := uow.UserRepository()
 		if err != nil {

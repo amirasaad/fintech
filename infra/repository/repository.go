@@ -101,6 +101,7 @@ func (r *transactionRepository) Create(transaction *account.Transaction, convInf
 		ID:                   transaction.ID,
 		AccountID:            transaction.AccountID,
 		UserID:               transaction.UserID,
+		PaymentID:            transaction.PaymentID,
 		Amount:               transaction.Amount.Amount(),
 		Currency:             string(transaction.Amount.Currency()),
 		Balance:              transaction.Balance.Amount(),
@@ -136,8 +137,8 @@ func (r *transactionRepository) Get(
 		}
 		return nil, result.Error
 	}
-	amount := money.NewFromData(t.Balance, t.Currency)
-	balance := money.NewFromData(t.Amount, t.Currency)
+	amount := money.NewFromData(t.Amount, t.Currency)
+	balance := money.NewFromData(t.Balance, t.Currency)
 	return account.NewTransactionFromData(
 		t.ID,
 		t.UserID, t.AccountID, amount, balance, account.MoneySource(t.MoneySource), t.CreatedAt), nil
@@ -153,11 +154,47 @@ func (r *transactionRepository) List(
 	}
 	tx := make([]*account.Transaction, 0, len(dbTransactions))
 	for _, t := range dbTransactions {
-		amount := money.NewFromData(t.Balance, t.Currency)
-		balance := money.NewFromData(t.Amount, t.Currency)
+		amount := money.NewFromData(t.Amount, t.Currency)
+		balance := money.NewFromData(t.Balance, t.Currency)
 		tx = append(tx, account.NewTransactionFromData(t.ID, t.UserID, t.AccountID, amount, balance, account.MoneySource(t.MoneySource), t.CreatedAt))
 	}
 	return tx, nil
+}
+
+func (r *transactionRepository) GetByPaymentID(paymentID string) (*account.Transaction, error) {
+	var m Transaction
+	if err := r.db.Where("payment_id = ?", paymentID).First(&m).Error; err != nil {
+		return nil, err
+	}
+	amount := money.NewFromData(m.Amount, m.Currency)
+	balance := money.NewFromData(m.Balance, m.Currency)
+	return account.NewTransactionFromData(
+			m.ID, m.UserID, m.AccountID,
+			amount,
+			balance,
+			account.MoneySource(m.MoneySource),
+			m.CreatedAt),
+		nil
+}
+
+func (r *transactionRepository) Update(tx *account.Transaction) error {
+	dbTx := Transaction{
+		ID:          tx.ID,
+		AccountID:   tx.AccountID,
+		UserID:      tx.UserID,
+		Amount:      tx.Amount.Amount(),
+		Currency:    string(tx.Amount.Currency()),
+		Balance:     tx.Balance.Amount(),
+		Status:      string(tx.Status),
+		PaymentID:   tx.PaymentID,
+		MoneySource: string(tx.MoneySource),
+		// Add other fields as needed (conversion, external target, etc.)
+	}
+	result := r.db.Model(&Transaction{}).Where("id = ?", tx.ID).Updates(&dbTx)
+	if result.Error != nil {
+		return result.Error
+	}
+	return nil
 }
 
 type userRepository struct {

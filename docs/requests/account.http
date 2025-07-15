@@ -41,6 +41,16 @@ Authorization: Bearer {{login.response.body.$.data.$.token}}
     "money_source": "Cash"
 }
 
+### Mock payment process
+POST {{host}}/webhook/payment HTTP/1.1
+Content-Type: application/json
+
+{
+    "payment_id": "{{deposit.response.body.$.data.$.payment_id}}",
+    "status": "completed"
+
+}
+
 ### Withdraw from account
 # @name withdraw
 POST {{host}}/account/{{account.response.body.$.data.$.ID}}/withdraw HTTP/1.1
@@ -53,6 +63,16 @@ Authorization: Bearer {{login.response.body.$.data.$.token}}
     "external_target": {
         "bank_account_number": "123212321"
     }
+}
+
+### Mock payment process
+POST {{host}}/webhook/payment HTTP/1.1
+Content-Type: application/json
+
+{
+    "payment_id": "{{withdraw.response.body.$.data.$.payment_id}}",
+    "status": "completed"
+
 }
 
 
@@ -87,6 +107,11 @@ Authorization: Bearer {{login.response.body.$.data.$.token}}
 ### Get Account Balance
 # @name balance
 GET {{host}}/account/{{account.response.body.$.data.$.ID}}/balance
+Authorization: Bearer {{login.response.body.$.data.$.token}}
+
+### Get Account Balance
+# @name destBalance
+GET {{host}}/account/{{destAccount.response.body.$.data.$.ID}}/balance
 Authorization: Bearer {{login.response.body.$.data.$.token}}
 
 ### Error Handling Examples

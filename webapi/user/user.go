@@ -15,7 +15,7 @@ import (
 
 // Routes registers HTTP routes for user-related operations.
 // Sets up endpoints for user creation, retrieval, update, and deletion.
-func Routes(app *fiber.App, userSvc *usersvc.UserService, authSvc *authsvc.AuthService, cfg *config.AppConfig) {
+func Routes(app *fiber.App, userSvc *usersvc.Service, authSvc *authsvc.AuthService, cfg *config.AppConfig) {
 	app.Get("/user/:id", middleware.JwtProtected(cfg.Jwt), GetUser(userSvc))
 	app.Post("/user", CreateUser(userSvc))
 	app.Put("/user/:id", middleware.JwtProtected(cfg.Jwt), UpdateUser(userSvc, authSvc))
@@ -35,7 +35,7 @@ func Routes(app *fiber.App, userSvc *usersvc.UserService, authSvc *authsvc.AuthS
 // @Failure 404 {object} common.ProblemDetails
 // @Router /user/{id} [get]
 // @Security Bearer
-func GetUser(userSvc *usersvc.UserService) fiber.Handler {
+func GetUser(userSvc *usersvc.Service) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		id, err := uuid.Parse(c.Params("id"))
 		if err != nil {
@@ -64,7 +64,7 @@ func GetUser(userSvc *usersvc.UserService) fiber.Handler {
 // @Failure 429 {object} common.ProblemDetails
 // @Failure 500 {object} common.ProblemDetails
 // @Router /user [post]
-func CreateUser(userSvc *usersvc.UserService) fiber.Handler {
+func CreateUser(userSvc *usersvc.Service) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		input, err := common.BindAndValidate[NewUser](c)
 		if input == nil {
@@ -97,7 +97,7 @@ func CreateUser(userSvc *usersvc.UserService) fiber.Handler {
 // @Router /user/{id} [put]
 // @Security Bearer
 func UpdateUser(
-	userSvc *usersvc.UserService,
+	userSvc *usersvc.Service,
 	authSvc *authsvc.AuthService,
 ) fiber.Handler {
 	return func(c *fiber.Ctx) error {
@@ -155,7 +155,7 @@ func UpdateUser(
 // @Router /user/{id} [delete]
 // @Security Bearer
 func DeleteUser(
-	userSvc *usersvc.UserService,
+	userSvc *usersvc.Service,
 	authSvc *authsvc.AuthService,
 ) fiber.Handler {
 	return func(c *fiber.Ctx) error {
