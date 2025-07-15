@@ -1,6 +1,6 @@
 # Fintech App 🚀
 
-**Note:** This project is primarily a learning endeavor and a personal exploration of building a robust financial application with Go. It's a work in progress and serves as a practical playground for applying software engineering principles.
+**Note:** This project is a personal exploration of building a robust, event-driven financial application with Go. It is a work in progress and serves as a practical playground for applying modern software engineering principles.
 
 [![build](https://github.com/amirasaad/fintech/actions/workflows/ci.yml/badge.svg)](https://github.com/amirasaad/fintech/actions/workflows/ci.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/amirasaad/fintech)](https://goreportcard.com/report/github.com/amirasaad/fintech)
@@ -8,66 +8,56 @@
 
 ## Overview 📝
 
-This Fintech App is a personal project exploring the development of a financial transaction system. Built with Go (Golang), it's designed to manage user accounts, deposits, withdrawals, and transaction history. The project focuses on applying modern software engineering principles like Domain-Driven Design (DDD) and clean architecture to understand and implement maintainable, testable, and performant solutions, with an emphasis on data integrity and concurrency safety.
+This Fintech App is a personal project exploring the development of a financial transaction system. Built with Go (Golang), it manages user accounts, deposits, withdrawals, transfers, and transaction history. The project now features an **event-driven architecture** with strict domain invariants, robust error handling, and a clear separation between HTTP handlers and service/application logic. All business rules and invariants are enforced in the domain layer, ensuring data integrity and preventing negative balances.
 
 ## Vision ✨
 
-This project's vision is to build a foundational backend service for financial operations, primarily as a learning exercise. The goal is to explore and implement a system that is:
-
-- **Reliable:** To understand how to ensure accurate and consistent transaction processing. ✅
-- **Scalable:** To learn about designing systems that can handle increasing loads. 📈
-- **Secure:** To practice protecting sensitive financial data and preventing unauthorized access. 🔒
-- **Maintainable:** To apply principles like clear separation of concerns for easier understanding and extension. 🛠️
-- **Performant:** To leverage Go's concurrency features for high throughput and low latency in a practical context. ⚡
+- **Reliable:** Accurate, consistent, and auditable transaction processing
+- **Event-Driven:** All payment and transaction state changes are driven by events and webhooks
+- **Invariant-Enforcing:** No negative balances; all business rules are strictly enforced in the domain layer
+- **Maintainable:** Clean architecture, handler/service separation, and modular design
+- **Scalable & Performant:** Designed for high throughput and concurrency using Go's strengths
 
 ## Features 🌟
 
-- **Account Management:** 💳
-  - **Opening Accounts:** Users can securely create new financial accounts. 🆕
-  - **Account Details:** Retrieve comprehensive information about any account. ℹ️
-- **Fund Operations:** 💰
-  - **Deposits:** Safely add funds to an account with real-time balance updates. ⬆️
-  - **Withdrawals:** Securely remove funds from an account, with checks for insufficient funds. ⬇️
-- **Multi-Currency Support:** 💸
-  - Accounts and transactions support multiple currencies (e.g., USD, EUR, GBP).
-  - All operations are currency-aware, ensuring consistency.
-  - **Real Exchange Rates:** Integration with external APIs for accurate currency conversion.
-  - **Intelligent Caching:** Performance optimization with TTL-based caching.
-  - **Fallback Strategy:** Graceful degradation when external services are unavailable.
-  - For more details, see the [Multi-Currency Documentation](./docs/multi_currency.md) and [Real Exchange Rates Documentation](./docs/real_exchange_rates.md).
-- **Real-time Balances:** Instantly query and display the current balance of any account, crucial for immediate financial oversight. ⏱️
-- **Transaction History:** Access a detailed, chronological record of all financial movements associated with an account, providing transparency and auditability. 📜
-- **User Authentication & Authorization:** 🤝
-  - Secure user registration and login using industry-standard JSON Web Tokens (JWT) for the web API. 🔑
-  - Basic authentication for CLI interactions. 💻
-  - Role-based access control ensures that users can only perform operations relevant to their accounts. 🛡️
-- **Concurrency Safety:** Implemented using Go's native concurrency primitives (`sync.Mutex`) to prevent race conditions and ensure atomic operations during simultaneous deposits and withdrawals, guaranteeing data integrity. 🚦
-- **Unit of Work Pattern:** A core design pattern that ensures all operations within a single business transaction are treated as a single, atomic unit. This guarantees data consistency and integrity, especially during complex sequences of database operations. 📦
+- **Account Management:** Create, view, and manage user accounts
+- **Fund Operations:**
+  - **Deposits/Withdrawals:** Initiate and complete deposits/withdrawals via event-driven payment flows
+  - **Transfers:** Move funds between accounts with strict invariant checks
+- **Multi-Currency Support:** Currency-aware accounts and transactions, with real exchange rates and fallback strategies
+- **Transaction History:** Full audit trail of all account activity
+- **User Authentication & Authorization:** JWT-secured API, role-based access
+- **Concurrency Safety:** All balance updates are atomic and race-free
+- **Unit of Work Pattern:** Ensures atomicity and consistency for all business operations
 
-### Exchange Rate System 💱
+## Event-Driven Architecture ⚡
 
-The application includes a robust real-time exchange rate system with the following features:
+The system is designed around an event-driven model for all payment and transaction flows:
 
-- **Real-time Rates:** Integration with external APIs for accurate currency conversion
-- **Intelligent Caching:** Performance optimization with TTL-based caching (default: 15 minutes)
-- **Fallback Strategy:** Graceful degradation when external services are unavailable
-- **Rate Limiting:** Built-in protection against API rate limits
-- **Health Checks:** Automatic monitoring of provider health
-- **Multiple Providers:** Support for multiple exchange rate providers
+- **Payment Initiation:** Creating a deposit or withdrawal generates a pending transaction and triggers an event
+- **External Payment Provider:** Handles payment processing and calls back via a webhook when payment is completed or failed
+- **Webhook Handler:** Receives payment status updates, updates transaction status, and triggers domain events
+- **Event Bus:** Internal event bus propagates domain events (e.g., TransactionCompleted, BalanceUpdated) to update account balances and trigger side effects
+- **Strict Invariants:** All balance updates and business rules are enforced in the domain layer; negative balances are never allowed
 
-**Getting Started with Exchange Rates:**
+**Example Flow:**
 
-1. Get a free API key from [exchangerate-api.com](https://exchangerate-api.com/)
-2. Add the API key to your `.env` file: `EXCHANGE_RATE_API_KEY=your_key_here`
-3. The system will automatically use real rates when available, with fallback to stub rates
+1. User initiates a deposit (API call)
+2. System creates a pending transaction and emits a PaymentInitiated event
+3. Payment provider processes the payment and calls the webhook with the result
+4. Webhook handler updates the transaction status and emits a TransactionCompleted event
+5. Event bus handler updates the account balance if the transaction is completed
 
-For detailed configuration options, see the [Real Exchange Rates Documentation](./docs/real_exchange_rates.md).
+## Breaking Changes & Migration Notes ⚠️
 
-### Breaking Changes ⚠️
-
-With the introduction of multi-currency support, the following changes may affect existing API clients:
-
-- **Deposit and Withdrawal Operations:** The `POST /account/:id/deposit` and `POST /account/:id/withdraw` endpoints now require a `currency` field in the request body. The provided currency must match the account's currency. Requests without a `currency` field may fail if the account's currency is not the default ("USD").
+- **Event-Driven Payments:** All deposit/withdrawal flows are now event-driven. Balances update only after payment completion events (via webhook).
+- **Strict Balance Invariants:** Negative balances are strictly prevented at the domain layer. Withdrawals and transfers will fail if funds are insufficient.
+- **Handler/Service Refactor:** HTTP handlers are now thin; all business logic is in services and the domain layer. Legacy persistence handler code has been removed.
+- **Transaction Creation:** All transaction creation is now centralized and event-driven. Direct DB writes or legacy patterns are no longer supported.
+- **API/Contract Changes:** Some endpoints and request/response formats have changed. See the OpenAPI spec for details.
+- **Deleted Files:** Legacy persistence handler and e2e test files have been removed.
+- **Testing:** Tests must set up event flows and use the new service interfaces. See updated test examples.
+- **Migration:** Existing data may need to be migrated to support new transaction and event models. Review migration scripts and test thoroughly.
 
 ## Getting Started 🚀
 
