@@ -119,7 +119,7 @@ func TestDeposit_PublishesEvent(t *testing.T) {
 
 	userID := uuid.New()
 	accountID := uuid.New()
-	_, err := svc.Deposit(userID, accountID, 100.0, currency.USD, "Cash")
+	err := svc.Deposit(userID, accountID, 100.0, currency.USD, "Cash")
 	require.NoError(t, err)
 	assert.True(t, called, "Handler should have been called")
 }
@@ -140,7 +140,7 @@ func TestWithdraw_PublishesEvent(t *testing.T) {
 		publishedEvents = append(publishedEvents, e)
 	})
 	externalTarget := handler.ExternalTarget{BankAccountNumber: "1234567890"}
-	_, err := svc.Withdraw(userID, accountID, 50.0, currency.USD, externalTarget)
+	err := svc.Withdraw(userID, accountID, 50.0, currency.USD, externalTarget)
 	require.NoError(t, err)
 	require.Len(t, publishedEvents, 1)
 	evt, ok := publishedEvents[0].(accountdomain.WithdrawRequestedEvent)

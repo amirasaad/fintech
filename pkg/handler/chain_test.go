@@ -6,6 +6,7 @@ import (
 
 	"log/slog"
 
+	"github.com/amirasaad/fintech/infra/provider"
 	"github.com/amirasaad/fintech/internal/fixtures/mocks"
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/account"
@@ -359,7 +360,7 @@ func TestChainBuilder_BuildDepositChain(t *testing.T) {
 	transactionRepo.EXPECT().Create(mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	logger := newTestLogger()
-	builder := NewChainBuilder(uow, converter, logger)
+	builder := NewChainBuilder(uow, converter, provider.NewMockPaymentProvider(), logger)
 	chain := builder.BuildDepositChain()
 	assert.NotNil(t, chain)
 	req := &OperationRequest{
@@ -401,7 +402,7 @@ func TestChainBuilder_BuildWithdrawChain(t *testing.T) {
 	accountRepo.EXPECT().Update(acc).Return(nil).Once()
 
 	logger := newTestLogger()
-	builder := NewChainBuilder(uow, converter, logger)
+	builder := NewChainBuilder(uow, converter, provider.NewMockPaymentProvider(), logger)
 	chain := builder.BuildWithdrawChain()
 	assert.NotNil(t, chain)
 	req := &OperationRequest{
@@ -446,7 +447,7 @@ func TestChainBuilder_BuildTransferChain(t *testing.T) {
 	accountRepo.EXPECT().Update(mock.Anything).Return(nil).Maybe()
 
 	logger := newTestLogger()
-	builder := NewChainBuilder(uow, converter, logger)
+	builder := NewChainBuilder(uow, converter, provider.NewMockPaymentProvider(), logger)
 	chain := builder.BuildTransferChain()
 	assert.NotNil(t, chain)
 	req := &OperationRequest{

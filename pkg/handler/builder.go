@@ -3,22 +3,25 @@ package handler
 import (
 	"log/slog"
 
-	mon "github.com/amirasaad/fintech/pkg/domain/money"
+	"github.com/amirasaad/fintech/pkg/domain/money"
+	"github.com/amirasaad/fintech/pkg/provider"
 	"github.com/amirasaad/fintech/pkg/repository"
 )
 
 // ChainBuilder builds operation-specific chains
 type ChainBuilder struct {
 	uow       repository.UnitOfWork
-	converter mon.CurrencyConverter
+	converter money.CurrencyConverter
 	logger    *slog.Logger
+	provider  provider.PaymentProvider // Add provider field
 }
 
 // NewChainBuilder creates a new chain builder
-func NewChainBuilder(uow repository.UnitOfWork, converter mon.CurrencyConverter, logger *slog.Logger) *ChainBuilder {
+func NewChainBuilder(uow repository.UnitOfWork, converter money.CurrencyConverter, provider provider.PaymentProvider, logger *slog.Logger) *ChainBuilder {
 	return &ChainBuilder{
 		uow:       uow,
 		converter: converter,
+		provider:  provider,
 		logger:    logger,
 	}
 }
@@ -36,6 +39,10 @@ func (b *ChainBuilder) BuildDepositChain() OperationHandler {
 		converter: b.converter,
 		logger:    b.logger,
 	}
+	paymentProvider := &PaymentProviderHandler{
+		logger:   b.logger,
+		provider: b.provider, // Use injected provider
+	}
 	domainOperation := &DepositOperationHandler{
 		logger: b.logger,
 	}
@@ -47,7 +54,8 @@ func (b *ChainBuilder) BuildDepositChain() OperationHandler {
 	// Chain them together
 	validation.SetNext(moneyCreation)
 	moneyCreation.SetNext(currencyConversion)
-	currencyConversion.SetNext(domainOperation)
+	currencyConversion.SetNext(paymentProvider)
+	paymentProvider.SetNext(domainOperation)
 	domainOperation.SetNext(persistence)
 
 	return validation

@@ -6,7 +6,8 @@ import (
 
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/account"
-	mon "github.com/amirasaad/fintech/pkg/domain/money"
+	"github.com/amirasaad/fintech/pkg/domain/money"
+	"github.com/amirasaad/fintech/pkg/provider"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/google/uuid"
 )
@@ -17,9 +18,9 @@ type AccountChain struct {
 }
 
 // NewAccountChain creates a new account chain with the given dependencies
-func NewAccountChain(uow repository.UnitOfWork, converter mon.CurrencyConverter, logger *slog.Logger) *AccountChain {
+func NewAccountChain(uow repository.UnitOfWork, converter money.CurrencyConverter, provider provider.PaymentProvider, logger *slog.Logger) *AccountChain {
 	return &AccountChain{
-		builder: NewChainBuilder(uow, converter, logger),
+		builder: NewChainBuilder(uow, converter, provider, logger),
 	}
 }
 

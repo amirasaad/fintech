@@ -23,9 +23,9 @@ func NewStripePaymentProvider(apiKey string, logger *slog.Logger) *StripePayment
 }
 
 // InitiatePayment creates a PaymentIntent in Stripe and returns its ID.
-func (s *StripePaymentProvider) InitiatePayment(ctx context.Context, userID, accountID uuid.UUID, amount float64, currency string) (string, error) {
+func (s *StripePaymentProvider) InitiatePayment(ctx context.Context, userID, accountID uuid.UUID, amount int64, currency string) (string, error) {
 	params := &stripe.PaymentIntentCreateParams{
-		Amount:   stripe.Int64(int64(amount * 100)), // Stripe expects amount in the smallest currency unit
+		Amount:   stripe.Int64(int64(amount)),
 		Currency: stripe.String(currency),
 		Metadata: map[string]string{
 			"user_id":    userID.String(),

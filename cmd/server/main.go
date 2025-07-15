@@ -75,7 +75,7 @@ func main() {
 		CurrencyConverter: currencyConverter,
 		CurrencyRegistry:  currencyRegistry,
 		Logger:            logger,
-		PaymentProvider:   provider.NewMockPaymentProvider(),
+		PaymentProvider:   provider.NewStripePaymentProvider(cfg.PaymentProviders.Stripe.ApiKey, logger),
 		EventBus:          eventbus.NewMemoryEventBus(),
 		Config:            cfg,
 	}).Listen(fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)))

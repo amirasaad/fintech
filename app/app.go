@@ -38,7 +38,7 @@ func New(deps config.Deps) *fiber.App {
 	currencySvc := currencysvc.NewCurrencyService(deps.CurrencyRegistry, deps.Logger)
 
 	// Register event handlers (example for DepositRequestedEvent)
-	accountChain := handler.NewAccountChain(deps.Uow, deps.CurrencyConverter, deps.Logger)
+	accountChain := handler.NewAccountChain(deps.Uow, deps.CurrencyConverter, deps.PaymentProvider, deps.Logger)
 	deps.EventBus.Subscribe("DepositRequestedEvent", func(e domain.Event) {
 		// Use type assertion with ok check
 		if evt, ok := e.(accountdomain.DepositRequestedEvent); ok {
