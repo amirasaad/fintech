@@ -137,8 +137,8 @@ func (r *transactionRepository) Get(
 		}
 		return nil, result.Error
 	}
-	amount := money.NewFromData(t.Balance, t.Currency)
-	balance := money.NewFromData(t.Amount, t.Currency)
+	amount := money.NewFromData(t.Amount, t.Currency)
+	balance := money.NewFromData(t.Balance, t.Currency)
 	return account.NewTransactionFromData(
 		t.ID,
 		t.UserID, t.AccountID, amount, balance, account.MoneySource(t.MoneySource), t.CreatedAt), nil
@@ -154,8 +154,8 @@ func (r *transactionRepository) List(
 	}
 	tx := make([]*account.Transaction, 0, len(dbTransactions))
 	for _, t := range dbTransactions {
-		amount := money.NewFromData(t.Balance, t.Currency)
-		balance := money.NewFromData(t.Amount, t.Currency)
+		amount := money.NewFromData(t.Amount, t.Currency)
+		balance := money.NewFromData(t.Balance, t.Currency)
 		tx = append(tx, account.NewTransactionFromData(t.ID, t.UserID, t.AccountID, amount, balance, account.MoneySource(t.MoneySource), t.CreatedAt))
 	}
 	return tx, nil
@@ -166,10 +166,12 @@ func (r *transactionRepository) GetByPaymentID(paymentID string) (*account.Trans
 	if err := r.db.Where("payment_id = ?", paymentID).First(&m).Error; err != nil {
 		return nil, err
 	}
+	amount := money.NewFromData(m.Amount, m.Currency)
+	balance := money.NewFromData(m.Balance, m.Currency)
 	return account.NewTransactionFromData(
 			m.ID, m.UserID, m.AccountID,
-			money.NewFromData(m.Balance, m.Currency),
-			money.NewFromData(m.Amount, m.Currency),
+			amount,
+			balance,
 			account.MoneySource(m.MoneySource),
 			m.CreatedAt),
 		nil
