@@ -199,6 +199,48 @@ sequenceDiagram
 - **User Notification:** Optionally notify users on status changes (email, websocket, etc.).
 - **Documentation:** Keep this doc and API references up to date as the system evolves.
 
+## Business Logic and Persistence (After Mega Refactor)
+
+- Persistence is now handled by operation-specific handlers:
+  - `DepositPersistenceHandler`
+  - `WithdrawPersistenceHandler`
+  - `TransferPersistenceHandler`
+- Each handler pulls domain events and uses `transaction_factory.go` helpers to create transactions.
+- Webhook triggers the correct handler and updates both transaction status and account balance.
+- The legacy monolithic handler is removed.
+
+## Updated Mermaid Diagram: Event-Driven Payment Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant API
+    participant Service
+    participant EventBus
+    participant PaymentProvider
+    participant Webhook
+    participant DepositPersistenceHandler
+    participant WithdrawPersistenceHandler
+    participant TransferPersistenceHandler
+    participant DB
+
+    User->>API: POST /account/:id/deposit (or withdraw/transfer)
+    API->>Service: Deposit/Withdraw/Transfer(...)
+    Service->>EventBus: Publish PaymentEvent (initiated)
+    Service->>PaymentProvider: InitiateDeposit/Withdraw/Transfer(...)
+    Service->>EventBus: Publish PaymentEvent (pending)
+    PaymentProvider-->>Webhook: Payment completed/failed (webhook)
+    Webhook->>Service: Handle webhook
+    Service->>EventBus: Publish PaymentEvent (completed/failed)
+    Service->>DepositPersistenceHandler: Persist deposit events
+    Service->>WithdrawPersistenceHandler: Persist withdraw events
+    Service->>TransferPersistenceHandler: Persist transfer events
+    DepositPersistenceHandler->>DB: Update account, create transaction
+    WithdrawPersistenceHandler->>DB: Update account, create transaction
+    TransferPersistenceHandler->>DB: Update accounts, create transactions
+    Service->>API: Success (transaction, conversion info)
+```
+
 ---
 
 _This document is a living guide. Update as the migration progresses and new requirements emerge._
