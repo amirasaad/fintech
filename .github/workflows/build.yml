@@ -39,10 +39,13 @@ jobs:
       - name: install gotestsum
         run: go install gotest.tools/gotestsum@latest
       - name: Run unit tests
-        run: gotestsum --junitfile report.xml --format standard-quiet -- -p 4 -json ./pkg/...
+        run: gotestsum --junitfile report.xml --format standard-quiet -- -coverprofile=coverage.txt -p 12 -json ./pkg/...
+      - name: Upload results to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
       - name: Test Summary
         uses: test-summary/action@v2
         with:
           paths: "report.xml" # Or specify a glob pattern if you have multiple files
         if: always() # Ensures the summary is displayed even if tests fail
-

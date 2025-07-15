@@ -39,7 +39,7 @@ func (b *ChainBuilder) BuildDepositChain() OperationHandler {
 	domainOperation := &DepositOperationHandler{
 		logger: b.logger,
 	}
-	persistence := &PersistenceHandler{
+	persistence := &DepositPersistenceHandler{
 		uow:    b.uow,
 		logger: b.logger,
 	}
@@ -69,7 +69,7 @@ func (b *ChainBuilder) BuildWithdrawChain() OperationHandler {
 	domainOperation := &WithdrawOperationHandler{
 		logger: b.logger,
 	}
-	persistence := &PersistenceHandler{
+	persistence := &WithdrawPersistenceHandler{
 		uow:    b.uow,
 		logger: b.logger,
 	}

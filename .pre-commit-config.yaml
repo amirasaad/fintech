@@ -6,20 +6,6 @@ repos:
       - id: end-of-file-fixer
       - id: check-yaml
       - id: check-added-large-files
-  - repo: https://github.com/dnephin/pre-commit-golang
-    rev: v0.5.0
-    hooks:
-      - id: go-fmt
-      - id: go-lint
-      - id: go-imports
-      - id: go-cyclo
-        args: [-over=15]
-      - id: validate-toml
-      - id: no-go-testing
-      - id: golangci-lint
-      - id: go-critic
-      - id: go-build
-      - id: go-mod-tidy
   - repo: https://github.com/alessandrojcm/commitlint-pre-commit-hook
     rev: v8.0.0
     hooks:
@@ -37,6 +23,36 @@ repos:
       - id: go-unit-tests
         name: "run unit tests"
         entry: go test -p 12 ./pkg/...
+        pass_filenames: false
+        types: [go]
+        language: system
+      - id: go-critic
+        name: "gocritic check"
+        entry: gocritic check ./...
+        pass_filenames: false
+        types: [go]
+        language: system
+      - id: golangci-lint
+        name: "golangci-lint"
+        entry: golangci-lint run
+        pass_filenames: false
+        types: [go]
+        language: system
+      - id: go-build
+        name: "go build"
+        entry: go build ./...
+        pass_filenames: false
+        types: [go]
+        language: system
+      - id: go-test
+        name: "go test"
+        entry: go test ./pkg/...
+        pass_filenames: false
+        types: [go]
+        language: system
+      - id: go-lint
+        name: "golint"
+        entry: golint ./...
         pass_filenames: false
         types: [go]
         language: system

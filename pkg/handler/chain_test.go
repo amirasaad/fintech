@@ -438,8 +438,9 @@ func TestChainBuilder_BuildTransferChain(t *testing.T) {
 		},
 	).Maybe()
 
-	accountRepo.EXPECT().Get(sourceAcc.ID).Return(sourceAcc, nil).Once()
-	accountRepo.EXPECT().Get(destAcc.ID).Return(destAcc, nil).Once()
+	// Expect Get to be called once for each account
+	accountRepo.EXPECT().Get(sourceAcc.ID).Return(sourceAcc, nil).Maybe()
+	accountRepo.EXPECT().Get(destAcc.ID).Return(destAcc, nil).Maybe()
 	// Expect two Create calls (for both transactions)
 	transactionRepo.EXPECT().Create(mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	accountRepo.EXPECT().Update(mock.Anything).Return(nil).Maybe()

@@ -166,7 +166,13 @@ func (r *transactionRepository) GetByPaymentID(paymentID string) (*account.Trans
 	if err := r.db.Where("payment_id = ?", paymentID).First(&m).Error; err != nil {
 		return nil, err
 	}
-	return account.NewTransactionFromData(m.ID, m.UserID, m.AccountID, money.NewFromData(m.Balance, m.Currency), money.NewFromData(m.Amount, m.Currency), account.MoneySource(m.MoneySource), m.CreatedAt), nil
+	return account.NewTransactionFromData(
+			m.ID, m.UserID, m.AccountID,
+			money.NewFromData(m.Balance, m.Currency),
+			money.NewFromData(m.Amount, m.Currency),
+			account.MoneySource(m.MoneySource),
+			m.CreatedAt),
+		nil
 }
 
 func (r *transactionRepository) Update(tx *account.Transaction) error {

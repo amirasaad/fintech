@@ -74,6 +74,13 @@ func TestMoney_Arithmetic(t *testing.T) {
 		assert.InDelta(t, -100.0, result.AmountFloat(), 0.001)
 		assert.Equal(t, "USD", string(result.Currency()))
 	})
+
+	t.Run("Add negative to money should subtract", func(t *testing.T) {
+		usd1000, _ := money.New(1000.0, "USD")
+		result, err := usd1000.Add(usd100.Negate())
+		require.NoError(t, err)
+		assert.InDelta(t, 900, result.AmountFloat(), 0.01)
+	})
 }
 
 func TestMoney_Comparison(t *testing.T) {

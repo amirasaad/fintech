@@ -3,6 +3,8 @@
 **Note:** This project is primarily a learning endeavor and a personal exploration of building a robust financial application with Go. It's a work in progress and serves as a practical playground for applying software engineering principles.
 
 [![build](https://github.com/amirasaad/fintech/actions/workflows/ci.yml/badge.svg)](https://github.com/amirasaad/fintech/actions/workflows/ci.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/amirasaad/fintech)](https://goreportcard.com/report/github.com/amirasaad/fintech)
+[![codecov](https://codecov.io/github/amirasaad/fintech/graph/badge.svg?token=iuU1Fm5BwG)](https://codecov.io/github/amirasaad/fintech)
 
 ## Overview 📝
 
@@ -226,7 +228,7 @@ Here are some examples demonstrating how to interact with the Fintech App.
 2. **Login (when prompted):**
 
     ```bash
-    
+
         ███████╗██╗███╗   ██╗████████╗███████╗ ██████╗██╗  ██╗     ██████╗██╗     ██╗
         ██╔════╝██║████╗  ██║╚══██╔══╝██╔════╝██╔════╝██║  ██║    ██╔════╝██║     ██║
         █████╗  ██║██╔██╗ ██║   ██║   █████╗  ██║     ███████║    ██║     ██║     ██║
@@ -236,7 +238,7 @@ Here are some examples demonstrating how to interact with the Fintech App.
                                                                         Version (v1.0.0)
 
     Please login to continue.
-    Username or Email: 
+    Username or Email:
     Username or Email: your_username
     Password: your_password
     Login successful!
@@ -622,7 +624,7 @@ We welcome contributions to the Fintech App! To contribute, please follow these 
 
     ```vim
     feat: add new account creation endpoint
-    
+
     This commit introduces the /account POST endpoint for creating new user accounts.
     It includes validation for input parameters and integrates with the AccountService.
     ```

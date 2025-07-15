@@ -65,6 +65,16 @@ Authorization: Bearer {{login.response.body.$.data.$.token}}
     }
 }
 
+### Mock payment process
+POST {{host}}/webhook/payment HTTP/1.1
+Content-Type: application/json
+
+{
+    "payment_id": "{{withdraw.response.body.$.data.$.payment_id}}",
+    "status": "completed"
+
+}
+
 
 ### Create Account
 # @name destAccount
