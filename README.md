@@ -29,6 +29,8 @@ This Fintech App is a personal project exploring the development of a financial 
 - **User Authentication & Authorization:** JWT-secured API, role-based access
 - **Concurrency Safety:** All balance updates are atomic and race-free
 - **Unit of Work Pattern:** Ensures atomicity and consistency for all business operations
+- **Webhook-Driven Payment Status Updates:** Payment completion is confirmed asynchronously via webhook callbacks from payment providers
+- **Internal Event Bus:** All payment and transaction state changes are propagated via an internal event bus, enabling decoupled and extensible event handling
 
 ## Event-Driven Architecture ⚡
 
@@ -60,6 +62,8 @@ The system is designed around an event-driven model for all payment and transact
 - **Migration:** Existing data may need to be migrated to support new transaction and event models. Review migration scripts and test thoroughly.
 
 ## Getting Started 🚀
+
+> **Note:** If you are running the application in a development or test environment, ensure that webhook endpoints are accessible to your payment provider (or mock provider). The internal event bus requires no special configuration for local development, but you may need to expose webhook endpoints (e.g., using ngrok) if testing with external services.
 
 These instructions will guide you through setting up and running the Fintech App on your local machine for development and testing.
 
@@ -137,6 +141,8 @@ If you prefer to run the Go application directly on your host machine while stil
 #### Running the CLI Application 🖥️
 
 The project also includes a command-line interface (CLI) application for direct interaction with the system.
+
+> **Note:** The CLI interacts with the event-driven flow. For deposit/withdrawal operations, the CLI will initiate the transaction, but the account balance will only update after the payment provider (or mock) triggers the webhook callback. You can simulate webhook events in development using the mock provider or by calling the webhook endpoint manually.
 
 To run the CLI:
 
@@ -332,7 +338,7 @@ First, ensure the API server is running (e.g., via `docker compose up -d` or `go
 
     *Note: Copy the `ID` value of the newly created account for subsequent requests.*
 
-4. **Deposit funds into the account:**
+4. **Deposit funds into the account (asynchronous/event-driven):**
     Replace `YOUR_JWT_TOKEN` and `YOUR_ACCOUNT_ID`.
 
     ```bash
@@ -341,6 +347,8 @@ First, ensure the API server is running (e.g., via `docker compose up -d` or `go
       -H "Authorization: Bearer YOUR_JWT_TOKEN" \
       -d '{"amount": 500.75}'
     ```
+
+    > **Note:** This creates a pending transaction. The account balance will only update after the payment provider (or mock) calls the webhook endpoint to confirm payment completion.
 
 5. **Get account balance:**
     Replace `YOUR_JWT_TOKEN` and `YOUR_ACCOUNT_ID`.
@@ -356,6 +364,14 @@ The Fintech App exposes a comprehensive RESTful API for all its functionalities.
 
 - **Full API Specification:** A detailed OpenAPI (Swagger) specification is available at [openapi.yaml](./docs/openapi.yaml). This file can be used with tools like Swagger UI to explore and test the API interactively. 📄
 - **Example Requests:** You can find practical examples of API requests in the [requests.http](./docs/requests.http) file, which can be executed directly using IDE extensions like the REST Client for VS Code or similar tools. 📝
+
+### Webhook Endpoints ⚡
+
+- `POST /webhook/payment-status`: Receives asynchronous payment status updates from payment providers. This endpoint is called by the provider (or mock) to confirm payment completion or failure. **(Event-driven, not called by end users)**
+
+### Asynchronous/Event-Driven Endpoints
+
+- `POST /account/:id/deposit` and `POST /account/:id/withdraw` now initiate a transaction and return immediately. The account balance is updated only after the corresponding webhook event is received and processed.
 
 ### Authentication 🔑
 
@@ -506,7 +522,7 @@ func (s *AccountService) Deposit(userID, accountID uuid.UUID, amount float64, cu
 The project is meticulously organized to promote modularity, maintainability, and adherence to Domain-Driven Design (DDD) principles. This structure facilitates clear separation of concerns and simplifies development and testing.
 
 ```ascii
-.
+fintech/
 ├── .github/          # GitHub Actions workflows for CI/CD 🚀
 ├── api/              # Vercel serverless function entry point (for serverless deployments) ☁️
 ├── cmd/              # Main application entry points
@@ -515,29 +531,36 @@ The project is meticulously organized to promote modularity, maintainability, an
 ├── docs/             # Project documentation, OpenAPI spec, HTTP request examples, coverage reports 📄
 ├── infra/            # Infrastructure Layer 🏗️
 │   ├── database.go   # Database connection and migration logic 🗄️
+│   ├── eventbus/     # Internal event bus for domain/integration events ⚡
 │   ├── model.go      # GORM database models (mapping domain entities to database tables) 📊
-│   ├── repository.go # Concrete implementations of repository interfaces using GORM 💾
-│   └── uow.go        # Unit of Work implementation for transactional integrity 🔄
+│   ├── provider/     # Payment/currency providers, webhook simulation 🏦
+│   ├── repository/   # Concrete repository implementations 💾
+│   └── uow.go        # Unit of Work implementation 🔄
 ├── pkg/              # Core Application Packages (Domain, Application, and Shared Infrastructure) 📦
-│   ├── domain/       # Domain Layer: Contains core business entities (e.g., Account, User, Transaction) and their encapsulated business logic. This is the heart of the application. ❤️
-│   ├── middleware/   # Shared middleware components for the web API (e.g., authentication, rate limiting) 🚦
-│   ├── repository/   # Repository Layer: Defines interfaces for data persistence operations, abstracting away database specifics. This allows for interchangeable data storage solutions. 🗃️
-│   └── service/      # Application Layer: Contains application services that orchestrate domain objects and repositories to fulfill use cases. This layer handles business logic coordination. ⚙️
+│   ├── domain/       # Domain Layer: Core business entities and rules ❤️
+│   ├── middleware/   # Shared middleware components 🚦
+│   ├── repository/   # Repository interfaces & UoW 🗃️
+│   ├── service/      # Application Layer: Orchestrates use cases, emits/handles events ⚙️
+│   └── ...
 ├── webapi/           # Presentation Layer (Web API) 🌐
-│   ├── account.go    # HTTP handlers for account-related operations 💳
-│   ├── auth.go       # HTTP handlers for authentication (login) 🔑
-│   ├── app.go        # Fiber application setup, middleware, and route registration 🚀
-│   ├── user.go       # HTTP handlers for user-related operations 👤
-│   └── utils.go      # Utility functions for HTTP responses and error handling 🔧
-├── go.mod            # Go module definition and dependencies 📝
+│   ├── account/      # Account HTTP handlers, DTOs, webhooks, and related tests 💳
+│   ├── auth/         # Authentication HTTP handlers and DTOs 🔑
+│   ├── currency/     # Currency HTTP handlers and DTOs 💱
+│   ├── user/         # User HTTP handlers and DTOs 👤
+│   ├── common/       # Shared web API utilities (e.g., error formatting) 🛠️
+│   ├── testutils/    # Test helpers for web API layer 🧪
+│   ├── app.go        # Fiber application setup and route registration 🚀
+│   ├── webapi.go     # Web API entry point or shared logic 🌐
+│   └── ratelimit_test.go # Rate limiting tests 🚦
+├── go.mod            # Go module definition 📝
 ├── go.sum            # Go module checksums ✅
-├── Makefile          # Automation scripts for common tasks (tests, coverage) 🤖
-├── Dockerfile        # Docker build instructions for the application 🐳
-├── docker-compose.yml# Docker Compose configuration for local development environment (app + database) 🛠️
-├── .env.example      # Example environment variables file 📄
-├── .gitignore        # Specifies intentionally untracked files to ignore 🙈
-├── README.md         # This comprehensive README file 📖
-└── vercel.json       # Vercel deployment configuration ☁️
+├── Makefile          # Automation scripts 🤖
+├── Dockerfile        # Docker build instructions 🐳
+├── docker-compose.yml# Docker Compose config 🛠️
+├── .env.example      # Example environment variables 📄
+├── .gitignore        # Ignore rules 🙈
+├── README.md         # This README 📖
+└── vercel.json       # Vercel deployment config ☁️
 ```
 
 ## Infrastructure & Design Choices 💡
@@ -563,8 +586,13 @@ This project leverages a modern tech stack and adheres to robust design principl
   - **Why Qodana?** A static code analysis platform by JetBrains that helps maintain code quality, identify potential bugs, and enforce coding standards. Integrated into the CI/CD pipeline, it provides continuous feedback on code health. 📈
 - **Deployment: Vercel (Serverless Functions)** ☁️
   - **Why Vercel?** Configured for serverless deployment, allowing the application to be deployed as a serverless function on Vercel's platform. This provides benefits such as automatic scaling, reduced operational overhead, and a pay-per-use cost model. 🚀
+- **Event Bus & Webhook-Driven Design:**
+  - **Event Bus:** All payment and transaction state changes are propagated via an internal event bus, enabling decoupled, extensible event handling and side effects.
+  - **Webhook-Driven:** Payment completion is confirmed asynchronously via webhook callbacks from payment providers, ensuring robust and auditable payment flows.
 
 ## Testing 🧪
+
+> **Note:** All tests for deposit, withdrawal, and transfer flows should use the event-driven flow and interact with the new service interfaces. Tests should simulate webhook callbacks to confirm payment completion and verify balance updates.
 
 Comprehensive testing is crucial for ensuring the reliability and correctness of a financial application. This project includes a robust testing suite.
 
@@ -588,6 +616,8 @@ Comprehensive testing is crucial for ensuring the reliability and correctness of
     This command first runs the tests with coverage enabled (`make cov`) and then generates an HTML report. The report will be saved at `docs/cover.html`, which you can open in your web browser to visualize covered and uncovered lines of code. 📈
 
 ## Contributing 💡
+
+> **Important:** All new features and changes must follow the event-driven, invariant-enforcing architecture. Business rules must be enforced in the domain layer, and all payment/transaction flows should use the event bus and webhook-driven patterns.
 
 We welcome contributions to the Fintech App! To contribute, please follow these guidelines:
 
