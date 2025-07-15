@@ -7,25 +7,24 @@ import (
 
 	"github.com/amirasaad/fintech/pkg/provider"
 	"github.com/google/uuid"
-	stripe "github.com/stripe/stripe-go/v82"
-	"github.com/stripe/stripe-go/v82/paymentintent"
+	"github.com/stripe/stripe-go/v82"
 )
 
 // StripePaymentProvider implements PaymentProvider using Stripe API.
 type StripePaymentProvider struct {
-	apiKey string
+	client *stripe.Client
 	logger *slog.Logger
 }
 
 // NewStripePaymentProvider creates a new StripePaymentProvider with the given API key and logger.
 func NewStripePaymentProvider(apiKey string, logger *slog.Logger) *StripePaymentProvider {
-	stripe.Key = apiKey
-	return &StripePaymentProvider{apiKey: apiKey, logger: logger}
+	client := stripe.NewClient(apiKey)
+	return &StripePaymentProvider{client: client, logger: logger}
 }
 
 // InitiatePayment creates a PaymentIntent in Stripe and returns its ID.
 func (s *StripePaymentProvider) InitiatePayment(ctx context.Context, userID, accountID uuid.UUID, amount float64, currency string) (string, error) {
-	params := &stripe.PaymentIntentParams{
+	params := &stripe.PaymentIntentCreateParams{
 		Amount:   stripe.Int64(int64(amount * 100)), // Stripe expects amount in the smallest currency unit
 		Currency: stripe.String(currency),
 		Metadata: map[string]string{
@@ -33,7 +32,7 @@ func (s *StripePaymentProvider) InitiatePayment(ctx context.Context, userID, acc
 			"account_id": accountID.String(),
 		},
 	}
-	pi, err := paymentintent.New(params)
+	pi, err := s.client.V1PaymentIntents.Create(ctx, params)
 	if err != nil {
 		s.logger.Error("stripe: failed to create payment intent", "err", err)
 		return "", err
@@ -43,7 +42,7 @@ func (s *StripePaymentProvider) InitiatePayment(ctx context.Context, userID, acc
 
 // GetPaymentStatus retrieves the status of a PaymentIntent from Stripe.
 func (s *StripePaymentProvider) GetPaymentStatus(ctx context.Context, paymentID string) (provider.PaymentStatus, error) {
-	pi, err := paymentintent.Get(paymentID, nil)
+	pi, err := s.client.V1PaymentIntents.Retrieve(ctx, paymentID, nil)
 	if err != nil {
 		s.logger.Error("stripe: failed to get payment intent", "err", err)
 		return provider.PaymentFailed, err
