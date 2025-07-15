@@ -114,7 +114,8 @@ func TestWithdraw_EmitsEvent(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 	userID := uuid.New()
-	acc, err := domainaccount.New().WithUserID(userID).Build()
+	// Build account with sufficient initial balance
+	acc, err := domainaccount.New().WithUserID(userID).WithBalance(10000).Build() // 100.00 USD in cents
 	require.NoError(err)
 	m, err := money.New(50.0, "USD")
 	require.NoError(err)

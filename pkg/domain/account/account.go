@@ -25,7 +25,7 @@ var (
 	ErrWithdrawalAmountMustBePositive = errors.New("withdrawal amount must be positive") // Withdrawal must be > 0
 
 	// ErrInsufficientFunds is returned when an account has insufficient funds for a withdrawal.
-	ErrInsufficientFunds = errors.New("insufficient funds for withdrawal") // Not enough balance
+	ErrInsufficientFunds = errors.New("insufficient funds") // Not enough balance
 
 	// ErrAccountNotFound is returned when an account cannot be found.
 	ErrAccountNotFound = errors.New("account not found") // Account does not exist
@@ -255,7 +255,14 @@ func (a *Account) Withdraw(userID uuid.UUID, m money.Money, target ExternalTarge
 	if string(m.Currency()) != string(a.Balance.Currency()) {
 		return common.ErrInvalidCurrencyCode
 	}
-
+	// Sufficient funds check: do not allow negative balance
+	hasEnough, err := a.Balance.GreaterThan(m)
+	if err != nil {
+		return err
+	}
+	if !hasEnough && !a.Balance.Equals(m) {
+		return ErrInsufficientFunds
+	}
 	a.events = append(a.events, WithdrawRequestedEvent{
 		AccountID: a.ID.String(),
 		UserID:    userID.String(),
@@ -285,7 +292,10 @@ func (a *Account) Transfer(senderUserID, receiverUserID uuid.UUID, dest *Account
 	if !a.Balance.IsSameCurrency(amount) || !dest.Balance.IsSameCurrency(amount) {
 		return ErrCurrencyMismatch
 	}
-	hasEnough, _ := a.Balance.GreaterThan(amount)
+	hasEnough, err := a.Balance.GreaterThan(amount)
+	if err != nil {
+		return err
+	}
 	if !hasEnough && !a.Balance.Equals(amount) {
 		return ErrInsufficientFunds
 	}

@@ -109,6 +109,11 @@ Authorization: Bearer {{login.response.body.$.data.$.token}}
 GET {{host}}/account/{{account.response.body.$.data.$.ID}}/balance
 Authorization: Bearer {{login.response.body.$.data.$.token}}
 
+### Get Account Balance
+# @name destBalance
+GET {{host}}/account/{{destAccount.response.body.$.data.$.ID}}/balance
+Authorization: Bearer {{login.response.body.$.data.$.token}}
+
 ### Error Handling Examples
 
 ### 1. User Not Found (404)

@@ -45,8 +45,13 @@ func (h *TransferPersistenceHandler) Handle(ctx context.Context, req *OperationR
 			if !ok {
 				continue
 			}
-			// Replace inline transaction construction with factory helper
-			transactionOut, transactionIn = NewTransferTransactions(e)
+			// Fetch destination account to get its UserID
+			destAcc, err := repo.Get(e.DestAccountID)
+			if err != nil {
+				logger.Error("TransferPersistenceHandler failed: destination account fetch error", "error", err)
+				return err
+			}
+			transactionOut, transactionIn := NewTransferTransactions(e, destAcc.UserID)
 			if err := txRepo.Create(transactionOut, req.ConvInfo, ""); err != nil {
 				logger.Error("TransferPersistenceHandler failed: outgoing transaction create error", "error", err)
 				return err
@@ -63,12 +68,7 @@ func (h *TransferPersistenceHandler) Handle(ctx context.Context, req *OperationR
 				logger.Error("TransferPersistenceHandler failed: source account fetch error", "error", err)
 				return err
 			}
-			destAcc, err := repo.Get(e.DestAccountID)
-			if err != nil {
-				logger.Error("TransferPersistenceHandler failed: destination account fetch error", "error", err)
-				return err
-			}
-			sourceAcc.Balance, err = sourceAcc.Balance.Subtract(transactionOut.Amount)
+			sourceAcc.Balance, err = sourceAcc.Balance.Add(transactionOut.Amount)
 			if err != nil {
 				logger.Error("TransferPersistenceHandler failed: source balance update error", "error", err)
 				return err

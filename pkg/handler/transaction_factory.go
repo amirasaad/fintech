@@ -40,7 +40,7 @@ func NewWithdrawTransaction(e account.WithdrawRequestedEvent, extTarget *account
 }
 
 // NewTransferTransactions creates both outgoing and incoming transfer transaction records
-func NewTransferTransactions(e account.TransferRequestedEvent) (outTx, inTx *account.Transaction) {
+func NewTransferTransactions(e account.TransferRequestedEvent, destUserID uuid.UUID) (outTx, inTx *account.Transaction) {
 	moneyVal, _ := money.New(e.Amount, currency.Code(e.Currency))
 	outTx = &account.Transaction{
 		ID:          uuid.New(),
@@ -54,7 +54,7 @@ func NewTransferTransactions(e account.TransferRequestedEvent) (outTx, inTx *acc
 	inTx = &account.Transaction{
 		ID:          uuid.New(),
 		AccountID:   e.DestAccountID,
-		UserID:      e.ReceiverUserID,
+		UserID:      destUserID, // Set to actual destination user
 		Amount:      moneyVal,
 		MoneySource: e.Source,
 		Status:      account.TransactionStatusInitiated,
