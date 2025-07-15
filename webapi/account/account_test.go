@@ -77,7 +77,7 @@ func (s *AccountTestSuite) TestDeposit() {
 	resp := s.MakeRequest("POST", fmt.Sprintf("/account/%s/deposit", acc.ID), depositBody, token)
 	defer resp.Body.Close() //nolint: errcheck
 	// Assert status 202 Accepted
-	s.Assert().Equal(202, resp.StatusCode)
+	s.Equal(202, resp.StatusCode)
 	// Assert message
 	var depositResponse common.Response
 	s.Require().NoError(json.NewDecoder(resp.Body).Decode(&depositResponse))

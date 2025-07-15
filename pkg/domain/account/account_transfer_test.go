@@ -133,13 +133,13 @@ func TestAccount_Transfer(t *testing.T) {
 			if tc.eventExpectation.wantEvent {
 				require.Len(events, 1)
 				evt := events[0]
-				require.EqualValues(tc.eventExpectation.event, evt.EventType())
+				require.Equal(tc.eventExpectation.event, evt.EventType())
 			}
 			destEvents := []common.Event{}
 			if tc.destAccount != nil && tc.destAccount != tc.sourceAccount {
 				destEvents = tc.destAccount.PullEvents()
 			}
-			require.Len(destEvents, 0)
+			require.Empty(destEvents)
 		})
 	}
 }

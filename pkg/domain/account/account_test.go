@@ -41,7 +41,7 @@ func TestDepositNegativeAmount(t *testing.T) {
 	err = acc.Deposit(userID, money, domainaccount.MoneySourceInternal, "")
 	require.Error(err, "deposit amount must be positive")
 	events := acc.PullEvents()
-	require.Len(events, 0)
+	require.Empty(events)
 }
 
 func TestDepositZeroAmount(t *testing.T) {
@@ -54,7 +54,7 @@ func TestDepositZeroAmount(t *testing.T) {
 	err = acc.Deposit(userID, money, domainaccount.MoneySourceInternal, "")
 	require.Error(err, "Deposit with zero amount should return an error")
 	events := acc.PullEvents()
-	require.Len(events, 0)
+	require.Empty(events)
 }
 
 func TestAccount_DepositUnauthorized(t *testing.T) {
@@ -66,7 +66,7 @@ func TestAccount_DepositUnauthorized(t *testing.T) {
 	err = acc.Deposit(uuid.New(), money, domainaccount.MoneySourceCash, "")
 	require.Error(err, "Deposit with different user id should return error")
 	events := acc.PullEvents()
-	require.Len(events, 0)
+	require.Empty(events)
 }
 
 func TestAccount_WithdrawUnauthorized(t *testing.T) {
@@ -78,7 +78,7 @@ func TestAccount_WithdrawUnauthorized(t *testing.T) {
 	err = acc.Withdraw(uuid.New(), unauthorizedMoney, domainaccount.ExternalTarget{BankAccountNumber: "4234738923432"}, "")
 	require.Error(err, "Withdraw with different user id should return error")
 	events := acc.PullEvents()
-	require.Len(events, 0)
+	require.Empty(events)
 }
 
 func TestAccount_GetBalanceUnauthorized(t *testing.T) {
