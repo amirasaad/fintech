@@ -59,7 +59,7 @@ func (h *PersistenceHandler) Handle(ctx context.Context, req *OperationRequest) 
 			case account.DepositRequestedEvent:
 				moneyVal, _ := money.New(e.Amount, currency.Code(e.Currency))
 				tx := &account.Transaction{
-					ID:                   e.EventID,
+					ID:                   uuid.New(),
 					AccountID:            uuid.MustParse(e.AccountID),
 					UserID:               uuid.MustParse(e.UserID),
 					Amount:               moneyVal,
@@ -78,7 +78,7 @@ func (h *PersistenceHandler) Handle(ctx context.Context, req *OperationRequest) 
 			case account.WithdrawRequestedEvent:
 				moneyVal, _ := money.New(e.Amount, currency.Code(e.Currency))
 				tx := &account.Transaction{
-					ID:                   e.EventID,
+					ID:                   uuid.New(),
 					AccountID:            uuid.MustParse(e.AccountID),
 					UserID:               uuid.MustParse(e.UserID),
 					Amount:               moneyVal,
@@ -98,7 +98,7 @@ func (h *PersistenceHandler) Handle(ctx context.Context, req *OperationRequest) 
 				moneyVal, _ := money.New(e.Amount, currency.Code(e.Currency))
 				// Outgoing transaction (source account)
 				transactionOut = &account.Transaction{
-					ID:                   e.EventID,
+					ID:                   uuid.New(),
 					AccountID:            e.SourceAccountID,
 					UserID:               e.SenderUserID,
 					Amount:               moneyVal.Negate(),

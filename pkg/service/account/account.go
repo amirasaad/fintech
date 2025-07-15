@@ -9,46 +9,35 @@ package account
 import (
 	"context"
 	"errors"
-	"log/slog"
 	"time"
 
 	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/account"
-	"github.com/amirasaad/fintech/pkg/domain/money"
-	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/amirasaad/fintech/pkg/handler"
-	"github.com/amirasaad/fintech/pkg/provider"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/google/uuid"
 )
 
 // Service provides business logic for account operations including creation, deposits, withdrawals, and balance inquiries.
 type Service struct {
-	uow             repository.UnitOfWork
-	converter       money.CurrencyConverter
-	accountChain    *Chain
-	paymentProvider provider.PaymentProvider
-	logger          *slog.Logger
-	eventBus        eventbus.EventBus
+	deps         config.Deps
+	accountChain *Chain
 }
 
 // NewService creates a new Service with the provided dependencies.
 func NewService(deps config.Deps) *Service {
-	accountChain := NewChain(deps.Uow, deps.Converter, deps.Logger)
+	accountChain := NewChain(deps)
 	return &Service{
-		uow:             deps.Uow,
-		converter:       deps.Converter,
-		logger:          deps.Logger,
-		accountChain:    accountChain,
-		paymentProvider: deps.PaymentProvider,
-		eventBus:        deps.EventBus,
+		accountChain: accountChain,
+		deps:         deps,
 	}
 }
 
 // CreateAccount creates a new account for the specified user in a transaction.
 func (s *Service) CreateAccount(ctx context.Context, userID uuid.UUID) (a *account.Account, err error) {
-	err = s.uow.Do(ctx, func(uow repository.UnitOfWork) error {
+	uow := s.deps.Uow
+	err = uow.Do(ctx, func(uow repository.UnitOfWork) error {
 		repo, err := uow.AccountRepository()
 		if err != nil {
 			return err
@@ -95,9 +84,10 @@ func (s *Service) CreateAccountWithCurrency(
 	userID uuid.UUID,
 	currencyCode currency.Code,
 ) (acct *account.Account, err error) {
-	logger := s.logger.With("userID", userID, "currency", currencyCode)
+	logger := s.deps.Logger.With("userID", userID, "currency", currencyCode)
 	logger.Info("CreateAccountWithCurrency started")
-	err = s.uow.Do(context.Background(), func(uow repository.UnitOfWork) error {
+	uow := s.deps.Uow
+	err = uow.Do(context.Background(), func(uow repository.UnitOfWork) error {
 		repo, err := uow.AccountRepository()
 		if err != nil {
 			logger.Error("CreateAccountWithCurrency failed: AccountRepository error", "error", err)
@@ -197,7 +187,7 @@ func (s *Service) Deposit(
 		Source:    account.MoneySource(moneySource),
 		Timestamp: time.Now().Unix(),
 	}
-	return s.eventBus.Publish(evt)
+	return s.deps.EventBus.Publish(evt)
 }
 
 // Withdraw removes funds from the specified account to an external target and creates a transaction record.
@@ -220,7 +210,7 @@ func (s *Service) Withdraw(
 		Source:    account.MoneySourceExternalWallet,
 		Timestamp: time.Now().Unix(),
 	}
-	return s.eventBus.Publish(evt)
+	return s.deps.EventBus.Publish(evt)
 }
 
 // Transfer moves funds from one account to another account.
@@ -244,12 +234,12 @@ func (s *Service) Transfer(
 		Source:          account.MoneySourceInternal,
 		Timestamp:       time.Now().Unix(),
 	}
-	return s.eventBus.Publish(evt)
+	return s.deps.EventBus.Publish(evt)
 }
 
 // UpdateTransactionStatusByPaymentID updates the status of a transaction identified by its payment ID.
 func (s *Service) UpdateTransactionStatusByPaymentID(paymentID, status string) error {
-	repo, err := s.uow.TransactionRepository()
+	repo, err := s.deps.Uow.TransactionRepository()
 	if err != nil {
 		return err
 	}

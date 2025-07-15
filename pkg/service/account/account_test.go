@@ -36,10 +36,10 @@ func newServiceWithMocks(t interface {
 	uow.EXPECT().AccountRepository().Return(accountRepo, nil).Maybe()
 	uow.EXPECT().TransactionRepository().Return(transactionRepo, nil).Maybe()
 	svc = accountsvc.NewService(config.Deps{
-		Uow:             uow,
-		Converter:       nil,
-		Logger:          slog.Default(),
-		PaymentProvider: provider.NewMockPaymentProvider(),
+		Uow:               uow,
+		CurrencyConverter: nil,
+		Logger:            slog.Default(),
+		PaymentProvider:   provider.NewMockPaymentProvider(),
 	})
 	return svc, accountRepo, transactionRepo, uow
 }
@@ -65,10 +65,10 @@ func TestCreateAccount_Success(t *testing.T) {
 	accountRepo.EXPECT().Create(mock.Anything).Return(nil).Once()
 
 	svc := accountsvc.NewService(config.Deps{
-		Uow:             uow,
-		Converter:       nil,
-		Logger:          slog.Default(),
-		PaymentProvider: provider.NewMockPaymentProvider(),
+		Uow:               uow,
+		CurrencyConverter: nil,
+		Logger:            slog.Default(),
+		PaymentProvider:   provider.NewMockPaymentProvider(),
 	})
 	gotAccount, err := svc.CreateAccount(context.Background(), userID)
 	require.NoError(t, err)
@@ -90,10 +90,10 @@ func TestCreateAccount_RepoError(t *testing.T) {
 	accountRepo.EXPECT().Create(mock.Anything).Return(errors.New("repo error")).Once()
 
 	svc := accountsvc.NewService(config.Deps{
-		Uow:             uow,
-		Converter:       nil,
-		Logger:          slog.Default(),
-		PaymentProvider: provider.NewMockPaymentProvider(),
+		Uow:               uow,
+		CurrencyConverter: nil,
+		Logger:            slog.Default(),
+		PaymentProvider:   provider.NewMockPaymentProvider(),
 	})
 	gotAccount, err := svc.CreateAccount(context.Background(), userID)
 	require.Error(t, err)
@@ -103,11 +103,11 @@ func TestCreateAccount_RepoError(t *testing.T) {
 func TestDeposit_PublishesEvent(t *testing.T) {
 	memBus := eventbus.NewMemoryEventBus()
 	svc := accountsvc.NewService(config.Deps{
-		Uow:             nil,
-		Converter:       nil,
-		Logger:          slog.Default(),
-		PaymentProvider: provider.NewMockPaymentProvider(),
-		EventBus:        memBus,
+		Uow:               nil,
+		CurrencyConverter: nil,
+		Logger:            slog.Default(),
+		PaymentProvider:   provider.NewMockPaymentProvider(),
+		EventBus:          memBus,
 	})
 
 	// Register the handler before publishing
@@ -127,11 +127,11 @@ func TestDeposit_PublishesEvent(t *testing.T) {
 func TestWithdraw_PublishesEvent(t *testing.T) {
 	memBus := eventbus.NewMemoryEventBus()
 	svc := accountsvc.NewService(config.Deps{
-		Uow:             nil,
-		Converter:       nil,
-		Logger:          slog.Default(),
-		PaymentProvider: provider.NewMockPaymentProvider(),
-		EventBus:        memBus,
+		Uow:               nil,
+		CurrencyConverter: nil,
+		Logger:            slog.Default(),
+		PaymentProvider:   provider.NewMockPaymentProvider(),
+		EventBus:          memBus,
 	})
 	userID := uuid.New()
 	accountID := uuid.New()
@@ -155,11 +155,11 @@ func TestWithdraw_PublishesEvent(t *testing.T) {
 func TestTransfer_PublishesEvent(t *testing.T) {
 	memBus := eventbus.NewMemoryEventBus()
 	svc := accountsvc.NewService(config.Deps{
-		Uow:             nil,
-		Converter:       nil,
-		Logger:          slog.Default(),
-		PaymentProvider: provider.NewMockPaymentProvider(),
-		EventBus:        memBus,
+		Uow:               nil,
+		CurrencyConverter: nil,
+		Logger:            slog.Default(),
+		PaymentProvider:   provider.NewMockPaymentProvider(),
+		EventBus:          memBus,
 	})
 	userID := uuid.New()
 	sourceAccountID := uuid.New()
@@ -198,10 +198,10 @@ func TestGetAccount_Success(t *testing.T) {
 	accountRepo.EXPECT().Get(accountID).Return(account, nil).Once()
 
 	svc := accountsvc.NewService(config.Deps{
-		Uow:             uow,
-		Converter:       nil,
-		Logger:          slog.Default(),
-		PaymentProvider: provider.NewMockPaymentProvider(),
+		Uow:               uow,
+		CurrencyConverter: nil,
+		Logger:            slog.Default(),
+		PaymentProvider:   provider.NewMockPaymentProvider(),
 	})
 	gotAccount, err := svc.GetAccount(userID, accountID)
 	require.NoError(t, err)
@@ -223,10 +223,10 @@ func TestGetAccount_NotFound(t *testing.T) {
 	accountRepo.EXPECT().Get(accountID).Return(nil, accountdomain.ErrAccountNotFound).Once()
 
 	svc := accountsvc.NewService(config.Deps{
-		Uow:             uow,
-		Converter:       nil,
-		Logger:          slog.Default(),
-		PaymentProvider: provider.NewMockPaymentProvider(),
+		Uow:               uow,
+		CurrencyConverter: nil,
+		Logger:            slog.Default(),
+		PaymentProvider:   provider.NewMockPaymentProvider(),
 	})
 	gotAccount, err := svc.GetAccount(userID, accountID)
 	require.Error(t, err)
@@ -248,10 +248,10 @@ func TestGetAccount_Unauthorized(t *testing.T) {
 	accountRepo.EXPECT().Get(accountID).Return(nil, user.ErrUserUnauthorized).Once()
 
 	svc := accountsvc.NewService(config.Deps{
-		Uow:             uow,
-		Converter:       nil,
-		Logger:          slog.Default(),
-		PaymentProvider: provider.NewMockPaymentProvider(),
+		Uow:               uow,
+		CurrencyConverter: nil,
+		Logger:            slog.Default(),
+		PaymentProvider:   provider.NewMockPaymentProvider(),
 	})
 	gotAccount, err := svc.GetAccount(userID, accountID)
 	require.Error(t, err)
@@ -280,10 +280,10 @@ func TestGetTransactions_Success(t *testing.T) {
 	transactionRepo.EXPECT().List(userID, accountID).Return(txs, nil).Once()
 
 	svc := accountsvc.NewService(config.Deps{
-		Uow:             uow,
-		Converter:       nil,
-		Logger:          slog.Default(),
-		PaymentProvider: provider.NewMockPaymentProvider(),
+		Uow:               uow,
+		CurrencyConverter: nil,
+		Logger:            slog.Default(),
+		PaymentProvider:   provider.NewMockPaymentProvider(),
 	})
 	gotTxs, err := svc.GetTransactions(userID, accountID)
 	require.NoError(t, err)
@@ -309,10 +309,10 @@ func TestGetTransactions_Error(t *testing.T) {
 	transactionRepo.EXPECT().List(userID, accountID).Return(nil, errors.New("list error")).Once()
 
 	svc := accountsvc.NewService(config.Deps{
-		Uow:             uow,
-		Converter:       nil,
-		Logger:          slog.Default(),
-		PaymentProvider: provider.NewMockPaymentProvider(),
+		Uow:               uow,
+		CurrencyConverter: nil,
+		Logger:            slog.Default(),
+		PaymentProvider:   provider.NewMockPaymentProvider(),
 	})
 	txs, err := svc.GetTransactions(userID, accountID)
 	require.Error(t, err)
@@ -329,10 +329,10 @@ func TestGetTransactions_UoWFactoryError(t *testing.T) {
 	)
 
 	svc := accountsvc.NewService(config.Deps{
-		Uow:             uow,
-		Converter:       nil,
-		Logger:          slog.Default(),
-		PaymentProvider: provider.NewMockPaymentProvider(),
+		Uow:               uow,
+		CurrencyConverter: nil,
+		Logger:            slog.Default(),
+		PaymentProvider:   provider.NewMockPaymentProvider(),
 	})
 	_, err := svc.GetTransactions(uuid.New(), uuid.New())
 	require.Error(t, err)
@@ -356,10 +356,10 @@ func TestGetBalance_Success(t *testing.T) {
 	_ = acc.Deposit(userID, balanceMoney, accountdomain.MoneySourceCard)
 	accountRepo.EXPECT().Get(acc.ID).Return(acc, nil)
 	_, _ = accountsvc.NewService(config.Deps{
-		Uow:             uow,
-		Converter:       nil,
-		Logger:          slog.Default(),
-		PaymentProvider: provider.NewMockPaymentProvider(),
+		Uow:               uow,
+		CurrencyConverter: nil,
+		Logger:            slog.Default(),
+		PaymentProvider:   provider.NewMockPaymentProvider(),
 	}).GetBalance(userID, acc.ID)
 	// Instead of asserting on balance, assert that the correct event was emitted
 	events := acc.PullEvents()
@@ -387,10 +387,10 @@ func TestGetBalance_NotFound(t *testing.T) {
 	accountRepo.EXPECT().Get(mock.Anything).Return(&domain.Account{}, domain.ErrAccountNotFound)
 
 	balance, err := accountsvc.NewService(config.Deps{
-		Uow:             uow,
-		Converter:       nil,
-		Logger:          slog.Default(),
-		PaymentProvider: provider.NewMockPaymentProvider(),
+		Uow:               uow,
+		CurrencyConverter: nil,
+		Logger:            slog.Default(),
+		PaymentProvider:   provider.NewMockPaymentProvider(),
 	}).GetBalance(uuid.New(), uuid.New())
 	require.Error(err)
 	assert.InDelta(0, balance, 0.01)

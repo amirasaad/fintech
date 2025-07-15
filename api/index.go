@@ -10,6 +10,7 @@ import (
 	"github.com/amirasaad/fintech/infra/eventbus"
 
 	"github.com/amirasaad/fintech/infra"
+	"github.com/amirasaad/fintech/infra/provider"
 	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/currency"
 
@@ -60,12 +61,12 @@ func handler() http.HandlerFunc {
 
 	a := app.New(config.Deps{
 		Uow:               uow,
-		CurrencyConverter: currencyConverter,
-		Logger:            logger,
 		EventBus:          eventbus.NewMemoryEventBus(),
+		CurrencyConverter: currencyConverter,
 		CurrencyRegistry:  currencyRegistry,
+		PaymentProvider:   provider.NewMockPaymentProvider(),
+		Logger:            logger,
 		Config:            cfg,
-		Converter:         currencyConverter,
 	})
 	return adaptor.FiberApp(a)
 }

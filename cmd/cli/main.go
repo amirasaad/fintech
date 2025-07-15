@@ -74,10 +74,10 @@ func main() {
 	}
 
 	scv := account.NewService(config.Deps{
-		Uow:             uow,
-		Converter:       currencyConverter,
-		Logger:          logger,
-		PaymentProvider: provider.NewMockPaymentProvider(),
+		Uow:               uow,
+		CurrencyConverter: currencyConverter,
+		Logger:            logger,
+		PaymentProvider:   provider.NewMockPaymentProvider(),
 	})
 	authSvc := auth.NewBasicAuthService(uow, logger)
 

@@ -2,12 +2,10 @@ package account
 
 import (
 	"context"
-	"log/slog"
 
+	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/currency"
-	mon "github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/amirasaad/fintech/pkg/handler"
-	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/google/uuid"
 )
 
@@ -17,9 +15,9 @@ type Chain struct {
 }
 
 // NewChain creates a new account chain with the given dependencies
-func NewChain(uow repository.UnitOfWork, converter mon.CurrencyConverter, logger *slog.Logger) *Chain {
+func NewChain(deps config.Deps) *Chain {
 	return &Chain{
-		chain: handler.NewAccountChain(uow, converter, logger),
+		chain: handler.NewAccountChain(deps.Uow, deps.CurrencyConverter, deps.Logger),
 	}
 }
 
