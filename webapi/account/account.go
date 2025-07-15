@@ -133,11 +133,10 @@ func Deposit(
 		log.Infof("Deposit handler: calling service for user %s, account %s, amount %v, currency %s, money_source %s", userID, accountID, input.Amount, currencyCode, input.MoneySource)
 		err = accountSvc.Deposit(userID, accountID, input.Amount, currencyCode, input.MoneySource)
 		if err != nil {
-			log.Errorf("Failed to deposit: %v", err)
 			return common.ProblemDetailsJSON(c, "Failed to deposit", err)
 		}
 		resp := fiber.Map{}
-		return common.SuccessResponseJSON(c, fiber.StatusOK, "Deposit successful", resp)
+		return common.SuccessResponseJSON(c, fiber.StatusAccepted, "Deposit request is being processed. Your deposit is being started and will be completed soon.", resp)
 	}
 }
 
@@ -205,11 +204,10 @@ func Withdraw(
 		}
 		err = accountSvc.Withdraw(userID, accountID, input.Amount, currencyCode, handlerTarget)
 		if err != nil {
-			log.Errorf("Failed to withdraw: %v", err)
 			return common.ProblemDetailsJSON(c, "Failed to withdraw", err)
 		}
 		resp := fiber.Map{}
-		return common.SuccessResponseJSON(c, fiber.StatusOK, "Withdrawal successful", resp)
+		return common.SuccessResponseJSON(c, fiber.StatusAccepted, "Withdrawal request is being processed. Your withdrawal is being started and will be completed soon.", resp)
 	}
 }
 
@@ -262,11 +260,10 @@ func Transfer(accountSvc *accountsvc.Service, authSvc *authsvc.AuthService) fibe
 		log.Infof("Transfer handler: calling service for user %s, source account %s, dest account %s, amount %v, currency %s", userID, sourceAccountID, destAccountID, input.Amount, currencyCode)
 		err = accountSvc.Transfer(userID, sourceAccountID, destAccountID, input.Amount, currencyCode)
 		if err != nil {
-			log.Errorf("Failed to transfer: %v", err)
-			return common.ProblemDetailsJSON(c, "Failed to transfer", err)
+			return common.ProblemDetailsJSON(c, "Failed to transfer", err, err.Error())
 		}
 		resp := fiber.Map{}
-		return common.SuccessResponseJSON(c, fiber.StatusOK, "Transfer successful", resp)
+		return common.SuccessResponseJSON(c, fiber.StatusAccepted, "Transfer request is being processed. Your transfer is being started and will be completed soon.", resp)
 	}
 }
 

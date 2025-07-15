@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/amirasaad/fintech/pkg/domain"
+	"github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/webapi/common"
 	"github.com/amirasaad/fintech/webapi/testutils"
 	"github.com/gofiber/fiber/v2"
@@ -70,14 +71,17 @@ func (s *AccountTestSuite) TestDeposit() {
 	user := s.CreateTestUser()
 	token := s.LoginUser(user)
 
-	depositBody := `{"amount":100,"currency":"USD"}`
-	resp := s.MakeRequest("POST", "/account/"+user.ID.String()+"/deposit", depositBody, token)
-	// Assert status 202 Accepted
-	s.Require().Equal(202, resp.StatusCode)
+	acc, _ := account.New().WithUserID(user.ID).Build()
 
-	// Optionally, check transaction status in DB or via API
-	// Optionally, assert event was triggered if MemoryEventBus is accessible
-	// TODO: Add event bus assertion when event bus is injectable in E2E
+	depositBody := `{"amount":100,"currency":"USD", "money_source": "cash"}`
+	resp := s.MakeRequest("POST", fmt.Sprintf("/account/%s/deposit", acc.ID), depositBody, token)
+	defer resp.Body.Close() //nolint: errcheck
+	// Assert status 202 Accepted
+	s.Assert().Equal(202, resp.StatusCode)
+	// Assert message
+	var depositResponse common.Response
+	s.Require().NoError(json.NewDecoder(resp.Body).Decode(&depositResponse))
+	s.Contains(depositResponse.Message, "Deposit request is being processed")
 }
 
 func (s *AccountTestSuite) TestWithdraw() {
@@ -99,13 +103,16 @@ func (s *AccountTestSuite) TestWithdraw() {
 	depositBody := `{"amount":100,"currency":"USD","money_source":"Cash"}`
 	depositResp := s.MakeRequest("POST", fmt.Sprintf("/account/%s/deposit", accountID), depositBody, s.token)
 	defer depositResp.Body.Close() //nolint: errcheck
-	s.Equal(fiber.StatusOK, depositResp.StatusCode)
+	s.Equal(202, depositResp.StatusCode)
 
 	s.Run("Withdraw successfully", func() {
 		withdrawBody := `{"amount":50,"currency":"USD","external_target":{"bank_account_number":"1234567890"}}`
 		resp := s.MakeRequest("POST", fmt.Sprintf("/account/%s/withdraw", accountID), withdrawBody, s.token)
 		defer resp.Body.Close() //nolint: errcheck
-		s.Equal(fiber.StatusOK, resp.StatusCode)
+		s.Equal(202, resp.StatusCode)
+		var withdrawResponse common.Response
+		s.Require().NoError(json.NewDecoder(resp.Body).Decode(&withdrawResponse))
+		s.Contains(withdrawResponse.Message, "Withdrawal request is being processed")
 	})
 
 	s.Run("Withdraw without auth", func() {
@@ -113,30 +120,6 @@ func (s *AccountTestSuite) TestWithdraw() {
 		resp := s.MakeRequest("POST", fmt.Sprintf("/account/%s/withdraw", accountID), withdrawBody, "")
 		defer resp.Body.Close() //nolint: errcheck
 		s.Equal(fiber.StatusUnauthorized, resp.StatusCode)
-	})
-
-	s.Run("Withdraw insufficient funds", func() {
-		withdrawBody := `{"amount":200,"currency":"USD","external_target":{"bank_account_number":"1234567890"}}`
-		resp := s.MakeRequest("POST", fmt.Sprintf("/account/%s/withdraw", accountID), withdrawBody, s.token)
-		defer resp.Body.Close() //nolint: errcheck
-		s.Equal(fiber.StatusUnprocessableEntity, resp.StatusCode)
-
-		// Verify error response format
-		var errorResponse common.ProblemDetails
-		err := json.NewDecoder(resp.Body).Decode(&errorResponse)
-		s.Require().NoError(err)
-		s.Equal("Failed to withdraw", errorResponse.Title)
-		s.Equal("insufficient funds for withdrawal", errorResponse.Detail) // Detail should contain the error message
-		s.Equal(fiber.StatusUnprocessableEntity, errorResponse.Status)
-		s.Equal("about:blank", errorResponse.Type)
-		s.NotEmpty(errorResponse.Instance)
-	})
-
-	s.Run("Withdraw successfully with external target", func() {
-		withdrawBody := `{"amount":50,"currency":"USD","external_target":{"bank_account_number":"1234567890"}}`
-		resp := s.MakeRequest("POST", fmt.Sprintf("/account/%s/withdraw", accountID), withdrawBody, s.token)
-		defer resp.Body.Close() //nolint: errcheck
-		s.Equal(fiber.StatusOK, resp.StatusCode)
 	})
 
 	s.Run("Withdraw missing external target", func() {

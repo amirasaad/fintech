@@ -62,5 +62,5 @@ func TestPaymentWebhookHandler_Integration(t *testing.T) {
 	defer resp.Body.Close() //nolint:errcheck
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	// Assert transaction status updated
-	assert.Equal(t, string(account.TransactionStatusCompleted), tx.Status)
+	assert.Equal(t, account.TransactionStatusCompleted, string(tx.Status))
 }

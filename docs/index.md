@@ -28,4 +28,8 @@ A modern, event-driven fintech platform with multi-currency support, robust arch
 
 ---
 
+## 🧪 Code Coverage
+
+- [Coverage Report](coverage.html)
+
 _For contributing guidelines, see the [README Contributing section](../README.md#contributing)._
