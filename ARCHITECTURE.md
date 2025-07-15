@@ -73,22 +73,59 @@ See: `docs/event_driven_payments.md`
 
 ## Project Structure
 
-```ascii
-fintech/
-├── cmd/            # Entrypoints (CLI, server)
-├── webapi/         # HTTP handlers & API endpoints
-├── pkg/
-│   ├── domain/     # Business entities & rules
-│   ├── service/    # Application logic
-│   ├── repository/ # Repository interfaces & UoW
-│   └── ...
-├── infra/
-│   ├── repository/ # Repo implementations
-│   ├── provider/   # Payment/currency providers
-│   ├── eventbus/   # Event bus implementation
-│   └── database.go # DB config
-├── docs/           # Documentation
-└── ...
+```mermaid
+flowchart TD
+    subgraph webapi
+        direction TB
+        webapi_label["webapi/account - HTTP Handlers"]
+        account["account/ - handlers, DTOs, webhooks"]
+    end
+
+    account -->|HTTP| service_account[AccountService]
+    account -->|Webhook| service_account
+
+    service_account -->|Business Logic| domain["Domain Layer"]
+    service_account -->|Events| eventbus["Event Bus"]
+    service_account -->|Persistence| repo["Repository Interfaces"]
+    service_account -->|External| provider["Payment Provider Integrations"]
+    service_account -->|Currency Conversion| currency_converter["Currency Converter"]
+
+    eventbus -->|Domain Events| service_account
+
+    repo -->|Implements| infra_repo["Infra Repository"]
+    infra_repo -->|DB Ops| db["Database"]
+```
+
+## Account Deposit Event-Driven Sequence
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant H as webapi/account handler
+    participant S as AccountService
+    participant CC as CurrencyConverter
+    participant D as Domain Layer
+    participant EB as Event Bus
+    participant P as Payment Provider
+    participant W as webapi/account webhook handler
+
+    U->>H: Initiate Deposit (HTTP)
+    H->>S: Call Deposit()
+    alt Deposit currency != Account currency
+        S->>CC: Convert Amount to Account Currency
+        CC-->>S: Converted Amount
+    end
+    S->>D: Create Pending Transaction
+    D-->>S: Pending Transaction
+    S-->>EB: Emit PaymentInitiated Event
+    EB-->>P: Notify Payment Provider (async)
+    P-->>W: Call Webhook (Payment Completed)
+    W->>S: Update Transaction Status
+    S->>D: Update Transaction (Completed)
+    D-->>S: Transaction Completed
+    S-->>EB: Emit TransactionCompleted Event
+    EB-->>S: Notify AccountService (update balance)
+    S->>D: Update Account Balance
 ```
 
 ---
