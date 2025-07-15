@@ -63,7 +63,7 @@ func TestRateLimit(t *testing.T) {
 	}
 
 	// Send requests until rate limit is hit
-	for i := 0; i < cfg.RateLimit.MaxRequests; i++ { // Test with 5 requests per second limit
+	for i := 0; i < cfg.RateLimit.MaxRequests; i++ {
 		resp := makeRequest(fiber.MethodGet, "/", "", "")
 		defer resp.Body.Close() //nolint: errcheck
 
