@@ -22,19 +22,14 @@ func NewChain(deps config.Deps) *Chain {
 }
 
 // Deposit executes a deposit operation using the chain of responsibility pattern
-func (c *Chain) Deposit(ctx context.Context, userID, accountID uuid.UUID, amount float64, currencyCode currency.Code, moneySource string) (*handler.OperationResponse, error) {
-	return c.chain.Deposit(ctx, userID, accountID, amount, currencyCode, moneySource)
+func (c *Chain) Deposit(ctx context.Context, userID, accountID uuid.UUID, amount float64, currencyCode currency.Code, moneySource, paymentID string) (*handler.OperationResponse, error) {
+	return c.chain.Deposit(ctx, userID, accountID, amount, currencyCode, moneySource, paymentID)
 }
 
-// Withdraw executes a withdraw operation using the chain of responsibility pattern
-func (c *Chain) Withdraw(ctx context.Context, userID, accountID uuid.UUID, amount float64, currencyCode currency.Code, moneySource string) (*handler.OperationResponse, error) {
-	return c.chain.Withdraw(ctx, userID, accountID, amount, currencyCode, moneySource)
-}
-
-// WithdrawExternal executes a withdraw operation to an external target using the chain of responsibility pattern
-func (c *Chain) WithdrawExternal(ctx context.Context, userID, accountID uuid.UUID, amount float64, currencyCode currency.Code, externalTarget handler.ExternalTarget) (*handler.OperationResponse, error) {
+// Withdraw executes a withdraw operation to an external target using the chain of responsibility pattern
+func (c *Chain) Withdraw(ctx context.Context, userID, accountID uuid.UUID, amount float64, currencyCode currency.Code, externalTarget handler.ExternalTarget, paymentID string) (*handler.OperationResponse, error) {
 	// Add a new WithdrawExternal method to AccountChain to support this
-	return c.chain.WithdrawExternal(ctx, userID, accountID, amount, currencyCode, externalTarget)
+	return c.chain.Withdraw(ctx, userID, accountID, amount, currencyCode, externalTarget, paymentID)
 }
 
 // Transfer executes a transfer operation using the chain of responsibility pattern

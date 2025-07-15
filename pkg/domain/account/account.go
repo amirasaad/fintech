@@ -214,7 +214,7 @@ func (a *Account) PullEvents() []common.Event {
 //   - Deposit must not cause integer overflow.
 //
 // Returns a Transaction or an error if any invariant is violated.
-func (a *Account) Deposit(userID uuid.UUID, m money.Money, moneySource MoneySource) error {
+func (a *Account) Deposit(userID uuid.UUID, m money.Money, moneySource MoneySource, paymentID string) error {
 	if a.UserID != userID {
 		return ErrNotOwner
 	}
@@ -224,6 +224,7 @@ func (a *Account) Deposit(userID uuid.UUID, m money.Money, moneySource MoneySour
 	if string(m.Currency()) != string(a.Balance.Currency()) {
 		return common.ErrInvalidCurrencyCode
 	}
+
 	a.events = append(a.events, DepositRequestedEvent{
 		AccountID: a.ID.String(),
 		UserID:    userID.String(),
@@ -231,6 +232,7 @@ func (a *Account) Deposit(userID uuid.UUID, m money.Money, moneySource MoneySour
 		Currency:  string(m.Currency()),
 		Source:    moneySource,
 		Timestamp: time.Now().Unix(),
+		PaymentID: paymentID,
 	})
 	return nil
 }
@@ -243,7 +245,7 @@ func (a *Account) Deposit(userID uuid.UUID, m money.Money, moneySource MoneySour
 //   - Cannot withdraw more than the current balance.
 //
 // Returns a Transaction or an error if any invariant is violated.
-func (a *Account) Withdraw(userID uuid.UUID, m money.Money, target ExternalTarget) error {
+func (a *Account) Withdraw(userID uuid.UUID, m money.Money, target ExternalTarget, paymentID string) error {
 	if a.UserID != userID {
 		return ErrNotOwner
 	}
@@ -253,6 +255,7 @@ func (a *Account) Withdraw(userID uuid.UUID, m money.Money, target ExternalTarge
 	if string(m.Currency()) != string(a.Balance.Currency()) {
 		return common.ErrInvalidCurrencyCode
 	}
+
 	a.events = append(a.events, WithdrawRequestedEvent{
 		AccountID: a.ID.String(),
 		UserID:    userID.String(),
@@ -260,6 +263,7 @@ func (a *Account) Withdraw(userID uuid.UUID, m money.Money, target ExternalTarge
 		Currency:  string(m.Currency()),
 		Target:    target,
 		Timestamp: time.Now().Unix(),
+		PaymentID: paymentID,
 	})
 	return nil
 }

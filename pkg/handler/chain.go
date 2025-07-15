@@ -24,12 +24,13 @@ func NewAccountChain(uow repository.UnitOfWork, converter mon.CurrencyConverter,
 }
 
 // Deposit executes a deposit operation using the chain of responsibility pattern
-func (c *AccountChain) Deposit(ctx context.Context, userID, accountID uuid.UUID, amount float64, currencyCode currency.Code, moneySource string) (*OperationResponse, error) {
+func (c *AccountChain) Deposit(ctx context.Context, userID, accountID uuid.UUID, amount float64, currencyCode currency.Code, moneySource, paymentID string) (*OperationResponse, error) {
 	chain := c.builder.BuildDepositChain()
 
 	req := &OperationRequest{
 		UserID:       userID,
 		AccountID:    accountID,
+		PaymentID:    paymentID,
 		Amount:       amount,
 		CurrencyCode: currencyCode,
 		Operation:    OperationDeposit,
@@ -39,29 +40,14 @@ func (c *AccountChain) Deposit(ctx context.Context, userID, accountID uuid.UUID,
 	return chain.Handle(ctx, req)
 }
 
-// Withdraw executes a withdraw operation using the chain of responsibility pattern
-func (c *AccountChain) Withdraw(ctx context.Context, userID, accountID uuid.UUID, amount float64, currencyCode currency.Code, moneySource string) (*OperationResponse, error) {
-	chain := c.builder.BuildWithdrawChain()
-
-	req := &OperationRequest{
-		UserID:       userID,
-		AccountID:    accountID,
-		Amount:       amount,
-		CurrencyCode: currencyCode,
-		Operation:    OperationWithdraw,
-		MoneySource:  moneySource,
-	}
-
-	return chain.Handle(ctx, req)
-}
-
-// WithdrawExternal executes a withdraw operation to an external target using the chain of responsibility pattern
-func (c *AccountChain) WithdrawExternal(ctx context.Context, userID, accountID uuid.UUID, amount float64, currencyCode currency.Code, externalTarget ExternalTarget) (*OperationResponse, error) {
+// Withdraw executes a withdraw operation to an external target using the chain of responsibility pattern
+func (c *AccountChain) Withdraw(ctx context.Context, userID, accountID uuid.UUID, amount float64, currencyCode currency.Code, externalTarget ExternalTarget, paymentID string) (*OperationResponse, error) {
 	chain := c.builder.BuildWithdrawChain()
 
 	req := &OperationRequest{
 		UserID:         userID,
 		AccountID:      accountID,
+		PaymentID:      paymentID,
 		Amount:         amount,
 		CurrencyCode:   currencyCode,
 		Operation:      OperationWithdraw,

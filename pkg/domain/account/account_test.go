@@ -38,7 +38,7 @@ func TestDepositNegativeAmount(t *testing.T) {
 	acc, _ := domainaccount.New().WithUserID(userID).WithCurrency(currency.USD).Build() //nolint:errcheck
 	money, err := money.New(-50.0, "USD")
 	require.NoError(err)
-	err = acc.Deposit(userID, money, domainaccount.MoneySourceInternal)
+	err = acc.Deposit(userID, money, domainaccount.MoneySourceInternal, "")
 	require.Error(err, "deposit amount must be positive")
 	events := acc.PullEvents()
 	require.Len(events, 0)
@@ -51,7 +51,7 @@ func TestDepositZeroAmount(t *testing.T) {
 	acc, _ := domainaccount.New().WithUserID(userID).WithCurrency(currency.USD).Build() //nolint:errcheck
 	money, err := money.New(0.0, "USD")
 	require.NoError(err)
-	err = acc.Deposit(userID, money, domainaccount.MoneySourceInternal)
+	err = acc.Deposit(userID, money, domainaccount.MoneySourceInternal, "")
 	require.Error(err, "Deposit with zero amount should return an error")
 	events := acc.PullEvents()
 	require.Len(events, 0)
@@ -63,7 +63,7 @@ func TestAccount_DepositUnauthorized(t *testing.T) {
 	acc, _ := domainaccount.New().WithUserID(userID).WithCurrency(currency.USD).Build() //nolint:errcheck
 	money, err := money.New(1000.0, "USD")
 	require.NoError(err)
-	err = acc.Deposit(uuid.New(), money, domainaccount.MoneySourceCash)
+	err = acc.Deposit(uuid.New(), money, domainaccount.MoneySourceCash, "")
 	require.Error(err, "Deposit with different user id should return error")
 	events := acc.PullEvents()
 	require.Len(events, 0)
@@ -75,7 +75,7 @@ func TestAccount_WithdrawUnauthorized(t *testing.T) {
 	acc, _ := domainaccount.New().WithUserID(userID).WithCurrency(currency.USD).Build() //nolint:errcheck
 	unauthorizedMoney, err := money.New(1000.0, "USD")
 	require.NoError(err)
-	err = acc.Withdraw(uuid.New(), unauthorizedMoney, domainaccount.ExternalTarget{BankAccountNumber: "4234738923432"})
+	err = acc.Withdraw(uuid.New(), unauthorizedMoney, domainaccount.ExternalTarget{BankAccountNumber: "4234738923432"}, "")
 	require.Error(err, "Withdraw with different user id should return error")
 	events := acc.PullEvents()
 	require.Len(events, 0)
@@ -97,7 +97,7 @@ func TestDeposit_EmitsEvent(t *testing.T) {
 	require.NoError(err)
 	m, err := money.New(100.0, "USD")
 	require.NoError(err)
-	err = acc.Deposit(userID, m, domainaccount.MoneySourceCash)
+	err = acc.Deposit(userID, m, domainaccount.MoneySourceCash, "")
 	require.NoError(err)
 	events := acc.PullEvents()
 	require.Len(events, 1)
@@ -119,7 +119,7 @@ func TestWithdraw_EmitsEvent(t *testing.T) {
 	m, err := money.New(50.0, "USD")
 	require.NoError(err)
 	exTgt := domainaccount.ExternalTarget{BankAccountNumber: "23423323"}
-	err = acc.Withdraw(userID, m, exTgt)
+	err = acc.Withdraw(userID, m, exTgt, "")
 	require.NoError(err)
 	events := acc.PullEvents()
 	require.Len(events, 1)

@@ -42,6 +42,7 @@ type DepositRequestedEvent struct {
 	Currency  string
 	Source    MoneySource
 	Timestamp int64
+	PaymentID string // Added for payment provider integration
 }
 
 // EventType returns the type of the DepositRequestedEvent.
@@ -56,6 +57,7 @@ type WithdrawRequestedEvent struct {
 	Currency  string
 	Target    ExternalTarget
 	Timestamp int64
+	PaymentID string // Added for payment provider integration
 }
 
 // EventType returns the type of the WithdrawRequestedEvent.

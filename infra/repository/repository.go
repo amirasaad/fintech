@@ -101,6 +101,7 @@ func (r *transactionRepository) Create(transaction *account.Transaction, convInf
 		ID:                   transaction.ID,
 		AccountID:            transaction.AccountID,
 		UserID:               transaction.UserID,
+		PaymentID:            transaction.PaymentID,
 		Amount:               transaction.Amount.Amount(),
 		Currency:             string(transaction.Amount.Currency()),
 		Balance:              transaction.Balance.Amount(),

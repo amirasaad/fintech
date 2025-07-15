@@ -174,10 +174,20 @@ func (s *Service) Deposit(
 	amount float64,
 	currencyCode currency.Code,
 	moneySource string,
-) error {
+) (*PaymentProcessingRequest, error) {
 	if amount <= 0 {
-		return errors.New("amount must be positive")
+		return nil, errors.New("amount must be positive")
 	}
+	// Initiate payment with provider
+	paymentID := ""
+	if s.deps.PaymentProvider != nil {
+		pid, err := s.deps.PaymentProvider.InitiatePayment(context.Background(), userID, accountID, amount, string(currencyCode))
+		if err != nil {
+			return nil, err
+		}
+		paymentID = pid
+	}
+	// Publish event with paymentID
 	evt := account.DepositRequestedEvent{
 		EventID:   uuid.New(),
 		AccountID: accountID.String(),
@@ -186,8 +196,13 @@ func (s *Service) Deposit(
 		Currency:  string(currencyCode),
 		Source:    account.MoneySource(moneySource),
 		Timestamp: time.Now().Unix(),
+		PaymentID: paymentID,
 	}
-	return s.deps.EventBus.Publish(evt)
+	err := s.deps.EventBus.Publish(evt)
+	if err != nil {
+		return nil, err
+	}
+	return &PaymentProcessingRequest{PaymentID: paymentID}, nil
 }
 
 // Withdraw removes funds from the specified account to an external target and creates a transaction record.
@@ -196,21 +211,35 @@ func (s *Service) Withdraw(
 	amount float64,
 	currencyCode currency.Code,
 	externalTarget handler.ExternalTarget,
-) error {
+) (*PaymentProcessingRequest, error) {
 	if amount <= 0 {
-		return errors.New("amount must be positive")
+		return nil, errors.New("amount must be positive")
 	}
-	// Only emit and publish event
+	// Initiate payment with provider
+	paymentID := ""
+	if s.deps.PaymentProvider != nil {
+		pid, err := s.deps.PaymentProvider.InitiatePayment(context.Background(), userID, accountID, amount, string(currencyCode))
+		if err != nil {
+			return nil, err
+		}
+		paymentID = pid
+	}
+	// Publish event with paymentID
 	evt := account.WithdrawRequestedEvent{
 		EventID:   uuid.New(),
 		AccountID: accountID.String(),
 		UserID:    userID.String(),
 		Amount:    amount,
 		Currency:  string(currencyCode),
-		Target:    externalTarget,
+		Target:    account.ExternalTarget(externalTarget),
 		Timestamp: time.Now().Unix(),
+		PaymentID: paymentID,
 	}
-	return s.deps.EventBus.Publish(evt)
+	err := s.deps.EventBus.Publish(evt)
+	if err != nil {
+		return nil, err
+	}
+	return &PaymentProcessingRequest{PaymentID: paymentID}, nil
 }
 
 // Transfer moves funds from one account to another account.
@@ -238,18 +267,39 @@ func (s *Service) Transfer(
 }
 
 // UpdateTransactionStatusByPaymentID updates the status of a transaction identified by its payment ID.
+// If the status is "completed", it also updates the account balance accordingly.
 func (s *Service) UpdateTransactionStatusByPaymentID(paymentID, status string) error {
-	repo, err := s.deps.Uow.TransactionRepository()
-	if err != nil {
-		return err
-	}
-	tx, err := repo.GetByPaymentID(paymentID)
-	if err != nil {
-		return err
-	}
-	tx.Status = account.TransactionStatus(status)
-	if err := repo.Update(tx); err != nil {
-		return err
-	}
-	return nil
+	// Use a unit of work for atomicity
+	return s.deps.Uow.Do(context.Background(), func(uow repository.UnitOfWork) error {
+		txRepo, err := uow.TransactionRepository()
+		if err != nil {
+			return err
+		}
+		accRepo, err := uow.AccountRepository()
+		if err != nil {
+			return err
+		}
+		tx, err := txRepo.GetByPaymentID(paymentID)
+		if err != nil {
+			return err
+		}
+		// Only update account if status is changing to completed and wasn't already completed
+		if status == "completed" && tx.Status != account.TransactionStatusCompleted {
+			acc, err := accRepo.Get(tx.AccountID)
+			if err != nil {
+				return err
+			}
+			newBalance, errAdd := acc.Balance.Add(tx.Amount)
+			if errAdd != nil {
+				return errAdd
+			}
+			acc.Balance = newBalance
+
+			if err := accRepo.Update(acc); err != nil {
+				return err
+			}
+		}
+		tx.Status = account.TransactionStatus(status)
+		return txRepo.Update(tx)
+	})
 }

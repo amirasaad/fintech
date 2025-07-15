@@ -12,3 +12,8 @@ const (
 	OperationWithdraw = handler.OperationWithdraw
 	OperationTransfer = handler.OperationTransfer
 )
+
+// PaymentProcessingRequest represents tracking data for user
+type PaymentProcessingRequest struct {
+	PaymentID string `json:"payment_id"`
+}

@@ -131,12 +131,11 @@ func Deposit(
 			currencyCode = currency.Code(input.Currency)
 		}
 		log.Infof("Deposit handler: calling service for user %s, account %s, amount %v, currency %s, money_source %s", userID, accountID, input.Amount, currencyCode, input.MoneySource)
-		err = accountSvc.Deposit(userID, accountID, input.Amount, currencyCode, input.MoneySource)
+		payment, err := accountSvc.Deposit(userID, accountID, input.Amount, currencyCode, input.MoneySource)
 		if err != nil {
 			return common.ProblemDetailsJSON(c, "Failed to deposit", err)
 		}
-		resp := fiber.Map{}
-		return common.SuccessResponseJSON(c, fiber.StatusAccepted, "Deposit request is being processed. Your deposit is being started and will be completed soon.", resp)
+		return common.SuccessResponseJSON(c, fiber.StatusAccepted, "Deposit request is being processed. Your deposit is being started and will be completed soon.", payment)
 	}
 }
 
@@ -202,12 +201,11 @@ func Withdraw(
 			RoutingNumber:         input.ExternalTarget.RoutingNumber,
 			ExternalWalletAddress: input.ExternalTarget.ExternalWalletAddress,
 		}
-		err = accountSvc.Withdraw(userID, accountID, input.Amount, currencyCode, handlerTarget)
+		payment, err := accountSvc.Withdraw(userID, accountID, input.Amount, currencyCode, handlerTarget)
 		if err != nil {
 			return common.ProblemDetailsJSON(c, "Failed to withdraw", err)
 		}
-		resp := fiber.Map{}
-		return common.SuccessResponseJSON(c, fiber.StatusAccepted, "Withdrawal request is being processed. Your withdrawal is being started and will be completed soon.", resp)
+		return common.SuccessResponseJSON(c, fiber.StatusAccepted, "Withdrawal request is being processed. Your withdrawal is being started and will be completed soon.", payment)
 	}
 }
 

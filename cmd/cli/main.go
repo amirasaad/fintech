@@ -216,13 +216,13 @@ func handleDeposit(args []string, scv *account.Service, errorMsg, successMsg fun
 		return
 	}
 
-	err = scv.Deposit(userID, uuid.MustParse(accountID), amount, "USD", "Internal")
+	payment, err := scv.Deposit(userID, uuid.MustParse(accountID), amount, "USD", "Internal")
 	if err != nil {
 		fmt.Println(errorMsg("Error depositing:"), err)
 		return
 	}
 
-	fmt.Println(successMsg(fmt.Sprintf("Deposited %.2f to account %s", amount, accountID)))
+	fmt.Println(successMsg(fmt.Sprintf("Deposited %.2f to account %s, payment %s", amount, accountID, payment.PaymentID)))
 }
 
 func handleWithdraw(args []string, scv *account.Service, errorMsg, successMsg func(a ...interface{}) string) {
@@ -257,13 +257,13 @@ func handleWithdraw(args []string, scv *account.Service, errorMsg, successMsg fu
 		ExternalWalletAddress: externalWalletAddress,
 	}
 
-	err = scv.Withdraw(userID, uuid.MustParse(accountID), amount, currency.Code("USD"), externalTarget)
+	payment, err := scv.Withdraw(userID, uuid.MustParse(accountID), amount, currency.Code("USD"), externalTarget)
 	if err != nil {
 		fmt.Println(errorMsg("Error withdrawing:"), err)
 		return
 	}
 
-	fmt.Println(successMsg(fmt.Sprintf("Withdrew %.2f from account %s", amount, accountID)))
+	fmt.Println(successMsg(fmt.Sprintf("Withdrew %.2f from account %s payment %s", amount, accountID, payment.PaymentID)))
 }
 
 func handleBalance(args []string, scv *account.Service, errorMsg, successMsg func(a ...interface{}) string) {

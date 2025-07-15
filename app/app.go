@@ -47,7 +47,8 @@ func New(deps config.Deps) *fiber.App {
 			amount := evt.Amount
 			currencyCode := currency.Code(evt.Currency)
 			moneySource := string(evt.Source)
-			_, err := accountChain.Deposit(context.Background(), userID, accountID, amount, currencyCode, moneySource)
+			paymentID := evt.PaymentID
+			_, err := accountChain.Deposit(context.Background(), userID, accountID, amount, currencyCode, moneySource, paymentID)
 			if err != nil {
 				deps.Logger.Error("Deposit event handler failed", "error", err)
 			}
@@ -62,7 +63,8 @@ func New(deps config.Deps) *fiber.App {
 			amount := evt.Amount
 			currencyCode := currency.Code(evt.Currency)
 			externalTarget := evt.Target
-			_, err := accountChain.WithdrawExternal(context.Background(), userID, accountID, amount, currencyCode, handler.ExternalTarget(externalTarget))
+			paymentID := evt.PaymentID
+			_, err := accountChain.Withdraw(context.Background(), userID, accountID, amount, currencyCode, handler.ExternalTarget(externalTarget), paymentID)
 			if err != nil {
 				deps.Logger.Error("Withdraw event handler failed", "error", err)
 			}

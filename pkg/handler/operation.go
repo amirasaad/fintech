@@ -18,7 +18,7 @@ type DepositOperationHandler struct {
 func (h *DepositOperationHandler) Handle(ctx context.Context, req *OperationRequest) (*OperationResponse, error) {
 	logger := h.logger.With("operation", "deposit")
 
-	err := req.Account.Deposit(req.UserID, req.ConvertedMoney, account.MoneySource(req.MoneySource))
+	err := req.Account.Deposit(req.UserID, req.ConvertedMoney, account.MoneySource(req.MoneySource), req.PaymentID)
 	if err != nil {
 		logger.Error("DepositOperationHandler failed: domain operation error", "error", err)
 		return &OperationResponse{Error: err}, nil
@@ -69,7 +69,7 @@ func (h *WithdrawOperationHandler) Handle(ctx context.Context, req *OperationReq
 	logger.Info("WithdrawOperationHandler: external target details", "bank_account_number", req.ExternalTarget.BankAccountNumber, "routing_number", req.ExternalTarget.RoutingNumber, "external_wallet_address", req.ExternalTarget.ExternalWalletAddress)
 	req.ExternalTargetMasked = maskExternalTarget(req.ExternalTarget)
 
-	err := req.Account.Withdraw(req.UserID, req.ConvertedMoney, account.ExternalTarget{RoutingNumber: "42342423"})
+	err := req.Account.Withdraw(req.UserID, req.ConvertedMoney, account.ExternalTarget{RoutingNumber: "42342423"}, req.PaymentID)
 	if err != nil {
 		logger.Error("WithdrawOperationHandler failed: domain operation error", "error", err)
 		return &OperationResponse{Error: err}, nil

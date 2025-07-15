@@ -53,6 +53,9 @@ type OperationRequest struct {
 	// For withdraw externalization
 	ExternalTarget       *ExternalTarget
 	ExternalTargetMasked string // Masked version for persistence
+
+	// External payment
+	PaymentID string
 }
 
 // OperationResponse contains the result of an account operation
