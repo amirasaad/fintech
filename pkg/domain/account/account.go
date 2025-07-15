@@ -243,7 +243,7 @@ func (a *Account) Deposit(userID uuid.UUID, m money.Money, moneySource MoneySour
 //   - Cannot withdraw more than the current balance.
 //
 // Returns a Transaction or an error if any invariant is violated.
-func (a *Account) Withdraw(userID uuid.UUID, m money.Money, moneySource MoneySource) error {
+func (a *Account) Withdraw(userID uuid.UUID, m money.Money, target ExternalTarget) error {
 	if a.UserID != userID {
 		return ErrNotOwner
 	}
@@ -258,7 +258,7 @@ func (a *Account) Withdraw(userID uuid.UUID, m money.Money, moneySource MoneySou
 		UserID:    userID.String(),
 		Amount:    m.AmountFloat(),
 		Currency:  string(m.Currency()),
-		Source:    moneySource,
+		Target:    target,
 		Timestamp: time.Now().Unix(),
 	})
 	return nil

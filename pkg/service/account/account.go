@@ -195,7 +195,7 @@ func (s *Service) Withdraw(
 	userID, accountID uuid.UUID,
 	amount float64,
 	currencyCode currency.Code,
-	externalTarget *handler.ExternalTarget,
+	externalTarget handler.ExternalTarget,
 ) error {
 	if amount <= 0 {
 		return errors.New("amount must be positive")
@@ -207,7 +207,7 @@ func (s *Service) Withdraw(
 		UserID:    userID.String(),
 		Amount:    amount,
 		Currency:  string(currencyCode),
-		Source:    account.MoneySourceExternalWallet,
+		Target:    externalTarget,
 		Timestamp: time.Now().Unix(),
 	}
 	return s.deps.EventBus.Publish(evt)

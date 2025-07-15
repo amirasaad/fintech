@@ -356,7 +356,7 @@ func TestChainBuilder_BuildDepositChain(t *testing.T) {
 
 	accountRepo.EXPECT().Get(mock.Anything).Return(acc, nil).Once()
 	accountRepo.EXPECT().Update(acc).Return(nil).Once()
-	transactionRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Maybe()
+	transactionRepo.EXPECT().Create(mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	logger := newTestLogger()
 	builder := NewChainBuilder(uow, converter, logger)
@@ -397,7 +397,7 @@ func TestChainBuilder_BuildWithdrawChain(t *testing.T) {
 	uow.EXPECT().TransactionRepository().Return(transactionRepo, nil).Once()
 
 	accountRepo.EXPECT().Get(mock.Anything).Return(acc, nil).Once()
-	transactionRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Once()
+	transactionRepo.EXPECT().Create(mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 	accountRepo.EXPECT().Update(acc).Return(nil).Once()
 
 	logger := newTestLogger()
@@ -441,7 +441,7 @@ func TestChainBuilder_BuildTransferChain(t *testing.T) {
 	accountRepo.EXPECT().Get(sourceAcc.ID).Return(sourceAcc, nil).Once()
 	accountRepo.EXPECT().Get(destAcc.ID).Return(destAcc, nil).Once()
 	// Expect two Create calls (for both transactions)
-	transactionRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Maybe()
+	transactionRepo.EXPECT().Create(mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	accountRepo.EXPECT().Update(mock.Anything).Return(nil).Maybe()
 
 	logger := newTestLogger()

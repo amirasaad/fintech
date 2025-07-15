@@ -203,7 +203,7 @@ func Withdraw(
 			RoutingNumber:         input.ExternalTarget.RoutingNumber,
 			ExternalWalletAddress: input.ExternalTarget.ExternalWalletAddress,
 		}
-		err = accountSvc.Withdraw(userID, accountID, input.Amount, currencyCode, &handlerTarget)
+		err = accountSvc.Withdraw(userID, accountID, input.Amount, currencyCode, handlerTarget)
 		if err != nil {
 			log.Errorf("Failed to withdraw: %v", err)
 			return common.ProblemDetailsJSON(c, "Failed to withdraw", err)

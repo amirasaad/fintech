@@ -54,7 +54,7 @@ type WithdrawRequestedEvent struct {
 	UserID    string
 	Amount    float64
 	Currency  string
-	Source    MoneySource
+	Target    ExternalTarget
 	Timestamp int64
 }
 

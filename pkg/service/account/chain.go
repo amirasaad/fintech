@@ -38,8 +38,8 @@ func (c *Chain) WithdrawExternal(ctx context.Context, userID, accountID uuid.UUI
 }
 
 // Transfer executes a transfer operation using the chain of responsibility pattern
-func (c *Chain) Transfer(ctx context.Context, userID, sourceAccountID, destAccountID uuid.UUID, amount float64, currencyCode currency.Code, moneySource string) (*handler.OperationResponse, error) {
-	return c.chain.Transfer(ctx, userID, sourceAccountID, destAccountID, amount, currencyCode, moneySource)
+func (c *Chain) Transfer(ctx context.Context, senderUserID, receiverUserID, sourceAccountID, destAccountID uuid.UUID, amount float64, currencyCode currency.Code) (*handler.OperationResponse, error) {
+	return c.chain.Transfer(ctx, senderUserID, receiverUserID, sourceAccountID, destAccountID, amount, currencyCode)
 }
 
 // OperationHandler defines the interface for handling account operations in the chain

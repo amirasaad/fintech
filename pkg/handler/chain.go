@@ -5,6 +5,7 @@ import (
 	"log/slog"
 
 	"github.com/amirasaad/fintech/pkg/currency"
+	"github.com/amirasaad/fintech/pkg/domain/account"
 	mon "github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/google/uuid"
@@ -72,17 +73,18 @@ func (c *AccountChain) WithdrawExternal(ctx context.Context, userID, accountID u
 }
 
 // Transfer executes a transfer operation using the chain of responsibility pattern
-func (c *AccountChain) Transfer(ctx context.Context, userID, sourceAccountID, destAccountID uuid.UUID, amount float64, currencyCode currency.Code, moneySource string) (*OperationResponse, error) {
+func (c *AccountChain) Transfer(ctx context.Context, senderUserID, receiverUserID, sourceAccountID, destAccountID uuid.UUID, amount float64, currencyCode currency.Code) (*OperationResponse, error) {
 	chain := c.builder.BuildTransferChain()
 
 	req := &OperationRequest{
-		UserID:        userID,
+		UserID:        senderUserID,
+		DestUserID:    receiverUserID,
 		AccountID:     sourceAccountID,
 		DestAccountID: destAccountID,
 		Amount:        amount,
 		CurrencyCode:  currencyCode,
 		Operation:     OperationTransfer,
-		MoneySource:   moneySource,
+		MoneySource:   string(account.MoneySourceInternal),
 	}
 
 	return chain.Handle(ctx, req)

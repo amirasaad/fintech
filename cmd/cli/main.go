@@ -251,7 +251,7 @@ func handleWithdraw(args []string, scv *account.Service, errorMsg, successMsg fu
 	externalWalletAddress, _ := reader.ReadString('\n')
 	externalWalletAddress = strings.TrimSpace(externalWalletAddress)
 
-	externalTarget := &handler.ExternalTarget{
+	externalTarget := handler.ExternalTarget{
 		BankAccountNumber:     bankAccountNumber,
 		RoutingNumber:         routingNumber,
 		ExternalWalletAddress: externalWalletAddress,

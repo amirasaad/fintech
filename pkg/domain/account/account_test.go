@@ -75,7 +75,7 @@ func TestAccount_WithdrawUnauthorized(t *testing.T) {
 	acc, _ := domainaccount.New().WithUserID(userID).WithCurrency(currency.USD).Build() //nolint:errcheck
 	unauthorizedMoney, err := money.New(1000.0, "USD")
 	require.NoError(err)
-	err = acc.Withdraw(uuid.New(), unauthorizedMoney, domainaccount.MoneySourceCash)
+	err = acc.Withdraw(uuid.New(), unauthorizedMoney, domainaccount.ExternalTarget{BankAccountNumber: "4234738923432"})
 	require.Error(err, "Withdraw with different user id should return error")
 	events := acc.PullEvents()
 	require.Len(events, 0)
@@ -118,7 +118,8 @@ func TestWithdraw_EmitsEvent(t *testing.T) {
 	require.NoError(err)
 	m, err := money.New(50.0, "USD")
 	require.NoError(err)
-	err = acc.Withdraw(userID, m, domainaccount.MoneySourceCash)
+	exTgt := domainaccount.ExternalTarget{BankAccountNumber: "23423323"}
+	err = acc.Withdraw(userID, m, exTgt)
 	require.NoError(err)
 	events := acc.PullEvents()
 	require.Len(events, 1)
@@ -128,7 +129,7 @@ func TestWithdraw_EmitsEvent(t *testing.T) {
 	assert.Equal(t, userID.String(), evt.UserID)
 	assert.InEpsilon(t, 50.0, evt.Amount, 0.01)
 	assert.Equal(t, "USD", evt.Currency)
-	assert.Equal(t, domainaccount.MoneySourceCash, evt.Source)
+	assert.Equal(t, exTgt, evt.Target)
 }
 
 func TestTransfer_EmitsEvent(t *testing.T) {

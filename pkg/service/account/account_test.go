@@ -139,7 +139,7 @@ func TestWithdraw_PublishesEvent(t *testing.T) {
 	memBus.Subscribe("WithdrawRequestedEvent", func(e domain.Event) {
 		publishedEvents = append(publishedEvents, e)
 	})
-	externalTarget := &handler.ExternalTarget{BankAccountNumber: "1234567890"}
+	externalTarget := handler.ExternalTarget{BankAccountNumber: "1234567890"}
 	err := svc.Withdraw(userID, accountID, 50.0, currency.USD, externalTarget)
 	require.NoError(t, err)
 	require.Len(t, publishedEvents, 1)
@@ -149,7 +149,7 @@ func TestWithdraw_PublishesEvent(t *testing.T) {
 	assert.Equal(t, accountID.String(), evt.AccountID)
 	assert.InEpsilon(t, 50.0, evt.Amount, 0.01)
 	assert.Equal(t, "USD", evt.Currency)
-	assert.Equal(t, accountdomain.MoneySourceExternalWallet, evt.Source)
+	assert.Equal(t, externalTarget, evt.Target)
 }
 
 func TestTransfer_PublishesEvent(t *testing.T) {

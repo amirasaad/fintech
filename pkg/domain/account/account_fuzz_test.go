@@ -71,7 +71,7 @@ func FuzzAccountWithdraw(f *testing.F) {
 				t.Errorf("Withdraw panicked: %v (amount=%v, currency=%q)", r, amount, cc)
 			}
 		}()
-		_ = acc.Withdraw(userID, mon, domainaccount.MoneySourceCash)
+		_ = acc.Withdraw(userID, mon, domainaccount.ExternalTarget{BankAccountNumber: "234323"})
 		// Invariant: balance should never be negative
 		if notNegative, err := acc.Balance.GreaterThan(money.Zero(acc.Balance.Currency())); err != nil {
 			if !notNegative {

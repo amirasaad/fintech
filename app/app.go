@@ -55,7 +55,37 @@ func New(deps config.Deps) *fiber.App {
 			deps.Logger.Error("event type assertion failed", "event", e)
 		}
 	})
-	// TODO: Register other event handlers (WithdrawRequestedEvent, TransferRequestedEvent, etc.)
+	deps.EventBus.Subscribe("WithdrawRequestedEvent", func(e domain.Event) {
+		if evt, ok := e.(accountdomain.WithdrawRequestedEvent); ok {
+			userID := uuid.MustParse(evt.UserID)
+			accountID := uuid.MustParse(evt.AccountID)
+			amount := evt.Amount
+			currencyCode := currency.Code(evt.Currency)
+			externalTarget := evt.Target
+			_, err := accountChain.WithdrawExternal(context.Background(), userID, accountID, amount, currencyCode, handler.ExternalTarget(externalTarget))
+			if err != nil {
+				deps.Logger.Error("Withdraw event handler failed", "error", err)
+			}
+		} else {
+			deps.Logger.Error("event type assertion failed", "event", e)
+		}
+	})
+	deps.EventBus.Subscribe("TransferRequestedEvent", func(e domain.Event) {
+		if evt, ok := e.(accountdomain.TransferRequestedEvent); ok {
+			senderUserID := evt.SenderUserID
+			receiverUserID := evt.ReceiverUserID
+			sourceAccID := evt.SourceAccountID
+			destAccID := evt.DestAccountID
+			amount := evt.Amount
+			currencyCode := currency.Code(evt.Currency)
+			_, err := accountChain.Transfer(context.Background(), senderUserID, receiverUserID, sourceAccID, destAccID, amount, currencyCode)
+			if err != nil {
+				deps.Logger.Error("Deposit event handler failed", "error", err)
+			}
+		} else {
+			deps.Logger.Error("event type assertion failed", "event", e)
+		}
+	})
 
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {

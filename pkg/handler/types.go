@@ -27,11 +27,7 @@ type OperationHandler interface {
 }
 
 // ExternalTarget represents the destination for an external withdrawal, such as a bank account or wallet.
-type ExternalTarget struct {
-	BankAccountNumber     string
-	RoutingNumber         string
-	ExternalWalletAddress string
-}
+type ExternalTarget = account.ExternalTarget
 
 // OperationRequest contains all the data needed for account operations.
 type OperationRequest struct {

@@ -59,17 +59,16 @@ func (h *PersistenceHandler) Handle(ctx context.Context, req *OperationRequest) 
 			case account.DepositRequestedEvent:
 				moneyVal, _ := money.New(e.Amount, currency.Code(e.Currency))
 				tx := &account.Transaction{
-					ID:                   uuid.New(),
-					AccountID:            uuid.MustParse(e.AccountID),
-					UserID:               uuid.MustParse(e.UserID),
-					Amount:               moneyVal,
-					MoneySource:          e.Source,
-					Status:               account.TransactionStatusInitiated,
-					ExternalTargetMasked: req.ExternalTargetMasked,
-					CreatedAt:            time.Now().UTC(),
+					ID:          uuid.New(),
+					AccountID:   uuid.MustParse(e.AccountID),
+					UserID:      uuid.MustParse(e.UserID),
+					Amount:      moneyVal,
+					MoneySource: e.Source,
+					Status:      account.TransactionStatusInitiated,
+					CreatedAt:   time.Now().UTC(),
 				}
 
-				if err := txRepo.Create(tx, req.ConvInfo); err != nil {
+				if err := txRepo.Create(tx, req.ConvInfo, ""); err != nil {
 					logger.Error("PersistenceHandler failed: transaction create error", "error", err)
 					return err
 				}
@@ -78,17 +77,16 @@ func (h *PersistenceHandler) Handle(ctx context.Context, req *OperationRequest) 
 			case account.WithdrawRequestedEvent:
 				moneyVal, _ := money.New(e.Amount, currency.Code(e.Currency))
 				tx := &account.Transaction{
-					ID:                   uuid.New(),
-					AccountID:            uuid.MustParse(e.AccountID),
-					UserID:               uuid.MustParse(e.UserID),
-					Amount:               moneyVal,
-					MoneySource:          e.Source,
-					Status:               account.TransactionStatusInitiated,
-					ExternalTargetMasked: req.ExternalTargetMasked,
-					CreatedAt:            time.Now().UTC(),
+					ID:             uuid.New(),
+					AccountID:      uuid.MustParse(e.AccountID),
+					UserID:         uuid.MustParse(e.UserID),
+					Amount:         moneyVal,
+					Status:         account.TransactionStatusInitiated,
+					ExternalTarget: account.ExternalTarget(*req.ExternalTarget),
+					CreatedAt:      time.Now().UTC(),
 				}
 
-				if err := txRepo.Create(tx, req.ConvInfo); err != nil {
+				if err := txRepo.Create(tx, req.ConvInfo, maskExternalTarget(req.ExternalTarget)); err != nil {
 					logger.Error("PersistenceHandler failed: transaction create error", "error", err)
 					return err
 				}
@@ -98,31 +96,29 @@ func (h *PersistenceHandler) Handle(ctx context.Context, req *OperationRequest) 
 				moneyVal, _ := money.New(e.Amount, currency.Code(e.Currency))
 				// Outgoing transaction (source account)
 				transactionOut = &account.Transaction{
-					ID:                   uuid.New(),
-					AccountID:            e.SourceAccountID,
-					UserID:               e.SenderUserID,
-					Amount:               moneyVal.Negate(),
-					MoneySource:          e.Source,
-					Status:               account.TransactionStatusInitiated,
-					ExternalTargetMasked: req.ExternalTargetMasked,
-					CreatedAt:            time.Now().UTC(),
+					ID:          uuid.New(),
+					AccountID:   e.SourceAccountID,
+					UserID:      e.SenderUserID,
+					Amount:      moneyVal.Negate(),
+					MoneySource: e.Source,
+					Status:      account.TransactionStatusInitiated,
+					CreatedAt:   time.Now().UTC(),
 				}
 				// Incoming transaction (destination account)
 				transactionIn = &account.Transaction{
-					ID:                   uuid.New(),
-					AccountID:            e.DestAccountID,
-					UserID:               e.ReceiverUserID,
-					Amount:               moneyVal,
-					MoneySource:          e.Source,
-					Status:               account.TransactionStatusInitiated,
-					ExternalTargetMasked: req.ExternalTargetMasked,
-					CreatedAt:            time.Now().UTC(),
+					ID:          uuid.New(),
+					AccountID:   e.DestAccountID,
+					UserID:      e.ReceiverUserID,
+					Amount:      moneyVal,
+					MoneySource: e.Source,
+					Status:      account.TransactionStatusInitiated,
+					CreatedAt:   time.Now().UTC(),
 				}
-				if err := txRepo.Create(transactionOut, req.ConvInfo); err != nil {
+				if err := txRepo.Create(transactionOut, req.ConvInfo, ""); err != nil {
 					logger.Error("PersistenceHandler failed: outgoing transaction create error", "error", err)
 					return err
 				}
-				if err := txRepo.Create(transactionIn, req.ConvInfo); err != nil {
+				if err := txRepo.Create(transactionIn, req.ConvInfo, ""); err != nil {
 					logger.Error("PersistenceHandler failed: incoming transaction create error", "error", err)
 					return err
 				}
@@ -186,12 +182,12 @@ func (h *TransferPersistenceHandler) Handle(ctx context.Context, req *OperationR
 			return err
 		}
 
-		if err = txRepo.Create(req.Transaction, req.ConvInfoOut); err != nil {
+		if err = txRepo.Create(req.Transaction, req.ConvInfoOut, ""); err != nil {
 			logger.Error("TransferPersistenceHandler failed: outgoing transaction create error", "error", err)
 			return err
 		}
 
-		if err = txRepo.Create(req.TransactionIn, req.ConvInfoIn); err != nil {
+		if err = txRepo.Create(req.TransactionIn, req.ConvInfoIn, ""); err != nil {
 			logger.Error("TransferPersistenceHandler failed: incoming transaction create error", "error", err)
 			return err
 		}

@@ -25,6 +25,7 @@ import (
 )
 
 // NewApp creates and configures a new Fiber application with all routes, middleware, and services.
+// Deprecated: use app.New
 func NewApp(
 	accountSvc *accountsvc.Service,
 	userSvc *usersvc.Service,
