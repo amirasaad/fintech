@@ -16,7 +16,6 @@ import (
 	accountdomain "github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/amirasaad/fintech/pkg/domain/user"
-	"github.com/amirasaad/fintech/pkg/handler"
 	"github.com/amirasaad/fintech/pkg/repository"
 	accountsvc "github.com/amirasaad/fintech/pkg/service/account"
 	"github.com/google/uuid"
@@ -139,7 +138,7 @@ func TestWithdraw_PublishesEvent(t *testing.T) {
 	memBus.Subscribe("WithdrawRequestedEvent", func(c context.Context, e domain.Event) {
 		publishedEvents = append(publishedEvents, e)
 	})
-	externalTarget := handler.ExternalTarget{BankAccountNumber: "1234567890"}
+	externalTarget := accountdomain.ExternalTarget{BankAccountNumber: "1234567890"}
 	err := svc.Withdraw(userID, accountID, 50.0, currency.USD, externalTarget)
 	require.NoError(t, err)
 	require.Len(t, publishedEvents, 1)

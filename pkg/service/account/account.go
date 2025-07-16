@@ -14,23 +14,19 @@ import (
 	"github.com/amirasaad/fintech/config"
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/account"
-	"github.com/amirasaad/fintech/pkg/handler"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/google/uuid"
 )
 
 // Service provides business logic for account operations including creation, deposits, withdrawals, and balance inquiries.
 type Service struct {
-	deps         config.Deps
-	accountChain *Chain
+	deps config.Deps
 }
 
 // NewService creates a new Service with the provided dependencies.
 func NewService(deps config.Deps) *Service {
-	accountChain := NewChain(deps)
 	return &Service{
-		accountChain: accountChain,
-		deps:         deps,
+		deps: deps,
 	}
 }
 
@@ -196,7 +192,7 @@ func (s *Service) Withdraw(
 	userID, accountID uuid.UUID,
 	amount float64,
 	currencyCode currency.Code,
-	externalTarget handler.ExternalTarget,
+	externalTarget account.ExternalTarget,
 ) error {
 	if amount <= 0 {
 		return errors.New("amount must be positive")
@@ -208,7 +204,7 @@ func (s *Service) Withdraw(
 		UserID:    userID.String(),
 		Amount:    amount,
 		Currency:  string(currencyCode),
-		Target:    account.ExternalTarget(externalTarget),
+		Target:    externalTarget,
 		Timestamp: time.Now().Unix(),
 	}
 	err := s.deps.EventBus.Publish(context.Background(), evt)

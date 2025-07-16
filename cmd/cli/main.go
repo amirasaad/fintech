@@ -17,7 +17,7 @@ import (
 	"github.com/amirasaad/fintech/infra/provider"
 	infra_repository "github.com/amirasaad/fintech/infra/repository"
 	"github.com/amirasaad/fintech/pkg/currency"
-	"github.com/amirasaad/fintech/pkg/handler"
+	accountdomain "github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/service/account"
 	"github.com/amirasaad/fintech/pkg/service/auth"
 	"github.com/fatih/color"
@@ -251,7 +251,7 @@ func handleWithdraw(args []string, scv *account.Service, errorMsg, successMsg fu
 	externalWalletAddress, _ := reader.ReadString('\n')
 	externalWalletAddress = strings.TrimSpace(externalWalletAddress)
 
-	externalTarget := handler.ExternalTarget{
+	externalTarget := accountdomain.ExternalTarget{
 		BankAccountNumber:     bankAccountNumber,
 		RoutingNumber:         routingNumber,
 		ExternalWalletAddress: externalWalletAddress,

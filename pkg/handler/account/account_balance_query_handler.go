@@ -3,8 +3,6 @@ package account
 import (
 	"context"
 	"errors"
-
-	"github.com/amirasaad/fintech/pkg/handler"
 )
 
 type GetAccountBalanceQuery struct {
@@ -19,6 +17,11 @@ type GetAccountBalanceResult struct {
 
 type AccountBalanceService interface {
 	GetBalance(ctx context.Context, userID, accountID string) (float64, string, error)
+}
+
+// QueryHandler defines the interface for handling queries
+type QueryHandler interface {
+	HandleQuery(ctx context.Context, query any) (any, error)
 }
 
 type getAccountBalanceQueryHandler struct {
@@ -37,6 +40,6 @@ func (h *getAccountBalanceQueryHandler) HandleQuery(ctx context.Context, query a
 	return GetAccountBalanceResult{Balance: bal, Currency: cur}, nil
 }
 
-func GetAccountBalanceQueryHandler(service AccountBalanceService) handler.QueryHandler {
+func GetAccountBalanceQueryHandler(service AccountBalanceService) QueryHandler {
 	return &getAccountBalanceQueryHandler{service: service}
 }

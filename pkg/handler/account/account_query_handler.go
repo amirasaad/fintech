@@ -6,7 +6,6 @@ import (
 
 	"github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/eventbus"
-	"github.com/amirasaad/fintech/pkg/handler"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/google/uuid"
 )
@@ -82,6 +81,6 @@ func (h *getAccountQueryHandler) HandleQuery(ctx context.Context, query any) (an
 	return GetAccountResult{Account: acc}, nil
 }
 
-func GetAccountQueryHandler(uow repository.UnitOfWork, eventBus eventbus.EventBus) handler.QueryHandler {
+func GetAccountQueryHandler(uow repository.UnitOfWork, eventBus eventbus.EventBus) QueryHandler {
 	return &getAccountQueryHandler{uow: uow, eventBus: eventBus}
 }

@@ -3,7 +3,7 @@ package account
 import (
 	"github.com/amirasaad/fintech/config"
 	"github.com/amirasaad/fintech/pkg/currency"
-	"github.com/amirasaad/fintech/pkg/handler"
+	"github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/middleware"
 	accountsvc "github.com/amirasaad/fintech/pkg/service/account"
 	authsvc "github.com/amirasaad/fintech/pkg/service/auth"
@@ -196,7 +196,7 @@ func Withdraw(
 		if input.Currency != "" {
 			currencyCode = currency.Code(input.Currency)
 		}
-		handlerTarget := handler.ExternalTarget{
+		handlerTarget := account.ExternalTarget{
 			BankAccountNumber:     input.ExternalTarget.BankAccountNumber,
 			RoutingNumber:         input.ExternalTarget.RoutingNumber,
 			ExternalWalletAddress: input.ExternalTarget.ExternalWalletAddress,
