@@ -64,6 +64,7 @@ plugins:
   - tags
   - offline
   - blog
+  - swagger-ui-tag
 
 extra:
   version:
@@ -80,20 +81,28 @@ nav:
     - Testing: testing.md
     - Examples: examples.md
   - Currency & Exchange:
-      - Currency System: currency/currency-system.md
-      - Exchange Rates: currency/exchange-rates.md
-      - Multi-Currency: currency/multi-currency.md
+    - currency/index.md
+    - Currency System: currency/currency-system.md
+    - Exchange Rates: currency/exchange-rates.md
+    - Multi-Currency: currency/multi-currency.md
   - Payments:
+    - payments/index.md
     - Event-Driven Payments: payments/event-driven-payments.md
     - Stripe Integration: payments/stripe-integration.md
   - Refactoring:
-      - Patterns: refactoring/patterns.md
-      - Account Service: refactoring/account-service.md
-      - Decorator Pattern: refactoring/decorator-pattern.md
-      - UOW Pattern: refactoring/uow-pattern.md
-      - Event-Driven:
-        - Architecture: refactoring/event-driven-architecture.md
-        - Lessons: refactoring/event-driven-lessons.md
-  - API Reference: api/openapi.yaml
+    - refactoring/index.md
+    - Patterns: refactoring/patterns.md
+    - Account Service: refactoring/account-service.md
+    - Decorator Pattern: refactoring/decorator-pattern.md
+    - UOW Pattern: refactoring/uow-pattern.md
+    - Architecture: refactoring/event-driven-architecture.md
+    - Lessons: refactoring/event-driven-lessons.md
+    - Layered-dependency-injection: refactoring/layered-dependency-injection.md
+  - API Reference:
+    - api/index.md
+    - Requests(REST Client):
+      - requests/index.md
+      - Account: requests/account.http
+      - Currencies: requests/currencies.http
   - Blog:
     - blog/index.md
