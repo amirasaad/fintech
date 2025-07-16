@@ -1,0 +1,88 @@
+site_name: Fintech Docs
+repo_url: https://github.com/amirasaad/fintech
+site_url: https://amirasaad.github.io/fintech/
+theme:
+  name: material
+  font:
+    text: Roboto
+    code: Roboto Mono
+  palette:
+      primary: black
+      accent: pink
+      scheme: slate
+  features:
+    - navigation.tabs
+    - navigation.top
+    - navigation.instant
+    - navigation.instant.progress
+    - navigation.instant.prefetch
+    - navigation.sections
+    - navigation.instant.preview
+    - navigation.expand
+    - navigation.footer
+    - navigation.indexes
+    - search.suggest
+    - search.highlight
+    - content.code.annotate
+    - content.tabs.link
+    - content.action.edit
+    - content.action.view
+    - content.tooltips
+    - content.footnote.tooltips
+    - content.code.select
+    - content.code.copy
+
+markdown_extensions:
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - footnotes
+  - pymdownx.critic
+  - pymdownx.caret
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.tilde
+  - attr_list
+  - md_in_html
+  - pymdownx.tabbed:
+      alternate_style: true
+  - admonition
+
+plugins:
+  - search
+  - tags
+  - offline
+  - blog
+
+extra:
+  version:
+    default: stable
+
+nav:
+  - Home: index.md
+  - Currency & Exchange:
+      - Currency System: currency/currency-system.md
+      - Exchange Rates: currency/exchange-rates.md
+      - Multi-Currency: currency/multi-currency.md
+  - Payments:
+    - Event-Driven Payments: payments/event-driven-payments.md
+    - Stripe Integration: payments/stripe-integration.md
+  - Refactoring:
+      - Patterns: refactoring/patterns.md
+      - Account Service: refactoring/account-service.md
+      - Decorator Pattern: refactoring/decorator-pattern.md
+      - UOW Pattern: refactoring/uow-pattern.md
+  - API Reference: api/openapi.yaml
+  - Blog:
+    - blog/index.md

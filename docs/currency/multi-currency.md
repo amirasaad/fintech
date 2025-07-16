@@ -1,6 +1,10 @@
-# Multi-Currency Support
+---
+icon: material/finance
+---
 
-## Overview
+# Multi-Currency
+
+## 🌐 Overview
 
 The fintech platform supports multi-currency accounts and transactions with robust, precise, and domain-driven conversion and rounding logic. All currency conversion and rounding is handled in the domain layer, ensuring:
 
@@ -16,25 +20,25 @@ The fintech platform supports multi-currency accounts and transactions with robu
 - All values are stored in the smallest unit (e.g., cents for USD) as BIGINT.
 - Conversion details (original amount, rate, etc.) are stored as DECIMAL(30,15) for full float64 compatibility.
 
-## Database Schema
+## 🗄️ Database Schema
 
 - Money values: BIGINT (smallest unit)
 - Conversion fields: DECIMAL(30,15)
 
-## Best Practices
+## 🏅 Best Practices
 
 - Pass raw float64 values to the domain layer; do not round in the service or API layers.
 - The domain will round and validate as needed.
 - All conversion and rounding logic is centralized for consistency and safety.
 
-## Example
+## 🧪 Example
 
 - Deposit 1,000,000,000 JPY to a USD account:
   - The system fetches the exchange rate, converts, and rounds to 2 decimals for USD.
   - The result is stored as an integer (cents) in the DB.
   - The original amount, rate, and conversion details are stored as DECIMAL(30,15).
 
-## Recent Improvements
+## 🚀 Recent Improvements
 
 - Domain-driven rounding and validation using big.Rat
 - Full float64 compatibility for conversion fields

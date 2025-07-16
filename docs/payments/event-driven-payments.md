@@ -1,8 +1,10 @@
-# Current Payment Flow (Synchronous/Polling)
+---
+icon: material/sync
+---
 
-This section documents the current payment flow for deposit, withdraw, and transfer operations in the system. The flow is synchronous and relies on polling the payment provider for completion before proceeding with business logic and persistence.
+# Event-Driven Payments
 
-## Flow Description
+## 🏁 Flow Description
 
 1. **API Request**
    - User sends a request to deposit, withdraw, or transfer funds via the API (`/account/:id/deposit`, `/account/:id/withdraw`, `/account/:id/transfer`).
@@ -25,7 +27,7 @@ This section documents the current payment flow for deposit, withdraw, and trans
 4. **API Response**
    - The handler serializes the transaction and conversion info (if any) and returns a success response to the client.
 
-## Mermaid Diagram: Current Payment Flow
+## 🖼️ Mermaid Diagram: Current Payment Flow
 
 ```mermaid
 sequenceDiagram
@@ -52,20 +54,9 @@ sequenceDiagram
     Service->>API: Success (transaction, conversion info)
 ```
 
-## Event-Driven Payment Flow Migration
+## 🔄 Event-Driven Payment Flow Migration
 
-## Overview
-
-This document describes the migration from a synchronous, polling-based payment confirmation model to an event-driven, webhook-based architecture for deposit and withdrawal operations.
-
-### Why Event-Driven?
-
-- **Scalability:** Decouples user requests from payment processing, allowing for long-running or delayed confirmations.
-- **Realism:** Matches how real payment providers (Stripe, banks, etc.) operate.
-- **Resilience:** Enables retries, error handling, and user notification on payment status changes.
-- **Observability:** All state changes are explicit and traceable.
-
-## High-Level Architecture
+## 🏗️ High-Level Architecture
 
 1. **User initiates deposit/withdrawal.**
    - System creates a transaction with status `initiated`.
@@ -81,7 +72,7 @@ This document describes the migration from a synchronous, polling-based payment 
    - Triggers business logic (e.g., credit/debit account, notify user).
 5. **User/client can poll or subscribe for status updates.**
 
-## Event Publishing in the Service Layer
+## 🔔 Event Publishing in the Service Layer
 
 The service publishes a `PaymentEvent` at each stage:
 
@@ -107,7 +98,7 @@ _ = s.eventBus.PublishPaymentEvent(account.PaymentEvent{
 })
 ```
 
-## In-Memory Event Bus for Testing
+## 🧪 In-Memory Event Bus for Testing
 
 For local development and testing, the `MemoryEventBus` implementation records all published events in a slice. This allows tests to assert on the number, order, and content of events:
 
@@ -126,7 +117,7 @@ assert.Equal(t, accountdomain.PaymentStatusPending, memBus.Events[1].Status)
 assert.Equal(t, accountdomain.PaymentStatusCompleted, memBus.Events[3].Status)
 ```
 
-## Mermaid Diagram: Event-Driven Payment Flow
+## 🖼️ Mermaid Diagram: Event-Driven Payment Flow
 
 ```mermaid
 sequenceDiagram
@@ -150,13 +141,13 @@ sequenceDiagram
     Service->>API: Success (transaction, conversion info)
 ```
 
-## Transaction Lifecycle
+## 🔁 Transaction Lifecycle
 
 - **pending:** Payment initiated, awaiting confirmation.
 - **completed:** Payment confirmed by provider, funds credited/debited.
 - **failed:** Payment failed or was rejected by provider.
 
-## Endpoints
+## 🔗 Endpoints
 
 - **POST /account/:id/deposit**
   - Initiates a deposit, creates a `pending` transaction.
@@ -174,7 +165,7 @@ sequenceDiagram
 - **GET /transaction/:id/status** (optional)
   - Returns current status of a transaction for polling clients.
 
-## Migration Plan
+## 🚧 Migration Plan
 
 1. **Add `status` field to transaction model and database.**
 2. **Refactor service methods to create `pending` transactions and return immediately.**
@@ -183,7 +174,7 @@ sequenceDiagram
 5. **Update tests and mocks to simulate webhook/callbacks.**
 6. **Document new flow for team and clients.**
 
-## Testing and Observability
+## 🔬 Testing and Observability
 
 - **Unit tests:** Cover all transaction state transitions and error cases.
 - **Integration/E2E tests:** Simulate full payment flow, including webhook delivery.
@@ -191,7 +182,7 @@ sequenceDiagram
 - **Tracing:** Use OpenTelemetry to trace payment initiation, webhook handling, and status updates.
 - **Metrics:** Track transaction counts, status transitions, webhook latency, and error rates.
 
-## Best Practices
+## 🏅 Best Practices
 
 - **Webhook Security:** Validate signatures, use HTTPS, and ensure idempotency.
 - **Error Handling:** Implement retries and dead-letter queues for failed webhooks.
@@ -199,7 +190,7 @@ sequenceDiagram
 - **User Notification:** Optionally notify users on status changes (email, websocket, etc.).
 - **Documentation:** Keep this doc and API references up to date as the system evolves.
 
-## Business Logic and Persistence (After Mega Refactor)
+## 🏦 Business Logic and Persistence (After Mega Refactor)
 
 - Persistence is now handled by operation-specific handlers:
   - `DepositPersistenceHandler`
@@ -209,7 +200,7 @@ sequenceDiagram
 - Webhook triggers the correct handler and updates both transaction status and account balance.
 - The legacy monolithic handler is removed.
 
-## Updated Mermaid Diagram: Event-Driven Payment Flow
+## 📈 Updated Mermaid Diagram: Event-Driven Payment Flow
 
 ```mermaid
 sequenceDiagram
