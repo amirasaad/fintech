@@ -43,6 +43,15 @@ func New(deps config.Deps) *fiber.App {
 	bus.Subscribe("DepositRequestedEvent", handleraccount.DepositValidationHandler(bus))
 	bus.Subscribe("DepositValidatedEvent", handleraccount.MoneyCreationHandler(bus))
 	bus.Subscribe("MoneyCreatedEvent", handleraccount.DepositPersistenceHandler(bus))
+
+	// Register event-driven withdraw workflow handlers
+	bus.Subscribe("WithdrawRequestedEvent", handleraccount.WithdrawValidationHandler(bus))
+	// TODO: Add WithdrawDomainOpHandler and WithdrawPersistenceHandler when implemented
+
+	// Register event-driven transfer workflow handlers
+	bus.Subscribe("TransferRequestedEvent", handleraccount.TransferValidationHandler(bus))
+	bus.Subscribe("TransferValidatedEvent", handleraccount.TransferDomainOpHandler(bus /* TODO: inject TransferDomainOperator */, nil))
+	bus.Subscribe("TransferDomainOpDoneEvent", handleraccount.TransferPersistenceHandler(bus /* TODO: inject TransferPersistenceAdapter */, nil))
 	// Add more as you implement them
 
 	app := fiber.New(fiber.Config{
