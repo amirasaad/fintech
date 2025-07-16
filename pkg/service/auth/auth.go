@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/amirasaad/fintech/pkg/config"
+	"github.com/amirasaad/fintech/config"
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/amirasaad/fintech/pkg/utils"

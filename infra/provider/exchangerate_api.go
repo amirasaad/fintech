@@ -8,8 +8,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/amirasaad/fintech/config"
 	"github.com/amirasaad/fintech/pkg/cache"
-	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/provider"
 )

@@ -11,7 +11,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/amirasaad/fintech/pkg/config"
+	"github.com/amirasaad/fintech/config"
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/handler"

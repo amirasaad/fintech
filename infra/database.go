@@ -4,7 +4,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/amirasaad/fintech/pkg/config"
+	"github.com/amirasaad/fintech/config"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"

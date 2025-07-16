@@ -3,7 +3,7 @@ package account
 import (
 	"context"
 
-	"github.com/amirasaad/fintech/pkg/config"
+	"github.com/amirasaad/fintech/config"
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/handler"
 	"github.com/google/uuid"

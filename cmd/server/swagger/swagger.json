@@ -14,7 +14,6 @@
         },
         "version": "1.0.0"
     },
-    "host": "fintech-beryl-beta.vercel.app",
     "basePath": "/",
     "paths": {
         "/account": {
@@ -1307,7 +1306,8 @@
         "account.WithdrawRequest": {
             "type": "object",
             "required": [
-                "amount"
+                "amount",
+                "external_target"
             ],
             "properties": {
                 "amount": {
@@ -1315,6 +1315,9 @@
                 },
                 "currency": {
                     "type": "string"
+                },
+                "external_target": {
+                    "$ref": "#/definitions/github_com_amirasaad_fintech_webapi_account.ExternalTarget"
                 }
             }
         },
@@ -1452,6 +1455,26 @@
                 },
                 "symbol": {
                     "type": "string"
+                }
+            }
+        },
+        "github_com_amirasaad_fintech_webapi_account.ExternalTarget": {
+            "type": "object",
+            "properties": {
+                "bank_account_number": {
+                    "type": "string",
+                    "maxLength": 34,
+                    "minLength": 6
+                },
+                "external_wallet_address": {
+                    "type": "string",
+                    "maxLength": 128,
+                    "minLength": 6
+                },
+                "routing_number": {
+                    "type": "string",
+                    "maxLength": 12,
+                    "minLength": 6
                 }
             }
         },
