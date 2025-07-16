@@ -9,11 +9,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type mockDepositService struct {
+type mockDepositAdapter struct {
 	depositFn func(ctx context.Context, userID, accountID string, amount float64, currency string) error
 }
 
-func (m *mockDepositService) Deposit(ctx context.Context, userID, accountID string, amount float64, currency string) error {
+func (m *mockDepositAdapter) Deposit(ctx context.Context, userID, accountID string, amount float64, currency string) error {
 	return m.depositFn(ctx, userID, accountID, amount, currency)
 }
 
@@ -26,7 +26,7 @@ func TestDepositDomainOpHandler_BusinessLogic(t *testing.T) {
 	tests := []struct {
 		name       string
 		input      accountdomain.PaymentInitiatedEvent
-		service    *mockDepositService
+		s          DepositDomainOperator
 		expectPub  bool
 		expectUser string
 		expectAcc  string
@@ -43,7 +43,7 @@ func TestDepositDomainOpHandler_BusinessLogic(t *testing.T) {
 					Currency:  currency,
 				},
 			},
-			service: &mockDepositService{
+			s: &mockDepositAdapter{
 				depositFn: func(ctx context.Context, u, a string, amt float64, cur string) error {
 					assert.Equal(t, userID, u)
 					assert.Equal(t, accountID, a)
@@ -68,7 +68,7 @@ func TestDepositDomainOpHandler_BusinessLogic(t *testing.T) {
 					Currency:  currency,
 				},
 			},
-			service: &mockDepositService{
+			s: &mockDepositAdapter{
 				depositFn: func(ctx context.Context, u, a string, amt float64, cur string) error {
 					return errors.New("domain op failed")
 				},
@@ -79,7 +79,7 @@ func TestDepositDomainOpHandler_BusinessLogic(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			bus := &mockEventBus{}
-			handler := DepositDomainOpHandler(bus, tc.service)
+			handler := DepositDomainOpHandler(bus, tc.s)
 			ctx := context.Background()
 			handler(ctx, tc.input)
 			if tc.expectPub {

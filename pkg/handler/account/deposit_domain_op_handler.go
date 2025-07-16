@@ -9,12 +9,14 @@ import (
 	"github.com/amirasaad/fintech/pkg/eventbus"
 )
 
-type DepositService interface {
+// Add DepositDomainOperator interface for testability
+// DepositDomainOperator defines the Deposit method signature for domain op handler
+type DepositDomainOperator interface {
 	Deposit(ctx context.Context, userID, accountID string, amount float64, currency string) error
 }
 
 // DepositDomainOpHandler handles PaymentInitiatedEvent, performs the deposit domain operation, and publishes DepositDomainOpDoneEvent.
-func DepositDomainOpHandler(bus eventbus.EventBus, service DepositService) func(context.Context, domain.Event) {
+func DepositDomainOpHandler(bus eventbus.EventBus, service DepositDomainOperator) func(context.Context, domain.Event) {
 	return func(ctx context.Context, e domain.Event) {
 		pe, ok := e.(accountdomain.PaymentInitiatedEvent)
 		if !ok {
