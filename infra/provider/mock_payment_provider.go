@@ -38,7 +38,7 @@ func NewMockPaymentProvider() *MockPaymentProvider {
 }
 
 // InitiatePayment simulates initiating a deposit payment.
-func (m *MockPaymentProvider) InitiatePayment(ctx context.Context, userID, accountID uuid.UUID, amount float64, currency string) (string, error) {
+func (m *MockPaymentProvider) InitiatePayment(ctx context.Context, userID, accountID uuid.UUID, amount int64, currency string) (string, error) {
 	paymentID := uuid.New().String()
 	m.mu.Lock()
 	m.payments[paymentID] = &mockPayment{status: provider.PaymentPending}

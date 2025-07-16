@@ -1,0 +1,8 @@
+<svg width="1100" height="180" viewBox="0 0 1100 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Icon: Graduation cap for educational purpose, left-aligned with extra top margin -->
+  <text x="120" y="80" font-size="90" font-family="'Fira Mono', Menlo, monospace" fill="#00BFFF" style="user-select:none;">🎓</text>
+  <!-- Project Name: Large, bold, accent color, monospace, centered with extra top margin -->
+  <text x="550" y="80" text-anchor="middle" font-size="70" font-family="'Fira Mono', Menlo, monospace" fill="#00BFFF" font-weight="bold" style="user-select:none;">Fintech Platform</text>
+  <!-- Tagline: Slogan with warning emoji, right-padded, smaller font, extra bottom margin -->
+  <text x="800" y="170" font-size="16" font-family="'Fira Mono', Menlo, monospace" fill="#FFD600" style="user-select:none;">⚠️ For Educational Purpose</text>
+</svg>

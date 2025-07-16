@@ -1,7 +1,7 @@
 package account
 
 import (
-	"github.com/amirasaad/fintech/pkg/config"
+	"github.com/amirasaad/fintech/config"
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/handler"
 	"github.com/amirasaad/fintech/pkg/middleware"
@@ -131,11 +131,11 @@ func Deposit(
 			currencyCode = currency.Code(input.Currency)
 		}
 		log.Infof("Deposit handler: calling service for user %s, account %s, amount %v, currency %s, money_source %s", userID, accountID, input.Amount, currencyCode, input.MoneySource)
-		payment, err := accountSvc.Deposit(userID, accountID, input.Amount, currencyCode, input.MoneySource)
+		err = accountSvc.Deposit(userID, accountID, input.Amount, currencyCode, input.MoneySource)
 		if err != nil {
 			return common.ProblemDetailsJSON(c, "Failed to deposit", err)
 		}
-		return common.SuccessResponseJSON(c, fiber.StatusAccepted, "Deposit request is being processed. Your deposit is being started and will be completed soon.", payment)
+		return common.SuccessResponseJSON(c, fiber.StatusAccepted, "Deposit request is being processed. Your deposit is being started and will be completed soon.", fiber.Map{})
 	}
 }
 
@@ -201,11 +201,11 @@ func Withdraw(
 			RoutingNumber:         input.ExternalTarget.RoutingNumber,
 			ExternalWalletAddress: input.ExternalTarget.ExternalWalletAddress,
 		}
-		payment, err := accountSvc.Withdraw(userID, accountID, input.Amount, currencyCode, handlerTarget)
+		err = accountSvc.Withdraw(userID, accountID, input.Amount, currencyCode, handlerTarget)
 		if err != nil {
 			return common.ProblemDetailsJSON(c, "Failed to withdraw", err)
 		}
-		return common.SuccessResponseJSON(c, fiber.StatusAccepted, "Withdrawal request is being processed. Your withdrawal is being started and will be completed soon.", payment)
+		return common.SuccessResponseJSON(c, fiber.StatusAccepted, "Withdrawal request is being processed. Your withdrawal is being started and will be completed soon.", fiber.Map{})
 	}
 }
 

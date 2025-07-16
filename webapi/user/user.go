@@ -1,7 +1,7 @@
 package user
 
 import (
-	"github.com/amirasaad/fintech/pkg/config"
+	"github.com/amirasaad/fintech/config"
 	"github.com/amirasaad/fintech/pkg/domain/user"
 	"github.com/amirasaad/fintech/pkg/middleware"
 	authsvc "github.com/amirasaad/fintech/pkg/service/auth"

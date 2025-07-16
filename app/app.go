@@ -17,7 +17,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/limiter"
 	"github.com/gofiber/swagger"
 
-	"github.com/amirasaad/fintech/pkg/config"
+	"github.com/amirasaad/fintech/config"
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/handler"
@@ -26,6 +26,8 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/google/uuid"
+
+	_ "github.com/amirasaad/fintech/cmd/server/swagger"
 )
 
 // New builds all services, registers event handlers, and returns the Fiber app.
@@ -38,7 +40,7 @@ func New(deps config.Deps) *fiber.App {
 	currencySvc := currencysvc.NewCurrencyService(deps.CurrencyRegistry, deps.Logger)
 
 	// Register event handlers (example for DepositRequestedEvent)
-	accountChain := handler.NewAccountChain(deps.Uow, deps.CurrencyConverter, deps.Logger)
+	accountChain := handler.NewAccountChain(deps.Uow, deps.CurrencyConverter, deps.PaymentProvider, deps.Logger)
 	deps.EventBus.Subscribe("DepositRequestedEvent", func(e domain.Event) {
 		// Use type assertion with ok check
 		if evt, ok := e.(accountdomain.DepositRequestedEvent); ok {

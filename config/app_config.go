@@ -30,6 +30,14 @@ type RateLimitConfig struct {
 	Window      time.Duration `envconfig:"WINDOW" default:"1m"`
 }
 
+type PaymentProviderStripe struct {
+	ApiKey string `envconfig:"API_KEY"`
+}
+
+type PaymentProviders struct {
+	Stripe PaymentProviderStripe `envconfig:"STRIPE"`
+}
+
 type ExchangeRateConfig struct {
 	ApiKey            string        `envconfig:"API_KEY"`
 	ApiUrl            string        `envconfig:"API_URL" default:"https://api.exchangerate-api.com/v4/latest"`
@@ -44,15 +52,17 @@ type ExchangeRateConfig struct {
 }
 
 type AppConfig struct {
-	Env       string             `envconfig:"APP_ENV" default:"development"`
-	Host      string             `envconfig:"APP_HOST" default:"localhost"`
-	Port      int                `envconfig:"APP_PORT" default:"3000"`
-	DB        DBConfig           `envconfig:"DATABASE"`
-	Auth      AuthConfig         `envconfig:"AUTH"`
-	Jwt       JwtConfig          `envconfig:"JWT"`
-	Exchange  ExchangeRateConfig `envconfig:"EXCHANGE_RATE"`
-	Redis     RedisConfig        `envconfig:"REDIS"`
-	RateLimit RateLimitConfig    `envconfig:"RATE_LIMIT"`
+	Env              string             `envconfig:"APP_ENV" default:"development"`
+	Scheme           string             `envconfig:"APP_SCHEME" default:"https"`
+	Host             string             `envconfig:"APP_HOST" default:"localhost"`
+	Port             int                `envconfig:"APP_PORT" default:"3000"`
+	DB               DBConfig           `envconfig:"DATABASE"`
+	Auth             AuthConfig         `envconfig:"AUTH"`
+	Jwt              JwtConfig          `envconfig:"JWT"`
+	Exchange         ExchangeRateConfig `envconfig:"EXCHANGE_RATE"`
+	Redis            RedisConfig        `envconfig:"REDIS"`
+	RateLimit        RateLimitConfig    `envconfig:"RATE_LIMIT"`
+	PaymentProviders PaymentProviders   `envconfig:"PAYMENT_PROVIDER"`
 }
 
 func maskApiKey(key string) string {

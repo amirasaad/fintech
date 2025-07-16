@@ -32,8 +32,11 @@ definitions:
         type: number
       currency:
         type: string
+      external_target:
+        $ref: '#/definitions/github_com_amirasaad_fintech_webapi_account.ExternalTarget'
     required:
     - amount
+    - external_target
     type: object
   auth.LoginInput:
     properties:
@@ -129,6 +132,21 @@ definitions:
     - name
     - symbol
     type: object
+  github_com_amirasaad_fintech_webapi_account.ExternalTarget:
+    properties:
+      bank_account_number:
+        maxLength: 34
+        minLength: 6
+        type: string
+      external_wallet_address:
+        maxLength: 128
+        minLength: 6
+        type: string
+      routing_number:
+        maxLength: 12
+        minLength: 6
+        type: string
+    type: object
   user.NewUser:
     properties:
       email:
@@ -160,7 +178,6 @@ definitions:
         maxLength: 100
         type: string
     type: object
-host: fintech-beryl-beta.vercel.app
 info:
   contact:
     email: fiber@swagger.io

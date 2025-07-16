@@ -9,9 +9,9 @@ import (
 	"github.com/amirasaad/fintech/app"
 	"github.com/amirasaad/fintech/infra/eventbus"
 
+	"github.com/amirasaad/fintech/config"
 	"github.com/amirasaad/fintech/infra"
 	"github.com/amirasaad/fintech/infra/provider"
-	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/currency"
 
 	infra_repository "github.com/amirasaad/fintech/infra/repository"

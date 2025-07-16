@@ -3,10 +3,10 @@ package infra
 import (
 	"log/slog"
 
+	"github.com/amirasaad/fintech/config"
 	infra_cache "github.com/amirasaad/fintech/infra/cache"
 	infra_provider "github.com/amirasaad/fintech/infra/provider"
 	"github.com/amirasaad/fintech/pkg/cache"
-	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/provider"
 	"github.com/redis/go-redis/v9"

@@ -6,9 +6,9 @@ import (
 	"math"
 	"time"
 
+	"github.com/amirasaad/fintech/config"
 	infra_cache "github.com/amirasaad/fintech/infra/cache"
 	"github.com/amirasaad/fintech/pkg/cache"
-	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/provider"
 )
@@ -48,24 +48,11 @@ func (s *ExchangeRateService) GetRate(from, to string) (*domain.ExchangeRate, er
 
 	cacheKey := fmt.Sprintf("%s:%s", from, to)
 
-	// Check last update timestamp
-	if redisCache, ok := s.cache.(*infra_cache.RedisExchangeRateCache); ok {
-		s.logger.Info("[DIAG] Checking last update timestamp in Redis", "key", cacheKey)
-		lastUpdate, err := redisCache.GetLastUpdate(cacheKey)
-		if err != nil {
-			s.logger.Warn("[DIAG] Failed to get last update from Redis", "key", cacheKey, "error", err)
-		}
-		if err == nil && !lastUpdate.IsZero() {
-			s.logger.Info("[DIAG] Last update timestamp found", "key", cacheKey, "lastUpdate", lastUpdate, "age", time.Since(lastUpdate), "ttl", s.cfg.CacheTTL)
-		}
-		if err == nil && !lastUpdate.IsZero() && time.Since(lastUpdate) < s.cfg.CacheTTL {
-			// Try cache first
-			if cached, err := s.cache.Get(cacheKey); err == nil && cached != nil {
-				if time.Now().Before(cached.ExpiresAt) {
-					s.logger.Info("[DIAG] Exchange rate retrieved from cache (last update valid)", "from", from, "to", to, "rate", cached.Rate)
-					return cached, nil
-				}
-			}
+	// Try direct pair in cache
+	if cached, err := s.cache.Get(cacheKey); err == nil && cached != nil {
+		if time.Now().Before(cached.ExpiresAt) {
+			s.logger.Info("Exchange rate retrieved from cache (direct)", "from", from, "to", to, "rate", cached.Rate)
+			return cached, nil
 		}
 	}
 
@@ -73,7 +60,7 @@ func (s *ExchangeRateService) GetRate(from, to string) (*domain.ExchangeRate, er
 	reverseKey := fmt.Sprintf("%s:%s", to, from)
 	if cached, err := s.cache.Get(reverseKey); err == nil && cached != nil {
 		if time.Now().Before(cached.ExpiresAt) && cached.Rate != 0 {
-			s.logger.Debug("Exchange rate retrieved from cache (reversed)", "from", to, "to", from, "rate", cached.Rate)
+			s.logger.Info("Exchange rate retrieved from cache (reversed)", "from", to, "to", from, "rate", cached.Rate)
 			return &domain.ExchangeRate{
 				FromCurrency: from,
 				ToCurrency:   to,

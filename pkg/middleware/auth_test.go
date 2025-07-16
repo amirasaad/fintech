@@ -7,7 +7,7 @@ import (
 
 	"errors"
 
-	"github.com/amirasaad/fintech/pkg/config"
+	"github.com/amirasaad/fintech/config"
 	"github.com/gofiber/fiber/v2"
 )
 

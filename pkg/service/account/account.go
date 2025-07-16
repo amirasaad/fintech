@@ -11,7 +11,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/amirasaad/fintech/pkg/config"
+	"github.com/amirasaad/fintech/config"
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/handler"
@@ -174,18 +174,9 @@ func (s *Service) Deposit(
 	amount float64,
 	currencyCode currency.Code,
 	moneySource string,
-) (*PaymentProcessingRequest, error) {
+) error {
 	if amount <= 0 {
-		return nil, errors.New("amount must be positive")
-	}
-	// Initiate payment with provider
-	paymentID := ""
-	if s.deps.PaymentProvider != nil {
-		pid, err := s.deps.PaymentProvider.InitiatePayment(context.Background(), userID, accountID, amount, string(currencyCode))
-		if err != nil {
-			return nil, err
-		}
-		paymentID = pid
+		return errors.New("amount must be positive")
 	}
 	// Publish event with paymentID
 	evt := account.DepositRequestedEvent{
@@ -196,13 +187,8 @@ func (s *Service) Deposit(
 		Currency:  string(currencyCode),
 		Source:    account.MoneySource(moneySource),
 		Timestamp: time.Now().Unix(),
-		PaymentID: paymentID,
 	}
-	err := s.deps.EventBus.Publish(evt)
-	if err != nil {
-		return nil, err
-	}
-	return &PaymentProcessingRequest{PaymentID: paymentID}, nil
+	return s.deps.EventBus.Publish(evt)
 }
 
 // Withdraw removes funds from the specified account to an external target and creates a transaction record.
@@ -211,18 +197,9 @@ func (s *Service) Withdraw(
 	amount float64,
 	currencyCode currency.Code,
 	externalTarget handler.ExternalTarget,
-) (*PaymentProcessingRequest, error) {
+) error {
 	if amount <= 0 {
-		return nil, errors.New("amount must be positive")
-	}
-	// Initiate payment with provider
-	paymentID := ""
-	if s.deps.PaymentProvider != nil {
-		pid, err := s.deps.PaymentProvider.InitiatePayment(context.Background(), userID, accountID, amount, string(currencyCode))
-		if err != nil {
-			return nil, err
-		}
-		paymentID = pid
+		return errors.New("amount must be positive")
 	}
 	// Publish event with paymentID
 	evt := account.WithdrawRequestedEvent{
@@ -233,13 +210,12 @@ func (s *Service) Withdraw(
 		Currency:  string(currencyCode),
 		Target:    account.ExternalTarget(externalTarget),
 		Timestamp: time.Now().Unix(),
-		PaymentID: paymentID,
 	}
 	err := s.deps.EventBus.Publish(evt)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return &PaymentProcessingRequest{PaymentID: paymentID}, nil
+	return nil
 }
 
 // Transfer moves funds from one account to another account.

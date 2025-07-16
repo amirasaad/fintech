@@ -1,12 +1,14 @@
-# Unit of Work Pattern Improvements
+---
+icon: material/tools
+---
 
-## Overview
+# Unit of Work (UOW) Pattern
+
+## 🏁 Overview
 
 This document outlines the improvements made to the Unit of Work (UOW) pattern in the fintech application, focusing on maintaining transaction safety while improving type safety and developer experience.
 
-## Current UOW Pattern Analysis
-
-### ✅ **What Works Well**
+## ✅ What Works Well
 
 The current UOW pattern provides excellent transaction management:
 
@@ -19,7 +21,7 @@ err = s.uow.Do(context.Background(), func(uow repository.UnitOfWork) error {
         return err
     }
     accountRepo := repoAny.(repository.AccountRepository)
-    
+
     // Business logic here...
     return nil
 })
@@ -33,7 +35,7 @@ err = s.uow.Do(context.Background(), func(uow repository.UnitOfWork) error {
 - ✅ **Error handling** - automatic rollback on any error
 - ✅ **Clean architecture** - business logic separated from infrastructure
 
-### ❌ **What Needs Improvement**
+## ❌ What Needs Improvement
 
 The current pattern has some developer experience issues:
 
@@ -47,9 +49,7 @@ repoAny, err := uow.GetRepository(reflect.TypeOf((*repository.AccountRepository)
 accountRepo := repoAny.(repository.AccountRepository)
 ```
 
-## Recommended Solution: Type-Safe Convenience Methods
-
-### Implementation
+## 📦 Implementation
 
 We've added type-safe convenience methods to the UOW interface:
 
@@ -59,7 +59,7 @@ type UnitOfWork interface {
     // Existing methods
     Do(ctx context.Context, fn func(uow UnitOfWork) error) error
     GetRepository(repoType reflect.Type) (any, error)
-    
+
     // New type-safe convenience methods
     AccountRepository() (AccountRepository, error)
     TransactionRepository() (TransactionRepository, error)
@@ -96,7 +96,7 @@ func (u *UoW) UserRepository() (repository.UserRepository, error) {
 }
 ```
 
-## Migration Guide
+## 🚀 Migration Notes
 
 ### Before (Current Pattern)
 
@@ -109,13 +109,13 @@ func (s *AccountService) Deposit(userID, accountID uuid.UUID, amount float64, cu
             return err
         }
         accountRepo := repoAny.(repository.AccountRepository)
-        
+
         txRepoAny, err := uow.GetRepository(reflect.TypeOf((*repository.TransactionRepository)(nil)).Elem())
         if err != nil {
             return err
         }
         txRepo := txRepoAny.(repository.TransactionRepository)
-        
+
         // Business logic...
         return nil
     })
@@ -132,12 +132,12 @@ func (s *AccountService) Deposit(userID, accountID uuid.UUID, amount float64, cu
         if err != nil {
             return err
         }
-        
+
         txRepo, err := uow.TransactionRepository()
         if err != nil {
             return err
         }
-        
+
         // Business logic...
         return nil
     })
@@ -221,16 +221,16 @@ func (s *AccountService) executeOperation(req operationRequest, handler operatio
         if err != nil {
             return err
         }
-        
+
         txRepo, err := uow.TransactionRepository()
         if err != nil {
             return err
         }
-        
+
         // OLD: Remove reflect-based code
         // repoAny, err := uow.GetRepository(reflect.TypeOf((*repository.AccountRepository)(nil)).Elem())
         // accountRepo := repoAny.(repository.AccountRepository)
-        
+
         // Business logic remains the same...
         return nil
     })
@@ -244,7 +244,7 @@ func (s *AccountService) executeOperation(req operationRequest, handler operatio
 2. **String-based approach** - For dynamic repository loading
 3. **Hybrid approach** - Combine multiple patterns
 
-## Benefits of the Improved Pattern
+## 💡 Benefits
 
 ### ✅ **Developer Experience**
 
@@ -280,10 +280,10 @@ type AccountService struct {
 func (s *AccountService) Deposit(userID, accountID uuid.UUID, amount float64, currencyCode currency.Code) error {
     logger := s.logger.With("userID", userID, "accountID", accountID, "amount", amount, "currency", currencyCode)
     logger.Info("Deposit started")
-    
+
     var tx *account.Transaction
     var convInfo *common.ConversionInfo
-    
+
     err := s.uow.Do(context.Background(), func(uow repository.UnitOfWork) error {
         // Type-safe repository access
         accountRepo, err := uow.AccountRepository()
@@ -291,26 +291,26 @@ func (s *AccountService) Deposit(userID, accountID uuid.UUID, amount float64, cu
             logger.Error("Failed to get account repository", "error", err)
             return err
         }
-        
+
         txRepo, err := uow.TransactionRepository()
         if err != nil {
             logger.Error("Failed to get transaction repository", "error", err)
             return err
         }
-        
+
         // Get account
         acc, err := accountRepo.Get(accountID)
         if err != nil {
             logger.Error("Account not found", "error", err)
             return account.ErrAccountNotFound
         }
-        
+
         // Business logic...
         tx, err = acc.Deposit(userID, money)
         if err != nil {
             return err
         }
-        
+
         // Update account and create transaction
         if err = accountRepo.Update(acc); err != nil {
             return err
@@ -318,15 +318,15 @@ func (s *AccountService) Deposit(userID, accountID uuid.UUID, amount float64, cu
         if err = txRepo.Create(tx); err != nil {
             return err
         }
-        
+
         return nil
     })
-    
+
     if err != nil {
         logger.Error("Deposit failed", "error", err)
         return err
     }
-    
+
     logger.Info("Deposit successful", "transactionID", tx.ID)
     return nil
 }
@@ -348,9 +348,9 @@ func TestAccountService_Deposit(t *testing.T) {
             return mockTransactionRepo, nil
         },
     }
-    
+
     service := NewAccountService(mockUOW, converter, logger)
-    
+
     // Test implementation...
 }
 ```

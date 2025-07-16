@@ -3,7 +3,7 @@ package account
 import (
 	"context"
 
-	"github.com/amirasaad/fintech/pkg/config"
+	"github.com/amirasaad/fintech/config"
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/handler"
 	"github.com/google/uuid"
@@ -17,7 +17,7 @@ type Chain struct {
 // NewChain creates a new account chain with the given dependencies
 func NewChain(deps config.Deps) *Chain {
 	return &Chain{
-		chain: handler.NewAccountChain(deps.Uow, deps.CurrencyConverter, deps.Logger),
+		chain: handler.NewAccountChain(deps.Uow, deps.CurrencyConverter, deps.PaymentProvider, deps.Logger),
 	}
 }
 

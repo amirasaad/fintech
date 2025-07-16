@@ -1,41 +1,55 @@
-# Real Exchange Rates and Currency Conversion
+---
+icon: material/chart-line-variant
+---
 
-## Overview
+# Real Exchange Rates & Currency Conversion
 
-The fintech system supports robust, precise, and domain-driven currency conversion for all account and transaction operations. All currency conversion, rounding, and decimal enforcement is handled in the domain layer, ensuring:
+## 📈 Overview
 
-- Any float64 value can be safely passed for conversion and storage.
-- Rounding is always performed to the correct number of decimals for the target currency.
-- All math is performed using Go's big.Rat for arbitrary-precision, avoiding floating-point imprecision.
-- The domain layer is responsible for all rounding and validation, not the service or API layers.
+The fintech system uses a robust, production-ready exchange rate provider setup:
 
-## Conversion Flow
+- **ExchangeRateAPIProvider** (`infra/provider/exchangerate_api.go`): Fetches real-time rates from [exchangerate-api.com](https://www.exchangerate-api.com/), with caching and health checks.
+- **ExchangeRateService** (`infra/provider/exchange_rates.go`): Orchestrates provider selection, caching, and fallback logic.
+- **RealCurrencyConverter** (`infra/provider/currency_converter.go`): Performs conversions using the above service.
+
+**Example:**
+
+```go
+provider := provider.NewExchangeRateAPIProvider(cfg, logger)
+service := provider.NewExchangeRateService([]provider.ExchangeRateProvider{provider}, cache, logger, cfg)
+converter := provider.NewRealCurrencyConverter(service, fallback, logger)
+```
+
+!!! tip "Why this matters"
+    This setup ensures reliable, up-to-date currency conversion with robust fallback and caching.
+
+## :repeat: Conversion Flow
 
 1. The service layer requests a conversion (e.g., deposit/withdraw in a different currency).
-2. The domain layer performs the conversion using the latest exchange rate.
+2. The domain layer performs the conversion using the latest exchange rate (via the real provider).
 3. The result is rounded to the correct number of decimals for the target currency using big.Rat.
 4. The value is stored in the smallest unit (e.g., cents for USD) as an integer (BIGINT in the DB).
 5. Conversion details (original amount, rate, etc.) are stored as DECIMAL(30,15) for full float64 compatibility.
 
-## Database Schema
+## 🗄️ Database Schema
 
 - All money values are stored as BIGINT (smallest unit, e.g., cents).
 - Conversion fields (original_amount, conversion_rate) in the transactions table are stored as DECIMAL(30,15) to support any float64 value.
 
-## Best Practices
+## 🏅 Best Practices
 
 - Always pass raw float64 values to the domain layer; do not round in the service or API layers.
 - The domain will round and validate as needed.
 - All conversion and rounding logic is centralized for consistency and safety.
 
-## Example
+## 🧪 Example
 
 - Deposit 1,000,000,000 JPY to a USD account:
   - The system fetches the exchange rate, converts, and rounds to 2 decimals for USD.
   - The result is stored as an integer (cents) in the DB.
   - The original amount, rate, and conversion details are stored as DECIMAL(30,15).
 
-## Recent Improvements
+## 🚀 Recent Improvements
 
 - Domain-driven rounding and validation using big.Rat
 - Full float64 compatibility for conversion fields

@@ -9,9 +9,9 @@ import (
 	"time"
 
 	"github.com/amirasaad/fintech/app"
+	"github.com/amirasaad/fintech/config"
 	"github.com/amirasaad/fintech/infra/eventbus"
 	infra_provider "github.com/amirasaad/fintech/infra/provider"
-	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/gofiber/fiber/v2"
