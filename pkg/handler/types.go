@@ -26,6 +26,11 @@ type OperationHandler interface {
 	SetNext(handler OperationHandler)
 }
 
+// QueryHandler defines the interface for handling query operations (CQRS/read model/event-driven queries).
+type QueryHandler interface {
+	HandleQuery(ctx context.Context, query any) (result any, err error)
+}
+
 // ExternalTarget represents the destination for an external withdrawal, such as a bank account or wallet.
 type ExternalTarget = account.ExternalTarget
 
