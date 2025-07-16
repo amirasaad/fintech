@@ -91,6 +91,9 @@ nav:
       - Account Service: refactoring/account-service.md
       - Decorator Pattern: refactoring/decorator-pattern.md
       - UOW Pattern: refactoring/uow-pattern.md
+      - Event-Driven:
+        - Architecture: refactoring/event-driven-architecture.md
+        - Lessons: refactoring/event-driven-lessons.md
   - API Reference: api/openapi.yaml
   - Blog:
     - blog/index.md

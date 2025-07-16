@@ -1,4 +1,7 @@
-# 🔗 API Endpoints & Usage
+---
+icon: material/link
+---
+# API Endpoints & Usage
 
 The Fintech Platform exposes a comprehensive RESTful API for all its functionalities. The API design prioritizes clear resource naming, standard HTTP methods, and meaningful status codes.
 

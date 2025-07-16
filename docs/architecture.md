@@ -1,4 +1,7 @@
-# 🏗️ Architecture & Design Choices
+---
+icon: material/chess-knight
+---
+# Architecture & Design Choices
 
 This project leverages a modern tech stack and adheres to robust design principles to ensure a high-quality, performant, and maintainable application.
 

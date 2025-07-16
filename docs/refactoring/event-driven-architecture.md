@@ -1,4 +1,7 @@
-# 🟢 Event-Driven Architecture: Event Chaining Pattern
+---
+icon: material/circle
+---
+# Event-Driven Architecture: Event Chaining Pattern
 
 ## Overview
 

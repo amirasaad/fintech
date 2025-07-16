@@ -1,4 +1,8 @@
-# 🔄 Service ↔ Domain Layer Communication
+---
+icon: material/repeat
+---
+
+# Service Domain Layer Communication
 
 This project follows clean architecture principles, with clear separation between the service and domain layers.
 

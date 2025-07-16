@@ -1,4 +1,8 @@
-# 🧪 Testing
+---
+icon: material/test-tube
+---
+
+# Testing
 
 Comprehensive testing is crucial for ensuring the reliability and correctness of a financial application. This project includes a robust testing suite.
 
