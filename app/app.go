@@ -39,6 +39,10 @@ func New(deps config.Deps) *fiber.App {
 	// Create a new context-aware event bus
 	bus := eventbus.NewSimpleEventBus()
 
+	// Register account validation flow handlers
+	bus.Subscribe("AccountQuerySucceededEvent", handleraccount.AccountValidationHandler(bus, deps.Logger))
+	bus.Subscribe("AccountValidatedEvent", handleraccount.MoneyCreationHandler(bus))
+
 	// Register event-driven deposit workflow handlers
 	bus.Subscribe("DepositRequestedEvent", handleraccount.DepositValidationHandler(bus))
 	bus.Subscribe("DepositValidatedEvent", handleraccount.MoneyCreationHandler(bus))
@@ -54,8 +58,8 @@ func New(deps config.Deps) *fiber.App {
 	bus.Subscribe("TransferDomainOpDoneEvent", handleraccount.TransferPersistenceHandler(bus /* TODO: inject TransferPersistenceAdapter */, nil))
 	// Add more as you implement them
 
-	// Register query handlers
-	// TODO: Register GetAccountQueryHandler with a query bus or expose as needed
+	// TODO: Create and register query handlers with a query bus or expose in API layer
+	// Example: getAccountQueryHandler := handleraccount.GetAccountQueryHandler(deps.Uow, bus)
 
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
