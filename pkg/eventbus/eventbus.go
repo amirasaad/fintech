@@ -1,6 +1,8 @@
 package eventbus
 
 import (
+	"context"
+
 	"github.com/amirasaad/fintech/pkg/domain"
 )
 
@@ -8,6 +10,6 @@ import (
 
 // EventBus defines the contract for publishing and subscribing to domain events.
 type EventBus interface {
-	Publish(event domain.Event) error
-	Subscribe(eventType string, handler func(domain.Event))
+	Publish(ctx context.Context, event domain.Event) error
+	Subscribe(eventType string, handler func(context.Context, domain.Event))
 }

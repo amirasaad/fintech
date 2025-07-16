@@ -112,7 +112,7 @@ func TestDeposit_PublishesEvent(t *testing.T) {
 
 	// Register the handler before publishing
 	var called bool
-	memBus.Subscribe("DepositRequestedEvent", func(e domain.Event) {
+	memBus.Subscribe("DepositRequestedEvent", func(c context.Context, e domain.Event) {
 		called = true
 		// Optionally, assert on event fields here
 	})
@@ -136,7 +136,7 @@ func TestWithdraw_PublishesEvent(t *testing.T) {
 	userID := uuid.New()
 	accountID := uuid.New()
 	var publishedEvents []domain.Event
-	memBus.Subscribe("WithdrawRequestedEvent", func(e domain.Event) {
+	memBus.Subscribe("WithdrawRequestedEvent", func(c context.Context, e domain.Event) {
 		publishedEvents = append(publishedEvents, e)
 	})
 	externalTarget := handler.ExternalTarget{BankAccountNumber: "1234567890"}
@@ -165,7 +165,7 @@ func TestTransfer_PublishesEvent(t *testing.T) {
 	sourceAccountID := uuid.New()
 	destAccountID := uuid.New()
 	var publishedEvents []domain.Event
-	memBus.Subscribe("TransferRequestedEvent", func(e domain.Event) {
+	memBus.Subscribe("TransferRequestedEvent", func(c context.Context, e domain.Event) {
 		publishedEvents = append(publishedEvents, e)
 	})
 	err := svc.Transfer(userID, sourceAccountID, destAccountID, 25.0, currency.USD)

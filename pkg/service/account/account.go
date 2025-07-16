@@ -188,7 +188,7 @@ func (s *Service) Deposit(
 		Source:    account.MoneySource(moneySource),
 		Timestamp: time.Now().Unix(),
 	}
-	return s.deps.EventBus.Publish(evt)
+	return s.deps.EventBus.Publish(context.Background(), evt)
 }
 
 // Withdraw removes funds from the specified account to an external target and creates a transaction record.
@@ -211,7 +211,7 @@ func (s *Service) Withdraw(
 		Target:    account.ExternalTarget(externalTarget),
 		Timestamp: time.Now().Unix(),
 	}
-	err := s.deps.EventBus.Publish(evt)
+	err := s.deps.EventBus.Publish(context.Background(), evt)
 	if err != nil {
 		return err
 	}
@@ -239,7 +239,7 @@ func (s *Service) Transfer(
 		Source:          account.MoneySourceInternal,
 		Timestamp:       time.Now().Unix(),
 	}
-	return s.deps.EventBus.Publish(evt)
+	return s.deps.EventBus.Publish(context.Background(), evt)
 }
 
 // UpdateTransactionStatusByPaymentID updates the status of a transaction identified by its payment ID.

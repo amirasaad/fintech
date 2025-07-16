@@ -78,3 +78,30 @@ type TransferRequestedEvent struct {
 
 // EventType returns the type of the TransferRequestedEvent.
 func (e TransferRequestedEvent) EventType() string { return "TransferRequestedEvent" }
+
+// DepositValidatedEvent is emitted after deposit validation succeeds.
+type DepositValidatedEvent struct {
+	DepositRequestedEvent
+	// Add any fields produced by validation (e.g., loaded Account)
+}
+
+// EventType returns the type of the DepositValidatedEvent.
+func (e DepositValidatedEvent) EventType() string { return "DepositValidatedEvent" }
+
+// MoneyCreatedEvent is emitted after money creation/conversion.
+type MoneyCreatedEvent struct {
+	DepositValidatedEvent
+	// Add fields for created money, conversion info, etc.
+}
+
+// EventType returns the type of the MoneyCreatedEvent.
+func (e MoneyCreatedEvent) EventType() string { return "MoneyCreatedEvent" }
+
+// DepositPersistedEvent is emitted after persistence is complete.
+type DepositPersistedEvent struct {
+	MoneyCreatedEvent
+	// Add fields for DB transaction, etc.
+}
+
+// EventType returns the type of the DepositPersistedEvent.
+func (e DepositPersistedEvent) EventType() string { return "DepositPersistedEvent" }

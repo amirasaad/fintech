@@ -1,10 +1,11 @@
 package app
 
 import (
-	"context"
 	"errors"
 	"strings"
 
+	"github.com/amirasaad/fintech/pkg/eventbus"
+	handleraccount "github.com/amirasaad/fintech/pkg/handler/account"
 	"github.com/amirasaad/fintech/pkg/processor"
 	accountsvc "github.com/amirasaad/fintech/pkg/service/account"
 	authsvc "github.com/amirasaad/fintech/pkg/service/auth"
@@ -19,14 +20,9 @@ import (
 	"github.com/gofiber/swagger"
 
 	"github.com/amirasaad/fintech/config"
-	"github.com/amirasaad/fintech/pkg/currency"
-	"github.com/amirasaad/fintech/pkg/domain"
-	"github.com/amirasaad/fintech/pkg/handler"
 
-	accountdomain "github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/recover"
-	"github.com/google/uuid"
 
 	_ "github.com/amirasaad/fintech/cmd/server/swagger"
 )
@@ -40,57 +36,14 @@ func New(deps config.Deps) *fiber.App {
 	authSvc := authsvc.NewAuthService(deps.Uow, authStrategy, deps.Logger)
 	currencySvc := currencysvc.NewCurrencyService(deps.CurrencyRegistry, deps.Logger)
 
-	// Register event handlers (example for DepositRequestedEvent)
-	accountChain := handler.NewAccountChain(deps.Uow, deps.CurrencyConverter, deps.PaymentProvider, deps.Logger)
-	deps.EventBus.Subscribe("DepositRequestedEvent", func(e domain.Event) {
-		// Use type assertion with ok check
-		if evt, ok := e.(accountdomain.DepositRequestedEvent); ok {
-			userID := uuid.MustParse(evt.UserID)
-			accountID := uuid.MustParse(evt.AccountID)
-			amount := evt.Amount
-			currencyCode := currency.Code(evt.Currency)
-			moneySource := string(evt.Source)
-			paymentID := evt.PaymentID
-			_, err := accountChain.Deposit(context.Background(), userID, accountID, amount, currencyCode, moneySource, paymentID)
-			if err != nil {
-				deps.Logger.Error("Deposit event handler failed", "error", err)
-			}
-		} else {
-			deps.Logger.Error("event type assertion failed", "event", e)
-		}
-	})
-	deps.EventBus.Subscribe("WithdrawRequestedEvent", func(e domain.Event) {
-		if evt, ok := e.(accountdomain.WithdrawRequestedEvent); ok {
-			userID := uuid.MustParse(evt.UserID)
-			accountID := uuid.MustParse(evt.AccountID)
-			amount := evt.Amount
-			currencyCode := currency.Code(evt.Currency)
-			externalTarget := evt.Target
-			paymentID := evt.PaymentID
-			_, err := accountChain.Withdraw(context.Background(), userID, accountID, amount, currencyCode, handler.ExternalTarget(externalTarget), paymentID)
-			if err != nil {
-				deps.Logger.Error("Withdraw event handler failed", "error", err)
-			}
-		} else {
-			deps.Logger.Error("event type assertion failed", "event", e)
-		}
-	})
-	deps.EventBus.Subscribe("TransferRequestedEvent", func(e domain.Event) {
-		if evt, ok := e.(accountdomain.TransferRequestedEvent); ok {
-			senderUserID := evt.SenderUserID
-			receiverUserID := evt.ReceiverUserID
-			sourceAccID := evt.SourceAccountID
-			destAccID := evt.DestAccountID
-			amount := evt.Amount
-			currencyCode := currency.Code(evt.Currency)
-			_, err := accountChain.Transfer(context.Background(), senderUserID, receiverUserID, sourceAccID, destAccID, amount, currencyCode)
-			if err != nil {
-				deps.Logger.Error("Deposit event handler failed", "error", err)
-			}
-		} else {
-			deps.Logger.Error("event type assertion failed", "event", e)
-		}
-	})
+	// Create a new context-aware event bus
+	bus := eventbus.NewSimpleEventBus()
+
+	// Register event-driven deposit workflow handlers
+	bus.Subscribe("DepositRequestedEvent", handleraccount.DepositValidationHandler(bus))
+	bus.Subscribe("DepositValidatedEvent", handleraccount.MoneyCreationHandler(bus))
+	bus.Subscribe("MoneyCreatedEvent", handleraccount.DepositPersistenceHandler(bus))
+	// Add more as you implement them
 
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
