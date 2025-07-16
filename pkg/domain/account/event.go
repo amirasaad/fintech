@@ -1,6 +1,11 @@
 package account
 
-import "github.com/google/uuid"
+import (
+	"github.com/amirasaad/fintech/pkg/currency"
+	"github.com/amirasaad/fintech/pkg/domain/common"
+	"github.com/amirasaad/fintech/pkg/domain/money"
+	"github.com/google/uuid"
+)
 
 // PaymentStatus represents the status of a payment transaction event.
 type PaymentStatus string
@@ -91,7 +96,8 @@ func (e DepositValidatedEvent) EventType() string { return "DepositValidatedEven
 // MoneyCreatedEvent is emitted after money creation/conversion.
 type MoneyCreatedEvent struct {
 	DepositValidatedEvent
-	// Add fields for created money, conversion info, etc.
+	Money          money.Money   // The created money object
+	TargetCurrency currency.Code // The currency to convert to (if needed)
 }
 
 // EventType returns the type of the MoneyCreatedEvent.
@@ -105,3 +111,31 @@ type DepositPersistedEvent struct {
 
 // EventType returns the type of the DepositPersistedEvent.
 func (e DepositPersistedEvent) EventType() string { return "DepositPersistedEvent" }
+
+// MoneyConvertedEvent is emitted after currency conversion is complete.
+type MoneyConvertedEvent struct {
+	MoneyCreatedEvent
+	Money          money.Money            // The (possibly converted) money object
+	ConversionInfo *common.ConversionInfo // Conversion details, if any
+}
+
+// EventType returns the type of the MoneyConvertedEvent.
+func (e MoneyConvertedEvent) EventType() string { return "MoneyConvertedEvent" }
+
+// PaymentInitiatedEvent is emitted after payment initiation with a provider.
+type PaymentInitiatedEvent struct {
+	MoneyConvertedEvent
+	// Add fields for payment provider response, payment ID, etc.
+}
+
+// EventType returns the type of the PaymentInitiatedEvent.
+func (e PaymentInitiatedEvent) EventType() string { return "PaymentInitiatedEvent" }
+
+// DepositDomainOpDoneEvent is emitted after the deposit domain operation is complete.
+type DepositDomainOpDoneEvent struct {
+	PaymentInitiatedEvent
+	// Add fields for domain operation results, etc.
+}
+
+// EventType returns the type of the DepositDomainOpDoneEvent.
+func (e DepositDomainOpDoneEvent) EventType() string { return "DepositDomainOpDoneEvent" }
