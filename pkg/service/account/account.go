@@ -246,6 +246,8 @@ func (s *Service) Transfer(
 // If the status is "completed", it also updates the account balance accordingly.
 func (s *Service) UpdateTransactionStatusByPaymentID(paymentID, status string) error {
 	// Use a unit of work for atomicity
+	logger := s.deps.Logger.With("paymentID", paymentID)
+	logger.Info("Updating transaction with payment Id", "status", status)
 	return s.deps.Uow.Do(context.Background(), func(uow repository.UnitOfWork) error {
 		txRepo, err := uow.TransactionRepository()
 		if err != nil {

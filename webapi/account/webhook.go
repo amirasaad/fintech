@@ -2,13 +2,14 @@ package account
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/amirasaad/fintech/pkg/processor"
 	"github.com/amirasaad/fintech/pkg/service/account"
 	"github.com/gofiber/fiber/v2"
 	"github.com/stripe/stripe-go/v82"
-	"github.com/stripe/stripe-go/v82/webhook"
 )
 
 // PaymentWebhookRequest represents the payload for a payment webhook callback.
@@ -39,51 +40,44 @@ func StripeWebhookHandler(eventProcessor processor.EventProcessor, signingSecret
 		request := c.Request()
 		body := request.Body()
 		if int64(len(body)) > MaxBodyBytes {
-			return c.Status(http.StatusRequestEntityTooLarge).JSON(fiber.Map{"error": "Request too large"})
+			return c.SendStatus(http.StatusRequestEntityTooLarge)
 		}
 
-		// Stripe sends the signature in this header
-		sigHeader := string(request.Header.Peek("Stripe-Signature"))
-		if sigHeader == "" {
-			return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": "Missing Stripe-Signature header"})
+		event := stripe.Event{}
+
+		if err := json.Unmarshal(body, &event); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to parse webhook body json: %v\n", err.Error())
+			return c.SendStatus(http.StatusBadRequest)
 		}
 
-		// Verify and parse the event
-		event, err := webhook.ConstructEvent(body, sigHeader, signingSecret)
-		if err != nil {
-			return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": "Webhook signature verification failed", "details": err.Error()})
-		}
-
-		var paymentID, status string
-		// Handle only payment_intent events for now
+		// Unmarshal the event data into an appropriate struct depending on its Type
+		var paymentMethod stripe.PaymentMethod
+		var paymentIntent stripe.PaymentIntent
 		switch event.Type {
 		case "payment_intent.succeeded":
-			var pi stripe.PaymentIntent
-			if err := json.Unmarshal(event.Data.Raw, &pi); err != nil {
-				return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": "Failed to parse payment_intent"})
+			err := json.Unmarshal(event.Data.Raw, &paymentIntent)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error parsing webhook JSON: %v\n", err)
+				return c.SendStatus(http.StatusBadRequest)
 			}
-			paymentID = pi.ID
-			status = "completed"
-		case "payment_intent.payment_failed":
-			var pi stripe.PaymentIntent
-			if err := json.Unmarshal(event.Data.Raw, &pi); err != nil {
-				return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": "Failed to parse payment_intent"})
-			}
-			paymentID = pi.ID
-			status = "failed"
-		default:
-			// Ignore other event types
-			return c.SendStatus(http.StatusNoContent)
-		}
+			fmt.Printf("payment_intent.succeeded, %v", paymentIntent)
 
-		if paymentID == "" || status == "" {
-			return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": "Missing payment ID or status"})
+		case "payment_method.attached":
+			err := json.Unmarshal(event.Data.Raw, &paymentMethod)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error parsing webhook JSON: %v\n", err)
+				return c.SendStatus(http.StatusBadRequest)
+			}
+			fmt.Printf("payment_method.attached %v", paymentMethod)
+
+		default:
+			fmt.Fprintf(os.Stderr, "Unhandled event type: %s\n", event.Type)
 		}
 
 		payEvent := processor.Event{
 			Provider:  "stripe",
-			PaymentID: paymentID,
-			Status:    status,
+			PaymentID: paymentIntent.ID,
+			Status:    string(paymentIntent.Status),
 			RawEvent:  event,
 		}
 		if err := eventProcessor.ProcessEvent(payEvent); err != nil {

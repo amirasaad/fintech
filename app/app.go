@@ -135,7 +135,7 @@ func New(deps config.Deps) *fiber.App {
 	// Payment event processor for Stripe webhooks
 	paymentEventProcessor := processor.NewDefaultPaymentEventProcessor(accountSvc)
 	stripeSigningSecret := deps.Config.PaymentProviders.Stripe.SigningSecret
-	app.Post("/api/v1/payments/stripe/webhook", account.StripeWebhookHandler(paymentEventProcessor, stripeSigningSecret))
+	app.Post("/payments/stripe/webhook", account.StripeWebhookHandler(paymentEventProcessor, stripeSigningSecret))
 
 	app.Post("/webhook/payment", account.PaymentWebhookHandler(accountSvc))
 
