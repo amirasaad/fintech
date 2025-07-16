@@ -70,7 +70,15 @@ extra:
     default: stable
 
 nav:
-  - Home: index.md
+  - Home:
+    - index.md
+    - Getting Started: getting-started.md
+    - Project Structure: project-structure.md
+    - Architecture & Design: architecture.md
+    - Service ↔ Domain Communication: service-domain-communication.md
+    - API Usage: api-usage.md
+    - Testing: testing.md
+    - Examples: examples.md
   - Currency & Exchange:
       - Currency System: currency/currency-system.md
       - Exchange Rates: currency/exchange-rates.md

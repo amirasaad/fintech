@@ -1,221 +1,90 @@
-# 🚀 Getting Started
-
-Welcome to the Fintech Platform! This guide will help you set up, run, and develop the project locally or in production.
-
+---
+icon: material/rocket
 ---
 
-## 🗝️ Environment Setup
+# Getting Started
 
-1. **Copy the sample file:**
+These instructions will guide you through setting up and running the Fintech Platform on your local machine for development and testing.
+
+## 🛠️ Prerequisites
+
+- **Go:** Version 1.22 or higher. Download from [golang.org/dl](https://golang.org/dl/). 🐹
+- **Docker & Docker Compose:** For PostgreSQL and running the app in containers. [docker.com](https://www.docker.com/get-started) 🐳
+- **PostgreSQL Client (Optional):** Tools like `psql` or GUI clients (e.g., DBeaver, pgAdmin) 🐘
+
+## ⬇️ Installation
+
+1. **Clone the repository:**
+
+   ```bash
+   git clone https://github.com/amirasaad/fintech.git
+   cd fintech
+   ```
+
+2. **Set up Environment Variables:**
 
    ```bash
    cp .env_sample .env
+   # Edit .env as needed (see .env_sample for options)
    ```
 
-2. **Edit `.env` and fill in required values:**
-   - Set a strong value for `JWT_SECRET_KEY` (required for authentication).
-   - If using Stripe or Exchange Rate APIs, add your API keys.
+   At a minimum, set a strong value for `AUTH_JWT_SECRET` in `.env`.
 
-**Key variables:**
+## ▶️ Running the Application
 
-- `APP_PORT` — Port for the app (default: 3000)
-- `APP_HOST` — Host (default: localhost)
-- `DATABASE_URL` — PostgreSQL connection string
-- `REDIS_URL` — Redis connection string
-- `JWT_SECRET_KEY` — 🔑 **Required!** Use a long, random string
-- `EXCHANGE_RATE_API_KEY` — (Optional) For real exchange rates
-- `PAYMENT_PROVIDER_STRIP_API__KEY` — (Optional) For Stripe integration
-
-All other values have sensible defaults for local development. See `.env_sample` for the full list.
-
----
-
-## 🗄️ Database & Redis
-
-### PostgreSQL Database
-
-- Used for all persistent data.
-- Docker Compose starts a PostgreSQL container for you.
-- Connection in `.env`:
-
-  ```bash
-  DATABASE_URL=postgres://postgres:password@localhost:5432/fintech?sslmode=disable
-  ```
-
-- **Default credentials:**
-  - User: `postgres`
-  - Password: `password`
-  - DB: `fintech`
-  - Host: `localhost`
-  - Port: `5432`
-- Connect with any PostgreSQL client (DBeaver, pgAdmin, psql, etc.).
-
-### Redis (Optional, for Caching/Rate Limiting)
-
-- Used for caching and rate limiting.
-- Docker Compose starts a Redis container for you.
-- Connection in `.env`:
-
-  ```bash
-  REDIS_URL=redis://localhost:6379/0
-  ```
-
-- **Default credentials:**
-  - Host: `localhost`
-  - Port: `6379`
-  - DB: `0`
-  - No password by default
-
-### Docker Compose Services
-
-When you run:
+### Using Docker Compose (Recommended)
 
 ```bash
 docker compose up --build -d
 ```
 
-it will start:
+- The app will be at `http://localhost:3000`.
+- PostgreSQL at port `5432`.
 
-- The Fintech app (on <http://localhost:3000>)
-- PostgreSQL (on `localhost:5432`)
-- Redis (on `localhost:6379`)
+### Running Locally (without Docker for Go app)
 
-### Troubleshooting
+1. Start PostgreSQL with Docker Compose:
 
-- **PostgreSQL not connecting?**
-  - Make sure Docker is running.
-  - Check that `DATABASE_URL` matches your local setup.
-  - Use `docker compose logs db` to see DB logs.
-- **Redis not connecting?**
-  - Make sure Docker is running.
-  - Check that `REDIS_URL` matches your local setup.
-  - Use `docker compose logs redis` to see Redis logs.
+   ```bash
+   docker compose up db -d
+   ```
 
-### Production Tips
+2. Run the Go app:
 
-- For production, update `DATABASE_URL` and `REDIS_URL` with your real credentials and hosts.
-- Never use the default passwords in production!
+   ```bash
+   go run cmd/server/main.go
+   ```
 
----
-
-## 🧰 Prerequisites
-
-- **Go:** v1.24.4 or higher ([download](https://golang.org/dl/))
-- **Docker & Docker Compose:** For database and local dev ([download](https://www.docker.com/get-started))
-- **PostgreSQL Client (optional):** For DB inspection (e.g., DBeaver, pgAdmin)
-
----
-
-## 🏗️ Local Development
-
-### 1. Clone the Repository
-
-```bash
-git clone https://github.com/amirasaad/fintech.git
-cd fintech
-```
-
-### 2. Set Up Environment Variables
-
-Copy the sample file and edit as needed:
-
-```bash
-cp .env_sample .env
-```
-
-Set a strong value for `AUTH_JWT_SECRET` in `.env`.
-
----
-
-### 3. Run with Docker Compose (Recommended)
-
-This starts the app and PostgreSQL:
-
-```bash
-docker compose up --build -d
-```
-
-- App: <http://localhost:3000>
-- DB:  localhost:5432
-
----
-
-### 4. Run Go App Locally (with Docker DB)
-
-Start only the DB:
-
-```bash
-docker compose up db -d
-```
-
-Run the server:
-
-```bash
-go run cmd/server/main.go
-```
-
----
-
-### 5. Run the CLI
+### Running the CLI
 
 ```bash
 go run cmd/cli/main.go
 ```
 
-Follow prompts to log in and use commands like `create`, `deposit`, `withdraw`, `balance`, `logout`, `exit`.
+## 🗄️ Migrations
 
----
+- Create a new migration:
 
-## 🧪 Testing
+  ```bash
+  make migrate-create
+  ```
 
-Run all tests:
+- Apply all migrations:
 
-```bash
-go test -v ./...
-```
+  ```bash
+  make migrate-up
+  ```
 
-Generate coverage report:
+- Revert last migration:
 
-```bash
-make cov_report
-```
+  ```bash
+  make migrate-down
+  ```
 
----
+- See `internal/migrations/` for migration files.
 
-## 🛠️ Makefile Targets
+## 💡 Tips
 
-- `make migrate-create` — Create a new DB migration
-- `make migrate-up` — Apply all pending migrations
-- `make migrate-down` — Revert the last migration
-- `make cov_report` — Generate coverage report
-
----
-
-## 🗃️ Database Migrations
-
-Migrations are managed with `golang-migrate`.
-
-- Create: `make migrate-create`
-- Apply:  `make migrate-up`
-- Revert: `make migrate-down`
-
----
-
-## ☁️ Vercel Deployment
-
-- The project supports serverless deployment on Vercel.
-- See `vercel.json` for config.
-- Deploy via Vercel dashboard or CLI.
-
----
-
-## 🛟 Troubleshooting
-
-- **Ports in use?** Stop other services using 3000/5432.
-- **DB connection errors?** Check `.env` and Docker status.
-- **JWT errors?** Ensure `JWT_SECRET_KEY` is set.
-- **Migrations fail?** Use `make migrate-down` or fix dirty DB state.
-
----
-
-Happy coding! 🎉
+- The app loads env vars from `.env` (via `godotenv`).
+- For payment/webhook testing, use the mock provider or call the webhook endpoint manually.
+- See [docs/index.md](index.md) for navigation and more guides.

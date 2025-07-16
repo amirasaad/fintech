@@ -1,22 +1,28 @@
-# 🏦 Fintech Platform Documentation
-
-Welcome to the **Fintech Platform** docs! This site covers everything you need to know about the architecture, features, and development of this modern, multi-currency financial application.
-
+---
+icon: material/school
 ---
 
-## 🏁 Project Overview
+# Fintech Platform
 
-This project is a robust, extensible fintech backend built with:
+> **A modern, event-driven fintech platform for learning, prototyping, and experimentation.**
 
-- **Go** (Fiber web framework)
-- **GORM** ORM
-- **JWT** authentication
-- **Clean Architecture** & DDD
-- **Stripe** integration for payments
-- Multi-currency & real-time exchange rates
+This project demonstrates best practices in Go for building scalable, secure, and modular financial systems.
+It’s designed for educational use—explore event-driven architecture, clean code, and real-world fintech patterns in a safe, open-source environment.
 
-!!! note "Looking for the code?"
-    The source code is organized by domain, service, infrastructure, and API layers. See the navigation bar for details.
+---
+Technologies Used
+
+| Technology   | Purpose                | Badge                                                                 |
+|--------------|------------------------|-----------------------------------------------------------------------|
+| Go           | Main language          | ![Go](https://img.shields.io/badge/Go-1.22-blue?style=flat&logo=go)   |
+| Fiber        | Web framework          | ![Fiber](https://img.shields.io/badge/Fiber-2.x-00BFFF?style=flat&logo=fiber) |
+| GORM         | ORM                    | ![GORM](https://img.shields.io/badge/GORM-ORM-ff69b4?style=flat&logo=sqlite) |
+| PostgreSQL   | Database               | ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Database-336791?style=flat&logo=postgresql) |
+| Redis        | Caching                | ![Redis](https://img.shields.io/badge/Redis-Cache-DC382D?style=flat&logo=redis) |
+| JWT          | Authentication         | ![JWT](https://img.shields.io/badge/JWT-Auth-000000?style=flat&logo=jsonwebtokens) |
+| MkDocs Material | Documentation      | ![MkDocs Material](https://img.shields.io/badge/MkDocs%20Material-9.x-blueviolet?style=flat&logo=readthedocs) |
+| Conventional Commits | Commit style  | ![Conventional Commits](https://img.shields.io/badge/Conventional%20Commits-1.0.0-blue?style=flat&logo=git) |
+| Testify      | Testing                | ![Tested with Testify](https://img.shields.io/badge/Tested%20with-Testify-38C871?style=flat&logo=go) |
 
 ---
 
@@ -30,7 +36,6 @@ This project is a robust, extensible fintech backend built with:
 - [Decorator Pattern](refactoring/decorator-pattern.md)
 - [Unit of Work Pattern](refactoring/uow-pattern.md)
 - [Event-Driven Payments](payments/event-driven-payments.md)
-- [Stripe Integration](payments/stripe-integration.md)
 
 ---
 
@@ -40,19 +45,38 @@ This project is a robust, extensible fintech backend built with:
 - 🌐 **Multi-currency support**
 - 🔒 **Secure authentication**
 - 🧰 **Unit of Work & Repository patterns**
-- 💳 **Stripe sandbox integration**
+- 🏦 **Educational, open-source fintech platform**
 
-!!! tip "New! Stripe Integration Refactor"
-    Check out the [Stripe Integration Refactor](payments/stripe-integration.md) for a deep dive into payment provider abstraction, currency conversion, and handler chain improvements.
+---
+
+## 🏁 Features
+
+- 🌐 Multi-currency support
+- 🔄 Real-time exchange rates
+- 🔒 JWT authentication
+- 🧰 Unit of Work & Repository patterns
+- 🏗️ Clean architecture & DDD
 
 ---
 
 ## 🛠️ Getting Started
 
 1. Clone the repo
-2. See the [README](https://github.com/your-org/fintech#readme) for setup
+2. See the [Getting Started](./getting-started.md) for setup
 3. Explore docs using the sidebar or search
 
 ---
 
-Happy building! 🎉
+## 🏅 Contributing
+
+See our guide: [../CONTRIBUTING.md](https://amirasaad.github.io/fintech//CONTRIBUTING.md)
+
+---
+
+## 📄 License
+
+This project is licensed under the [MIT License](https://amirasaad.github.io/fintech//LICENSE).
+
+<p align="center" style="color:#FFD600;font-size:16px;">
+⚠️ For Educational Purpose Only
+</p>
