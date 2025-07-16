@@ -152,3 +152,12 @@ type DepositDomainOpDoneEvent struct {
 
 // EventType returns the type of the DepositDomainOpDoneEvent.
 func (e DepositDomainOpDoneEvent) EventType() string { return "DepositDomainOpDoneEvent" }
+
+// WithdrawValidatedEvent is emitted after withdraw validation succeeds.
+type WithdrawValidatedEvent struct {
+	WithdrawRequestedEvent
+	// Add any fields produced by validation (e.g., loaded Account)
+}
+
+// EventType returns the type of the WithdrawValidatedEvent.
+func (e WithdrawValidatedEvent) EventType() string { return "WithdrawValidatedEvent" }
