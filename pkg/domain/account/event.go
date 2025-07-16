@@ -161,3 +161,21 @@ type WithdrawValidatedEvent struct {
 
 // EventType returns the type of the WithdrawValidatedEvent.
 func (e WithdrawValidatedEvent) EventType() string { return "WithdrawValidatedEvent" }
+
+// TransferValidatedEvent is emitted after transfer validation succeeds.
+type TransferValidatedEvent struct {
+	TransferRequestedEvent
+	// Add any fields produced by validation (e.g., loaded Account)
+}
+
+// EventType returns the type of the TransferValidatedEvent.
+func (e TransferValidatedEvent) EventType() string { return "TransferValidatedEvent" }
+
+// TransferDomainOpDoneEvent is emitted after the transfer domain operation is complete.
+type TransferDomainOpDoneEvent struct {
+	TransferValidatedEvent
+	// Add fields for domain operation results, etc.
+}
+
+// EventType returns the type of the TransferDomainOpDoneEvent.
+func (e TransferDomainOpDoneEvent) EventType() string { return "TransferDomainOpDoneEvent" }
