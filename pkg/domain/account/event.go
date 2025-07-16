@@ -179,3 +179,12 @@ type TransferDomainOpDoneEvent struct {
 
 // EventType returns the type of the TransferDomainOpDoneEvent.
 func (e TransferDomainOpDoneEvent) EventType() string { return "TransferDomainOpDoneEvent" }
+
+// TransferPersistedEvent is emitted after transfer persistence is complete.
+type TransferPersistedEvent struct {
+	TransferDomainOpDoneEvent
+	// Add fields for DB transaction, etc.
+}
+
+// EventType returns the type of the TransferPersistedEvent.
+func (e TransferPersistedEvent) EventType() string { return "TransferPersistedEvent" }
