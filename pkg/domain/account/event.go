@@ -98,6 +98,10 @@ type MoneyCreatedEvent struct {
 	DepositValidatedEvent
 	Money          money.Money   // The created money object
 	TargetCurrency currency.Code // The currency to convert to (if needed)
+	UserID         string        // User who initiated the deposit
+	AccountID      string        // Account involved
+	Amount         float64       // Amount in main currency unit
+	Currency       string        // Currency code (ISO 4217)
 }
 
 // EventType returns the type of the MoneyCreatedEvent.
@@ -117,6 +121,10 @@ type MoneyConvertedEvent struct {
 	MoneyCreatedEvent
 	Money          money.Money            // The (possibly converted) money object
 	ConversionInfo *common.ConversionInfo // Conversion details, if any
+	UserID         string                 // User who initiated the deposit
+	AccountID      string                 // Account involved
+	Amount         float64                // Amount in main currency unit
+	Currency       string                 // Currency code (ISO 4217)
 }
 
 // EventType returns the type of the MoneyConvertedEvent.
@@ -125,7 +133,8 @@ func (e MoneyConvertedEvent) EventType() string { return "MoneyConvertedEvent" }
 // PaymentInitiatedEvent is emitted after payment initiation with a provider.
 type PaymentInitiatedEvent struct {
 	MoneyConvertedEvent
-	// Add fields for payment provider response, payment ID, etc.
+	PaymentID string // The payment provider's ID
+	Status    string // Payment status (e.g., initiated, pending)
 }
 
 // EventType returns the type of the PaymentInitiatedEvent.
