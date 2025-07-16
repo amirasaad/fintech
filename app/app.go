@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/amirasaad/fintech/pkg/processor"
 	accountsvc "github.com/amirasaad/fintech/pkg/service/account"
 	authsvc "github.com/amirasaad/fintech/pkg/service/auth"
 	currencysvc "github.com/amirasaad/fintech/pkg/service/currency"
@@ -130,6 +131,11 @@ func New(deps config.Deps) *fiber.App {
 	app.Get("/", func(c *fiber.Ctx) error {
 		return c.SendString("App is working! 🚀")
 	})
+
+	// Payment event processor for Stripe webhooks
+	paymentEventProcessor := processor.NewDefaultPaymentEventProcessor(accountSvc)
+	stripeSigningSecret := deps.Config.PaymentProviders.Stripe.SigningSecret
+	app.Post("/api/v1/payments/stripe/webhook", account.StripeWebhookHandler(paymentEventProcessor, stripeSigningSecret))
 
 	app.Post("/webhook/payment", account.PaymentWebhookHandler(accountSvc))
 

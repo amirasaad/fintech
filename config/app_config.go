@@ -30,12 +30,13 @@ type RateLimitConfig struct {
 	Window      time.Duration `envconfig:"WINDOW" default:"1m"`
 }
 
-type PaymentProviderStripe struct {
-	ApiKey string `envconfig:"API_KEY"`
+type Stripe struct {
+	ApiKey        string `envconfig:"API_KEY"`
+	SigningSecret string `envconfig:"SIGNING_SECRET" required:"true"`
 }
 
 type PaymentProviders struct {
-	Stripe PaymentProviderStripe `envconfig:"STRIPE"`
+	Stripe Stripe `envconfig:"STRIPE"`
 }
 
 type ExchangeRateConfig struct {
