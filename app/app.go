@@ -54,6 +54,9 @@ func New(deps config.Deps) *fiber.App {
 	bus.Subscribe("TransferDomainOpDoneEvent", handleraccount.TransferPersistenceHandler(bus /* TODO: inject TransferPersistenceAdapter */, nil))
 	// Add more as you implement them
 
+	// Register query handlers
+	// TODO: Register GetAccountQueryHandler with a query bus or expose as needed
+
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			return common.ProblemDetailsJSON(c, "Internal Server Error", err)

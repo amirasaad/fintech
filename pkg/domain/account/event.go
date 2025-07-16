@@ -7,6 +7,12 @@ import (
 	"github.com/google/uuid"
 )
 
+// GetAccountQuery represents a query to retrieve an account
+type GetAccountQuery struct {
+	AccountID string
+	UserID    string
+}
+
 // PaymentStatus represents the status of a payment transaction event.
 type PaymentStatus string
 
@@ -188,3 +194,40 @@ type TransferPersistedEvent struct {
 
 // EventType returns the type of the TransferPersistedEvent.
 func (e TransferPersistedEvent) EventType() string { return "TransferPersistedEvent" }
+
+// AccountQuerySucceededEvent is emitted when an account query succeeds and validation can proceed
+type AccountQuerySucceededEvent struct {
+	Query   GetAccountQuery
+	Account *Account
+}
+
+// EventType returns the type of the AccountQuerySucceededEvent.
+func (e AccountQuerySucceededEvent) EventType() string { return "AccountQuerySucceededEvent" }
+
+// AccountQueryFailedEvent is emitted when an account query fails
+type AccountQueryFailedEvent struct {
+	Query GetAccountQuery
+	Error string
+}
+
+// EventType returns the type of the AccountQueryFailedEvent.
+func (e AccountQueryFailedEvent) EventType() string { return "AccountQueryFailedEvent" }
+
+// AccountValidatedEvent is emitted when account validation succeeds
+type AccountValidatedEvent struct {
+	Query   GetAccountQuery
+	Account *Account
+}
+
+// EventType returns the type of the AccountValidatedEvent.
+func (e AccountValidatedEvent) EventType() string { return "AccountValidatedEvent" }
+
+// AccountValidationFailedEvent is emitted when account validation fails
+type AccountValidationFailedEvent struct {
+	Query   GetAccountQuery
+	Account *Account
+	Reason  string
+}
+
+// EventType returns the type of the AccountValidationFailedEvent.
+func (e AccountValidationFailedEvent) EventType() string { return "AccountValidationFailedEvent" }
