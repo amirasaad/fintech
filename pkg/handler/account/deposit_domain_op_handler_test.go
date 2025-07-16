@@ -2,54 +2,94 @@ package account
 
 import (
 	"context"
+	"errors"
 	"testing"
 
-	"github.com/amirasaad/fintech/pkg/domain"
 	accountdomain "github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestDepositDomainOpHandler_Scenarios(t *testing.T) {
+type mockDepositService struct {
+	depositFn func(ctx context.Context, userID, accountID string, amount float64, currency string) error
+}
+
+func (m *mockDepositService) Deposit(ctx context.Context, userID, accountID string, amount float64, currency string) error {
+	return m.depositFn(ctx, userID, accountID, amount, currency)
+}
+
+func TestDepositDomainOpHandler_BusinessLogic(t *testing.T) {
+	userID := "user-1"
+	accountID := "acc-1"
+	amount := 100.0
+	currency := "USD"
+
 	tests := []struct {
-		name      string
-		input     domain.Event
-		cancelCtx bool
-		expectPub bool
+		name       string
+		input      accountdomain.PaymentInitiatedEvent
+		service    *mockDepositService
+		expectPub  bool
+		expectUser string
+		expectAcc  string
+		expectAmt  float64
+		expectCur  string
 	}{
 		{
-			name:      "valid PaymentInitiatedEvent",
-			input:     accountdomain.PaymentInitiatedEvent{},
-			cancelCtx: false,
-			expectPub: true,
+			name: "domain op success",
+			input: accountdomain.PaymentInitiatedEvent{
+				MoneyConvertedEvent: accountdomain.MoneyConvertedEvent{
+					UserID:    userID,
+					AccountID: accountID,
+					Amount:    amount,
+					Currency:  currency,
+				},
+			},
+			service: &mockDepositService{
+				depositFn: func(ctx context.Context, u, a string, amt float64, cur string) error {
+					assert.Equal(t, userID, u)
+					assert.Equal(t, accountID, a)
+					assert.InEpsilon(t, amount, amt, 0.1)
+					assert.Equal(t, currency, cur)
+					return nil
+				},
+			},
+			expectPub:  true,
+			expectUser: userID,
+			expectAcc:  accountID,
+			expectAmt:  amount,
+			expectCur:  currency,
 		},
 		{
-			name:      "wrong event type (DepositRequestedEvent)",
-			input:     accountdomain.DepositRequestedEvent{},
-			cancelCtx: false,
+			name: "domain op error",
+			input: accountdomain.PaymentInitiatedEvent{
+				MoneyConvertedEvent: accountdomain.MoneyConvertedEvent{
+					UserID:    userID,
+					AccountID: accountID,
+					Amount:    amount,
+					Currency:  currency,
+				},
+			},
+			service: &mockDepositService{
+				depositFn: func(ctx context.Context, u, a string, amt float64, cur string) error {
+					return errors.New("domain op failed")
+				},
+			},
 			expectPub: false,
-		},
-		{
-			name:      "context canceled",
-			input:     accountdomain.PaymentInitiatedEvent{},
-			cancelCtx: true,
-			expectPub: true, // Handler does not check ctx, so still publishes
 		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			bus := &mockEventBus{}
-			handler := DepositDomainOpHandler(bus)
+			handler := DepositDomainOpHandler(bus, tc.service)
 			ctx := context.Background()
-			if tc.cancelCtx {
-				c, cancel := context.WithCancel(ctx)
-				cancel()
-				ctx = c
-			}
 			handler(ctx, tc.input)
 			if tc.expectPub {
 				assert.Len(t, bus.published, 1)
-				_, ok := bus.published[0].(accountdomain.DepositDomainOpDoneEvent)
+				evt, ok := bus.published[0].(accountdomain.DepositDomainOpDoneEvent)
 				assert.True(t, ok, "should publish DepositDomainOpDoneEvent")
+				assert.Equal(t, tc.expectUser, evt.UserID)
+				assert.Equal(t, tc.expectAcc, evt.AccountID)
+				assert.InEpsilon(t, tc.expectAmt, evt.Amount, 0.1)
+				assert.Equal(t, tc.expectCur, evt.Currency)
 			} else {
 				assert.Empty(t, bus.published)
 			}

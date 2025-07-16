@@ -143,6 +143,10 @@ func (e PaymentInitiatedEvent) EventType() string { return "PaymentInitiatedEven
 // DepositDomainOpDoneEvent is emitted after the deposit domain operation is complete.
 type DepositDomainOpDoneEvent struct {
 	PaymentInitiatedEvent
+	UserID    string  // User who initiated the deposit
+	AccountID string  // Account involved
+	Amount    float64 // Amount in main currency unit
+	Currency  string  // Currency code (ISO 4217)
 	// Add fields for domain operation results, etc.
 }
 
