@@ -1,3 +1,6 @@
+coverage:
+ status:
+  project: true
 ignore:
   - "internal"
   - "docs"
