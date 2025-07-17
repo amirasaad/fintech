@@ -232,6 +232,24 @@ sequenceDiagram
     Service->>API: Success (transaction, conversion info)
 ```
 
+## 🖼️ Mermaid Diagram: Stripe Webhook Event-Driven Flow
+
+```mermaid
+sequenceDiagram
+    participant Stripe as "Stripe"
+    participant WebhookHandler as "StripeWebhookHandler (webapi/account/webhook.go)"
+    participant EventBus as "EventBus (pkg/eventbus)"
+    participant PaymentEventHandler as "PaymentEventHandler (domain/service layer)"
+    participant AccountService as "AccountService"
+
+    Stripe->>WebhookHandler: POST /webhook (Stripe event)
+    WebhookHandler->>EventBus: Publish PaymentReceivedEvent
+    EventBus->>PaymentEventHandler: Dispatch PaymentReceivedEvent
+    PaymentEventHandler->>AccountService: Update transaction, account, etc.
+    PaymentEventHandler-->>EventBus: (optional) Publish further events
+    PaymentEventHandler->>WebhookHandler: Ack (HTTP 200)
+```
+
 ---
 
 _This document is a living guide. Update as the migration progresses and new requirements emerge._
