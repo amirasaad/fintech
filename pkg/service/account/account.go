@@ -15,7 +15,9 @@ import (
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/domain/account/events"
+	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/repository"
+	repoaccount "github.com/amirasaad/fintech/pkg/repository/account"
 	"github.com/google/uuid"
 )
 
@@ -111,6 +113,19 @@ func (s *Service) CreateAccountWithCurrency(
 	}
 	logger.Info("CreateAccountWithCurrency successful", "accountID", acct.ID)
 	return
+}
+
+// CreateAccountCQRS demonstrates using the CQRS-style account.Repository via UoW.GetRepository.
+func (s *Service) CreateAccountCQRS(ctx context.Context, uow repository.UnitOfWork, create dto.AccountCreate) error {
+	repoAny, err := uow.GetRepository((*repoaccount.Repository)(nil))
+	if err != nil {
+		return err
+	}
+	acctRepo, ok := repoAny.(repoaccount.Repository)
+	if !ok {
+		return errors.New("invalid repository type for account.Repository")
+	}
+	return acctRepo.Create(ctx, create)
 }
 
 // Deposit adds funds to the specified account and creates a transaction record.
