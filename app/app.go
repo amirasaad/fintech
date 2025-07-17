@@ -28,6 +28,8 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/recover"
 
 	_ "github.com/amirasaad/fintech/cmd/server/swagger"
+
+	paymenthandler "github.com/amirasaad/fintech/pkg/handler/payment"
 )
 
 // New builds all services, registers event handlers, and returns the Fiber app.
@@ -49,7 +51,10 @@ func New(deps config.Deps) *fiber.App {
 	// Register event-driven deposit workflow handlers
 	bus.Subscribe("DepositRequestedEvent", deposithandler.DepositValidationHandler(bus, deps.Logger))
 	bus.Subscribe("DepositValidatedEvent", money.MoneyCreationHandler(bus))
-	bus.Subscribe("MoneyCreatedEvent", deposithandler.DepositPersistenceHandler(bus, deps.Uow))
+	bus.Subscribe("MoneyCreatedEvent", paymenthandler.DepositPersistenceHandler(bus, deps.Uow))
+	bus.Subscribe("DepositPersistedEvent", paymenthandler.PaymentInitiationHandler(bus, deps.PaymentProvider))
+	bus.Subscribe("PaymentInitiatedEvent", paymenthandler.PaymentIdPersistenceHandler(bus, deps.Uow))
+	bus.Subscribe("PaymentCompletedEvent", paymenthandler.PaymentCompletedHandler(bus, deps.Uow, deps.Logger))
 
 	// Register event-driven withdraw workflow handlers
 	bus.Subscribe("WithdrawRequestedEvent", withdrawhandler.WithdrawValidationHandler(bus, deps.Logger))
