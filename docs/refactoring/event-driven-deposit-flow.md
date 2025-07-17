@@ -273,7 +273,7 @@ func AccountValidationHandler(bus eventbus.EventBus, logger *slog.Logger) func(c
 
 ## Related Documentation
 
-- [Event-Driven Architecture Overview](../architecture.md)
+- [Event-Driven Architecture Overview](https://github.com/amirasaad/fintech/architecture.md)
 - [Testing Guidelines](../testing.md)
 - [API Documentation](../api-usage.md)
 - [Domain Events](../domain-events.md)

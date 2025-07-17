@@ -100,6 +100,8 @@ nav:
       - Account Service: refactoring/account-service.md
       - Lessons: refactoring/event-driven-lessons.md
       - Deposit Flow: refactoring/event-driven-deposit-flow.md
+      - Stripe Webhook: payments/event-driven-stripe-webhook.md
+      - Domain Events: domain-events.md
     - Dependency Injection:
       - Layered-dependency-injection: refactoring/layered-dependency-injection.md
   - API Reference:
