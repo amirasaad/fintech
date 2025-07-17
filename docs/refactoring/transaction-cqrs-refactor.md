@@ -4,12 +4,19 @@ icon: material/source-branch
 
 # :material-source-branch: Transaction CQRS Refactor
 
+## 💡 Philosophy
+
+!!! tip
+    Patterns are solutions, not goals. Let real problems lead you to the right design pattern, not the other way around.
+
+Adopting design patterns like CQRS should be a response to real, observed pain points in the system. This ensures architecture remains pragmatic, maintainable, and truly solves business needs, rather than introducing unnecessary complexity.
+
 ## Motivation
 
 !!! info "Why CQRS?"
     As our transaction persistence and event-driven flows have grown, we've encountered increasing complexity in balancing domain purity, auditability, and query flexibility.
 
-### Our current approach mixes domain models for both writes and reads, leading to:  
+### Our current approach mixes domain models for both writes and reads, leading to:
 
 - Leaky abstractions between domain and infrastructure
 - Difficulty evolving read models for reporting/audit
