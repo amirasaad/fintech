@@ -14,7 +14,6 @@ type DepositRequestedEvent struct {
 	Currency  string
 	Source    string // MoneySource as string
 	Timestamp int64
-	PaymentID string // Added for payment provider integration
 }
 
 // DepositValidatedEvent is emitted after deposit validation succeeds.

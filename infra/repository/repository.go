@@ -107,6 +107,7 @@ func (r *transactionRepository) Create(transaction *account.Transaction, convInf
 		Balance:              transaction.Balance.Amount(),
 		MoneySource:          string(transaction.MoneySource),
 		ExternalTargetMasked: externalTargetMasked,
+		TargetCurrency:       transaction.TargetCurrency,
 	}
 
 	// Only set conversion fields if conversion info is provided

@@ -17,6 +17,7 @@ import (
 // DepositValidationHandler handles DepositRequestedEvent, maps DTO to domain, validates, and publishes DepositValidatedEvent.
 func DepositValidationHandler(bus eventbus.EventBus, logger *slog.Logger) func(context.Context, domain.Event) {
 	return func(ctx context.Context, e domain.Event) {
+		logger.Info("DepositValidationHandler: received event", "event", e)
 		de, ok := e.(events.DepositRequestedEvent)
 		if !ok {
 			logger.Error("DepositValidationHandler: unexpected event type", "event", e)

@@ -14,14 +14,15 @@ import (
 func NewDepositTransaction(e events.DepositRequestedEvent) *account.Transaction {
 	moneyVal, _ := money.New(e.Amount, currency.Code(e.Currency))
 	return &account.Transaction{
-		ID:          uuid.New(),
-		AccountID:   uuid.MustParse(e.AccountID),
-		UserID:      uuid.MustParse(e.UserID),
-		PaymentID:   e.PaymentID,
-		Amount:      moneyVal,
-		MoneySource: account.MoneySource(e.Source),
-		Status:      account.TransactionStatusInitiated,
-		CreatedAt:   time.Now().UTC(),
+		ID:             uuid.New(),
+		AccountID:      uuid.MustParse(e.AccountID),
+		UserID:         uuid.MustParse(e.UserID),
+		PaymentID:      "", // PaymentID is set later in the flow
+		Amount:         moneyVal,
+		MoneySource:    account.MoneySource(e.Source),
+		Status:         account.TransactionStatusInitiated,
+		CreatedAt:      time.Now().UTC(),
+		TargetCurrency: e.Currency, // Default to request currency; can be overwritten later
 	}
 }
 

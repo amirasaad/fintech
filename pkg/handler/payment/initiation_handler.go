@@ -16,6 +16,7 @@ type PaymentProvider interface {
 // PaymentInitiationHandler handles DepositPersistedEvent, initiates payment, and publishes PaymentInitiatedEvent.
 func PaymentInitiationHandler(bus eventbus.EventBus, provider PaymentProvider) func(context.Context, domain.Event) {
 	return func(ctx context.Context, e domain.Event) {
+		slog.Info("PaymentInitiationHandler: received event", "event", e)
 		pe, ok := e.(events.DepositPersistedEvent)
 		if !ok {
 			return

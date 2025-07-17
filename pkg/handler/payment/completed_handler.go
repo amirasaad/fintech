@@ -14,6 +14,7 @@ import (
 // PaymentCompletedHandler handles PaymentCompletedEvent, updates the transaction status in the DB, and publishes a follow-up event if needed.
 func PaymentCompletedHandler(bus eventbus.EventBus, uow repository.UnitOfWork, logger *slog.Logger) func(context.Context, domain.Event) {
 	return func(ctx context.Context, e domain.Event) {
+		logger.Info("PaymentCompletedHandler: received event", "event", e)
 		pe, ok := e.(*events.PaymentCompletedEvent)
 		if !ok {
 			logger.Error("PaymentCompletedHandler: unexpected event type", "event", e)

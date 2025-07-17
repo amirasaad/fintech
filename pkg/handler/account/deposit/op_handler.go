@@ -18,6 +18,7 @@ type DepositDomainOperator interface {
 // DepositDomainOpHandler handles PaymentInitiatedEvent, performs the deposit domain operation, and publishes DepositDomainOpDoneEvent.
 func DepositDomainOpHandler(bus eventbus.EventBus, service DepositDomainOperator) func(context.Context, domain.Event) {
 	return func(ctx context.Context, e domain.Event) {
+		slog.Info("DepositDomainOpHandler: received event", "event", e)
 		pe, ok := e.(events.PaymentInitiatedEvent)
 		if !ok {
 			return

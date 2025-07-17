@@ -4,7 +4,6 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/amirasaad/fintech/pkg/eventbus"
 	commonhandler "github.com/amirasaad/fintech/pkg/handler/account/common"
 	deposithandler "github.com/amirasaad/fintech/pkg/handler/account/deposit"
 	"github.com/amirasaad/fintech/pkg/handler/account/money"
@@ -42,7 +41,7 @@ func New(deps config.Deps) *fiber.App {
 	currencySvc := currencysvc.NewCurrencyService(deps.CurrencyRegistry, deps.Logger)
 
 	// Create a new context-aware event bus
-	bus := eventbus.NewSimpleEventBus()
+	bus := deps.EventBus
 
 	// Register account validation flow handlers
 	bus.Subscribe("AccountQuerySucceededEvent", commonhandler.AccountValidationHandler(bus, deps.Logger))

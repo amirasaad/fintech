@@ -10,10 +10,10 @@ import (
 
 	"github.com/amirasaad/fintech/config"
 	"github.com/amirasaad/fintech/infra"
-	"github.com/amirasaad/fintech/infra/eventbus"
 	"github.com/amirasaad/fintech/infra/provider"
 	infra_repository "github.com/amirasaad/fintech/infra/repository"
 	"github.com/amirasaad/fintech/pkg/currency"
+	"github.com/amirasaad/fintech/pkg/eventbus"
 )
 
 // @title Fintech API
@@ -81,7 +81,7 @@ func main() {
 		CurrencyRegistry:  currencyRegistry,
 		Logger:            logger,
 		PaymentProvider:   provider.NewStripePaymentProvider(cfg.PaymentProviders.Stripe.ApiKey, logger),
-		EventBus:          eventbus.NewMemoryEventBus(),
+		EventBus:          eventbus.NewSimpleEventBus(),
 		Config:            cfg,
 	}).Listen(fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)))
 }
