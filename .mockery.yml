@@ -27,3 +27,11 @@ packages:
             structname: "Mock{{.InterfaceName}}"
         interfaces:
             CurrencyConverter:
+    github.com/amirasaad/fintech/pkg/eventbus:
+        config:
+            dir: "internal/fixtures/mocks"
+            filename: "eventbus.go"
+            pkgname: "mocks"
+            structname: "Mock{{.InterfaceName}}"
+        interfaces:
+            EventBus:
