@@ -1,3 +1,6 @@
+---
+icon: octicons/sync-24
+--- 
 # :octicons-sync-24: Event-Driven Deposit Flow
 
 This document describes the new event-driven architecture for the deposit workflow in the fintech system.
