@@ -39,7 +39,7 @@ jobs:
       - name: install gotestsum
         run: go install gotest.tools/gotestsum@latest
       - name: Run tests
-        run: gotestsum --junitfile report.xml --format standard-quiet -- -coverprofile=coverage.txt -p 12 -json ./...
+        run: gotestsum --junitfile report.xml --format standard-quiet -- -coverprofile=coverage.txt -p 4 -json ./...
       - name: Upload results to Codecov
         uses: codecov/codecov-action@v5
         with:
