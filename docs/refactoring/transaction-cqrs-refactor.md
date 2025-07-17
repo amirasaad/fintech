@@ -11,16 +11,16 @@ icon: material/source-branch
 
 Adopting design patterns like CQRS should be a response to real, observed pain points in the system. This ensures architecture remains pragmatic, maintainable, and truly solves business needs, rather than introducing unnecessary complexity.
 
-## Motivation
+## 🚀 Motivation
 
 !!! info "Why CQRS?"
-    As our transaction persistence and event-driven flows have grown, we've encountered increasing complexity in balancing domain purity, auditability, and query flexibility.
+    As our transaction persistence and event-driven flows have grown, we've encountered increasing complexity in balancing domain purity, auditability, and query flexibility. Our current approach mixes domain models for both writes and reads, leading to:
 
-### Our current approach mixes domain models for both writes and reads, leading to:
+    - **Leaky** abstractions between domain and infrastructure
+    - **Difficulty** evolving read models for reporting/audit
+    - **Inflexible** API responses and DTOs
 
-- Leaky abstractions between domain and infrastructure
-- Difficulty evolving read models for reporting/audit
-- Inflexible API responses and DTOs
+## ⚠️ Pain Points
 
 !!! danger "Pain Points"
     - **Domain Model Pollution:**
@@ -32,14 +32,14 @@ Adopting design patterns like CQRS should be a response to real, observed pain p
     - **Separation of Concerns:**
     - Handlers and services are forced to map between domain and API models manually.
 
-## CQRS Overview
+## 🔄 CQRS Overview
 
 CQRS (Command Query Responsibility Segregation) separates write (command) and read (query) models:
 
 - **Write Models:** Domain entities and command DTOs for create/update flows.
 - **Read Models:** Read-optimized DTOs for queries, reporting, and API responses.
 
-## Proposed Changes
+## 📝 Proposed Changes
 
 - **Introduce `TransactionRead` DTO:**
   - A read-optimized struct for queries, API responses, and reporting.
@@ -51,7 +51,7 @@ CQRS (Command Query Responsibility Segregation) separates write (command) and re
 - **Documentation & Migration:**
   - Document new flow and migration plan for existing code.
 
-## Benefits
+## ⭐ Benefits
 
 - **Separation of Concerns:**
   - Domain model stays pure; read model evolves independently.
@@ -62,7 +62,7 @@ CQRS (Command Query Responsibility Segregation) separates write (command) and re
 - **Maintainability:**
   - Reduces coupling and manual mapping in handlers/services.
 
-## Next Steps
+## ✅ Next Steps
 
 !!! note "Next Steps"
     - Define `TransactionRead` DTO and update repository interfaces.

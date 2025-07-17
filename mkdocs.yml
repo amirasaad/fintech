@@ -58,6 +58,9 @@ markdown_extensions:
   - pymdownx.tabbed:
       alternate_style: true
   - admonition
+  - def_list
+  - pymdownx.tasklist:
+      custom_checkbox: true
 
 plugins:
   - search
