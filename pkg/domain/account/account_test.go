@@ -9,6 +9,7 @@ import (
 
 	"github.com/amirasaad/fintech/pkg/currency"
 	domainaccount "github.com/amirasaad/fintech/pkg/domain/account"
+	"github.com/amirasaad/fintech/pkg/domain/account/events"
 	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -99,9 +100,9 @@ func TestDeposit_EmitsEvent(t *testing.T) {
 	require.NoError(err)
 	err = acc.Deposit(userID, m, domainaccount.MoneySourceCash, "")
 	require.NoError(err)
-	events := acc.PullEvents()
-	require.Len(events, 1)
-	evt, ok := events[0].(domainaccount.DepositRequestedEvent)
+	evts := acc.PullEvents()
+	require.Len(evts, 1)
+	evt, ok := evts[0].(events.DepositRequestedEvent)
 	require.True(ok)
 	assert.Equal(t, acc.ID.String(), evt.AccountID)
 	assert.Equal(t, userID.String(), evt.UserID)
@@ -122,15 +123,15 @@ func TestWithdraw_EmitsEvent(t *testing.T) {
 	exTgt := domainaccount.ExternalTarget{BankAccountNumber: "23423323"}
 	err = acc.Withdraw(userID, m, exTgt, "")
 	require.NoError(err)
-	events := acc.PullEvents()
-	require.Len(events, 1)
-	evt, ok := events[0].(domainaccount.WithdrawRequestedEvent)
+	evts := acc.PullEvents()
+	require.Len(evts, 1)
+	evt, ok := evts[0].(events.WithdrawRequestedEvent)
 	require.True(ok)
 	assert.Equal(t, acc.ID.String(), evt.AccountID)
 	assert.Equal(t, userID.String(), evt.UserID)
 	assert.InEpsilon(t, 50.0, evt.Amount, 0.01)
 	assert.Equal(t, "USD", evt.Currency)
-	assert.Equal(t, exTgt, evt.Target)
+	assert.Equal(t, exTgt.BankAccountNumber, evt.BankAccountNumber)
 }
 
 func TestTransfer_EmitsEvent(t *testing.T) {
@@ -142,9 +143,9 @@ func TestTransfer_EmitsEvent(t *testing.T) {
 	m := money.NewFromData(25.0, "USD")
 	err := source.Transfer(userID, uuid.New(), dest, m, domainaccount.MoneySourceInternal)
 	require.NoError(err)
-	events := source.PullEvents()
-	require.Len(events, 1)
-	evt, ok := events[0].(domainaccount.TransferRequestedEvent)
+	evts := source.PullEvents()
+	require.Len(evts, 1)
+	evt, ok := evts[0].(events.TransferRequestedEvent)
 	require.True(ok)
 	assert.Equal(t, source.ID, evt.SourceAccountID)
 	assert.Equal(t, dest.ID, evt.DestAccountID)

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/amirasaad/fintech/pkg/currency"
+	"github.com/amirasaad/fintech/pkg/domain/account/events"
 	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/amirasaad/fintech/pkg/domain/user"
@@ -206,6 +207,25 @@ func (a *Account) PullEvents() []common.Event {
 	return events
 }
 
+// Validate checks all business invariants for an operation (common validation logic).
+func (a *Account) Validate(userID uuid.UUID, amount money.Money) error {
+	if a.UserID != userID {
+		return ErrNotOwner
+	}
+	if !amount.IsPositive() {
+		return ErrTransactionAmountMustBePositive
+	}
+	if string(amount.Currency()) != string(a.Balance.Currency()) {
+		return common.ErrInvalidCurrencyCode
+	}
+	return nil
+}
+
+// ValidateDeposit checks all business invariants for a deposit operation.
+func (a *Account) ValidateDeposit(userID uuid.UUID, amount money.Money) error {
+	return a.Validate(userID, amount)
+}
+
 // Deposit adds funds to the account if all business invariants are satisfied.
 // Invariants enforced:
 //   - Only the account owner can deposit.
@@ -214,23 +234,18 @@ func (a *Account) PullEvents() []common.Event {
 //   - Deposit must not cause integer overflow.
 //
 // Returns a Transaction or an error if any invariant is violated.
-func (a *Account) Deposit(userID uuid.UUID, m money.Money, moneySource MoneySource, paymentID string) error {
-	if a.UserID != userID {
-		return ErrNotOwner
-	}
-	if !m.IsPositive() {
-		return ErrTransactionAmountMustBePositive
-	}
-	if string(m.Currency()) != string(a.Balance.Currency()) {
-		return common.ErrInvalidCurrencyCode
+func (a *Account) Deposit(userID uuid.UUID, amount money.Money, moneySource MoneySource, paymentID string) error {
+
+	if err := a.Validate(userID, amount); err != nil {
+		return err
 	}
 
-	a.events = append(a.events, DepositRequestedEvent{
+	a.events = append(a.events, events.DepositRequestedEvent{
 		AccountID: a.ID.String(),
 		UserID:    userID.String(),
-		Amount:    m.AmountFloat(),
-		Currency:  string(m.Currency()),
-		Source:    moneySource,
+		Amount:    amount.Amount(),
+		Currency:  amount.Currency().String(),
+		Source:    string(moneySource),
 		Timestamp: time.Now().Unix(),
 		PaymentID: paymentID,
 	})
@@ -245,32 +260,28 @@ func (a *Account) Deposit(userID uuid.UUID, m money.Money, moneySource MoneySour
 //   - Cannot withdraw more than the current balance.
 //
 // Returns a Transaction or an error if any invariant is violated.
-func (a *Account) Withdraw(userID uuid.UUID, m money.Money, target ExternalTarget, paymentID string) error {
-	if a.UserID != userID {
-		return ErrNotOwner
-	}
-	if !m.IsPositive() {
-		return ErrWithdrawalAmountMustBePositive
-	}
-	if string(m.Currency()) != string(a.Balance.Currency()) {
-		return common.ErrInvalidCurrencyCode
+func (a *Account) Withdraw(userID uuid.UUID, amount money.Money, target ExternalTarget, paymentID string) error {
+	if err := a.Validate(userID, amount); err != nil {
+		return err
 	}
 	// Sufficient funds check: do not allow negative balance
-	hasEnough, err := a.Balance.GreaterThan(m)
+	hasEnough, err := a.Balance.GreaterThan(amount)
 	if err != nil {
 		return err
 	}
-	if !hasEnough && !a.Balance.Equals(m) {
+	if !hasEnough && !a.Balance.Equals(amount) {
 		return ErrInsufficientFunds
 	}
-	a.events = append(a.events, WithdrawRequestedEvent{
-		AccountID: a.ID.String(),
-		UserID:    userID.String(),
-		Amount:    m.AmountFloat(),
-		Currency:  string(m.Currency()),
-		Target:    target,
-		Timestamp: time.Now().Unix(),
-		PaymentID: paymentID,
+	a.events = append(a.events, events.WithdrawRequestedEvent{
+		AccountID:             a.ID.String(),
+		UserID:                userID.String(),
+		Amount:                amount.Amount(),
+		Currency:              amount.Currency().String(),
+		ExternalWalletAddress: target.ExternalWalletAddress,
+		BankAccountNumber:     target.BankAccountNumber,
+		RoutingNumber:         target.RoutingNumber,
+		Timestamp:             time.Now().Unix(),
+		PaymentID:             paymentID,
 	})
 	return nil
 }
@@ -300,15 +311,15 @@ func (a *Account) Transfer(senderUserID, receiverUserID uuid.UUID, dest *Account
 		return ErrInsufficientFunds
 	}
 
-	a.events = append(a.events, TransferRequestedEvent{
+	a.events = append(a.events, events.TransferRequestedEvent{
 		EventID:         uuid.New(),
 		SenderUserID:    senderUserID,
 		ReceiverUserID:  receiverUserID,
 		SourceAccountID: a.ID,
 		DestAccountID:   dest.ID,
-		Amount:          amount.AmountFloat(),
-		Currency:        string(amount.Currency()),
-		Source:          moneySource,
+		Amount:          amount.Amount(),
+		Currency:        amount.Currency().String(),
+		Source:          string(moneySource),
 		Timestamp:       time.Now().Unix(),
 	})
 	return nil

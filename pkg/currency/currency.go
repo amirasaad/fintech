@@ -37,6 +37,11 @@ const (
 // Code represents a 3-letter ISO currency code
 type Code string
 
+// String return code as string
+func (c Code) String() string {
+	return string(c)
+}
+
 // CurrencyMeta holds currency-specific metadata
 type CurrencyMeta struct {
 	Code     string            `json:"code"`
