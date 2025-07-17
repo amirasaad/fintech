@@ -8,7 +8,9 @@ icon: material/lightbulb-outline
 - [Patterns](patterns.md)
   - [Decorator Pattern](decorator-pattern.md)
   - [UOW Pattern](uow-pattern.md)
-- [Transaction Persistence Refactor](transaction-persistence-refactor.md)
+- CQRS
+  - [Transaction Persistence Refactor](transaction-persistence-refactor.md)
+  - [Transaction CQRS Refactor](transaction-cqrs-refactor.md)
 - Event-Driven
   - [Architecture](event-driven-architecture.md)
   - [Account Service](account-service.md)
