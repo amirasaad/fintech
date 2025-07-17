@@ -5,10 +5,16 @@ icon: material/lightbulb-outline
 
 ## Table of Contents
 
-- [Layered Dependency Injection](layered-dependency-injection.md)
-- [Event-Driven Lessons](event-driven-lessons.md)
-- [Event-Driven Architecture](event-driven-architecture.md)
 - [Patterns](patterns.md)
-- [Unit of Work Pattern](uow-pattern.md)
-- [Account Service](account-service.md)
-- [Decorator Pattern](decorator-pattern.md)
+  - [Decorator Pattern](decorator-pattern.md)
+  - [UOW Pattern](uow-pattern.md)
+- [Transaction Persistence Refactor](transaction-persistence-refactor.md)
+- Event-Driven
+  - [Architecture](event-driven-architecture.md)
+  - [Account Service](account-service.md)
+  - [Lessons](event-driven-lessons.md)
+  - [Deposit Flow](event-driven-deposit-flow.md)
+  - [Stripe Webhook](../payments/event-driven-stripe-webhook.md)
+  - [Domain Events](../domain-events.md)
+- Dependency Injection
+  - [Layered Dependency Injection](layered-dependency-injection.md)
