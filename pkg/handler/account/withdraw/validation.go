@@ -1,4 +1,4 @@
-package account
+package withdraw
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/domain/account/events"
 	"github.com/amirasaad/fintech/pkg/eventbus"
+	commonmapper "github.com/amirasaad/fintech/pkg/handler/account/common"
 	"github.com/amirasaad/fintech/pkg/queries"
 	"github.com/google/uuid"
 )
@@ -35,7 +36,7 @@ func WithdrawValidationHandler(bus eventbus.EventBus, logger *slog.Logger) func(
 			Balance:   we.Amount,
 			Currency:  we.Currency,
 		}
-		acc, err := MapDTOToAccount(getAccountResult)
+		acc, err := commonmapper.MapDTOToAccount(getAccountResult)
 		if err != nil {
 			logger.Error("WithdrawValidationHandler: failed to map DTO to domain Account", "error", err, "result", getAccountResult)
 			return

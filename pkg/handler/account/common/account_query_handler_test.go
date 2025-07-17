@@ -1,4 +1,4 @@
-package account
+package common
 
 import (
 	"context"
@@ -31,6 +31,7 @@ func TestGetAccountQueryHandler_HandleQuery(t *testing.T) {
 		expectErr    bool
 		wantNil      bool
 		expectEvents int
+		setupMocks   func(bus *mocks.MockEventBus)
 	}{
 		{
 			name:  "valid account and user",
@@ -42,6 +43,9 @@ func TestGetAccountQueryHandler_HandleQuery(t *testing.T) {
 			expectErr:    false,
 			wantNil:      false,
 			expectEvents: 1, // AccountQuerySucceededEvent
+			setupMocks: func(bus *mocks.MockEventBus) {
+				bus.On("Publish", mock.Anything, mock.AnythingOfType("events.AccountQuerySucceededEvent")).Return(nil)
+			},
 		},
 		{
 			name:  "not found",
@@ -53,20 +57,25 @@ func TestGetAccountQueryHandler_HandleQuery(t *testing.T) {
 			expectErr:    true,
 			wantNil:      true,
 			expectEvents: 1, // AccountQueryFailedEvent
+			setupMocks: func(bus *mocks.MockEventBus) {
+				bus.On("Publish", mock.Anything, mock.AnythingOfType("events.AccountQueryFailedEvent")).Return(nil)
+			},
 		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			uow := mocks.NewMockUnitOfWork(t)
 			repo := mocks.NewMockAccountRepository(t)
-			bus := &mockEventBus{}
+			bus := mocks.NewMockEventBus(t)
+			if tc.setupMocks != nil {
+				tc.setupMocks(bus)
+			}
 			tc.setupMock(uow, repo)
 
 			handler := GetAccountQueryHandler(uow, bus)
 			result, err := handler.HandleQuery(context.Background(), tc.query)
 
-			// Check events were published
-			// assert.Len(t, bus.published, tc.expectEvents)
+			// Optionally, add mock assertions for event publishing here if needed
 
 			if tc.expectErr {
 				require.Error(t, err)

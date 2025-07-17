@@ -1,13 +1,15 @@
-package account
+package transfer
 
 import (
 	"context"
 	"errors"
 	"testing"
 
+	"github.com/amirasaad/fintech/internal/fixtures/mocks"
 	"github.com/amirasaad/fintech/pkg/domain/account/events"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 type mockTransferPersistenceAdapter struct {
@@ -35,43 +37,43 @@ func TestTransferPersistenceHandler_BusinessLogic(t *testing.T) {
 		},
 	}
 	tests := []struct {
-		name      string
-		input     events.TransferDomainOpDoneEvent
-		adapter   *mockTransferPersistenceAdapter
-		expectPub bool
+		name       string
+		input      events.TransferDomainOpDoneEvent
+		adapter    *mockTransferPersistenceAdapter
+		expectPub  bool
+		setupMocks func(bus *mocks.MockEventBus)
 	}{
 		{
-			name:  "persistence success",
-			input: validEvent,
-			adapter: &mockTransferPersistenceAdapter{
-				persistFn: func(ctx context.Context, event events.TransferDomainOpDoneEvent) error {
-					return nil
-				},
-			},
+			name:      "persistence success",
+			input:     validEvent,
+			adapter:   &mockTransferPersistenceAdapter{persistFn: func(ctx context.Context, event events.TransferDomainOpDoneEvent) error { return nil }},
 			expectPub: true,
+			setupMocks: func(bus *mocks.MockEventBus) {
+				bus.On("Publish", mock.Anything, mock.AnythingOfType("events.TransferPersistedEvent")).Return(nil)
+			},
 		},
 		{
 			name:  "persistence error",
 			input: validEvent,
-			adapter: &mockTransferPersistenceAdapter{
-				persistFn: func(ctx context.Context, event events.TransferDomainOpDoneEvent) error {
-					return errors.New("persistence failed")
-				},
-			},
-			expectPub: false,
+			adapter: &mockTransferPersistenceAdapter{persistFn: func(ctx context.Context, event events.TransferDomainOpDoneEvent) error {
+				return errors.New("persistence failed")
+			}},
+			expectPub:  false,
+			setupMocks: nil,
 		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			bus := &mockEventBus{}
+			bus := mocks.NewMockEventBus(t)
+			if tc.setupMocks != nil {
+				tc.setupMocks(bus)
+			}
 			handler := TransferPersistenceHandler(bus, tc.adapter)
 			handler(context.Background(), tc.input)
 			if tc.expectPub {
-				assert.NotEmpty(t, bus.published)
-				_, ok := bus.published[0].(events.TransferPersistedEvent)
-				assert.True(t, ok)
+				assert.True(t, bus.AssertCalled(t, "Publish", mock.Anything, mock.AnythingOfType("events.TransferPersistedEvent")), "should publish TransferPersistedEvent")
 			} else {
-				assert.Empty(t, bus.published)
+				bus.AssertNotCalled(t, "Publish", mock.Anything, mock.AnythingOfType("events.TransferPersistedEvent"))
 			}
 		})
 	}

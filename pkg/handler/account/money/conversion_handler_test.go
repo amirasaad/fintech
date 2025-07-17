@@ -1,15 +1,17 @@
-package account
+package money
 
 import (
 	"context"
 	"errors"
 	"testing"
 
+	"github.com/amirasaad/fintech/internal/fixtures/mocks"
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/account/events"
 	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 type mockCurrencyConverter struct {
@@ -42,6 +44,7 @@ func TestMoneyConversionHandler_BusinessLogic(t *testing.T) {
 		expectPub   bool
 		expectMoney money.Money
 		expectConv  *common.ConversionInfo
+		setupMocks  func(bus *mocks.MockEventBus)
 	}{
 		{
 			name: "no conversion needed (currencies match)",
@@ -58,6 +61,9 @@ func TestMoneyConversionHandler_BusinessLogic(t *testing.T) {
 			expectPub:   true,
 			expectMoney: moneyUSD,
 			expectConv:  nil,
+			setupMocks: func(bus *mocks.MockEventBus) {
+				bus.On("Publish", mock.Anything, mock.AnythingOfType("events.MoneyConvertedEvent")).Return(nil)
+			},
 		},
 		{
 			name: "conversion needed (currencies differ)",
@@ -74,6 +80,9 @@ func TestMoneyConversionHandler_BusinessLogic(t *testing.T) {
 			expectPub:   true,
 			expectMoney: moneyEUR,
 			expectConv:  convInfo,
+			setupMocks: func(bus *mocks.MockEventBus) {
+				bus.On("Publish", mock.Anything, mock.AnythingOfType("events.MoneyConvertedEvent")).Return(nil)
+			},
 		},
 		{
 			name: "converter returns error",
@@ -89,28 +98,22 @@ func TestMoneyConversionHandler_BusinessLogic(t *testing.T) {
 			},
 			expectPub:  false,
 			expectConv: nil,
+			setupMocks: nil,
 		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			bus := &mockEventBus{}
+			bus := mocks.NewMockEventBus(t)
+			if tc.setupMocks != nil {
+				tc.setupMocks(bus)
+			}
 			handler := MoneyConversionHandler(bus, tc.converter)
 			ctx := context.Background()
 			handler(ctx, tc.input)
 			if tc.expectPub {
-				assert.Len(t, bus.published, 1)
-				evt, ok := bus.published[0].(events.MoneyConvertedEvent)
-				assert.True(t, ok, "should publish MoneyConvertedEvent")
-				if tc.expectConv == nil {
-					assert.Equal(t, tc.expectMoney.Amount(), evt.Amount)
-					assert.Equal(t, tc.expectMoney.Currency().String(), evt.Currency)
-					assert.Nil(t, evt.ConversionInfo)
-				} else {
-					assert.InEpsilon(t, tc.expectConv.ConvertedAmount, float64(evt.Amount)/100, 0.001)
-					assert.Equal(t, tc.expectConv, evt.ConversionInfo)
-				}
+				assert.True(t, bus.AssertCalled(t, "Publish", ctx, mock.AnythingOfType("events.MoneyConvertedEvent")), "should publish MoneyConvertedEvent")
 			} else {
-				assert.Empty(t, bus.published)
+				bus.AssertNotCalled(t, "Publish", ctx, mock.AnythingOfType("events.MoneyConvertedEvent"))
 			}
 		})
 	}

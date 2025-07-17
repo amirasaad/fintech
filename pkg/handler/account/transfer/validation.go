@@ -1,4 +1,4 @@
-package account
+package transfer
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/domain/account/events"
 	"github.com/amirasaad/fintech/pkg/eventbus"
+	commonmapper "github.com/amirasaad/fintech/pkg/handler/account/common"
 	"github.com/amirasaad/fintech/pkg/queries"
 	"github.com/google/uuid"
 )
@@ -34,7 +35,7 @@ func TransferValidationHandler(bus eventbus.EventBus, logger *slog.Logger) func(
 			Balance:   te.Amount,
 			Currency:  te.Currency,
 		}
-		acc, err := MapDTOToAccount(getAccountResult)
+		acc, err := commonmapper.MapDTOToAccount(getAccountResult)
 		if err != nil {
 			logger.Error("TransferValidationHandler: failed to map DTO to domain Account", "error", err, "result", getAccountResult)
 			return

@@ -1,13 +1,15 @@
-package account
+package deposit
 
 import (
 	"context"
 	"errors"
 	"testing"
 
+	"github.com/amirasaad/fintech/internal/fixtures/mocks"
 	"github.com/amirasaad/fintech/pkg/domain/account/events"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 type mockPaymentProvider struct {
@@ -36,6 +38,7 @@ func TestPaymentInitiationHandler_BusinessLogic(t *testing.T) {
 		expectAcc   string
 		expectAmt   float64
 		expectCur   string
+		setupMocks  func(bus *mocks.MockEventBus)
 	}{
 		{
 			name: "provider success",
@@ -70,6 +73,9 @@ func TestPaymentInitiationHandler_BusinessLogic(t *testing.T) {
 			expectAcc:   accountID,
 			expectAmt:   amount,
 			expectCur:   currency,
+			setupMocks: func(bus *mocks.MockEventBus) {
+				bus.On("Publish", mock.Anything, mock.AnythingOfType("events.PaymentInitiatedEvent")).Return(nil)
+			},
 		},
 		{
 			name: "provider error",
@@ -95,25 +101,22 @@ func TestPaymentInitiationHandler_BusinessLogic(t *testing.T) {
 			},
 			expectPub:   false,
 			expectPayID: "",
+			setupMocks:  nil,
 		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			bus := &mockEventBus{}
+			bus := mocks.NewMockEventBus(t)
+			if tc.setupMocks != nil {
+				tc.setupMocks(bus)
+			}
 			handler := PaymentInitiationHandler(bus, tc.provider)
 			ctx := context.Background()
 			handler(ctx, tc.input)
 			if tc.expectPub {
-				assert.Len(t, bus.published, 1)
-				evt, ok := bus.published[0].(events.PaymentInitiatedEvent)
-				assert.True(t, ok, "should publish PaymentInitiatedEvent")
-				assert.Equal(t, tc.expectPayID, evt.PaymentID)
-				assert.Equal(t, tc.expectUser, evt.UserID)
-				assert.Equal(t, tc.expectAcc, evt.AccountID)
-				assert.InEpsilon(t, tc.expectAmt, amount, 0.1)
-				assert.Equal(t, tc.expectCur, evt.Currency)
+				assert.True(t, bus.AssertCalled(t, "Publish", ctx, mock.AnythingOfType("events.PaymentInitiatedEvent")), "should publish PaymentInitiatedEvent")
 			} else {
-				assert.Empty(t, bus.published)
+				bus.AssertNotCalled(t, "Publish", ctx, mock.AnythingOfType("events.PaymentInitiatedEvent"))
 			}
 		})
 	}

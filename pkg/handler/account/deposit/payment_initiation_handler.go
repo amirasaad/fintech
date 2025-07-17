@@ -1,4 +1,4 @@
-package account
+package deposit
 
 import (
 	"context"

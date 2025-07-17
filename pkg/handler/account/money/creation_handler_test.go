@@ -1,20 +1,21 @@
-package account
+package money
 
 import (
 	"context"
 	"testing"
 
+	"github.com/amirasaad/fintech/internal/fixtures/mocks"
 	"github.com/amirasaad/fintech/pkg/domain/account/events"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
-
-// mockEventBus is defined in testutils_test.go for reuse.
 
 func TestMoneyCreationHandler_PublishesMoneyCreatedEvent(t *testing.T) {
 	tests := []struct {
-		name      string
-		input     events.DepositValidatedEvent
-		expectEvt bool
+		name       string
+		input      events.DepositValidatedEvent
+		expectEvt  bool
+		setupMocks func(bus *mocks.MockEventBus)
 	}{
 		{
 			name: "valid input",
@@ -27,6 +28,9 @@ func TestMoneyCreationHandler_PublishesMoneyCreatedEvent(t *testing.T) {
 				},
 			},
 			expectEvt: true,
+			setupMocks: func(bus *mocks.MockEventBus) {
+				bus.On("Publish", mock.Anything, mock.AnythingOfType("events.MoneyCreatedEvent")).Return(nil)
+			},
 		},
 		{
 			name: "zero amount",
@@ -38,21 +42,23 @@ func TestMoneyCreationHandler_PublishesMoneyCreatedEvent(t *testing.T) {
 					Currency:  "USD",
 				},
 			},
-			expectEvt: false,
+			expectEvt:  false,
+			setupMocks: nil,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			bus := &mockEventBus{}
+			bus := mocks.NewMockEventBus(t)
+			if tc.setupMocks != nil {
+				tc.setupMocks(bus)
+			}
 			handler := MoneyCreationHandler(bus)
 			handler(context.Background(), tc.input)
 			if tc.expectEvt {
-				assert.NotEmpty(t, bus.published, "should publish an event")
-				_, ok := bus.published[0].(events.MoneyCreatedEvent)
-				assert.True(t, ok, "should publish MoneyCreatedEvent")
+				assert.True(t, bus.AssertCalled(t, "Publish", mock.Anything, mock.AnythingOfType("events.MoneyCreatedEvent")), "should publish MoneyCreatedEvent")
 			} else {
-				assert.Empty(t, bus.published, "should not publish event")
+				bus.AssertNotCalled(t, "Publish", mock.Anything, mock.AnythingOfType("events.MoneyCreatedEvent"))
 			}
 		})
 	}

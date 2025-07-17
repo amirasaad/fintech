@@ -1,4 +1,4 @@
-package account
+package infra_test
 
 import (
 	"context"
@@ -7,13 +7,25 @@ import (
 	"testing"
 
 	"github.com/amirasaad/fintech/internal/fixtures/mocks"
+	"github.com/amirasaad/fintech/pkg/domain"
 	accountdomain "github.com/amirasaad/fintech/pkg/domain/account"
 	events "github.com/amirasaad/fintech/pkg/domain/account/events"
+	"github.com/amirasaad/fintech/pkg/handler/account/common"
 	"github.com/amirasaad/fintech/pkg/queries"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+type mockEventBus struct {
+	published []domain.Event
+}
+
+func (m *mockEventBus) Publish(ctx context.Context, event domain.Event) error {
+	m.published = append(m.published, event)
+	return nil
+}
+func (m *mockEventBus) Subscribe(eventType string, handler func(context.Context, domain.Event)) {}
 
 func TestEventDrivenValidationFlow_Integration(t *testing.T) {
 	// Setup
@@ -36,8 +48,8 @@ func TestEventDrivenValidationFlow_Integration(t *testing.T) {
 	repo.On("Get", validAccount).Return(acc, nil)
 
 	// Create handlers
-	queryHandler := GetAccountQueryHandler(uow, bus)
-	validationHandler := AccountValidationHandler(bus, logger)
+	queryHandler := common.GetAccountQueryHandler(uow, bus)
+	validationHandler := common.AccountValidationHandler(bus, logger)
 
 	// Execute the flow
 	ctx := context.Background()
@@ -92,7 +104,7 @@ func TestEventDrivenValidationFlow_QueryFailure(t *testing.T) {
 	repo.On("Get", invalidAccount).Return(nil, assert.AnError)
 
 	// Create query handler
-	queryHandler := GetAccountQueryHandler(uow, bus)
+	queryHandler := common.GetAccountQueryHandler(uow, bus)
 
 	// Execute query handler
 	ctx := context.Background()

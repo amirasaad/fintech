@@ -1,12 +1,14 @@
-package account
+package deposit
 
 import (
 	"context"
 	"errors"
 	"testing"
 
+	"github.com/amirasaad/fintech/internal/fixtures/mocks"
 	"github.com/amirasaad/fintech/pkg/domain/account/events"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 type mockDepositAdapter struct {
@@ -32,6 +34,7 @@ func TestDepositDomainOpHandler_BusinessLogic(t *testing.T) {
 		expectAcc  string
 		expectAmt  float64
 		expectCur  string
+		setupMocks func(bus *mocks.MockEventBus)
 	}{
 		{
 			name: "domain op success",
@@ -68,6 +71,9 @@ func TestDepositDomainOpHandler_BusinessLogic(t *testing.T) {
 			expectAcc:  accountID,
 			expectAmt:  amount,
 			expectCur:  currency,
+			setupMocks: func(bus *mocks.MockEventBus) {
+				bus.On("Publish", mock.Anything, mock.AnythingOfType("events.DepositPersistedEvent")).Return(nil)
+			},
 		},
 		{
 			name: "domain op error",
@@ -95,19 +101,23 @@ func TestDepositDomainOpHandler_BusinessLogic(t *testing.T) {
 					return errors.New("domain op failed")
 				},
 			},
-			expectPub: false,
+			expectPub:  false,
+			setupMocks: nil,
 		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			bus := &mockEventBus{}
+			bus := mocks.NewMockEventBus(t)
 			handler := DepositDomainOpHandler(bus, tc.s)
 			ctx := context.Background()
+			if tc.setupMocks != nil {
+				tc.setupMocks(bus)
+			}
 			handler(ctx, tc.input)
 			if tc.expectPub {
-				assert.NotEmpty(t, bus.published)
+				assert.True(t, bus.AssertCalled(t, "Publish", mock.Anything, mock.AnythingOfType("events.DepositPersistedEvent")), "should publish DepositPersistedEvent")
 			} else {
-				assert.Empty(t, bus.published)
+				bus.AssertNotCalled(t, "Publish", mock.Anything, mock.AnythingOfType("events.DepositPersistedEvent"))
 			}
 		})
 	}

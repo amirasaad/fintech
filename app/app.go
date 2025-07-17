@@ -5,7 +5,11 @@ import (
 	"strings"
 
 	"github.com/amirasaad/fintech/pkg/eventbus"
-	handleraccount "github.com/amirasaad/fintech/pkg/handler/account"
+	commonhandler "github.com/amirasaad/fintech/pkg/handler/account/common"
+	deposithandler "github.com/amirasaad/fintech/pkg/handler/account/deposit"
+	"github.com/amirasaad/fintech/pkg/handler/account/money"
+	transferhandler "github.com/amirasaad/fintech/pkg/handler/account/transfer"
+	withdrawhandler "github.com/amirasaad/fintech/pkg/handler/account/withdraw"
 	"github.com/amirasaad/fintech/pkg/processor"
 	accountsvc "github.com/amirasaad/fintech/pkg/service/account"
 	authsvc "github.com/amirasaad/fintech/pkg/service/auth"
@@ -40,22 +44,22 @@ func New(deps config.Deps) *fiber.App {
 	bus := eventbus.NewSimpleEventBus()
 
 	// Register account validation flow handlers
-	bus.Subscribe("AccountQuerySucceededEvent", handleraccount.AccountValidationHandler(bus, deps.Logger))
-	bus.Subscribe("AccountValidatedEvent", handleraccount.MoneyCreationHandler(bus))
+	bus.Subscribe("AccountQuerySucceededEvent", commonhandler.AccountValidationHandler(bus, deps.Logger))
+	bus.Subscribe("AccountValidatedEvent", money.MoneyCreationHandler(bus))
 
 	// Register event-driven deposit workflow handlers
-	bus.Subscribe("DepositRequestedEvent", handleraccount.DepositValidationHandler(bus, deps.Logger))
-	bus.Subscribe("DepositValidatedEvent", handleraccount.MoneyCreationHandler(bus))
-	bus.Subscribe("MoneyCreatedEvent", handleraccount.DepositPersistenceHandler(bus, deps.Uow))
+	bus.Subscribe("DepositRequestedEvent", deposithandler.DepositValidationHandler(bus, deps.Logger))
+	bus.Subscribe("DepositValidatedEvent", money.MoneyCreationHandler(bus))
+	bus.Subscribe("MoneyCreatedEvent", deposithandler.DepositPersistenceHandler(bus, deps.Uow))
 
 	// Register event-driven withdraw workflow handlers
-	bus.Subscribe("WithdrawRequestedEvent", handleraccount.WithdrawValidationHandler(bus, deps.Logger))
+	bus.Subscribe("WithdrawRequestedEvent", withdrawhandler.WithdrawValidationHandler(bus, deps.Logger))
 	// TODO: Add WithdrawDomainOpHandler and WithdrawPersistenceHandler when implemented
 
 	// Register event-driven transfer workflow handlers
-	bus.Subscribe("TransferRequestedEvent", handleraccount.TransferValidationHandler(bus, deps.Logger))
-	// bus.Subscribe("TransferValidatedEvent", handleraccount.TransferDomainOpHandler(bus /* TODO: inject TransferDomainOperator */, nil))
-	bus.Subscribe("TransferDomainOpDoneEvent", handleraccount.TransferPersistenceHandler(bus /* TODO: inject TransferPersistenceAdapter */, nil))
+	bus.Subscribe("TransferRequestedEvent", transferhandler.TransferValidationHandler(bus, deps.Logger))
+	// bus.Subscribe("TransferValidatedEvent", transferhandler.TransferDomainOpHandler(bus /* TODO: inject TransferDomainOperator */, nil))
+	bus.Subscribe("TransferDomainOpDoneEvent", transferhandler.TransferPersistenceHandler(bus /* TODO: inject TransferPersistenceAdapter */, nil))
 	// Add more as you implement them
 
 	// TODO: Create and register query handlers with a query bus or expose in API layer

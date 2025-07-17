@@ -1,4 +1,4 @@
-package account
+package money
 
 import (
 	"context"
