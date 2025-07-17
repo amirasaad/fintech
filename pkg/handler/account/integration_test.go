@@ -7,7 +7,9 @@ import (
 	"testing"
 
 	"github.com/amirasaad/fintech/internal/fixtures/mocks"
-	"github.com/amirasaad/fintech/pkg/domain/account"
+	accountdomain "github.com/amirasaad/fintech/pkg/domain/account"
+	events "github.com/amirasaad/fintech/pkg/domain/account/events"
+	"github.com/amirasaad/fintech/pkg/queries"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -23,8 +25,8 @@ func TestEventDrivenValidationFlow_Integration(t *testing.T) {
 	// Create test data
 	validUser := uuid.New()
 	validAccount := uuid.New()
-	acc := &account.Account{ID: validAccount, UserID: validUser}
-	query := account.GetAccountQuery{
+	acc := &accountdomain.Account{ID: validAccount, UserID: validUser}
+	query := queries.GetAccountQuery{
 		AccountID: validAccount.String(),
 		UserID:    validUser.String(),
 	}
@@ -48,21 +50,21 @@ func TestEventDrivenValidationFlow_Integration(t *testing.T) {
 	// Step 2: Verify query events were published
 	assert.Len(t, bus.published, 1, "Query handler should publish AccountQuerySucceededEvent")
 
-	queryEvent, ok := bus.published[0].(account.AccountQuerySucceededEvent)
+	queryEvent, ok := bus.published[0].(events.AccountQuerySucceededEvent)
 	assert.True(t, ok, "First event should be AccountQuerySucceededEvent")
-	assert.Equal(t, query, queryEvent.Query)
-	assert.Equal(t, acc, queryEvent.Account)
+	assert.Equal(t, query.UserID, queryEvent.Result.UserID)
+	assert.Equal(t, query.AccountID, queryEvent.Result.AccountID)
 
 	// Step 3: Execute validation handler (simulating event bus subscription)
 	validationHandler(ctx, queryEvent)
 
 	// Step 4: Verify validation events were published
-	assert.Len(t, bus.published, 2, "Validation handler should publish AccountValidatedEvent")
+	assert.Len(t, bus.published, 2, "Validation handler should publish DepositValidatedEvent")
 
-	validationEvent, ok := bus.published[1].(account.AccountValidatedEvent)
-	assert.True(t, ok, "Second event should be AccountValidatedEvent")
-	assert.Equal(t, query, validationEvent.Query)
-	assert.Equal(t, acc, validationEvent.Account)
+	validationEvent, ok := bus.published[1].(events.AccountValidatedEvent)
+	assert.True(t, ok, "Second event should be DepositValidatedEvent")
+	assert.Equal(t, query.UserID, validationEvent.UserID)
+	assert.Equal(t, query.AccountID, validationEvent.AccountID)
 
 	// Verify the complete flow
 	t.Logf("✅ Event-driven validation flow completed successfully:")
@@ -80,7 +82,7 @@ func TestEventDrivenValidationFlow_QueryFailure(t *testing.T) {
 	// Create test data for failure case
 	invalidAccount := uuid.New()
 	validUser := uuid.New()
-	query := account.GetAccountQuery{
+	query := queries.GetAccountQuery{
 		AccountID: invalidAccount.String(),
 		UserID:    validUser.String(),
 	}
@@ -103,12 +105,12 @@ func TestEventDrivenValidationFlow_QueryFailure(t *testing.T) {
 	// Verify failure event was published
 	assert.Len(t, bus.published, 1, "Query handler should publish AccountQueryFailedEvent")
 
-	failureEvent, ok := bus.published[0].(account.AccountQueryFailedEvent)
+	failureEvent, ok := bus.published[0].(events.AccountQueryFailedEvent)
 	assert.True(t, ok, "Event should be AccountQueryFailedEvent")
 	assert.Equal(t, query, failureEvent.Query)
-	assert.NotEmpty(t, failureEvent.Error)
+	assert.NotEmpty(t, failureEvent.Reason)
 
 	t.Logf("✅ Query failure flow completed successfully:")
 	t.Logf("   Query Handler → AccountQueryFailedEvent")
-	t.Logf("   Error: %s", failureEvent.Error)
+	t.Logf("   Error: %s", failureEvent.Reason)
 }

@@ -121,6 +121,11 @@ func (m Money) Currency() currency.Code {
 	return m.currency
 }
 
+// Is checks the currency code if the same as money object
+func (m Money) IsCurrency(code string) bool {
+	return m.Currency().String() == code
+}
+
 // Add adds another Money object to the current Money object.
 // Invariants enforced:
 //   - Currencies must match.

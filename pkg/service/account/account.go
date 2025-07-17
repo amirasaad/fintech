@@ -14,6 +14,7 @@ import (
 	"github.com/amirasaad/fintech/config"
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/account"
+	"github.com/amirasaad/fintech/pkg/domain/account/events"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/google/uuid"
 )
@@ -113,58 +114,6 @@ func (s *Service) CreateAccountWithCurrency(
 }
 
 // Deposit adds funds to the specified account and creates a transaction record.
-// The method supports multi-currency deposits with automatic currency conversion
-// when the deposit currency differs from the account currency.
-//
-// The operation is wrapped with automatic transaction management and includes
-// comprehensive validation, error handling, and logging.
-//
-// Key Features:
-// - Multi-currency support with real-time conversion
-// - Automatic transaction record creation
-// - Comprehensive validation (positive amounts, valid currencies)
-// - User authorization checks
-// - Detailed logging for observability
-//
-// Parameters:
-//   - userID: The UUID of the user making the deposit (must own the account)
-//   - accountID: The UUID of the account to deposit into
-//   - amount: The amount to deposit (must be positive)
-//   - currencyCode: The ISO 4217 currency code of the deposit amount
-//
-// Returns:
-//   - A pointer to the created transaction record
-//   - A pointer to conversion information (if currency conversion occurred)
-//   - An error if the operation fails
-//
-// Currency Conversion:
-// If the deposit currency differs from the account currency, the system will:
-// 1. Fetch real-time exchange rates from the configured provider
-// 2. Convert the amount to the account's currency
-// 3. Store conversion details for audit purposes
-// 4. Update the account balance with the converted amount
-//
-// Error Scenarios:
-// - Account not found: Returns domain.ErrAccountNotFound
-// - User not authorized: Returns domain.ErrUserUnauthorized
-// - Invalid amount: Returns domain.ErrTransactionAmountMustBePositive
-// - Invalid currency: Returns domain.ErrInvalidCurrencyCode
-// - Insufficient funds: Returns domain.ErrInsufficientFunds
-// - Conversion failure: Returns conversion service error
-//
-// Example:
-//
-//	tx, convInfo, err := service.Deposit(userID, accountID, 100.0, currency.Code("EUR"))
-//	if err != nil {
-//	    log.Error("Deposit failed", "error", err)
-//	    return
-//	}
-//	if convInfo != nil {
-//	    log.Info("Currency conversion applied",
-//	        "originalAmount", convInfo.OriginalAmount,
-//	        "convertedAmount", convInfo.ConvertedAmount,
-//	        "rate", convInfo.ConversionRate)
-//	}
 func (s *Service) Deposit(
 	userID, accountID uuid.UUID,
 	amount float64,
@@ -175,13 +124,13 @@ func (s *Service) Deposit(
 		return errors.New("amount must be positive")
 	}
 	// Publish event with paymentID
-	evt := account.DepositRequestedEvent{
+	evt := events.DepositRequestedEvent{
 		EventID:   uuid.New(),
 		AccountID: accountID.String(),
 		UserID:    userID.String(),
-		Amount:    amount,
-		Currency:  string(currencyCode),
-		Source:    account.MoneySource(moneySource),
+		Amount:    amount, // float64
+		Currency:  currencyCode.String(),
+		Source:    moneySource,
 		Timestamp: time.Now().Unix(),
 	}
 	return s.deps.EventBus.Publish(context.Background(), evt)
@@ -198,14 +147,17 @@ func (s *Service) Withdraw(
 		return errors.New("amount must be positive")
 	}
 	// Publish event with paymentID
-	evt := account.WithdrawRequestedEvent{
-		EventID:   uuid.New(),
-		AccountID: accountID.String(),
-		UserID:    userID.String(),
-		Amount:    amount,
-		Currency:  string(currencyCode),
-		Target:    externalTarget,
-		Timestamp: time.Now().Unix(),
+	evt := events.WithdrawRequestedEvent{
+		EventID:               uuid.New(),
+		AccountID:             accountID.String(),
+		UserID:                userID.String(),
+		Amount:                amount, // float64
+		Currency:              string(currencyCode),
+		BankAccountNumber:     externalTarget.BankAccountNumber,
+		RoutingNumber:         externalTarget.RoutingNumber,
+		ExternalWalletAddress: externalTarget.ExternalWalletAddress,
+		Timestamp:             time.Now().Unix(),
+		PaymentID:             "", // Set if available
 	}
 	err := s.deps.EventBus.Publish(context.Background(), evt)
 	if err != nil {
@@ -225,14 +177,14 @@ func (s *Service) Transfer(
 		return errors.New("amount must be positive")
 	}
 	// Only emit and publish event
-	evt := account.TransferRequestedEvent{
+	evt := events.TransferRequestedEvent{
 		EventID:         uuid.New(),
 		SourceAccountID: sourceAccountID,
 		DestAccountID:   destAccountID,
 		SenderUserID:    userID,
-		Amount:          amount,
+		Amount:          amount, // float64
 		Currency:        string(currencyCode),
-		Source:          account.MoneySourceInternal,
+		Source:          string(account.MoneySourceInternal), // or appropriate value
 		Timestamp:       time.Now().Unix(),
 	}
 	return s.deps.EventBus.Publish(context.Background(), evt)

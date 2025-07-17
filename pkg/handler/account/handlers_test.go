@@ -2,9 +2,12 @@ package account
 
 import (
 	"context"
+	"io"
+	"log/slog"
 	"testing"
 
-	accountdomain "github.com/amirasaad/fintech/pkg/domain/account"
+	"github.com/amirasaad/fintech/pkg/domain/account/events"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -13,14 +16,14 @@ import (
 func TestDepositValidationHandler_PublishesValidatedEvent(t *testing.T) {
 	tests := []struct {
 		name      string
-		input     accountdomain.DepositRequestedEvent
+		input     events.DepositRequestedEvent
 		expectEvt bool
 	}{
 		{
 			name: "valid input",
-			input: accountdomain.DepositRequestedEvent{
-				UserID:    "user-1",
-				AccountID: "acc-1",
+			input: events.DepositRequestedEvent{
+				UserID:    uuid.NewString(),
+				AccountID: uuid.NewString(),
 				Amount:    100.0,
 				Currency:  "USD",
 			},
@@ -28,9 +31,9 @@ func TestDepositValidationHandler_PublishesValidatedEvent(t *testing.T) {
 		},
 		{
 			name: "missing user",
-			input: accountdomain.DepositRequestedEvent{
+			input: events.DepositRequestedEvent{
 				UserID:    "",
-				AccountID: "acc-1",
+				AccountID: uuid.NewString(),
 				Amount:    100.0,
 				Currency:  "USD",
 			},
@@ -38,34 +41,34 @@ func TestDepositValidationHandler_PublishesValidatedEvent(t *testing.T) {
 		},
 		{
 			name: "zero amount",
-			input: accountdomain.DepositRequestedEvent{
-				UserID:    "user-1",
-				AccountID: "acc-1",
+			input: events.DepositRequestedEvent{
+				UserID:    uuid.NewString(),
+				AccountID: uuid.NewString(),
 				Amount:    0,
 				Currency:  "USD",
 			},
 			expectEvt: false,
 		},
 		{
-			name: "missing currency",
-			input: accountdomain.DepositRequestedEvent{
-				UserID:    "user-1",
-				AccountID: "acc-1",
+			name: "missing currency: defaulted to DefaultCurrency",
+			input: events.DepositRequestedEvent{
+				UserID:    uuid.NewString(),
+				AccountID: uuid.NewString(),
 				Amount:    100.0,
 				Currency:  "",
 			},
-			expectEvt: false,
+			expectEvt: true,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			bus := &mockEventBus{}
-			handler := DepositValidationHandler(bus)
+			handler := DepositValidationHandler(bus, slog.New(slog.NewTextHandler(io.Discard, nil)))
 			handler(context.Background(), tc.input)
 			if tc.expectEvt {
-				assert.NotEmpty(t, bus.published, "should publish an event")
-				_, ok := bus.published[0].(accountdomain.DepositValidatedEvent)
+				// assert.NotEmpty(t, bus.published, "should publish an event")
+				_, ok := bus.published[0].(events.DepositValidatedEvent)
 				assert.True(t, ok, "should publish DepositValidatedEvent")
 			} else {
 				assert.Empty(t, bus.published, "should not publish event")

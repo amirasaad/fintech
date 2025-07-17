@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/amirasaad/fintech/pkg/currency"
-	accountdomain "github.com/amirasaad/fintech/pkg/domain/account"
+	"github.com/amirasaad/fintech/pkg/domain/account/events"
 	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/stretchr/testify/assert"
@@ -37,7 +37,7 @@ func TestMoneyConversionHandler_BusinessLogic(t *testing.T) {
 
 	tests := []struct {
 		name        string
-		input       accountdomain.MoneyCreatedEvent
+		input       events.MoneyCreatedEvent
 		converter   *mockCurrencyConverter
 		expectPub   bool
 		expectMoney money.Money
@@ -45,9 +45,10 @@ func TestMoneyConversionHandler_BusinessLogic(t *testing.T) {
 	}{
 		{
 			name: "no conversion needed (currencies match)",
-			input: accountdomain.MoneyCreatedEvent{
-				Money:          moneyUSD,
-				TargetCurrency: usd,
+			input: events.MoneyCreatedEvent{
+				Amount:         10000,
+				Currency:       string(usd),
+				TargetCurrency: string(usd),
 			},
 			converter: &mockCurrencyConverter{
 				convertFn: func(amount float64, from, to string) (*common.ConversionInfo, error) {
@@ -60,9 +61,10 @@ func TestMoneyConversionHandler_BusinessLogic(t *testing.T) {
 		},
 		{
 			name: "conversion needed (currencies differ)",
-			input: accountdomain.MoneyCreatedEvent{
-				Money:          moneyUSD,
-				TargetCurrency: eur,
+			input: events.MoneyCreatedEvent{
+				Amount:         10000,
+				Currency:       string(usd),
+				TargetCurrency: string(eur),
 			},
 			converter: &mockCurrencyConverter{
 				convertFn: func(amount float64, from, to string) (*common.ConversionInfo, error) {
@@ -75,9 +77,10 @@ func TestMoneyConversionHandler_BusinessLogic(t *testing.T) {
 		},
 		{
 			name: "converter returns error",
-			input: accountdomain.MoneyCreatedEvent{
-				Money:          moneyUSD,
-				TargetCurrency: eur,
+			input: events.MoneyCreatedEvent{
+				Amount:         10000,
+				Currency:       string(usd),
+				TargetCurrency: string(eur),
 			},
 			converter: &mockCurrencyConverter{
 				convertFn: func(amount float64, from, to string) (*common.ConversionInfo, error) {
@@ -96,10 +99,16 @@ func TestMoneyConversionHandler_BusinessLogic(t *testing.T) {
 			handler(ctx, tc.input)
 			if tc.expectPub {
 				assert.Len(t, bus.published, 1)
-				evt, ok := bus.published[0].(accountdomain.MoneyConvertedEvent)
+				evt, ok := bus.published[0].(events.MoneyConvertedEvent)
 				assert.True(t, ok, "should publish MoneyConvertedEvent")
-				assert.Equal(t, tc.expectMoney, evt.Money)
-				assert.Equal(t, tc.expectConv, evt.ConversionInfo)
+				if tc.expectConv == nil {
+					assert.Equal(t, tc.expectMoney.Amount(), evt.Amount)
+					assert.Equal(t, tc.expectMoney.Currency().String(), evt.Currency)
+					assert.Nil(t, evt.ConversionInfo)
+				} else {
+					assert.InEpsilon(t, tc.expectConv.ConvertedAmount, float64(evt.Amount)/100, 0.001)
+					assert.Equal(t, tc.expectConv, evt.ConversionInfo)
+				}
 			} else {
 				assert.Empty(t, bus.published)
 			}

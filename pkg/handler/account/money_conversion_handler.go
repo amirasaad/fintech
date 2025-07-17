@@ -4,8 +4,9 @@ import (
 	"context"
 	"log/slog"
 
+	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain"
-	accountdomain "github.com/amirasaad/fintech/pkg/domain/account"
+	"github.com/amirasaad/fintech/pkg/domain/account/events"
 	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/amirasaad/fintech/pkg/eventbus"
 )
@@ -13,16 +14,21 @@ import (
 // MoneyConversionHandler handles MoneyCreatedEvent, performs currency conversion if needed, and publishes MoneyConvertedEvent.
 func MoneyConversionHandler(bus eventbus.EventBus, converter money.CurrencyConverter) func(context.Context, domain.Event) {
 	return func(ctx context.Context, e domain.Event) {
-		me, ok := e.(accountdomain.MoneyCreatedEvent)
+		me, ok := e.(events.MoneyCreatedEvent)
 		if !ok {
 			return
 		}
-		origMoney := me.Money
+		origMoney, err := money.NewMoneyFromSmallestUnit(me.Amount, currency.Code(me.Currency))
+		if err != nil {
+			slog.Error("MoneyConversionHandler: conversion failed", "error", err)
+			return
+		}
 		targetCurrency := me.TargetCurrency
-		if string(origMoney.Currency()) == string(targetCurrency) {
-			_ = bus.Publish(ctx, accountdomain.MoneyConvertedEvent{
+		if origMoney.IsCurrency(targetCurrency) {
+			_ = bus.Publish(ctx, events.MoneyConvertedEvent{
 				MoneyCreatedEvent: me,
-				Money:             origMoney,
+				Amount:            origMoney.Amount(),
+				Currency:          origMoney.Currency().String(),
 				ConversionInfo:    nil,
 			})
 			return
@@ -32,14 +38,15 @@ func MoneyConversionHandler(bus eventbus.EventBus, converter money.CurrencyConve
 			slog.Error("MoneyConversionHandler: conversion failed", "error", err)
 			return
 		}
-		convertedMoney, err := money.New(convInfo.ConvertedAmount, targetCurrency)
+		convertedMoney, err := money.New(convInfo.ConvertedAmount, currency.Code(targetCurrency))
 		if err != nil {
 			slog.Error("MoneyConversionHandler: failed to create converted money", "error", err)
 			return
 		}
-		_ = bus.Publish(ctx, accountdomain.MoneyConvertedEvent{
+		_ = bus.Publish(ctx, events.MoneyConvertedEvent{
 			MoneyCreatedEvent: me,
-			Money:             convertedMoney,
+			Amount:            convertedMoney.Amount(),
+			Currency:          convertedMoney.Currency().String(),
 			ConversionInfo:    convInfo,
 		})
 	}

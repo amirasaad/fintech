@@ -208,10 +208,15 @@ func (a *Account) PullEvents() []common.Event {
 }
 
 // Validate checks all business invariants for an operation (common validation logic).
-func (a *Account) Validate(userID uuid.UUID, amount money.Money) error {
+func (a *Account) Validate(userID uuid.UUID) error {
 	if a.UserID != userID {
 		return ErrNotOwner
 	}
+
+	return nil
+}
+
+func (a *Account) validateAmount(amount money.Money) error {
 	if !amount.IsPositive() {
 		return ErrTransactionAmountMustBePositive
 	}
@@ -222,8 +227,13 @@ func (a *Account) Validate(userID uuid.UUID, amount money.Money) error {
 }
 
 // ValidateDeposit checks all business invariants for a deposit operation.
-func (a *Account) ValidateDeposit(userID uuid.UUID, amount money.Money) error {
-	return a.Validate(userID, amount)
+func (a *Account) ValidateDeposit(userID uuid.UUID, amount money.Money) (err error) {
+
+	if err = a.Validate(userID); err != nil {
+		return
+	}
+	return a.validateAmount(amount)
+
 }
 
 // Deposit adds funds to the account if all business invariants are satisfied.
@@ -236,20 +246,13 @@ func (a *Account) ValidateDeposit(userID uuid.UUID, amount money.Money) error {
 // Returns a Transaction or an error if any invariant is violated.
 func (a *Account) Deposit(userID uuid.UUID, amount money.Money, moneySource MoneySource, paymentID string) error {
 
-	if err := a.Validate(userID, amount); err != nil {
+	if err := a.Validate(userID); err != nil {
 		return err
 	}
 
-	a.events = append(a.events, events.DepositRequestedEvent{
-		AccountID: a.ID.String(),
-		UserID:    userID.String(),
-		Amount:    amount.Amount(),
-		Currency:  amount.Currency().String(),
-		Source:    string(moneySource),
-		Timestamp: time.Now().Unix(),
-		PaymentID: paymentID,
-	})
-	return nil
+	// No longer emit DepositRequestedEvent here; emit only domain events representing state changes if needed.
+	// Example: a.events = append(a.events, events.DepositValidatedEvent{...})
+	return a.validateAmount(amount)
 }
 
 // Withdraw removes funds from the account if all business invariants are satisfied.
@@ -261,7 +264,10 @@ func (a *Account) Deposit(userID uuid.UUID, amount money.Money, moneySource Mone
 //
 // Returns a Transaction or an error if any invariant is violated.
 func (a *Account) Withdraw(userID uuid.UUID, amount money.Money, target ExternalTarget, paymentID string) error {
-	if err := a.Validate(userID, amount); err != nil {
+	if err := a.Validate(userID); err != nil {
+		return err
+	}
+	if err := a.validateAmount(amount); err != nil {
 		return err
 	}
 	// Sufficient funds check: do not allow negative balance
@@ -272,17 +278,6 @@ func (a *Account) Withdraw(userID uuid.UUID, amount money.Money, target External
 	if !hasEnough && !a.Balance.Equals(amount) {
 		return ErrInsufficientFunds
 	}
-	a.events = append(a.events, events.WithdrawRequestedEvent{
-		AccountID:             a.ID.String(),
-		UserID:                userID.String(),
-		Amount:                amount.Amount(),
-		Currency:              amount.Currency().String(),
-		ExternalWalletAddress: target.ExternalWalletAddress,
-		BankAccountNumber:     target.BankAccountNumber,
-		RoutingNumber:         target.RoutingNumber,
-		Timestamp:             time.Now().Unix(),
-		PaymentID:             paymentID,
-	})
 	return nil
 }
 
@@ -317,7 +312,7 @@ func (a *Account) Transfer(senderUserID, receiverUserID uuid.UUID, dest *Account
 		ReceiverUserID:  receiverUserID,
 		SourceAccountID: a.ID,
 		DestAccountID:   dest.ID,
-		Amount:          amount.Amount(),
+		Amount:          amount.AmountFloat(), // float64
 		Currency:        amount.Currency().String(),
 		Source:          string(moneySource),
 		Timestamp:       time.Now().Unix(),

@@ -5,69 +5,39 @@ import (
 	"log/slog"
 
 	"github.com/amirasaad/fintech/pkg/domain"
-	accountdomain "github.com/amirasaad/fintech/pkg/domain/account"
+	"github.com/amirasaad/fintech/pkg/domain/account/events"
 	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/google/uuid"
 )
 
-// AccountValidationHandler handles AccountQuerySucceededEvent and performs business validation
+// AccountValidationHandler handles AccountQuerySucceededEvent, maps DTO to domain, validates, and publishes AccountValidatedEvent.
 func AccountValidationHandler(bus eventbus.EventBus, logger *slog.Logger) func(context.Context, domain.Event) {
 	return func(ctx context.Context, e domain.Event) {
-		event, ok := e.(accountdomain.AccountQuerySucceededEvent)
+		ev, ok := e.(events.AccountQuerySucceededEvent)
 		if !ok {
+			logger.Error("AccountValidationHandler: unexpected event type", "event", e)
 			return
 		}
-
-		logger.Info("validating account",
-			"account_id", event.Query.AccountID,
-			"user_id", event.Query.UserID,
-		)
-
-		// Perform business validation
-		if event.Account == nil {
-			logger.Error("account validation failed: account is nil")
-			return
-		}
-
-		// Check if account has valid ID
-		if event.Account.ID == uuid.Nil {
-			logger.Error("account validation failed: account has invalid ID")
-			_ = bus.Publish(ctx, accountdomain.AccountValidationFailedEvent{
-				Query:   event.Query,
-				Account: event.Account,
-				Reason:  "account has invalid ID",
-			})
-			return
-		}
-
-		// Check if account belongs to the requesting user
-		userID, err := uuid.Parse(event.Query.UserID)
+		acc, err := MapDTOToAccount(ev.Result)
 		if err != nil {
-			logger.Error("account validation failed: invalid user ID format")
-			_ = bus.Publish(ctx, accountdomain.AccountValidationFailedEvent{
-				Query:   event.Query,
-				Account: event.Account,
-				Reason:  "invalid user ID format",
-			})
+			logger.Error("AccountValidationHandler: failed to map DTO to domain Account", "error", err, "result", ev.Result)
 			return
 		}
-
-		if event.Account.UserID != userID {
-			logger.Error("account validation failed: user not authorized for account")
-			_ = bus.Publish(ctx, accountdomain.AccountValidationFailedEvent{
-				Query:   event.Query,
-				Account: event.Account,
-				Reason:  "user not authorized for account",
-			})
+		userID, err := uuid.Parse(ev.Result.UserID)
+		if err != nil {
+			logger.Error("AccountValidationHandler: invalid userID", "error", err, "userID", ev.Result.UserID)
 			return
 		}
-
-		// Validation passed
-		logger.Info("account validation successful",
-			"account_id", event.Query.AccountID,
-		)
-
-		// Convert AccountQuerySucceededEvent to AccountValidatedEvent
-		_ = bus.Publish(ctx, accountdomain.AccountValidatedEvent(event))
+		if err := acc.Validate(userID); err != nil {
+			logger.Error("AccountValidationHandler: domain validation failed", "error", err)
+			return
+		}
+		accountValidated := events.AccountValidatedEvent{
+			AccountID: acc.ID.String(),
+			UserID:    acc.UserID.String(),
+			Amount:    acc.Balance.Amount(),
+			Currency:  acc.Balance.Currency().String(),
+		}
+		_ = bus.Publish(ctx, accountValidated)
 	}
 }

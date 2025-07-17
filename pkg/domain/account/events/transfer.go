@@ -11,7 +11,7 @@ type TransferRequestedEvent struct {
 	DestAccountID   uuid.UUID
 	SenderUserID    uuid.UUID
 	ReceiverUserID  uuid.UUID
-	Amount          int64
+	Amount          float64 // main unit (e.g., dollars)
 	Currency        string
 	Source          string // MoneySource as string
 	Timestamp       int64

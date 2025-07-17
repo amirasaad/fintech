@@ -1,6 +1,7 @@
 package events
 
 import (
+	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/google/uuid"
 )
 
@@ -9,7 +10,7 @@ type DepositRequestedEvent struct {
 	EventID   uuid.UUID
 	AccountID string
 	UserID    string
-	Amount    int64
+	Amount    float64 // main unit (e.g., dollars)
 	Currency  string
 	Source    string // MoneySource as string
 	Timestamp int64
@@ -25,9 +26,17 @@ type DepositValidatedEvent struct {
 // MoneyCreatedEvent is emitted after money creation/conversion.
 type MoneyCreatedEvent struct {
 	DepositValidatedEvent
-	Amount         int64 // Amount in smallest unit (e.g., cents)
+	Amount         int64
 	Currency       string
 	TargetCurrency string
+}
+
+// MoneyConvertedEvent is emitted after currency conversion (if needed).
+type MoneyConvertedEvent struct {
+	MoneyCreatedEvent
+	Amount         int64
+	Currency       string
+	ConversionInfo *common.ConversionInfo
 }
 
 // DepositPersistedEvent is emitted after persistence is complete.
@@ -39,4 +48,5 @@ type DepositPersistedEvent struct {
 func (e DepositRequestedEvent) EventType() string { return "DepositRequestedEvent" }
 func (e DepositValidatedEvent) EventType() string { return "DepositValidatedEvent" }
 func (e MoneyCreatedEvent) EventType() string     { return "MoneyCreatedEvent" }
+func (e MoneyConvertedEvent) EventType() string   { return "MoneyConvertedEvent" }
 func (e DepositPersistedEvent) EventType() string { return "DepositPersistedEvent" }

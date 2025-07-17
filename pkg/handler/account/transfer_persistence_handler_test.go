@@ -5,23 +5,23 @@ import (
 	"errors"
 	"testing"
 
-	accountdomain "github.com/amirasaad/fintech/pkg/domain/account"
+	"github.com/amirasaad/fintech/pkg/domain/account/events"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
 
 type mockTransferPersistenceAdapter struct {
-	persistFn func(ctx context.Context, event accountdomain.TransferDomainOpDoneEvent) error
+	persistFn func(ctx context.Context, event events.TransferDomainOpDoneEvent) error
 }
 
-func (m *mockTransferPersistenceAdapter) PersistTransfer(ctx context.Context, event accountdomain.TransferDomainOpDoneEvent) error {
+func (m *mockTransferPersistenceAdapter) PersistTransfer(ctx context.Context, event events.TransferDomainOpDoneEvent) error {
 	return m.persistFn(ctx, event)
 }
 
 func TestTransferPersistenceHandler_BusinessLogic(t *testing.T) {
-	validEvent := accountdomain.TransferDomainOpDoneEvent{
-		TransferValidatedEvent: accountdomain.TransferValidatedEvent{
-			TransferRequestedEvent: accountdomain.TransferRequestedEvent{
+	validEvent := events.TransferDomainOpDoneEvent{
+		TransferValidatedEvent: events.TransferValidatedEvent{
+			TransferRequestedEvent: events.TransferRequestedEvent{
 				EventID:         uuid.New(),
 				SourceAccountID: uuid.New(),
 				DestAccountID:   uuid.New(),
@@ -29,14 +29,14 @@ func TestTransferPersistenceHandler_BusinessLogic(t *testing.T) {
 				ReceiverUserID:  uuid.New(),
 				Amount:          100,
 				Currency:        "USD",
-				Source:          accountdomain.MoneySourceInternal,
+				Source:          "Internal",
 				Timestamp:       1234567890,
 			},
 		},
 	}
 	tests := []struct {
 		name      string
-		input     accountdomain.TransferDomainOpDoneEvent
+		input     events.TransferDomainOpDoneEvent
 		adapter   *mockTransferPersistenceAdapter
 		expectPub bool
 	}{
@@ -44,7 +44,7 @@ func TestTransferPersistenceHandler_BusinessLogic(t *testing.T) {
 			name:  "persistence success",
 			input: validEvent,
 			adapter: &mockTransferPersistenceAdapter{
-				persistFn: func(ctx context.Context, event accountdomain.TransferDomainOpDoneEvent) error {
+				persistFn: func(ctx context.Context, event events.TransferDomainOpDoneEvent) error {
 					return nil
 				},
 			},
@@ -54,7 +54,7 @@ func TestTransferPersistenceHandler_BusinessLogic(t *testing.T) {
 			name:  "persistence error",
 			input: validEvent,
 			adapter: &mockTransferPersistenceAdapter{
-				persistFn: func(ctx context.Context, event accountdomain.TransferDomainOpDoneEvent) error {
+				persistFn: func(ctx context.Context, event events.TransferDomainOpDoneEvent) error {
 					return errors.New("persistence failed")
 				},
 			},
@@ -68,7 +68,7 @@ func TestTransferPersistenceHandler_BusinessLogic(t *testing.T) {
 			handler(context.Background(), tc.input)
 			if tc.expectPub {
 				assert.NotEmpty(t, bus.published)
-				_, ok := bus.published[0].(accountdomain.TransferPersistedEvent)
+				_, ok := bus.published[0].(events.TransferPersistedEvent)
 				assert.True(t, ok)
 			} else {
 				assert.Empty(t, bus.published)

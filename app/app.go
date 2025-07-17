@@ -44,17 +44,17 @@ func New(deps config.Deps) *fiber.App {
 	bus.Subscribe("AccountValidatedEvent", handleraccount.MoneyCreationHandler(bus))
 
 	// Register event-driven deposit workflow handlers
-	bus.Subscribe("DepositRequestedEvent", handleraccount.DepositValidationHandler(bus))
+	bus.Subscribe("DepositRequestedEvent", handleraccount.DepositValidationHandler(bus, deps.Logger))
 	bus.Subscribe("DepositValidatedEvent", handleraccount.MoneyCreationHandler(bus))
-	bus.Subscribe("MoneyCreatedEvent", handleraccount.DepositPersistenceHandler(bus))
+	bus.Subscribe("MoneyCreatedEvent", handleraccount.DepositPersistenceHandler(bus, deps.Uow))
 
 	// Register event-driven withdraw workflow handlers
-	bus.Subscribe("WithdrawRequestedEvent", handleraccount.WithdrawValidationHandler(bus))
+	bus.Subscribe("WithdrawRequestedEvent", handleraccount.WithdrawValidationHandler(bus, deps.Logger))
 	// TODO: Add WithdrawDomainOpHandler and WithdrawPersistenceHandler when implemented
 
 	// Register event-driven transfer workflow handlers
-	bus.Subscribe("TransferRequestedEvent", handleraccount.TransferValidationHandler(bus))
-	bus.Subscribe("TransferValidatedEvent", handleraccount.TransferDomainOpHandler(bus /* TODO: inject TransferDomainOperator */, nil))
+	bus.Subscribe("TransferRequestedEvent", handleraccount.TransferValidationHandler(bus, deps.Logger))
+	// bus.Subscribe("TransferValidatedEvent", handleraccount.TransferDomainOpHandler(bus /* TODO: inject TransferDomainOperator */, nil))
 	bus.Subscribe("TransferDomainOpDoneEvent", handleraccount.TransferPersistenceHandler(bus /* TODO: inject TransferPersistenceAdapter */, nil))
 	// Add more as you implement them
 

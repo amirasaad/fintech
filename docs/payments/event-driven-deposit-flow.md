@@ -38,9 +38,44 @@ sequenceDiagram
 
 ---
 
+## Workflow Clarification: Event-Driven Deposit Flow
+
+The deposit workflow is orchestrated through a series of events and handlers:
+
+1. **User submits deposit request** (amount as `float64`, main unit). API emits `DepositRequestedEvent`.
+2. **Validation Handler** loads the account, calls domain validation (`ValidateDeposit`), emits `DepositValidatedEvent`.
+3. **Money Creation Handler** creates a `money.Money` value object (`int64`), emits `MoneyCreatedEvent`.
+4. **Money Conversion Handler** (if needed) converts currency using value objects, emits `MoneyConvertedEvent`.
+5. **Persistence Handler** persists the transaction, emits `DepositPersistedEvent`.
+6. **Payment Initiation Handler** initiates payment, emits `PaymentInitiatedEvent`.
+7. **PaymentId Persistence Handler** updates transaction with paymentId, emits `PaymentIdPersistedEvent`.
+8. **Webhook Handler** (optional) updates transaction status and account balance on payment confirmation.
+
+### Updated Deposit Workflow Diagram
+
+```mermaid
+flowchart TD
+    A["DepositRequestedEvent"] --> B["Validation Handler (domain validation)"]
+    B --> C["DepositValidatedEvent"]
+    C --> D["Money Creation Handler (value object)"]
+    D --> E["MoneyCreatedEvent"]
+    E --> F["Money Conversion Handler (if needed)"]
+    F --> G["MoneyConvertedEvent"]
+    G --> H["Persistence Handler"]
+    H --> I["DepositPersistedEvent"]
+    I --> J["Payment Initiation Handler"]
+    J --> K["PaymentInitiatedEvent"]
+    K --> L["PaymentId Persistence Handler"]
+    L --> M["PaymentIdPersistedEvent"]
+    M --> N["Webhook Handler (optional)"]
+```
+
+---
+
 ## Event-Driven Components
 
 ### 1. Query Handler
+
 - **Purpose:** Retrieves account data and emits query events
 - **Events Emitted:**
   - `AccountQuerySucceededEvent` - When account is found and authorized
@@ -48,6 +83,7 @@ sequenceDiagram
 - **Benefits:** Clean separation of data retrieval from business logic
 
 ### 2. Validation Handler
+
 - **Purpose:** Performs business validation on retrieved accounts
 - **Events Consumed:** `AccountQuerySucceededEvent`
 - **Events Emitted:**
@@ -59,16 +95,19 @@ sequenceDiagram
   - Account is in valid state for operations
 
 ### 3. Money Creation Handler
+
 - **Purpose:** Creates money objects for the deposit
 - **Events Consumed:** `AccountValidatedEvent`
 - **Events Emitted:** `MoneyCreatedEvent`
 
 ### 4. Persistence Handler
+
 - **Purpose:** Persists the deposit transaction to the database
 - **Events Consumed:** `MoneyCreatedEvent`
 - **Events Emitted:** `DepositPersistedEvent`
 
 ### 5. Payment Initiation Handler
+
 - **Purpose:** Initiates payment with external providers
 - **Events Consumed:** `DepositPersistedEvent`
 - **Events Emitted:** `PaymentInitiatedEvent`
@@ -78,24 +117,29 @@ sequenceDiagram
 ## Key Benefits
 
 ### 1. **Modularity**
+
 Each handler has a single responsibility and can be developed, tested, and deployed independently.
 
 ### 2. **Testability**
+
 - Unit tests for each handler
 - Integration tests for event flows
 - Easy mocking of dependencies
 
 ### 3. **Scalability**
+
 - Handlers can be scaled independently
 - Event-driven architecture supports async processing
 - Easy to add new handlers without modifying existing code
 
 ### 4. **Maintainability**
+
 - Clear separation of concerns
 - Easy to understand and modify individual components
 - Consistent patterns across all handlers
 
 ### 5. **Event Sourcing Ready**
+
 - All business events are captured
 - Easy to implement event sourcing patterns
 - Audit trail of all operations
@@ -105,6 +149,7 @@ Each handler has a single responsibility and can be developed, tested, and deplo
 ## Implementation Details
 
 ### Query Handler Pattern
+
 ```go
 // Query handler emits events directly
 func (h *getAccountQueryHandler) HandleQuery(ctx context.Context, query any) (any, error) {
@@ -123,6 +168,7 @@ func (h *getAccountQueryHandler) HandleQuery(ctx context.Context, query any) (an
 ```
 
 ### Validation Handler Pattern
+
 ```go
 // Validation handler listens to query success events
 func AccountValidationHandler(bus eventbus.EventBus, logger *slog.Logger) func(context.Context, domain.Event) {
@@ -149,18 +195,21 @@ func AccountValidationHandler(bus eventbus.EventBus, logger *slog.Logger) func(c
 ## Error Handling
 
 ### Query Failures
+
 - Invalid account/user IDs
 - Account not found
 - Unauthorized access
 - Repository errors
 
 ### Validation Failures
+
 - Account inactive
 - Insufficient balance
 - Business rule violations
 - Invalid account state
 
 ### Event Flow on Errors
+
 1. Query handler emits `AccountQueryFailedEvent`
 2. Validation handler is not triggered
 3. Error is returned to the caller
@@ -171,16 +220,19 @@ func AccountValidationHandler(bus eventbus.EventBus, logger *slog.Logger) func(c
 ## Testing Strategy
 
 ### Unit Tests
+
 - Test each handler independently
 - Mock event bus and dependencies
 - Test success and failure scenarios
 
 ### Integration Tests
+
 - Test complete event flows
 - Use real event bus
 - Verify event sequences
 
 ### End-to-End Tests
+
 - Test full API endpoints
 - Verify business outcomes
 - Test error scenarios
@@ -190,22 +242,26 @@ func AccountValidationHandler(bus eventbus.EventBus, logger *slog.Logger) func(c
 ## Future Enhancements
 
 ### 1. **Enhanced Validation**
+
 - Balance checks for withdrawals
 - Currency validation
 - Rate limiting
 - Fraud detection
 
 ### 2. **Event Sourcing**
+
 - Store all events in event store
 - Rebuild state from events
 - Event replay capabilities
 
 ### 3. **Saga Pattern**
+
 - Distributed transaction management
 - Compensation actions
 - Rollback mechanisms
 
 ### 4. **Monitoring & Observability**
+
 - Event metrics
 - Performance monitoring
 - Business metrics

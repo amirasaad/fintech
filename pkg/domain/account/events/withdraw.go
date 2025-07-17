@@ -9,7 +9,7 @@ type WithdrawRequestedEvent struct {
 	EventID               uuid.UUID
 	AccountID             string
 	UserID                string
-	Amount                int64
+	Amount                float64 // main unit (e.g., dollars)
 	Currency              string
 	BankAccountNumber     string
 	RoutingNumber         string
