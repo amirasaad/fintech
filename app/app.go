@@ -10,7 +10,6 @@ import (
 	"github.com/amirasaad/fintech/pkg/handler/account/money"
 	transferhandler "github.com/amirasaad/fintech/pkg/handler/account/transfer"
 	withdrawhandler "github.com/amirasaad/fintech/pkg/handler/account/withdraw"
-	"github.com/amirasaad/fintech/pkg/processor"
 	accountsvc "github.com/amirasaad/fintech/pkg/service/account"
 	authsvc "github.com/amirasaad/fintech/pkg/service/auth"
 	currencysvc "github.com/amirasaad/fintech/pkg/service/currency"
@@ -106,9 +105,8 @@ func New(deps config.Deps) *fiber.App {
 	})
 
 	// Payment event processor for Stripe webhooks
-	paymentEventProcessor := processor.NewDefaultPaymentEventProcessor(accountSvc)
 	stripeSigningSecret := deps.Config.PaymentProviders.Stripe.SigningSecret
-	app.Post("/payments/stripe/webhook", account.StripeWebhookHandler(paymentEventProcessor, stripeSigningSecret))
+	app.Post("/payments/stripe/webhook", account.StripeWebhookHandler(bus, stripeSigningSecret))
 
 	app.Post("/webhook/payment", account.PaymentWebhookHandler(accountSvc))
 

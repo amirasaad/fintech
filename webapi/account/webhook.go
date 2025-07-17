@@ -2,11 +2,10 @@ package account
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
-	"os"
 
-	"github.com/amirasaad/fintech/pkg/processor"
+	"github.com/amirasaad/fintech/pkg/domain/account/events"
+	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/amirasaad/fintech/pkg/service/account"
 	"github.com/gofiber/fiber/v2"
 	"github.com/stripe/stripe-go/v82"
@@ -33,10 +32,9 @@ func PaymentWebhookHandler(svc *account.Service) fiber.Handler {
 }
 
 // StripeWebhookHandler handles incoming Stripe webhook events.
-func StripeWebhookHandler(eventProcessor processor.EventProcessor, signingSecret string) fiber.Handler {
+func StripeWebhookHandler(eventBus eventbus.EventBus, signingSecret string) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		const MaxBodyBytes = int64(65536)
-		c.Request().Body()
 		request := c.Request()
 		body := request.Body()
 		if int64(len(body)) > MaxBodyBytes {
@@ -44,44 +42,29 @@ func StripeWebhookHandler(eventProcessor processor.EventProcessor, signingSecret
 		}
 
 		event := stripe.Event{}
-
 		if err := json.Unmarshal(body, &event); err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to parse webhook body json: %v\n", err.Error())
 			return c.SendStatus(http.StatusBadRequest)
 		}
 
-		// Unmarshal the event data into an appropriate struct depending on its Type
-		var paymentMethod stripe.PaymentMethod
 		var paymentIntent stripe.PaymentIntent
-		switch event.Type {
-		case "payment_intent.succeeded":
-			err := json.Unmarshal(event.Data.Raw, &paymentIntent)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error parsing webhook JSON: %v\n", err)
+		if event.Type == "payment_intent.succeeded" {
+			if err := json.Unmarshal(event.Data.Raw, &paymentIntent); err != nil {
 				return c.SendStatus(http.StatusBadRequest)
 			}
-			fmt.Printf("payment_intent.succeeded, %v", paymentIntent)
 
-		case "payment_method.attached":
-			err := json.Unmarshal(event.Data.Raw, &paymentMethod)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error parsing webhook JSON: %v\n", err)
-				return c.SendStatus(http.StatusBadRequest)
+			// Publish PaymentCompletedEvent to the event bus
+			paymentEvent := &events.PaymentCompletedEvent{
+				PaymentInitiationEvent: events.PaymentInitiationEvent{
+					PaymentID: paymentIntent.ID,
+					Status:    string(paymentIntent.Status),
+				},
 			}
-			fmt.Printf("payment_method.attached %v", paymentMethod)
-
-		default:
-			fmt.Fprintf(os.Stderr, "Unhandled event type: %s\n", event.Type)
-		}
-
-		payEvent := processor.Event{
-			Provider:  "stripe",
-			PaymentID: paymentIntent.ID,
-			Status:    string(paymentIntent.Status),
-			RawEvent:  event,
-		}
-		if err := eventProcessor.ProcessEvent(payEvent); err != nil {
-			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+			if err := eventBus.Publish(c.Context(), paymentEvent); err != nil {
+				return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+			}
+		} else {
+			// For now, ignore other event types
+			return c.SendStatus(http.StatusOK)
 		}
 		return c.SendStatus(http.StatusOK)
 	}
