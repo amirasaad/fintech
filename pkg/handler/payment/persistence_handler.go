@@ -1,5 +1,4 @@
-// Package deposit previously contained DepositPersistenceHandler, now moved to pkg/handler/payment/persistence_handler.go
-package deposit
+package payment
 
 import (
 	"context"

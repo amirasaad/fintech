@@ -1,12 +1,12 @@
-package deposit
+package payment
 
 import (
 	"context"
 	"log/slog"
 
 	"github.com/amirasaad/fintech/pkg/domain"
-	"github.com/amirasaad/fintech/pkg/domain/account"
-	"github.com/amirasaad/fintech/pkg/domain/account/events"
+	accountdomain "github.com/amirasaad/fintech/pkg/domain/account"
+	events "github.com/amirasaad/fintech/pkg/domain/account/events"
 	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/amirasaad/fintech/pkg/repository"
 )
@@ -29,7 +29,7 @@ func PaymentCompletedHandler(bus eventbus.EventBus, uow repository.UnitOfWork, l
 			logger.Error("PaymentCompletedHandler: failed to get transaction by payment ID", "error", err, "payment_id", pe.PaymentID)
 			return
 		}
-		tx.Status = account.TransactionStatus(pe.Status)
+		tx.Status = accountdomain.TransactionStatus(pe.Status)
 		if err := repo.Update(tx); err != nil {
 			logger.Error("PaymentCompletedHandler: failed to update transaction status", "error", err, "payment_id", pe.PaymentID)
 			return

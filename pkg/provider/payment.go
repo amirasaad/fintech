@@ -2,8 +2,6 @@ package provider
 
 import (
 	"context"
-
-	"github.com/google/uuid"
 )
 
 // PaymentStatus represents the status of a payment in the mock provider.
@@ -20,6 +18,6 @@ const (
 
 // PaymentProvider is a interface for payment provider
 type PaymentProvider interface {
-	InitiatePayment(ctx context.Context, userID, accountID uuid.UUID, amount int64, currency string) (string, error)
+	InitiatePayment(ctx context.Context, userID, accountID string, amount int64, currency string) (string, error)
 	GetPaymentStatus(ctx context.Context, paymentID string) (PaymentStatus, error)
 }
