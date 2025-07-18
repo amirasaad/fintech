@@ -1,9 +1,11 @@
 package account
 
 import (
+	"time"
+
 	"github.com/amirasaad/fintech/config"
+	"github.com/amirasaad/fintech/pkg/commands"
 	"github.com/amirasaad/fintech/pkg/currency"
-	"github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/middleware"
 	accountsvc "github.com/amirasaad/fintech/pkg/service/account"
@@ -127,14 +129,14 @@ func Deposit(
 		if input.Currency != "" {
 			currencyCode = currency.Code(input.Currency)
 		}
-		createDTO := dto.TransactionCommand{
+		depositCmd := commands.DepositCommand{
 			UserID:    userID,
 			AccountID: accountID,
 			Amount:    input.Amount,
 			Currency:  string(currencyCode),
 			// Add MoneySource, TargetCurrency, etc. if needed
 		}
-		err = accountSvc.Deposit(c.Context(), createDTO)
+		err = accountSvc.Deposit(c.Context(), depositCmd)
 		if err != nil {
 			return common.ProblemDetailsJSON(c, "Failed to deposit", err)
 		}
@@ -199,12 +201,18 @@ func Withdraw(
 		if input.Currency != "" {
 			currencyCode = currency.Code(input.Currency)
 		}
-		handlerTarget := account.ExternalTarget{
-			BankAccountNumber:     input.ExternalTarget.BankAccountNumber,
-			RoutingNumber:         input.ExternalTarget.RoutingNumber,
-			ExternalWalletAddress: input.ExternalTarget.ExternalWalletAddress,
-		}
-		err = accountSvc.Withdraw(userID, accountID, input.Amount, currencyCode, handlerTarget)
+		err = accountSvc.Withdraw(c.Context(), commands.WithdrawCommand{
+			UserID:    userID,
+			AccountID: accountID,
+			Amount:    input.Amount,
+			Currency:  string(currencyCode),
+			ExternalTarget: &commands.ExternalTarget{
+				BankAccountNumber:     input.ExternalTarget.BankAccountNumber,
+				RoutingNumber:         input.ExternalTarget.RoutingNumber,
+				ExternalWalletAddress: input.ExternalTarget.ExternalWalletAddress,
+			},
+			Timestamp: time.Now().Unix(),
+		})
 		if err != nil {
 			return common.ProblemDetailsJSON(c, "Failed to withdraw", err)
 		}

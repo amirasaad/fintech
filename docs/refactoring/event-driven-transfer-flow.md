@@ -82,25 +82,19 @@ flowchart TD
   - Accounts are in valid state for operations
   - Sufficient balance in source account
 
-### 2. Money Creation Handler
-
-- **Purpose:** Creates a `money.Money` value object for the transfer
-- **Events Consumed:** `TransferValidatedEvent`
-- **Events Emitted:** `MoneyCreatedEvent`
-
-### 3. Currency Conversion Handler
+### 2. Currency Conversion Handler
 
 - **Purpose:** Converts currency if source and target accounts use different currencies
 - **Events Consumed:** `MoneyCreatedEvent`
 - **Events Emitted:** `MoneyConvertedEvent`
 
-### 4. Domain Operation Handler
+### 3. Domain Operation Handler
 
 - **Purpose:** Executes the transfer on the domain model
 - **Events Consumed:** `MoneyConvertedEvent` (or `MoneyCreatedEvent` if no conversion)
 - **Events Emitted:** `TransferDomainOpDoneEvent`
 
-### 5. Persistence Handler
+### 4. Persistence Handler
 
 - **Purpose:** Persists the transfer transaction(s) to the database
 - **Events Consumed:** `TransferDomainOpDoneEvent`

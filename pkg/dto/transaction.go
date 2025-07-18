@@ -40,13 +40,3 @@ type TransactionUpdate struct {
 	ConversionRate   *float64
 	// Add more fields as needed for partial updates
 }
-
-// TransactionCommand is a DTO for user/service input (main unit, float64).
-type TransactionCommand struct {
-	UserID      uuid.UUID // User who owns the transaction
-	AccountID   uuid.UUID // Account associated with the transaction
-	Amount      float64   // Main unit (e.g., dollars)
-	Currency    string
-	MoneySource string
-	// Add more fields as needed for commands
-}

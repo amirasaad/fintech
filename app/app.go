@@ -45,7 +45,7 @@ func New(deps config.Deps) *fiber.App {
 
 	// Register event-driven deposit workflow handlers
 	// 1. Query and validate account for deposit
-	bus.Subscribe("DepositRequestedEvent", deposithandler.RequestedHandler(deps.Uow, bus, deps.Logger))
+	bus.Subscribe("DepositRequestedEvent", deposithandler.ValidationHandler(bus, deps.Uow, deps.Logger))
 
 	// 2. Initial persistence (after validation)
 	bus.Subscribe("DepositValidatedEvent", deposithandler.PersistenceHandler(bus, deps.Uow, deps.Logger))
@@ -67,17 +67,19 @@ func New(deps config.Deps) *fiber.App {
 	bus.Subscribe("PaymentCompletedEvent", paymenthandler.CompletedHandler(bus, deps.Uow, deps.Logger))
 
 	// Register event-driven withdraw workflow handlers
-	bus.Subscribe("WithdrawRequestedEvent", withdrawhandler.WithdrawValidationHandler(bus, deps.Logger))
-	// TODO: Add WithdrawDomainOpHandler and WithdrawPersistenceHandler when implemented
+	// 1. Validate account and business rules for withdraw
+	bus.Subscribe("WithdrawRequestedEvent", withdrawhandler.WithdrawValidationHandler(bus, deps.Uow, deps.Logger))
+	// 2. Persist withdraw transaction after validation
+	bus.Subscribe("WithdrawValidatedEvent", withdrawhandler.WithdrawPersistenceHandler(bus, deps.Uow, deps.Logger))
+	// 3. Request currency conversion after withdraw persistence (handled by shared conversion handler chain)
+	//    WithdrawPersistenceHandler emits CurrencyConversionRequested, which is handled by conversion.Handler
+	//    No new subscription needed here; conversion event chain is shared with deposit/transfer
 
 	// Register event-driven transfer workflow handlers
 	bus.Subscribe("TransferRequestedEvent", transferhandler.TransferValidationHandler(bus, deps.Logger))
 	// bus.Subscribe("TransferValidatedEvent", transferhandler.TransferDomainOpHandler(bus /* TODO: inject TransferDomainOperator */, nil))
 	bus.Subscribe("TransferDomainOpDoneEvent", transferhandler.TransferPersistenceHandler(bus /* TODO: inject TransferPersistenceAdapter */, nil))
 	// Add more as you implement them
-
-	// TODO: Create and register query handlers with a query bus or expose in API layer
-	// Example: getAccountQueryHandler := handleraccount.GetAccountQueryHandler(deps.Uow, bus)
 
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {

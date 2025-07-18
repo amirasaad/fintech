@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/amirasaad/fintech/pkg/commands"
 	events2 "github.com/amirasaad/fintech/pkg/domain/events"
 
 	"log/slog"
@@ -118,7 +119,7 @@ func TestDeposit_PublishesEvent(t *testing.T) {
 		// Optionally, assert on event fields here
 	})
 
-	err := svc.Deposit(context.Background(), dto.TransactionCommand{Amount: 100})
+	err := svc.Deposit(context.Background(), commands.DepositCommand{Amount: 100})
 	require.NoError(t, err)
 	assert.True(t, called, "Handler should have been called")
 }
@@ -138,8 +139,15 @@ func TestWithdraw_PublishesEvent(t *testing.T) {
 	memBus.Subscribe("WithdrawRequestedEvent", func(c context.Context, e domain.Event) {
 		publishedEvents = append(publishedEvents, e)
 	})
-	externalTarget := accountdomain.ExternalTarget{BankAccountNumber: "1234567890"}
-	err := svc.Withdraw(userID, accountID, 50.0, currency.USD, externalTarget)
+	err := svc.Withdraw(context.Background(), commands.WithdrawCommand{
+		UserID:    userID,
+		AccountID: accountID,
+		Amount:    50.0,
+		Currency:  "USD",
+		ExternalTarget: &commands.ExternalTarget{
+			BankAccountNumber: "1234567890",
+		},
+	})
 	require.NoError(t, err)
 	require.Len(t, publishedEvents, 1)
 	evt, ok := publishedEvents[0].(events2.WithdrawRequestedEvent)
@@ -148,7 +156,7 @@ func TestWithdraw_PublishesEvent(t *testing.T) {
 	assert.Equal(t, accountID, evt.AccountID)
 	assert.InEpsilon(t, 50.0, evt.Amount.AmountFloat(), 0.01)
 	assert.Equal(t, "USD", evt.Amount.Currency().String())
-	assert.Equal(t, externalTarget.BankAccountNumber, evt.BankAccountNumber)
+	assert.Equal(t, "1234567890", evt.BankAccountNumber)
 }
 
 func TestTransfer_PublishesEvent(t *testing.T) {

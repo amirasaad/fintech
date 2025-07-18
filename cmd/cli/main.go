@@ -11,13 +11,13 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/amirasaad/fintech/config"
 	"github.com/amirasaad/fintech/infra"
 	"github.com/amirasaad/fintech/infra/provider"
 	infra_repository "github.com/amirasaad/fintech/infra/repository"
-	"github.com/amirasaad/fintech/pkg/currency"
-	accountdomain "github.com/amirasaad/fintech/pkg/domain/account"
+	"github.com/amirasaad/fintech/pkg/commands"
 	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/service/account"
 	"github.com/amirasaad/fintech/pkg/service/auth"
@@ -217,7 +217,7 @@ func handleDeposit(args []string, scv *account.Service, errorMsg, successMsg fun
 		return
 	}
 
-	err = scv.Deposit(context.Background(), dto.TransactionCommand{})
+	err = scv.Deposit(context.Background(), commands.DepositCommand{})
 	if err != nil {
 		fmt.Println(errorMsg("Error depositing:"), err)
 		return
@@ -252,13 +252,18 @@ func handleWithdraw(args []string, scv *account.Service, errorMsg, successMsg fu
 	externalWalletAddress, _ := reader.ReadString('\n')
 	externalWalletAddress = strings.TrimSpace(externalWalletAddress)
 
-	externalTarget := accountdomain.ExternalTarget{
-		BankAccountNumber:     bankAccountNumber,
-		RoutingNumber:         routingNumber,
-		ExternalWalletAddress: externalWalletAddress,
-	}
-
-	err = scv.Withdraw(userID, uuid.MustParse(accountID), amount, currency.Code("USD"), externalTarget)
+	err = scv.Withdraw(context.Background(), commands.WithdrawCommand{
+		UserID:    userID,
+		AccountID: uuid.MustParse(accountID),
+		Amount:    amount,
+		Currency:  "USD",
+		ExternalTarget: &commands.ExternalTarget{
+			BankAccountNumber:     bankAccountNumber,
+			RoutingNumber:         routingNumber,
+			ExternalWalletAddress: externalWalletAddress,
+		},
+		Timestamp: time.Now().Unix(),
+	})
 	if err != nil {
 		fmt.Println(errorMsg("Error withdrawing:"), err)
 		return

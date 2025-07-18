@@ -24,5 +24,12 @@ type WithdrawValidatedEvent struct {
 	// Add any fields produced by validation (e.g., loaded Account)
 }
 
+// WithdrawPersistedEvent is emitted after withdraw persistence is complete.
+type WithdrawPersistedEvent struct {
+	WithdrawValidatedEvent
+	TransactionID uuid.UUID
+}
+
 func (e WithdrawRequestedEvent) EventType() string { return "WithdrawRequestedEvent" }
 func (e WithdrawValidatedEvent) EventType() string { return "WithdrawValidatedEvent" }
+func (e WithdrawPersistedEvent) EventType() string { return "WithdrawPersistedEvent" }

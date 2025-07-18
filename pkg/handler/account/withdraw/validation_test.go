@@ -10,6 +10,7 @@ import (
 	"github.com/amirasaad/fintech/pkg/domain/money"
 
 	"github.com/amirasaad/fintech/internal/fixtures/mocks"
+	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -33,9 +34,17 @@ func TestWithdrawValidationHandler(t *testing.T) {
 		name       string
 		input      events.WithdrawRequestedEvent
 		expectPub  bool
-		setupMocks func(bus *mocks.MockEventBus)
+		setupMocks func(bus *mocks.MockEventBus, uow *mocks.MockUnitOfWork)
 	}{
-		{"valid event", validEvent, true, func(bus *mocks.MockEventBus) {
+		{"valid event", validEvent, true, func(bus *mocks.MockEventBus, uow *mocks.MockUnitOfWork) {
+			accountRepo := new(mocks.AccountRepository)
+			uow.On("GetRepository", mock.Anything).Return(accountRepo, nil)
+			accountRepo.On("Get", mock.Anything, validAccountID).Return(&dto.AccountRead{
+				ID:       validAccountID,
+				UserID:   validUserID,
+				Balance:  10000,
+				Currency: "USD",
+			}, nil)
 			bus.On("Publish", mock.Anything, mock.AnythingOfType("events.WithdrawValidatedEvent")).Return(nil)
 		}},
 		{"invalid event", invalidEvent, false, nil},
@@ -46,10 +55,11 @@ func TestWithdrawValidationHandler(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			bus := mocks.NewMockEventBus(t)
+			uow := mocks.NewMockUnitOfWork(t)
 			if tc.setupMocks != nil {
-				tc.setupMocks(bus)
+				tc.setupMocks(bus, uow)
 			}
-			handler := WithdrawValidationHandler(bus, slog.New(slog.NewTextHandler(io.Discard, nil)))
+			handler := WithdrawValidationHandler(bus, uow, slog.New(slog.NewTextHandler(io.Discard, nil)))
 			ctx := context.Background()
 			handler(ctx, tc.input)
 			if tc.expectPub {

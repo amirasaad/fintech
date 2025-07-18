@@ -58,7 +58,7 @@ func TestEventDrivenDepositFlow_Integration(t *testing.T) {
 	}
 
 	// Step 2: Validation Handler
-	validationHandler := deposit.RequestedHandler(uow, bus, logger)
+	validationHandler := deposit.ValidationHandler(bus, uow, logger)
 	validationHandler(ctx, depositRequested)
 	assert.Len(t, bus.published, 1, "Validation handler should publish DepositValidatedEvent")
 

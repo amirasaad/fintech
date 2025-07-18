@@ -8,8 +8,10 @@ package account
 
 import (
 	"context"
-	events2 "github.com/amirasaad/fintech/pkg/domain/events"
 	"time"
+
+	"github.com/amirasaad/fintech/pkg/commands"
+	"github.com/amirasaad/fintech/pkg/domain/events"
 
 	"github.com/amirasaad/fintech/config"
 	"github.com/amirasaad/fintech/pkg/currency"
@@ -80,13 +82,13 @@ func (s *Service) CreateAccount(ctx context.Context, create dto.AccountCreate) (
 }
 
 // Deposit adds funds to the specified account and creates a transaction record.
-func (s *Service) Deposit(ctx context.Context, cmd dto.TransactionCommand) error {
+func (s *Service) Deposit(ctx context.Context, cmd commands.DepositCommand) error {
 	amount, err := money.New(cmd.Amount, currency.Code(cmd.Currency))
 	if err != nil {
 		return err
 	}
 
-	return s.deps.EventBus.Publish(ctx, events2.DepositRequestedEvent{
+	return s.deps.EventBus.Publish(ctx, events.DepositRequestedEvent{
 		EventID:   uuid.New(),
 		AccountID: cmd.AccountID, // pass uuid.UUID directly
 		UserID:    cmd.UserID,    // pass uuid.UUID directly
@@ -97,36 +99,37 @@ func (s *Service) Deposit(ctx context.Context, cmd dto.TransactionCommand) error
 }
 
 // Withdraw removes funds from the specified account to an external target and creates a transaction record.
-func (s *Service) Withdraw(
-	userID, accountID uuid.UUID,
-	amount float64,
-	currencyCode currency.Code,
-	externalTarget account.ExternalTarget,
-) error {
-	amountMoney, err := money.New(amount, currencyCode)
+func (s *Service) Withdraw(ctx context.Context, cmd commands.WithdrawCommand) error {
+	amount, err := money.New(cmd.Amount, currency.Code(cmd.Currency))
 	if err != nil {
 		return err
 	}
-	// Publish event with paymentID
-	evt := events2.WithdrawRequestedEvent{
-		EventID:               uuid.New(),
-		AccountID:             accountID, // pass uuid.UUID directly
-		UserID:                userID,    // pass uuid.UUID directly
-		Amount:                amountMoney,
-		BankAccountNumber:     externalTarget.BankAccountNumber,
-		RoutingNumber:         externalTarget.RoutingNumber,
-		ExternalWalletAddress: externalTarget.ExternalWalletAddress,
-		Timestamp:             time.Now().Unix(),
-		PaymentID:             "", // Set if available
+	var bankAccountNumber, routingNumber, externalWalletAddress string
+	if cmd.ExternalTarget != nil {
+		bankAccountNumber = cmd.ExternalTarget.BankAccountNumber
+		routingNumber = cmd.ExternalTarget.RoutingNumber
+		externalWalletAddress = cmd.ExternalTarget.ExternalWalletAddress
 	}
-	return s.deps.EventBus.Publish(context.Background(), evt)
+	// Publish event with paymentID
+	evt := events.WithdrawRequestedEvent{
+		EventID:               uuid.New(),
+		AccountID:             cmd.AccountID,
+		UserID:                cmd.UserID,
+		Amount:                amount,
+		BankAccountNumber:     bankAccountNumber,
+		RoutingNumber:         routingNumber,
+		ExternalWalletAddress: externalWalletAddress,
+		Timestamp:             cmd.Timestamp,
+		PaymentID:             cmd.PaymentID,
+	}
+	return s.deps.EventBus.Publish(ctx, evt)
 }
 
 // Transfer moves funds from one account to another account.
 func (s *Service) Transfer(ctx context.Context, create dto.TransactionCreate, destAccountID uuid.UUID) error {
 	amount := money.Zero(currency.Code(create.Currency)) // TODO: fix
 	// Only emit and publish event
-	return s.deps.EventBus.Publish(ctx, events2.TransferRequestedEvent{
+	return s.deps.EventBus.Publish(ctx, events.TransferRequestedEvent{
 		EventID:         uuid.New(),
 		SourceAccountID: create.AccountID,
 		DestAccountID:   destAccountID,
