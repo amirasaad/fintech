@@ -27,8 +27,6 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/recover"
 
 	_ "github.com/amirasaad/fintech/cmd/server/swagger"
-
-	paymenthandler "github.com/amirasaad/fintech/pkg/handler/payment"
 )
 
 // New builds all services, registers event handlers, and returns the Fiber app.
@@ -43,43 +41,50 @@ func New(deps config.Deps) *fiber.App {
 	// Create a new context-aware event bus
 	bus := deps.EventBus
 
-	// Register event-driven deposit workflow handlers
-	// 1. Query and validate account for deposit
+	// ============================================================================
+	// EVENT HANDLER REGISTRATION - FINAL EVENT-DRIVEN ARCHITECTURE
+	// ============================================================================
+
+	// 1. GENERIC CONVERSION HANDLER (reusable across all operations)
+	// Handles ConversionRequestedEvent only - ConversionDoneEvent is handled by business-specific handlers
+	bus.Subscribe("ConversionRequestedEvent", conversion.Handler(bus, deps.CurrencyConverter, deps.Logger))
+
+	// 2. DEPOSIT FLOW HANDLERS
+	// Validation → Persistence → Conversion → Business Validation → Payment → [Conversion Persistence + Payment Persistence]
 	bus.Subscribe("DepositRequestedEvent", deposithandler.ValidationHandler(bus, deps.Uow, deps.Logger))
-
-	// 2. Initial persistence (after validation)
 	bus.Subscribe("DepositValidatedEvent", deposithandler.PersistenceHandler(bus, deps.Uow, deps.Logger))
+	bus.Subscribe("DepositConversionDoneEvent", deposithandler.ConversionDoneHandler(bus, deps.Uow, deps.PaymentProvider, deps.Logger))
+	bus.Subscribe("DepositConversionDoneEvent", deposithandler.ConversionPersistenceHandler(bus, deps.Uow, deps.Logger))
+	bus.Subscribe("PaymentInitiatedEvent", deposithandler.PaymentPersistenceHandler(bus, deps.Uow, deps.Logger))
 
-	// 3. Conversion (after initial persistence)
-	// After DepositInitialPersistedEvent, emit CurrencyConversionRequested (should be done in the handler chain)
-	bus.Subscribe("CurrencyConversionRequested", conversion.Handler(bus, deps.CurrencyConverter, deps.Logger))
-
-	// 4. Persist conversion data
-	bus.Subscribe("CurrencyConversionDone", conversion.PersistenceHandler(bus, deps.Uow, deps.Logger))
-
-	// 5. Payment initiation (after final persistence)
-	bus.Subscribe("CurrencyConversionDone", paymenthandler.PaymentInitiationHandler(bus, deps.PaymentProvider, deps.Logger))
-
-	// 6. Payment ID persistence (after payment initiated)
-	bus.Subscribe("PaymentInitiatedEvent", paymenthandler.PersistenceHandler(bus, deps.Uow, deps.Logger))
-
-	// 7. Payment completion
-	bus.Subscribe("PaymentCompletedEvent", paymenthandler.CompletedHandler(bus, deps.Uow, deps.Logger))
-
-	// Register event-driven withdraw workflow handlers
-	// 1. Validate account and business rules for withdraw
+	// 3. WITHDRAW FLOW HANDLERS
+	// Validation → Persistence → Conversion → Business Validation → Payment → [Conversion Persistence + Payment Persistence]
 	bus.Subscribe("WithdrawRequestedEvent", withdrawhandler.WithdrawValidationHandler(bus, deps.Uow, deps.Logger))
-	// 2. Persist withdraw transaction after validation
 	bus.Subscribe("WithdrawValidatedEvent", withdrawhandler.WithdrawPersistenceHandler(bus, deps.Uow, deps.Logger))
-	// 3. Request currency conversion after withdraw persistence (handled by shared conversion handler chain)
-	//    WithdrawPersistenceHandler emits CurrencyConversionRequested, which is handled by conversion.Handler
-	//    No new subscription needed here; conversion event chain is shared with deposit/transfer
+	bus.Subscribe("WithdrawConversionDoneEvent", withdrawhandler.ConversionDoneHandler(bus, deps.Uow, deps.PaymentProvider, deps.Logger))
+	bus.Subscribe("WithdrawConversionDoneEvent", withdrawhandler.ConversionPersistenceHandler(bus, deps.Uow, deps.Logger))
+	bus.Subscribe("PaymentInitiatedEvent", withdrawhandler.PaymentPersistenceHandler(bus, deps.Uow, deps.Logger))
 
-	// Register event-driven transfer workflow handlers
+	// 4. TRANSFER FLOW HANDLERS
+	// Validation → Initial Persistence → Conversion → Business Validation → Domain Op → Final Persistence → Conversion Persistence
 	bus.Subscribe("TransferRequestedEvent", transferhandler.TransferValidationHandler(bus, deps.Logger))
-	// bus.Subscribe("TransferValidatedEvent", transferhandler.TransferDomainOpHandler(bus /* TODO: inject TransferDomainOperator */, nil))
-	bus.Subscribe("TransferDomainOpDoneEvent", transferhandler.TransferPersistenceHandler(bus /* TODO: inject TransferPersistenceAdapter */, nil))
-	// Add more as you implement them
+	bus.Subscribe("TransferValidatedEvent", transferhandler.InitialPersistenceHandler(bus, deps.Uow, deps.Logger))
+	bus.Subscribe("TransferConversionDoneEvent", transferhandler.ConversionDoneHandler(bus, deps.Uow, deps.Logger))
+	bus.Subscribe("TransferConversionDoneEvent", transferhandler.ConversionPersistenceHandler(bus, deps.Uow, deps.Logger))
+	bus.Subscribe("TransferConversionDoneEvent", transferhandler.TransferDomainOpHandler(bus, nil))
+	bus.Subscribe("TransferDomainOpDoneEvent", transferhandler.TransferPersistenceHandler(bus, deps.Uow, deps.Logger))
+
+	// 5. PAYMENT HANDLERS (for payment completion)
+	// TODO: Implement payment handlers when needed
+	// bus.Subscribe("PaymentInitiatedEvent", account.PaymentInitiationHandler(bus, deps.Logger))
+	// bus.Subscribe("PaymentCompletedEvent", account.PaymentCompletedHandler(bus, deps.Logger))
+
+	// ============================================================================
+	// LEGACY HANDLER REGISTRATION (for backward compatibility)
+	// ============================================================================
+
+	// Legacy conversion events
+	bus.Subscribe("ConversionRequested", conversion.Handler(bus, deps.CurrencyConverter, deps.Logger))
 
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {

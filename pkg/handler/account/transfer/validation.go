@@ -32,5 +32,15 @@ func TransferValidationHandler(bus eventbus.EventBus, logger *slog.Logger) func(
 		}
 		// TODO; transfer validation logic
 		_ = bus.Publish(ctx, events.TransferValidatedEvent{TransferRequestedEvent: te})
+
+		// Emit ConversionRequested to trigger currency conversion for transfer (decoupled from payment)
+		_ = bus.Publish(ctx, events.ConversionRequested{
+			CorrelationID:  uuid.New().String(),
+			FlowType:       "transfer",
+			OriginalEvent:  events.TransferValidatedEvent{TransferRequestedEvent: te},
+			Amount:         te.Amount,
+			SourceCurrency: te.Amount.Currency().String(),
+			TargetCurrency: te.Amount.Currency().String(), // TODO: set to dest account currency if different
+		})
 	}
 }

@@ -73,9 +73,10 @@ func TestAccount_WithdrawUnauthorized(t *testing.T) {
 	require := require.New(t)
 	userID := uuid.New()
 	acc, _ := domainaccount.New().WithUserID(userID).WithCurrency(currency.USD).Build() //nolint:errcheck
-	unauthorizedMoney, err := money.New(1000.0, "USD")
+	amount, err := money.New(1000.0, "USD")
 	require.NoError(err)
-	err = acc.Withdraw(uuid.New(), unauthorizedMoney, domainaccount.ExternalTarget{BankAccountNumber: "4234738923432"}, "")
+	err = acc.ValidateWithdraw(uuid.New(), amount)
+
 	require.Error(err, "Withdraw with different user id should return error")
 	events := acc.PullEvents()
 	require.Empty(events)
@@ -110,8 +111,7 @@ func TestWithdraw_EmitsEvent(t *testing.T) {
 	require.NoError(err)
 	m, err := money.New(50.0, "USD")
 	require.NoError(err)
-	exTgt := domainaccount.ExternalTarget{BankAccountNumber: "23423323"}
-	err = acc.Withdraw(userID, m, exTgt, "")
+	err = acc.ValidateWithdraw(userID, m)
 	require.NoError(err)
 }
 

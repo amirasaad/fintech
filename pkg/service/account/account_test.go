@@ -166,7 +166,7 @@ func TestTransfer_PublishesEvent(t *testing.T) {
 	destAccountID := uuid.New()
 	amount := 25.0
 	currency := "USD"
-	moneySource := string(accountdomain.MoneySourceInternal)
+	moneySource := "transfer"
 
 	svc := accountsvc.NewService(config.Deps{
 		EventBus: memBus,

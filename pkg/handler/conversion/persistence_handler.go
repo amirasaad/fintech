@@ -3,16 +3,13 @@ package conversion
 
 import (
 	"context"
-	"errors"
 	"log/slog"
 
 	"github.com/amirasaad/fintech/pkg/domain/events"
 
 	"github.com/amirasaad/fintech/pkg/domain"
-	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/amirasaad/fintech/pkg/repository"
-	"github.com/amirasaad/fintech/pkg/repository/transaction"
 )
 
 // PersistenceHandler persists CurrencyConversionDone events and emits CurrencyConversionPersisted.
@@ -32,20 +29,8 @@ func PersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork, logger
 
 		// Persist conversion result (stubbed for now)
 		if err := uow.Do(ctx, func(uow repository.UnitOfWork) error {
-			txRepoAny, err := uow.GetRepository((*transaction.Repository)(nil))
-			if err != nil {
-				return err
-			}
-
-			txRepo, ok := txRepoAny.(transaction.Repository)
-			if !ok {
-				return errors.New("failed to retrieve repo ")
-			}
-			return txRepo.PartialUpdate(ctx, ce.TransactionID, dto.TransactionUpdate{
-				OriginalAmount:   &ce.ConversionInfo.OriginalAmount,
-				OriginalCurrency: &ce.ConversionInfo.OriginalCurrency,
-				ConversionRate:   &ce.ConversionInfo.ConversionRate,
-			})
+			//TODO:
+			return nil
 		}); err != nil {
 			logger.Error("failed to persist conversion data", "error", err)
 			return

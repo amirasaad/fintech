@@ -11,8 +11,6 @@ type WithdrawCommand struct {
 	Currency       string
 	MoneySource    string
 	ExternalTarget *ExternalTarget // pointer for optionality
-	PaymentID      string
-	Timestamp      int64
 }
 
 // ExternalTarget represents the destination for an external withdrawal, such as a bank account or wallet.

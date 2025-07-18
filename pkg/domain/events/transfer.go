@@ -14,7 +14,6 @@ type TransferRequestedEvent struct {
 	ReceiverUserID  uuid.UUID
 	Amount          money.Money
 	Source          string // MoneySource as string
-	Timestamp       int64
 }
 
 // TransferValidatedEvent is emitted after transfer validation succeeds.
@@ -23,10 +22,21 @@ type TransferValidatedEvent struct {
 	// Add any fields produced by validation (e.g., loaded Account)
 }
 
+// TransferConversionDoneEvent is emitted after transfer currency conversion is completed.
+type TransferConversionDoneEvent struct {
+	ConversionDoneEvent
+	SenderUserID    string
+	SourceAccountID string
+	TargetAccountID string
+}
+
 // TransferDomainOpDoneEvent is emitted after the transfer domain operation is complete.
 type TransferDomainOpDoneEvent struct {
 	TransferValidatedEvent
-	// Add fields for domain operation results, etc.
+	SenderUserID    uuid.UUID
+	SourceAccountID uuid.UUID
+	Amount          money.Money
+	Source          string
 }
 
 // TransferPersistedEvent is emitted after transfer persistence is complete.
@@ -35,7 +45,29 @@ type TransferPersistedEvent struct {
 	// Add fields for DB transaction, etc.
 }
 
-func (e TransferRequestedEvent) EventType() string    { return "TransferRequestedEvent" }
-func (e TransferValidatedEvent) EventType() string    { return "TransferValidatedEvent" }
-func (e TransferDomainOpDoneEvent) EventType() string { return "TransferDomainOpDoneEvent" }
-func (e TransferPersistedEvent) EventType() string    { return "TransferPersistedEvent" }
+// Legacy events for backward compatibility
+type TransferConversionRequested struct {
+	TransferValidatedEvent
+	EventID         uuid.UUID
+	TransactionID   uuid.UUID
+	SourceAccountID uuid.UUID
+	DestAccountID   uuid.UUID
+	UserID          uuid.UUID
+	Amount          money.Money
+	SourceCurrency  string
+	TargetCurrency  string
+	Timestamp       int64
+}
+
+type TransferConversionDone struct {
+	TransferConversionRequested
+	ConvertedAmount money.Money
+}
+
+func (e TransferRequestedEvent) EventType() string      { return "TransferRequestedEvent" }
+func (e TransferValidatedEvent) EventType() string      { return "TransferValidatedEvent" }
+func (e TransferConversionDoneEvent) EventType() string { return "TransferConversionDoneEvent" }
+func (e TransferDomainOpDoneEvent) EventType() string   { return "TransferDomainOpDoneEvent" }
+func (e TransferPersistedEvent) EventType() string      { return "TransferPersistedEvent" }
+func (e TransferConversionRequested) EventType() string { return "TransferConversionRequested" }
+func (e TransferConversionDone) EventType() string      { return "TransferConversionDone" }

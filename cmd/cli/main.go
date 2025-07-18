@@ -11,7 +11,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/amirasaad/fintech/config"
 	"github.com/amirasaad/fintech/infra"
@@ -262,7 +261,6 @@ func handleWithdraw(args []string, scv *account.Service, errorMsg, successMsg fu
 			RoutingNumber:         routingNumber,
 			ExternalWalletAddress: externalWalletAddress,
 		},
-		Timestamp: time.Now().Unix(),
 	})
 	if err != nil {
 		fmt.Println(errorMsg("Error withdrawing:"), err)

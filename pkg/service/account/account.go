@@ -8,7 +8,6 @@ package account
 
 import (
 	"context"
-	"time"
 
 	"github.com/amirasaad/fintech/pkg/commands"
 	"github.com/amirasaad/fintech/pkg/domain/events"
@@ -94,7 +93,6 @@ func (s *Service) Deposit(ctx context.Context, cmd commands.DepositCommand) erro
 		UserID:    cmd.UserID,    // pass uuid.UUID directly
 		Amount:    amount,
 		Source:    cmd.MoneySource,
-		Timestamp: time.Now().Unix(),
 	})
 }
 
@@ -119,24 +117,25 @@ func (s *Service) Withdraw(ctx context.Context, cmd commands.WithdrawCommand) er
 		BankAccountNumber:     bankAccountNumber,
 		RoutingNumber:         routingNumber,
 		ExternalWalletAddress: externalWalletAddress,
-		Timestamp:             cmd.Timestamp,
-		PaymentID:             cmd.PaymentID,
 	}
 	return s.deps.EventBus.Publish(ctx, evt)
 }
 
 // Transfer moves funds from one account to another account.
 func (s *Service) Transfer(ctx context.Context, create dto.TransactionCreate, destAccountID uuid.UUID) error {
-	amount := money.Zero(currency.Code(create.Currency)) // TODO: fix
+	amount, err := money.New(float64(create.Amount), currency.Code(create.Currency))
+	if err != nil {
+		return err
+	}
 	// Only emit and publish event
 	return s.deps.EventBus.Publish(ctx, events.TransferRequestedEvent{
 		EventID:         uuid.New(),
 		SourceAccountID: create.AccountID,
 		DestAccountID:   destAccountID,
 		SenderUserID:    create.UserID,
+		ReceiverUserID:  create.UserID, // TODO: Look up destination account to get receiver user ID
 		Amount:          amount,
-		Source:          create.MoneySource, // or appropriate value
-		Timestamp:       time.Now().Unix(),
+		Source:          "transfer", // Use consistent source for transfers
 	})
 }
 

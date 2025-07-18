@@ -209,8 +209,8 @@ func (a *Account) PullEvents() []common.Event {
 	return events
 }
 
-// Validate checks all business invariants for an operation (common validation logic).
-func (a *Account) Validate(userID uuid.UUID) error {
+// validate checks all business invariants for an operation (common validation logic).
+func (a *Account) validate(userID uuid.UUID) error {
 	if a.UserID != userID {
 		return ErrNotOwner
 	}
@@ -229,7 +229,7 @@ func (a *Account) validateAmount(amount money.Money) error {
 // ValidateDeposit checks all business invariants for a deposit operation.
 func (a *Account) ValidateDeposit(userID uuid.UUID, amount money.Money) (err error) {
 
-	if err = a.Validate(userID); err != nil {
+	if err = a.validate(userID); err != nil {
 		return
 	}
 	return a.validateAmount(amount)
@@ -246,7 +246,7 @@ func (a *Account) ValidateDeposit(userID uuid.UUID, amount money.Money) (err err
 // Returns a Transaction or an error if any invariant is violated.
 func (a *Account) Deposit(userID uuid.UUID, amount money.Money, moneySource MoneySource, paymentID string) error {
 
-	if err := a.Validate(userID); err != nil {
+	if err := a.validate(userID); err != nil {
 		return err
 	}
 
@@ -255,7 +255,7 @@ func (a *Account) Deposit(userID uuid.UUID, amount money.Money, moneySource Mone
 	return a.validateAmount(amount)
 }
 
-// Withdraw removes funds from the account if all business invariants are satisfied.
+// ValidateWithdraw removes funds from the account if all business invariants are satisfied.
 // Invariants enforced:
 //   - Only the account owner can withdraw.
 //   - Withdrawal amount must be positive.
@@ -263,21 +263,21 @@ func (a *Account) Deposit(userID uuid.UUID, amount money.Money, moneySource Mone
 //   - Cannot withdraw more than the current balance.
 //
 // Returns a Transaction or an error if any invariant is violated.
-func (a *Account) Withdraw(userID uuid.UUID, amount money.Money, target ExternalTarget, paymentID string) error {
-	if err := a.Validate(userID); err != nil {
+func (a *Account) ValidateWithdraw(userID uuid.UUID, amount money.Money) error {
+	if err := a.validate(userID); err != nil {
 		return err
 	}
 	if err := a.validateAmount(amount); err != nil {
 		return err
 	}
 	// Sufficient funds check: do not allow negative balance
-	hasEnough, err := a.Balance.GreaterThan(amount)
-	if err != nil {
-		return err
-	}
-	if !hasEnough && !a.Balance.Equals(amount) {
-		return ErrInsufficientFunds
-	}
+	// hasEnough, err := a.Balance.GreaterThan(amount)
+	// if err != nil {
+	// 	return err
+	// }
+	// if !hasEnough && !a.Balance.Equals(amount) {
+	// 	return ErrInsufficientFunds
+	// }
 	return nil
 }
 

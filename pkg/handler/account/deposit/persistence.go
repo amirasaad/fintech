@@ -71,18 +71,15 @@ func PersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork, logger
 			Amount:                ve.Amount,
 		})
 
-		logger.Info("emitting CurrencyConversionRequested", "transaction_id", txID)
-
-		// Emit CurrencyConversionRequested for the new conversion handler chain
-		_ = bus.Publish(ctx, events.CurrencyConversionRequested{
-			EventID:        uuid.New(),
-			UserID:         ve.UserID,
-			AccountID:      ve.AccountID,
-			TransactionID:  txID,
+		// Emit ConversionRequested to trigger currency conversion for deposit (decoupled from payment)
+		logger.Info("emitting ConversionRequested for deposit", "transaction_id", txID)
+		_ = bus.Publish(ctx, events.ConversionRequested{
+			CorrelationID:  txID.String(),
+			FlowType:       "deposit",
+			OriginalEvent:  ve,
 			Amount:         ve.Amount,
 			SourceCurrency: ve.Amount.Currency().String(),
-			TargetCurrency: ve.Account.Balance.Currency().String(), // Use ve.Currency as default; update if target differs
-			Timestamp:      ve.Timestamp,
+			TargetCurrency: ve.Account.Balance.Currency().String(),
 		})
 	}
 }

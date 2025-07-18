@@ -1,8 +1,6 @@
 package account
 
 import (
-	"time"
-
 	"github.com/amirasaad/fintech/config"
 	"github.com/amirasaad/fintech/pkg/commands"
 	"github.com/amirasaad/fintech/pkg/currency"
@@ -211,7 +209,6 @@ func Withdraw(
 				RoutingNumber:         input.ExternalTarget.RoutingNumber,
 				ExternalWalletAddress: input.ExternalTarget.ExternalWalletAddress,
 			},
-			Timestamp: time.Now().Unix(),
 		})
 		if err != nil {
 			return common.ProblemDetailsJSON(c, "Failed to withdraw", err)
@@ -268,10 +265,11 @@ func Transfer(accountSvc *accountsvc.Service, authSvc *authsvc.AuthService) fibe
 		}
 		// Construct a DTO for transfer
 		transferDTO := dto.TransactionCreate{
-			UserID:    userID,
-			AccountID: sourceAccountID,
-			Currency:  string(currencyCode),
-			// Add destination account and other fields as needed
+			UserID:      userID,
+			AccountID:   sourceAccountID,
+			Amount:      int64(input.Amount),
+			Currency:    string(currencyCode),
+			MoneySource: "transfer", // Use consistent source for transfers
 		}
 		err = accountSvc.Transfer(c.Context(), transferDTO, destAccountID)
 		if err != nil {

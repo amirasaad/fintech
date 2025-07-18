@@ -2,85 +2,142 @@ package conversion
 
 import (
 	"context"
-	"log/slog"
 	"testing"
+	"time"
 
-	"github.com/amirasaad/fintech/pkg/domain/events"
+	"log/slog"
 
-	"github.com/amirasaad/fintech/internal/fixtures/mocks"
-	"github.com/amirasaad/fintech/pkg/currency"
+	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/domain/common"
+	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/google/uuid"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
-type mockCurrencyConverter struct {
-	convertFn func(amount float64, from, to string) (*common.ConversionInfo, error)
+// MockCurrencyConverter implements money.CurrencyConverter for testing
+type MockCurrencyConverter struct {
+	mock.Mock
 }
 
-func (m *mockCurrencyConverter) Convert(amount float64, from, to string) (*common.ConversionInfo, error) {
-	return m.convertFn(amount, from, to)
+func (m *MockCurrencyConverter) Convert(amount float64, fromCurrency, toCurrency string) (*common.ConversionInfo, error) {
+	args := m.Called(amount, fromCurrency, toCurrency)
+	return args.Get(0).(*common.ConversionInfo), args.Error(1)
 }
 
-func (m *mockCurrencyConverter) GetRate(from, to string) (float64, error) {
-	return 1.0, nil // Not used in these tests
+func (m *MockCurrencyConverter) GetRate(fromCurrency, toCurrency string) (float64, error) {
+	args := m.Called(fromCurrency, toCurrency)
+	return args.Get(0).(float64), args.Error(1)
 }
 
-func (m *mockCurrencyConverter) IsSupported(from, to string) bool {
-	return true // Not used in these tests
+func (m *MockCurrencyConverter) IsSupported(fromCurrency, toCurrency string) bool {
+	args := m.Called(fromCurrency, toCurrency)
+	return args.Bool(0)
 }
 
-func TestHandler_BusinessLogic(t *testing.T) {
-	usd := currency.USD
-	eur := currency.EUR
-	tests := []struct {
-		name        string
-		input       events.CurrencyConversionRequested
-		expectPub   bool
-		expectMoney money.Money
-		expectConv  *common.ConversionInfo
-		setupMocks  func(bus *mocks.MockEventBus)
-	}{
-		{
-			name: "conversion done",
-			input: events.CurrencyConversionRequested{
-				EventID:        uuid.New(),
-				AccountID:      uuid.New(),
-				UserID:         uuid.New(),
-				Amount:         money.NewFromData(10000, string(usd)),
-				SourceCurrency: string(usd),
-				TargetCurrency: string(eur),
-				Timestamp:      0,
-			},
-			expectPub:   true,
-			expectMoney: money.Money{}, // Not checked in this stub
-			expectConv:  nil,
-			setupMocks: func(bus *mocks.MockEventBus) {
-				bus.On("Publish", mock.Anything, mock.MatchedBy(func(e any) bool {
-					_, ok := e.(events.CurrencyConversionDone)
-					return ok
-				})).Return(nil)
-			},
-		},
+// MockEventBus implements eventbus.EventBus for testing
+type MockEventBus struct {
+	mock.Mock
+}
+
+func (m *MockEventBus) Publish(ctx context.Context, event domain.Event) error {
+	args := m.Called(ctx, event)
+	return args.Error(0)
+}
+
+func (m *MockEventBus) Subscribe(eventType string, handler func(context.Context, domain.Event)) {
+	m.Called(eventType, handler)
+}
+
+func TestHandler_ConversionRequestedEvent(t *testing.T) {
+	// Setup
+	mockConverter := &MockCurrencyConverter{}
+	mockBus := &MockEventBus{}
+	logger := slog.Default()
+
+	handler := Handler(mockBus, mockConverter, logger)
+
+	// Create test event
+	fromAmount, _ := money.New(100.0, "USD")
+	event := events.ConversionRequestedEvent{
+		EventID:    "test-event-id",
+		FromAmount: fromAmount,
+		ToCurrency: "EUR",
+		RequestID:  "test-request-id",
 	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			bus := mocks.NewMockEventBus(t)
-			if tc.setupMocks != nil {
-				tc.setupMocks(bus)
-			}
-			handler := Handler(bus, &mockCurrencyConverter{convertFn: func(amount float64, from, to string) (*common.ConversionInfo, error) {
-				return &common.ConversionInfo{}, nil
-			}}, slog.Default())
-			ctx := context.Background()
-			handler(ctx, tc.input)
-			if tc.expectPub {
-				assert.True(t, bus.AssertCalled(t, "Publish", ctx, mock.AnythingOfType("events.CurrencyConversionDone")), "should publish CurrencyConversionDone")
-			} else {
-				bus.AssertNotCalled(t, "Publish", ctx, mock.AnythingOfType("events.CurrencyConversionDone"))
-			}
-		})
+
+	// Setup expectations
+	conversionInfo := &common.ConversionInfo{
+		OriginalAmount:    100.0,
+		OriginalCurrency:  "USD",
+		ConvertedAmount:   85.0,
+		ConvertedCurrency: "EUR",
+		ConversionRate:    0.85,
 	}
+	mockConverter.On("Convert", 100.0, "USD", "EUR").Return(conversionInfo, nil)
+	mockBus.On("Publish", mock.Anything, mock.AnythingOfType("events.ConversionDoneEvent")).Return(nil)
+
+	// Execute
+	ctx := context.Background()
+	handler(ctx, event)
+
+	// Verify
+	mockConverter.AssertExpectations(t)
+	mockBus.AssertExpectations(t)
+}
+
+func TestHandler_ConversionDoneEvent_ShouldReject(t *testing.T) {
+	// Setup
+	mockConverter := &MockCurrencyConverter{}
+	mockBus := &MockEventBus{}
+	logger := slog.Default()
+
+	handler := Handler(mockBus, mockConverter, logger)
+
+	// Create test event - this should be rejected
+	fromAmount, _ := money.New(100.0, "USD")
+	toAmount, _ := money.New(85.0, "EUR")
+	event := events.ConversionDoneEvent{
+		EventID:    "test-event-id",
+		FromAmount: fromAmount,
+		ToAmount:   toAmount,
+		RequestID:  "test-request-id",
+		Timestamp:  time.Now(),
+	}
+
+	// Execute
+	ctx := context.Background()
+	handler(ctx, event)
+
+	// Verify - should not call converter for ConversionDoneEvent
+	mockConverter.AssertNotCalled(t, "Convert")
+	mockBus.AssertNotCalled(t, "Publish")
+}
+
+func TestHandler_UnknownEvent_ShouldReject(t *testing.T) {
+	// Setup
+	mockConverter := &MockCurrencyConverter{}
+	mockBus := &MockEventBus{}
+	logger := slog.Default()
+
+	handler := Handler(mockBus, mockConverter, logger)
+
+	// Create an unknown event type
+	amount, _ := money.New(100.0, "USD")
+	event := events.DepositRequestedEvent{
+		EventID:   uuid.New(),
+		AccountID: uuid.New(),
+		UserID:    uuid.New(),
+		Amount:    amount,
+		Source:    "test",
+		Timestamp: time.Now(),
+	}
+
+	// Execute
+	ctx := context.Background()
+	handler(ctx, event)
+
+	// Verify - should not call converter for unknown event
+	mockConverter.AssertNotCalled(t, "Convert")
+	mockBus.AssertNotCalled(t, "Publish")
 }

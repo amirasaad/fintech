@@ -54,7 +54,6 @@ func TestEventDrivenDepositFlow_Integration(t *testing.T) {
 		UserID:    validUser,
 		Amount:    money.NewFromData(10000, "USD"),
 		Source:    "Cash",
-		Timestamp: 1234567890,
 	}
 
 	// Step 2: Validation Handler
