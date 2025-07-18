@@ -127,11 +127,10 @@ func Deposit(
 		if input.Currency != "" {
 			currencyCode = currency.Code(input.Currency)
 		}
-		createDTO := dto.TransactionCreate{
+		createDTO := dto.TransactionCommand{
 			UserID:    userID,
 			AccountID: accountID,
 			Amount:    input.Amount,
-			Status:    "pending", // or appropriate status
 			Currency:  string(currencyCode),
 			// Add MoneySource, TargetCurrency, etc. if needed
 		}
@@ -263,8 +262,6 @@ func Transfer(accountSvc *accountsvc.Service, authSvc *authsvc.AuthService) fibe
 		transferDTO := dto.TransactionCreate{
 			UserID:    userID,
 			AccountID: sourceAccountID,
-			Amount:    input.Amount,
-			Status:    "pending",
 			Currency:  string(currencyCode),
 			// Add destination account and other fields as needed
 		}

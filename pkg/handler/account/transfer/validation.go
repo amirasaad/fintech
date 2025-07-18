@@ -8,8 +8,6 @@ import (
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/domain/account/events"
 	"github.com/amirasaad/fintech/pkg/eventbus"
-	commonmapper "github.com/amirasaad/fintech/pkg/handler/account/common"
-	"github.com/amirasaad/fintech/pkg/queries"
 	"github.com/google/uuid"
 )
 
@@ -29,22 +27,7 @@ func TransferValidationHandler(bus eventbus.EventBus, logger *slog.Logger) func(
 			logger.Error("TransferValidationHandler: missing or invalid fields", "event", te)
 			return
 		}
-		getAccountResult := queries.GetAccountResult{
-			AccountID: te.SourceAccountID.String(),
-			UserID:    te.SenderUserID.String(),
-			Balance:   te.Amount,
-			Currency:  te.Currency,
-		}
-		acc, err := commonmapper.MapDTOToAccount(getAccountResult)
-		if err != nil {
-			logger.Error("TransferValidationHandler: failed to map DTO to domain Account", "error", err, "result", getAccountResult)
-			return
-		}
-		userUUID := te.SenderUserID
-		if err := acc.Validate(userUUID); err != nil {
-			logger.Error("TransferValidationHandler: domain validation failed", "error", err)
-			return
-		}
+		// TODO; transfer validation logic
 		_ = bus.Publish(ctx, events.TransferValidatedEvent{TransferRequestedEvent: te})
 	}
 }

@@ -30,6 +30,7 @@ func MoneyConversionHandler(bus eventbus.EventBus, converter money.CurrencyConve
 				Amount:            origMoney.Amount(),
 				Currency:          origMoney.Currency().String(),
 				ConversionInfo:    nil,
+				TransactionID:     me.TransactionID,
 			})
 			return
 		}
@@ -48,6 +49,7 @@ func MoneyConversionHandler(bus eventbus.EventBus, converter money.CurrencyConve
 			Amount:            convertedMoney.Amount(),
 			Currency:          convertedMoney.Currency().String(),
 			ConversionInfo:    convInfo,
+			TransactionID:     me.TransactionID,
 		})
 	}
 }

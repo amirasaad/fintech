@@ -14,8 +14,8 @@ import (
 )
 
 func TestWithdrawValidationHandler(t *testing.T) {
-	validUserID := uuid.NewString()
-	validAccountID := uuid.NewString()
+	validUserID := uuid.New()
+	validAccountID := uuid.New()
 	validEvent := events.WithdrawRequestedEvent{
 		UserID:    validUserID,
 		AccountID: validAccountID,
@@ -23,8 +23,8 @@ func TestWithdrawValidationHandler(t *testing.T) {
 		Currency:  "USD",
 	}
 	invalidEvent := events.WithdrawRequestedEvent{
-		UserID:    "",
-		AccountID: "",
+		UserID:    uuid.Nil,
+		AccountID: uuid.Nil,
 		Amount:    -50.0,
 		Currency:  "",
 	}
@@ -39,8 +39,7 @@ func TestWithdrawValidationHandler(t *testing.T) {
 			bus.On("Publish", mock.Anything, mock.AnythingOfType("events.WithdrawValidatedEvent")).Return(nil)
 		}},
 		{"invalid event", invalidEvent, false, nil},
-		{"invalid userID (not UUID)", events.WithdrawRequestedEvent{UserID: "not-a-uuid", AccountID: validAccountID, Amount: 100.0, Currency: "USD"}, false, nil},
-		{"invalid accountID (empty)", events.WithdrawRequestedEvent{UserID: validUserID, AccountID: "", Amount: 100.0, Currency: "USD"}, false, nil},
+		{"invalid accountID (empty)", events.WithdrawRequestedEvent{UserID: validUserID, AccountID: uuid.Nil, Amount: 100.0, Currency: "USD"}, false, nil},
 		{"zero amount", events.WithdrawRequestedEvent{UserID: validUserID, AccountID: validAccountID, Amount: 0, Currency: "USD"}, false, nil},
 		{"negative amount", events.WithdrawRequestedEvent{UserID: validUserID, AccountID: validAccountID, Amount: -10, Currency: "USD"}, false, nil},
 		{"missing currency", events.WithdrawRequestedEvent{UserID: validUserID, AccountID: validAccountID, Amount: 100.0, Currency: ""}, false, nil},

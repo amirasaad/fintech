@@ -15,8 +15,8 @@ func NewDepositTransaction(e events.DepositRequestedEvent) *account.Transaction 
 	moneyVal, _ := money.New(e.Amount, currency.Code(e.Currency))
 	return &account.Transaction{
 		ID:             uuid.New(),
-		AccountID:      uuid.MustParse(e.AccountID),
-		UserID:         uuid.MustParse(e.UserID),
+		AccountID:      e.AccountID,
+		UserID:         e.UserID,
 		PaymentID:      "", // PaymentID is set later in the flow
 		Amount:         moneyVal,
 		MoneySource:    account.MoneySource(e.Source),
@@ -31,8 +31,8 @@ func NewWithdrawTransaction(e events.WithdrawRequestedEvent, extTarget *account.
 	moneyVal, _ := money.New(e.Amount, currency.Code(e.Currency))
 	return &account.Transaction{
 		ID:             uuid.New(),
-		AccountID:      uuid.MustParse(e.AccountID),
-		UserID:         uuid.MustParse(e.UserID),
+		AccountID:      e.AccountID,
+		UserID:         e.UserID,
 		PaymentID:      e.PaymentID,
 		Amount:         moneyVal.Negate(), // NEGATE for withdraw
 		Status:         account.TransactionStatusInitiated,

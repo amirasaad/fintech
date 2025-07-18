@@ -3,7 +3,7 @@ icon: octicons/sync-24
 ---
 # :octicons-sync-24: Event-Driven Deposit Flow
 
-This document describes the new event-driven architecture for the deposit workflow in the fintech system.
+This document describes the event-driven architecture for the deposit workflow in the fintech system.
 
 ---
 
@@ -19,21 +19,16 @@ The deposit process is now fully event-driven, with each business step handled b
 sequenceDiagram
     participant U as "User"
     participant API as "API Handler"
-    participant QH as "QueryHandler"
     participant EB as "EventBus"
     participant VH as "ValidationHandler"
-    participant MC as "MoneyCreationHandler"
     participant P as "PersistenceHandler"
     participant PP as "PaymentInitiationHandler"
 
     U->>API: POST /account/:id/deposit (DepositRequest)
-    API->>QH: GetAccountQuery
-    QH->>EB: AccountQuerySucceededEvent
-    EB->>VH: AccountValidationHandler (validates account)
-    VH->>EB: AccountValidatedEvent
-    EB->>MC: MoneyCreationHandler (creates money object)
-    MC->>EB: MoneyCreatedEvent
-    EB->>P: DepositPersistenceHandler (persists to DB)
+    API->>EB: DepositRequestedEvent
+    EB->>VH: ValidationHandler (validates account)
+    VH->>EB: DepositValidatedEvent
+    EB->>P: PersistenceHandler (persists to DB)
     P->>EB: DepositPersistedEvent
     EB->>PP: PaymentInitiationHandler (initiates payment)
     PP->>EB: PaymentInitiatedEvent
@@ -47,12 +42,10 @@ The deposit workflow is orchestrated through a series of events and handlers:
 
 1. **User submits deposit request** (amount as `float64`, main unit). API emits `DepositRequestedEvent`.
 2. **Validation Handler** loads the account, calls domain validation (`ValidateDeposit`), emits `DepositValidatedEvent`.
-3. **Money Creation Handler** creates a `money.Money` value object (`int64`), emits `MoneyCreatedEvent`.
-4. **Money Conversion Handler** (if needed) converts currency using value objects, emits `MoneyConvertedEvent`.
-5. **Persistence Handler** persists the transaction, emits `DepositPersistedEvent`.
-6. **Payment Initiation Handler** initiates payment, emits `PaymentInitiatedEvent`.
-7. **PaymentId Persistence Handler** updates transaction with paymentId, emits `PaymentIdPersistedEvent`.
-8. **Webhook Handler** (optional) updates transaction status and account balance on payment confirmation.
+3. **Persistence Handler** converts the amount to a `money.Money` value object and persists the transaction, emits `DepositPersistedEvent`.
+4. **Payment Initiation Handler** initiates payment, emits `PaymentInitiatedEvent`.
+5. **PaymentId Persistence Handler** updates transaction with paymentId, emits `PaymentIdPersistedEvent`.
+6. **Webhook Handler** (optional) updates transaction status and account balance on payment confirmation.
 
 ### Updated Deposit Workflow Diagram
 
@@ -60,56 +53,38 @@ The deposit workflow is orchestrated through a series of events and handlers:
 flowchart TD
     A["DepositRequestedEvent"] --> B["Validation Handler (domain validation)"]
     B --> C["DepositValidatedEvent"]
-    C --> D["Money Creation Handler (value object)"]
-    D --> E["MoneyCreatedEvent"]
-    E --> F["Money Conversion Handler (if needed)"]
-    F --> G["MoneyConvertedEvent"]
-    G --> H["Persistence Handler"]
-    H --> I["DepositPersistedEvent"]
-    I --> J["Payment Initiation Handler"]
-    J --> K["PaymentInitiatedEvent"]
-    K --> L["PaymentId Persistence Handler"]
-    L --> M["PaymentIdPersistedEvent"]
-    M --> N["Webhook Handler (optional)"]
+    C --> D["Persistence Handler (creates money object, persists)"]
+    D --> E["DepositPersistedEvent"]
+    E --> F["Payment Initiation Handler"]
+    F --> G["PaymentInitiatedEvent"]
+    G --> H["PaymentId Persistence Handler"]
+    H --> I["PaymentIdPersistedEvent"]
+    I --> J["Webhook Handler (optional)"]
 ```
 
 ---
 
 ## Event-Driven Components
 
-### 1. Query Handler
+### 1. Validation Handler
 
-- **Purpose:** Retrieves account data and emits query events
+- **Purpose:** Performs business validation on the account
+- **Events Consumed:** `DepositRequestedEvent`
 - **Events Emitted:**
-  - `AccountQuerySucceededEvent` - When account is found and authorized
-  - `AccountQueryFailedEvent` - When query fails (not found, unauthorized, etc.)
-- **Benefits:** Clean separation of data retrieval from business logic
-
-### 2. Validation Handler
-
-- **Purpose:** Performs business validation on retrieved accounts
-- **Events Consumed:** `AccountQuerySucceededEvent`
-- **Events Emitted:**
-  - `AccountValidatedEvent` - When validation passes
-  - `AccountValidationFailedEvent` - When validation fails
+  - `DepositValidatedEvent` - When validation passes
+  - (TODO: `DepositValidationFailedEvent` - When validation fails)
 - **Validation Rules:**
   - Account exists and belongs to user
   - Account has valid ID
   - Account is in valid state for operations
 
-### 3. Money Creation Handler
+### 2. Persistence Handler
 
-- **Purpose:** Creates money objects for the deposit
-- **Events Consumed:** `AccountValidatedEvent`
-- **Events Emitted:** `MoneyCreatedEvent`
-
-### 4. Persistence Handler
-
-- **Purpose:** Persists the deposit transaction to the database
-- **Events Consumed:** `MoneyCreatedEvent`
+- **Purpose:** Converts the amount to a `money.Money` value object and persists the deposit transaction to the database
+- **Events Consumed:** `DepositValidatedEvent`
 - **Events Emitted:** `DepositPersistedEvent`
 
-### 5. Payment Initiation Handler
+### 3. Payment Initiation Handler
 
 - **Purpose:** Initiates payment with external providers
 - **Events Consumed:** `DepositPersistedEvent`
@@ -151,44 +126,42 @@ Each handler has a single responsibility and can be developed, tested, and deplo
 
 ## Implementation Details
 
-### Query Handler Pattern
-
-```go
-// Query handler emits events directly
-func (h *getAccountQueryHandler) HandleQuery(ctx context.Context, query any) (any, error) {
-    // ... query logic ...
-
-    if err != nil {
-        // Emit failure event
-        _ = h.eventBus.Publish(ctx, account.AccountQueryFailedEvent{...})
-        return nil, err
-    }
-
-    // Emit success event
-    _ = h.eventBus.Publish(ctx, account.AccountQuerySucceededEvent{...})
-    return result, nil
-}
-```
-
 ### Validation Handler Pattern
 
 ```go
-// Validation handler listens to query success events
-func AccountValidationHandler(bus eventbus.EventBus, logger *slog.Logger) func(context.Context, domain.Event) {
+// Validation handler listens to deposit request events
+func DepositValidationHandler(bus eventbus.EventBus, logger *slog.Logger) func(context.Context, domain.Event) {
     return func(ctx context.Context, e domain.Event) {
-        event, ok := e.(accountdomain.AccountQuerySucceededEvent)
+        event, ok := e.(accountdomain.DepositRequestedEvent)
         if !ok {
             return
         }
 
         // Perform business validation
         if validationFails {
-            _ = bus.Publish(ctx, accountdomain.AccountValidationFailedEvent{...})
+            // TODO: Emit DepositValidationFailedEvent
             return
         }
 
         // Emit validation success
-        _ = bus.Publish(ctx, accountdomain.AccountValidatedEvent{...})
+        _ = bus.Publish(ctx, accountdomain.DepositValidatedEvent{...})
+    }
+}
+```
+
+### Persistence Handler Pattern
+
+```go
+// Persistence handler listens to validated deposit events
+func DepositPersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork, logger *slog.Logger) func(context.Context, domain.Event) {
+    return func(ctx context.Context, e domain.Event) {
+        event, ok := e.(accountdomain.DepositValidatedEvent)
+        if !ok {
+            return
+        }
+        // Convert amount to money.Money and persist transaction
+        // ...
+        _ = bus.Publish(ctx, accountdomain.DepositPersistedEvent{...})
     }
 }
 ```
@@ -197,24 +170,15 @@ func AccountValidationHandler(bus eventbus.EventBus, logger *slog.Logger) func(c
 
 ## Error Handling
 
-### Query Failures
-
-- Invalid account/user IDs
-- Account not found
-- Unauthorized access
-- Repository errors
-
 ### Validation Failures
-
 - Account inactive
 - Insufficient balance
 - Business rule violations
 - Invalid account state
 
 ### Event Flow on Errors
-
-1. Query handler emits `AccountQueryFailedEvent`
-2. Validation handler is not triggered
+1. Validation handler emits `DepositValidationFailedEvent` (TODO)
+2. Persistence handler is not triggered
 3. Error is returned to the caller
 4. Audit trail is maintained through events
 
@@ -223,19 +187,16 @@ func AccountValidationHandler(bus eventbus.EventBus, logger *slog.Logger) func(c
 ## Testing Strategy
 
 ### Unit Tests
-
 - Test each handler independently
 - Mock event bus and dependencies
 - Test success and failure scenarios
 
 ### Integration Tests
-
 - Test complete event flows
 - Use real event bus
 - Verify event sequences
 
 ### End-to-End Tests
-
 - Test full API endpoints
 - Verify business outcomes
 - Test error scenarios
@@ -245,26 +206,22 @@ func AccountValidationHandler(bus eventbus.EventBus, logger *slog.Logger) func(c
 ## Future Enhancements
 
 ### 1. **Enhanced Validation**
-
 - Balance checks for withdrawals
 - Currency validation
 - Rate limiting
 - Fraud detection
 
 ### 2. **Event Sourcing**
-
 - Store all events in event store
 - Rebuild state from events
 - Event replay capabilities
 
 ### 3. **Saga Pattern**
-
 - Distributed transaction management
 - Compensation actions
 - Rollback mechanisms
 
 ### 4. **Monitoring & Observability**
-
 - Event metrics
 - Performance monitoring
 - Business metrics
@@ -274,6 +231,3 @@ func AccountValidationHandler(bus eventbus.EventBus, logger *slog.Logger) func(c
 ## Related Documentation
 
 - [Event-Driven Architecture Overview](https://github.com/amirasaad/fintech/architecture.md)
-- [Testing Guidelines](../testing.md)
-- [API Documentation](../api-usage.md)
-- [Domain Events](../domain-events.md)

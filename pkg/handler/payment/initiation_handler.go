@@ -7,14 +7,11 @@ import (
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/domain/account/events"
 	"github.com/amirasaad/fintech/pkg/eventbus"
+	"github.com/amirasaad/fintech/pkg/provider"
 )
 
-type PaymentProvider interface {
-	InitiatePayment(ctx context.Context, userID, accountID string, amount int64, currency string) (string, error)
-}
-
 // PaymentInitiationHandler handles DepositPersistedEvent, initiates payment, and publishes PaymentInitiatedEvent.
-func PaymentInitiationHandler(bus eventbus.EventBus, provider PaymentProvider) func(context.Context, domain.Event) {
+func PaymentInitiationHandler(bus eventbus.EventBus, provider provider.PaymentProvider) func(context.Context, domain.Event) {
 	return func(ctx context.Context, e domain.Event) {
 		slog.Info("PaymentInitiationHandler: received event", "event", e)
 		pe, ok := e.(events.DepositPersistedEvent)
@@ -35,6 +32,7 @@ func PaymentInitiationHandler(bus eventbus.EventBus, provider PaymentProvider) f
 			DepositPersistedEvent: pe,
 			PaymentID:             paymentID,
 			Status:                "initiated",
+			TransactionID:         pe.TransactionID,
 		})
 	}
 }

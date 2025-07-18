@@ -4,9 +4,7 @@ import (
 	"errors"
 	"strings"
 
-	commonhandler "github.com/amirasaad/fintech/pkg/handler/account/common"
 	deposithandler "github.com/amirasaad/fintech/pkg/handler/account/deposit"
-	"github.com/amirasaad/fintech/pkg/handler/account/money"
 	transferhandler "github.com/amirasaad/fintech/pkg/handler/account/transfer"
 	withdrawhandler "github.com/amirasaad/fintech/pkg/handler/account/withdraw"
 	accountsvc "github.com/amirasaad/fintech/pkg/service/account"
@@ -43,16 +41,23 @@ func New(deps config.Deps) *fiber.App {
 	// Create a new context-aware event bus
 	bus := deps.EventBus
 
-	// Register account validation flow handlers
-	bus.Subscribe("AccountQuerySucceededEvent", commonhandler.AccountValidationHandler(bus, deps.Logger))
-	bus.Subscribe("AccountValidatedEvent", money.MoneyCreationHandler(bus))
-
 	// Register event-driven deposit workflow handlers
-	bus.Subscribe("DepositRequestedEvent", deposithandler.DepositValidationHandler(bus, deps.Logger))
-	bus.Subscribe("DepositValidatedEvent", money.MoneyCreationHandler(bus))
-	bus.Subscribe("MoneyCreatedEvent", paymenthandler.DepositPersistenceHandler(bus, deps.Uow))
+	// 1. Query and validate account for deposit
+	bus.Subscribe("DepositRequestedEvent", deposithandler.DepositRequestedHandler(deps.Uow, bus, deps.Logger))
+
+	// 2. Money creation (conversion from float64 to int64, currency logic)
+	bus.Subscribe("DepositValidatedEvent", deposithandler.PersistenceHandler(bus, deps.Uow, deps.Logger))
+
+	// 3. Transaction persistence (create transaction in DB)
+	bus.Subscribe("DepositPersistedEvent", paymenthandler.PersistenceHandler(bus, deps.Uow, deps.Logger))
+
+	// 4. Payment initiation
 	bus.Subscribe("DepositPersistedEvent", paymenthandler.PaymentInitiationHandler(bus, deps.PaymentProvider))
-	bus.Subscribe("PaymentInitiatedEvent", paymenthandler.PaymentIdPersistenceHandler(bus, deps.Uow))
+
+	// 5. Payment ID persistence (update transaction with payment ID)
+	bus.Subscribe("PaymentInitiatedEvent", paymenthandler.PersistenceHandler(bus, deps.Uow, deps.Logger))
+
+	// 6. Payment completion (update status, finalize)
 	bus.Subscribe("PaymentCompletedEvent", paymenthandler.PaymentCompletedHandler(bus, deps.Uow, deps.Logger))
 
 	// Register event-driven withdraw workflow handlers

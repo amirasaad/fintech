@@ -7,8 +7,8 @@ import (
 // WithdrawRequestedEvent is emitted when a withdrawal is requested (pure event-driven domain).
 type WithdrawRequestedEvent struct {
 	EventID               uuid.UUID
-	AccountID             string
-	UserID                string
+	AccountID             uuid.UUID
+	UserID                uuid.UUID
 	Amount                float64 // main unit (e.g., dollars)
 	Currency              string
 	BankAccountNumber     string

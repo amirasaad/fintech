@@ -8,12 +8,12 @@ import (
 
 	"github.com/amirasaad/fintech/internal/fixtures/mocks"
 	"github.com/amirasaad/fintech/pkg/domain"
-	accountdomain "github.com/amirasaad/fintech/pkg/domain/account"
 	events "github.com/amirasaad/fintech/pkg/domain/account/events"
-	"github.com/amirasaad/fintech/pkg/handler/account/common"
-	"github.com/amirasaad/fintech/pkg/queries"
+	"github.com/amirasaad/fintech/pkg/dto"
+	"github.com/amirasaad/fintech/pkg/handler/account/deposit"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -27,102 +27,56 @@ func (m *mockEventBus) Publish(ctx context.Context, event domain.Event) error {
 }
 func (m *mockEventBus) Subscribe(eventType string, handler func(context.Context, domain.Event)) {}
 
-func TestEventDrivenValidationFlow_Integration(t *testing.T) {
+func TestEventDrivenDepositFlow_Integration(t *testing.T) {
 	// Setup
 	uow := mocks.NewMockUnitOfWork(t)
-	repo := mocks.NewMockAccountRepository(t)
-	bus := &mockEventBus{} // Using the existing mock from testutils_test.go
+	repo := mocks.NewAccountRepository(t)
+	bus := &mockEventBus{}
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
 	// Create test data
 	validUser := uuid.New()
 	validAccount := uuid.New()
-	acc := &accountdomain.Account{ID: validAccount, UserID: validUser}
-	query := queries.GetAccountQuery{
-		AccountID: validAccount.String(),
-		UserID:    validUser.String(),
-	}
 
-	// Setup mocks
-	uow.On("AccountRepository").Return(repo, nil)
-	repo.On("Get", validAccount).Return(acc, nil)
+	uow.EXPECT().GetRepository(mock.Anything).Return(repo, nil)
+	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil)
 
-	// Create handlers
-	queryHandler := common.GetAccountQueryHandler(uow, bus)
-	validationHandler := common.AccountValidationHandler(bus, logger)
+	repo.EXPECT().Get(mock.Anything, validAccount).Return(&dto.AccountRead{ID: validAccount, UserID: validUser}, nil)
 
-	// Execute the flow
 	ctx := context.Background()
 
-	// Step 1: Execute query handler
-	result, err := queryHandler.HandleQuery(ctx, query)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
+	// Step 1: Simulate DepositRequestedEvent
+	depositRequested := events.DepositRequestedEvent{
+		EventID:   uuid.New(),
+		AccountID: validAccount,
+		UserID:    validUser,
+		Amount:    100.0,
+		Currency:  "USD",
+		Source:    "Cash",
+		Timestamp: 1234567890,
+	}
 
-	// Step 2: Verify query events were published
-	assert.Len(t, bus.published, 1, "Query handler should publish AccountQuerySucceededEvent")
+	// Step 2: Validation Handler
+	validationHandler := deposit.DepositRequestedHandler(uow, bus, logger)
+	validationHandler(ctx, depositRequested)
+	assert.Len(t, bus.published, 1, "Validation handler should publish DepositValidatedEvent")
 
-	queryEvent, ok := bus.published[0].(events.AccountQuerySucceededEvent)
-	assert.True(t, ok, "First event should be AccountQuerySucceededEvent")
-	assert.Equal(t, query.UserID, queryEvent.Result.UserID)
-	assert.Equal(t, query.AccountID, queryEvent.Result.AccountID)
+	depositValidated, ok := bus.published[0].(events.DepositValidatedEvent)
+	require.True(t, ok, "First event should be DepositValidatedEvent")
+	assert.Equal(t, validUser, depositValidated.UserID)
+	assert.Equal(t, validAccount, depositValidated.AccountID)
 
-	// Step 3: Execute validation handler (simulating event bus subscription)
-	validationHandler(ctx, queryEvent)
+	// Step 3: Persistence Handler
+	persistHandler := deposit.PersistenceHandler(bus, uow, logger)
+	persistHandler(ctx, depositValidated)
+	assert.Len(t, bus.published, 2, "Persistence handler should publish DepositPersistedEvent")
 
-	// Step 4: Verify validation events were published
-	assert.Len(t, bus.published, 2, "Validation handler should publish DepositValidatedEvent")
+	depositPersisted, ok := bus.published[1].(events.DepositPersistedEvent)
+	require.True(t, ok, "Second event should be DepositPersistedEvent")
+	assert.Equal(t, validUser, depositPersisted.UserID)
+	assert.Equal(t, validAccount, depositPersisted.AccountID)
 
-	validationEvent, ok := bus.published[1].(events.AccountValidatedEvent)
-	assert.True(t, ok, "Second event should be DepositValidatedEvent")
-	assert.Equal(t, query.UserID, validationEvent.UserID)
-	assert.Equal(t, query.AccountID, validationEvent.AccountID)
-
-	// Verify the complete flow
-	t.Logf("✅ Event-driven validation flow completed successfully:")
-	t.Logf("   Query Handler → AccountQuerySucceededEvent")
-	t.Logf("   Validation Handler → AccountValidatedEvent")
+	t.Logf("✅ Event-driven deposit flow completed successfully:")
+	t.Logf("   DepositRequestedEvent → DepositValidatedEvent → DepositPersistedEvent")
 	t.Logf("   Total events published: %d", len(bus.published))
-}
-
-func TestEventDrivenValidationFlow_QueryFailure(t *testing.T) {
-	// Setup
-	uow := mocks.NewMockUnitOfWork(t)
-	repo := mocks.NewMockAccountRepository(t)
-	bus := &mockEventBus{}
-
-	// Create test data for failure case
-	invalidAccount := uuid.New()
-	validUser := uuid.New()
-	query := queries.GetAccountQuery{
-		AccountID: invalidAccount.String(),
-		UserID:    validUser.String(),
-	}
-
-	// Setup mocks for failure
-	uow.On("AccountRepository").Return(repo, nil)
-	repo.On("Get", invalidAccount).Return(nil, assert.AnError)
-
-	// Create query handler
-	queryHandler := common.GetAccountQueryHandler(uow, bus)
-
-	// Execute query handler
-	ctx := context.Background()
-	result, err := queryHandler.HandleQuery(ctx, query)
-
-	// Verify failure
-	require.Error(t, err)
-	assert.Nil(t, result)
-
-	// Verify failure event was published
-	assert.Len(t, bus.published, 1, "Query handler should publish AccountQueryFailedEvent")
-
-	failureEvent, ok := bus.published[0].(events.AccountQueryFailedEvent)
-	assert.True(t, ok, "Event should be AccountQueryFailedEvent")
-	assert.Equal(t, query, failureEvent.Query)
-	assert.NotEmpty(t, failureEvent.Reason)
-
-	t.Logf("✅ Query failure flow completed successfully:")
-	t.Logf("   Query Handler → AccountQueryFailedEvent")
-	t.Logf("   Error: %s", failureEvent.Reason)
 }

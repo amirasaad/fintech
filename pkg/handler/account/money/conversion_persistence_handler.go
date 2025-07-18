@@ -2,18 +2,18 @@ package money
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 
-	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/domain/account/events"
-	"github.com/amirasaad/fintech/pkg/domain/money"
+	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/eventbus"
-	"github.com/amirasaad/fintech/pkg/handler/account"
 	"github.com/amirasaad/fintech/pkg/repository"
+	"github.com/amirasaad/fintech/pkg/repository/transaction"
 )
 
-// MoneyConversionPersistenceHandler handles MoneyConvertedEvent, persists the transaction with conversion info, and publishes a follow-up event if needed.
+// MoneyConversionPersistenceHandler handles MoneyConvertedEvent, updates the transaction with conversion info using CQRS repository, and publishes a follow-up event if needed.
 func MoneyConversionPersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork) func(context.Context, domain.Event) {
 	return func(ctx context.Context, e domain.Event) {
 		slog.Info("MoneyConversionPersistenceHandler: received event", "event", e)
@@ -23,26 +23,25 @@ func MoneyConversionPersistenceHandler(bus eventbus.EventBus, uow repository.Uni
 			return
 		}
 		err := uow.Do(ctx, func(uow repository.UnitOfWork) error {
-			txRepo, err := uow.TransactionRepository()
+			txRepoAny, err := uow.GetRepository((*transaction.Repository)(nil))
 			if err != nil {
 				slog.Error("MoneyConversionPersistenceHandler: failed to get transaction repo", "error", err)
 				return err
 			}
-			// Create a new transaction using the event data (generic for any transaction type)
-			// You may want to use a factory or map event fields to your transaction model here
-			// For now, we use deposit event as an example, but this should be generic
-			// TODO: Replace with a generic transaction factory if needed
-			newTx := account.NewDepositTransaction(mce.DepositRequestedEvent)
-			moneyVal, err := money.NewMoneyFromSmallestUnit(mce.Amount, currency.Code(mce.Currency))
-			if err != nil {
-				slog.Error("MoneyConversionPersistenceHandler: failed to create Money value", "error", err)
-				return err
+			txRepo, ok := txRepoAny.(transaction.Repository)
+			if !ok {
+				slog.Error("MoneyConversionPersistenceHandler: failed to get transaction repo")
+				return errors.New("MoneyConversionPersistenceHandler: failed to retrieve repo type")
 			}
-			newTx.Amount = moneyVal
-			newTx.TargetCurrency = mce.TargetCurrency
-			newTx.ConversionInfo = mce.ConversionInfo
-			if err := txRepo.Update(newTx); err != nil {
-				slog.Error("MoneyConversionPersistenceHandler: failed to create transaction", "error", err)
+
+			// Prepare update DTO
+			update := dto.TransactionUpdate{
+				// Add conversion info fields as needed (extend DTO if required)
+				// For now, no direct fields in DTO, so this is a placeholder
+
+			}
+			if err := txRepo.Update(ctx, mce.TransactionID, update); err != nil {
+				slog.Error("MoneyConversionPersistenceHandler: failed to update transaction", "error", err)
 				return err
 			}
 			return nil

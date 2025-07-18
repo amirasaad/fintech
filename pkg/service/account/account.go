@@ -80,21 +80,17 @@ func (s *Service) CreateAccount(ctx context.Context, create dto.AccountCreate) (
 }
 
 // Deposit adds funds to the specified account and creates a transaction record.
-func (s *Service) Deposit(ctx context.Context, create dto.TransactionCreate) error {
-	if create.Amount <= 0 {
+func (s *Service) Deposit(ctx context.Context, cmd dto.TransactionCommand) error {
+	if cmd.Amount <= 0 {
 		return errors.New("amount must be positive")
 	}
-	// Enforce any additional domain invariants here as needed
-	// Publish event with paymentID or persist using repository as per your flow
-	// Example: publish event
-	// (You may want to include more fields from create in the event)
 	return s.deps.EventBus.Publish(ctx, events.DepositRequestedEvent{
 		EventID:   uuid.New(),
-		AccountID: create.AccountID.String(),
-		UserID:    create.UserID.String(),
-		Amount:    create.Amount,
-		Currency:  create.Currency,
-		Source:    create.MoneySource,
+		AccountID: cmd.AccountID, // pass uuid.UUID directly
+		UserID:    cmd.UserID,    // pass uuid.UUID directly
+		Amount:    cmd.Amount,    // keep as float64 for event
+		Currency:  cmd.Currency,
+		Source:    cmd.MoneySource,
 		Timestamp: time.Now().Unix(),
 	})
 }
@@ -112,9 +108,9 @@ func (s *Service) Withdraw(
 	// Publish event with paymentID
 	evt := events.WithdrawRequestedEvent{
 		EventID:               uuid.New(),
-		AccountID:             accountID.String(),
-		UserID:                userID.String(),
-		Amount:                amount, // float64
+		AccountID:             accountID, // pass uuid.UUID directly
+		UserID:                userID,    // pass uuid.UUID directly
+		Amount:                amount,    // float64
 		Currency:              string(currencyCode),
 		BankAccountNumber:     externalTarget.BankAccountNumber,
 		RoutingNumber:         externalTarget.RoutingNumber,
@@ -140,7 +136,6 @@ func (s *Service) Transfer(ctx context.Context, create dto.TransactionCreate, de
 		SourceAccountID: create.AccountID,
 		DestAccountID:   destAccountID,
 		SenderUserID:    create.UserID,
-		Amount:          create.Amount,
 		Currency:        create.Currency,
 		Source:          create.MoneySource, // or appropriate value
 		Timestamp:       time.Now().Unix(),

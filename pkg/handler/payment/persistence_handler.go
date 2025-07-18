@@ -2,83 +2,58 @@ package payment
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 
-	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/domain/account/events"
-	"github.com/amirasaad/fintech/pkg/domain/common"
-	"github.com/amirasaad/fintech/pkg/domain/money"
+	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/eventbus"
-	accounttx "github.com/amirasaad/fintech/pkg/handler/account"
 	"github.com/amirasaad/fintech/pkg/repository"
+	"github.com/amirasaad/fintech/pkg/repository/transaction"
 )
 
-// DepositPersistenceHandler handles MoneyConvertedEvent, persists to DB, and publishes DepositPersistedEvent.
-func DepositPersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork) func(context.Context, domain.Event) {
+// PersistenceHandler handles MoneyConvertedEvent, persists the transaction, and emits DepositPersistedEvent with TransactionID.
+func PersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork, logger *slog.Logger) func(context.Context, domain.Event) {
 	return func(ctx context.Context, e domain.Event) {
-
-		slog.Info("DepositPersistenceHandler: received event", "event", e)
-
-		var (
-			conversionInfo *common.ConversionInfo
-			amount         int64
-			curr           string
-			depositEvent   events.DepositRequestedEvent
+		logger := logger.With(
+			"handler", "PersistenceHandler",
+			"event_type", e.EventType(),
 		)
-
-		switch evt := e.(type) {
-		case events.MoneyConvertedEvent:
-			conversionInfo = evt.ConversionInfo
-			amount = evt.Amount
-			curr = evt.Currency
-			depositEvent = evt.DepositRequestedEvent
-		case events.MoneyCreatedEvent:
-			amount = evt.Amount
-			curr = evt.Currency
-			depositEvent = evt.DepositRequestedEvent
-		default:
-			slog.Error("DepositPersistenceHandler: unexpected event type", "event", e)
+		logger.Info("received event", "event", e)
+		pie, ok := e.(events.PaymentInitiatedEvent)
+		if !ok {
+			logger.Error("PersistenceHandler: unexpected event type", "type", e.EventType(), "event", pie, "error", e)
 			return
 		}
-
 		err := uow.Do(ctx, func(uow repository.UnitOfWork) error {
-			txRepo, err := uow.TransactionRepository()
+			txRepoAny, err := uow.GetRepository((*transaction.Repository)(nil))
 			if err != nil {
-				slog.Error("DepositPersistenceHandler: failed to get transaction repo", "error", err)
+				logger.Error("PersistenceHandler: failed to get transaction repo", "error", err)
 				return err
 			}
-			newTx := accounttx.NewDepositTransaction(depositEvent)
-			moneyVal, err := money.NewMoneyFromSmallestUnit(amount, currency.Code(curr))
-			if err != nil {
-				slog.Error("DepositPersistenceHandler: failed to create Money value", "error", err)
+			txRepo, ok := txRepoAny.(transaction.Repository)
+			if !ok {
+				logger.Error("PersistenceHandler: failed to retrieve repo type")
+				return errors.New("failed to retrieve repo type")
+			}
+			if err := txRepo.Update(ctx, pie.TransactionID, dto.TransactionUpdate{PaymentID: &pie.PaymentID}); err != nil {
+				logger.Error("PersistenceHandler: failed to update transaction", "error", err)
 				return err
 			}
-			newTx.Amount = moneyVal
-			// Set TargetCurrency and ConversionInfo
-			newTx.TargetCurrency = curr
-			newTx.ConversionInfo = conversionInfo
-			if err := txRepo.Create(newTx, conversionInfo, depositEvent.Source); err != nil {
-				slog.Error("DepositPersistenceHandler: failed to create transaction", "error", err)
-				return err
-			}
+			_ = bus.Publish(ctx, events.PaymentIdPersistedEvent{
+				PaymentInitiatedEvent: events.PaymentInitiatedEvent{
+					DepositPersistedEvent: pie.DepositPersistedEvent,
+					PaymentID:             pie.PaymentID,
+					Status:                pie.Status,
+					TransactionID:         pie.TransactionID,
+				},
+			})
 			return nil
 		})
 		if err != nil {
-			slog.Error("DepositPersistenceHandler: persistence failed", "error", err)
+			logger.Error("PersistenceHandler: persistence failed", "error", err)
 			return
 		}
-		_ = bus.Publish(ctx, events.DepositPersistedEvent{
-			MoneyCreatedEvent: events.MoneyCreatedEvent{
-				DepositValidatedEvent: events.DepositValidatedEvent{
-					DepositRequestedEvent: depositEvent,
-					AccountID:             depositEvent.AccountID,
-				},
-				Amount:         amount,
-				Currency:       curr,
-				TargetCurrency: curr,
-			},
-			// Add DB transaction info if needed
-		})
 	}
 }

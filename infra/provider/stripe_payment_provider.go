@@ -6,6 +6,7 @@ import (
 	"log/slog"
 
 	"github.com/amirasaad/fintech/pkg/provider"
+	"github.com/google/uuid"
 	"github.com/stripe/stripe-go/v82"
 )
 
@@ -22,13 +23,13 @@ func NewStripePaymentProvider(apiKey string, logger *slog.Logger) *StripePayment
 }
 
 // InitiatePayment creates a PaymentIntent in Stripe and returns its ID.
-func (s *StripePaymentProvider) InitiatePayment(ctx context.Context, userID, accountID string, amount int64, currency string) (string, error) {
+func (s *StripePaymentProvider) InitiatePayment(ctx context.Context, userID, accountID uuid.UUID, amount int64, currency string) (string, error) {
 	params := &stripe.PaymentIntentCreateParams{
 		Amount:   stripe.Int64(int64(amount)),
 		Currency: stripe.String(currency),
 		Metadata: map[string]string{
-			"user_id":    userID,
-			"account_id": accountID,
+			"user_id":    userID.String(),
+			"account_id": accountID.String(),
 		},
 	}
 	pi, err := s.client.V1PaymentIntents.Create(ctx, params)

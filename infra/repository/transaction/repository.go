@@ -98,7 +98,7 @@ func (r *repository) ListByAccount(ctx context.Context, accountID uuid.UUID) ([]
 
 func mapCreateDTOToModel(create dto.TransactionCreate) model.Transaction {
 	return model.Transaction{
-
+		ID:          create.ID,
 		UserID:      create.UserID,
 		AccountID:   create.AccountID,
 		Amount:      int64(create.Amount),

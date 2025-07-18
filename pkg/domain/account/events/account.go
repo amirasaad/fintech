@@ -1,6 +1,9 @@
 package events
 
-import "github.com/amirasaad/fintech/pkg/queries"
+import (
+	"github.com/amirasaad/fintech/pkg/queries"
+	"github.com/google/uuid"
+)
 
 type AccountQuerySucceededEvent struct {
 	Result queries.GetAccountResult
@@ -12,15 +15,15 @@ type AccountQueryFailedEvent struct {
 }
 
 type AccountValidatedEvent struct {
-	AccountID string
-	UserID    string
+	AccountID uuid.UUID
+	UserID    uuid.UUID
 	Amount    int64
 	Currency  string
 }
 
 type AccountValidationFailedEvent struct {
-	AccountID string
-	UserID    string
+	AccountID uuid.UUID
+	UserID    uuid.UUID
 	Reason    string
 }
 

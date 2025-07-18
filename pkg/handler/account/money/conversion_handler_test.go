@@ -10,6 +10,7 @@ import (
 	"github.com/amirasaad/fintech/pkg/domain/account/events"
 	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/amirasaad/fintech/pkg/domain/money"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -36,7 +37,7 @@ func TestMoneyConversionHandler_BusinessLogic(t *testing.T) {
 	moneyUSD, _ := money.New(100, usd)
 	moneyEUR, _ := money.New(90, eur)
 	convInfo := &common.ConversionInfo{OriginalAmount: 100, OriginalCurrency: string(usd), ConvertedAmount: 90, ConvertedCurrency: string(eur), ConversionRate: 0.9}
-
+	txID := uuid.New() // Add a TransactionID for all test events
 	tests := []struct {
 		name        string
 		input       events.MoneyCreatedEvent
@@ -52,6 +53,7 @@ func TestMoneyConversionHandler_BusinessLogic(t *testing.T) {
 				Amount:         10000,
 				Currency:       string(usd),
 				TargetCurrency: string(usd),
+				TransactionID:  txID,
 			},
 			converter: &mockCurrencyConverter{
 				convertFn: func(amount float64, from, to string) (*common.ConversionInfo, error) {
@@ -62,7 +64,10 @@ func TestMoneyConversionHandler_BusinessLogic(t *testing.T) {
 			expectMoney: moneyUSD,
 			expectConv:  nil,
 			setupMocks: func(bus *mocks.MockEventBus) {
-				bus.On("Publish", mock.Anything, mock.AnythingOfType("events.MoneyConvertedEvent")).Return(nil)
+				bus.On("Publish", mock.Anything, mock.MatchedBy(func(e any) bool {
+					v, ok := e.(events.MoneyConvertedEvent)
+					return ok && v.TransactionID == txID
+				})).Return(nil)
 			},
 		},
 		{
@@ -71,6 +76,7 @@ func TestMoneyConversionHandler_BusinessLogic(t *testing.T) {
 				Amount:         10000,
 				Currency:       string(usd),
 				TargetCurrency: string(eur),
+				TransactionID:  txID,
 			},
 			converter: &mockCurrencyConverter{
 				convertFn: func(amount float64, from, to string) (*common.ConversionInfo, error) {
@@ -81,7 +87,10 @@ func TestMoneyConversionHandler_BusinessLogic(t *testing.T) {
 			expectMoney: moneyEUR,
 			expectConv:  convInfo,
 			setupMocks: func(bus *mocks.MockEventBus) {
-				bus.On("Publish", mock.Anything, mock.AnythingOfType("events.MoneyConvertedEvent")).Return(nil)
+				bus.On("Publish", mock.Anything, mock.MatchedBy(func(e any) bool {
+					v, ok := e.(events.MoneyConvertedEvent)
+					return ok && v.TransactionID == txID
+				})).Return(nil)
 			},
 		},
 		{
@@ -90,6 +99,7 @@ func TestMoneyConversionHandler_BusinessLogic(t *testing.T) {
 				Amount:         10000,
 				Currency:       string(usd),
 				TargetCurrency: string(eur),
+				TransactionID:  txID,
 			},
 			converter: &mockCurrencyConverter{
 				convertFn: func(amount float64, from, to string) (*common.ConversionInfo, error) {

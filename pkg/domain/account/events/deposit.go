@@ -8,8 +8,8 @@ import (
 // DepositRequestedEvent is emitted when a deposit is requested (pure event-driven domain).
 type DepositRequestedEvent struct {
 	EventID   uuid.UUID
-	AccountID string
-	UserID    string
+	AccountID uuid.UUID
+	UserID    uuid.UUID
 	Amount    float64 // main unit (e.g., dollars)
 	Currency  string
 	Source    string // MoneySource as string
@@ -19,7 +19,7 @@ type DepositRequestedEvent struct {
 // DepositValidatedEvent is emitted after deposit validation succeeds.
 type DepositValidatedEvent struct {
 	DepositRequestedEvent
-	AccountID string
+	AccountID uuid.UUID
 }
 
 // MoneyCreatedEvent is emitted after money creation/conversion.
@@ -28,6 +28,9 @@ type MoneyCreatedEvent struct {
 	Amount         int64
 	Currency       string
 	TargetCurrency string
+	// TransactionID is set after the transaction is first persisted
+	TransactionID uuid.UUID
+	UserID        uuid.UUID // propagate UserID
 }
 
 // MoneyConvertedEvent is emitted after currency conversion (if needed).
@@ -36,11 +39,15 @@ type MoneyConvertedEvent struct {
 	Amount         int64
 	Currency       string
 	ConversionInfo *common.ConversionInfo
+	TransactionID  uuid.UUID // propagate TransactionID
+	UserID         uuid.UUID // propagate UserID
 }
 
 // DepositPersistedEvent is emitted after persistence is complete.
 type DepositPersistedEvent struct {
 	MoneyCreatedEvent
+	TransactionID uuid.UUID // propagate TransactionID
+	UserID        uuid.UUID // propagate UserID
 	// Add fields for DB transaction, etc.
 }
 
