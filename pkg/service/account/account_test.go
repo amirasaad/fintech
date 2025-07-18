@@ -152,21 +152,28 @@ func TestWithdraw_PublishesEvent(t *testing.T) {
 
 func TestTransfer_PublishesEvent(t *testing.T) {
 	memBus := eventbus.NewMemoryEventBus()
-	svc := accountsvc.NewService(config.Deps{
-		Uow:               nil,
-		CurrencyConverter: nil,
-		Logger:            slog.Default(),
-		PaymentProvider:   provider.NewMockPaymentProvider(),
-		EventBus:          memBus,
-	})
 	userID := uuid.New()
 	sourceAccountID := uuid.New()
 	destAccountID := uuid.New()
+	amount := 25.0
+	currency := "USD"
+	moneySource := string(accountdomain.MoneySourceInternal)
+
+	svc := accountsvc.NewService(config.Deps{
+		EventBus: memBus,
+	})
 	var publishedEvents []domain.Event
 	memBus.Subscribe("TransferRequestedEvent", func(c context.Context, e domain.Event) {
 		publishedEvents = append(publishedEvents, e)
 	})
-	err := svc.Transfer(userID, sourceAccountID, destAccountID, 25.0, currency.USD)
+	transferDTO := dto.TransactionCreate{
+		UserID:      userID,
+		AccountID:   sourceAccountID,
+		Amount:      amount,
+		Currency:    currency,
+		MoneySource: moneySource,
+	}
+	err := svc.Transfer(context.TODO(), transferDTO, destAccountID)
 	require.NoError(t, err)
 	require.Len(t, publishedEvents, 1)
 	evt, ok := publishedEvents[0].(events.TransferRequestedEvent)
@@ -174,9 +181,9 @@ func TestTransfer_PublishesEvent(t *testing.T) {
 	assert.Equal(t, userID, evt.SenderUserID)
 	assert.Equal(t, sourceAccountID, evt.SourceAccountID)
 	assert.Equal(t, destAccountID, evt.DestAccountID)
-	assert.InEpsilon(t, 25.0, evt.Amount, 0.01)
-	assert.Equal(t, "USD", evt.Currency)
-	assert.Equal(t, string(accountdomain.MoneySourceInternal), evt.Source)
+	assert.InEpsilon(t, amount, evt.Amount, 0.01)
+	assert.Equal(t, currency, evt.Currency)
+	assert.Equal(t, moneySource, evt.Source)
 }
 
 func TestGetAccount_Success(t *testing.T) {

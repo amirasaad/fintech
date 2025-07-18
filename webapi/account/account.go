@@ -259,13 +259,20 @@ func Transfer(accountSvc *accountsvc.Service, authSvc *authsvc.AuthService) fibe
 		if input.Currency != "" {
 			currencyCode = currency.Code(input.Currency)
 		}
-		log.Infof("Transfer handler: calling service for user %s, source account %s, dest account %s, amount %v, currency %s", userID, sourceAccountID, destAccountID, input.Amount, currencyCode)
-		err = accountSvc.Transfer(userID, sourceAccountID, destAccountID, input.Amount, currencyCode)
-		if err != nil {
-			return common.ProblemDetailsJSON(c, "Failed to transfer", err, err.Error())
+		// Construct a DTO for transfer
+		transferDTO := dto.TransactionCreate{
+			UserID:    userID,
+			AccountID: sourceAccountID,
+			Amount:    input.Amount,
+			Status:    "pending",
+			Currency:  string(currencyCode),
+			// Add destination account and other fields as needed
 		}
-		resp := fiber.Map{}
-		return common.SuccessResponseJSON(c, fiber.StatusAccepted, "Transfer request is being processed. Your transfer is being started and will be completed soon.", resp)
+		err = accountSvc.Transfer(c.Context(), transferDTO, destAccountID)
+		if err != nil {
+			return common.ProblemDetailsJSON(c, "Failed to transfer", err)
+		}
+		return common.SuccessResponseJSON(c, fiber.StatusAccepted, "Transfer request is being processed. Your transfer is being started and will be completed soon.", fiber.Map{})
 	}
 }
 

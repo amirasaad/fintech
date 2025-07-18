@@ -130,27 +130,21 @@ func (s *Service) Withdraw(
 }
 
 // Transfer moves funds from one account to another account.
-func (s *Service) Transfer(
-	userID uuid.UUID,
-	sourceAccountID, destAccountID uuid.UUID,
-	amount float64,
-	currencyCode currency.Code,
-) error {
-	if amount <= 0 {
+func (s *Service) Transfer(ctx context.Context, create dto.TransactionCreate, destAccountID uuid.UUID) error {
+	if create.Amount <= 0 {
 		return errors.New("amount must be positive")
 	}
 	// Only emit and publish event
-	evt := events.TransferRequestedEvent{
+	return s.deps.EventBus.Publish(ctx, events.TransferRequestedEvent{
 		EventID:         uuid.New(),
-		SourceAccountID: sourceAccountID,
+		SourceAccountID: create.AccountID,
 		DestAccountID:   destAccountID,
-		SenderUserID:    userID,
-		Amount:          amount, // float64
-		Currency:        string(currencyCode),
-		Source:          string(account.MoneySourceInternal), // or appropriate value
+		SenderUserID:    create.UserID,
+		Amount:          create.Amount,
+		Currency:        create.Currency,
+		Source:          create.MoneySource, // or appropriate value
 		Timestamp:       time.Now().Unix(),
-	}
-	return s.deps.EventBus.Publish(context.Background(), evt)
+	})
 }
 
 // UpdateTransactionStatusByPaymentID updates the status of a transaction identified by its payment ID.
