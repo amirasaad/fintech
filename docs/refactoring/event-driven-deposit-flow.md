@@ -20,19 +20,25 @@ sequenceDiagram
     participant U as "User"
     participant API as "API Handler"
     participant EB as "EventBus"
-    participant VH as "ValidationHandler"
+    participant VH as "DepositValidationHandler"
+    participant DC as "DepositConversionHandler"
+    participant DCD as "DepositConversionDone"
+    participant PI as "PaymentInitiationHandler"
     participant P as "PersistenceHandler"
-    participant PP as "PaymentInitiationHandler"
 
     U->>API: POST /account/:id/deposit (DepositRequest)
     API->>EB: DepositRequestedEvent
-    EB->>VH: ValidationHandler (validates account)
+    EB->>VH: DepositValidationHandler
     VH->>EB: DepositValidatedEvent
-    EB->>P: PersistenceHandler (persists to DB)
+    EB->>DC: DepositConversionHandler (if needed)
+    DC->>EB: DepositConversionDone
+    EB->>PI: PaymentInitiationHandler
+    PI->>EB: PaymentInitiatedEvent
+    EB->>P: PersistenceHandler
     P->>EB: DepositPersistedEvent
-    EB->>PP: PaymentInitiationHandler (initiates payment)
-    PP->>EB: PaymentInitiatedEvent
 ```
+
+> **Note:** Payment initiation only happens after DepositConversionDone. This avoids coupling conversion with payment for other flows (e.g., transfer).
 
 ---
 

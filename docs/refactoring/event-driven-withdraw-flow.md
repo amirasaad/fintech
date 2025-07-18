@@ -20,19 +20,25 @@ sequenceDiagram
     participant U as "User"
     participant API as "API Handler"
     participant EB as "EventBus"
-    participant VH as "ValidationHandler"
+    participant VH as "WithdrawValidationHandler"
+    participant WC as "WithdrawConversionHandler"
+    participant WCD as "WithdrawConversionDone"
+    participant PI as "PaymentInitiationHandler"
     participant P as "PersistenceHandler"
-    participant PP as "PaymentInitiationHandler"
 
     U->>API: POST /account/:id/withdraw (WithdrawRequest)
     API->>EB: WithdrawRequestedEvent
-    EB->>VH: ValidationHandler (validates account, balance)
+    EB->>VH: WithdrawValidationHandler
     VH->>EB: WithdrawValidatedEvent
-    EB->>P: PersistenceHandler (persists to DB)
+    EB->>WC: WithdrawConversionHandler (if needed)
+    WC->>EB: WithdrawConversionDone
+    EB->>PI: PaymentInitiationHandler
+    PI->>EB: PaymentInitiatedEvent
+    EB->>P: PersistenceHandler
     P->>EB: WithdrawPersistedEvent
-    EB->>PP: PaymentInitiationHandler (initiates payment)
-    PP->>EB: PaymentInitiatedEvent
 ```
+
+> **Note:** Payment initiation only happens after WithdrawConversionDone. This avoids coupling conversion with payment for other flows (e.g., transfer).
 
 ---
 

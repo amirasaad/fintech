@@ -38,22 +38,25 @@ sequenceDiagram
     participant U as "User"
     participant API as "API Handler"
     participant EB as "EventBus"
-    participant VH as "ValidationHandler"
-    participant CC as "CurrencyConversionHandler"
+    participant VH as "TransferValidationHandler"
+    participant TC as "TransferConversionHandler"
+    participant TCD as "TransferConversionDone"
     participant DO as "DomainOpHandler"
     participant P as "PersistenceHandler"
 
     U->>API: POST /account/:id/transfer (TransferRequest)
     API->>EB: TransferRequestedEvent
-    EB->>VH: ValidationHandler (validates source/target accounts)
+    EB->>VH: TransferValidationHandler
     VH->>EB: TransferValidatedEvent
-    EB->>CC: TransferConversionHandler (if needed)
-    CC->>EB: TransferConversionDone
+    EB->>TC: TransferConversionHandler (if needed)
+    TC->>EB: TransferConversionDone
     EB->>DO: DomainOpHandler (executes transfer on domain)
     DO->>EB: TransferDomainOpDoneEvent
     EB->>P: PersistenceHandler (persists to DB)
     P->>EB: TransferPersistedEvent
 ```
+
+> **Note:** Payment initiation does NOT happen after TransferConversionDone. This avoids accidental payments for internal transfers.
 
 ---
 
