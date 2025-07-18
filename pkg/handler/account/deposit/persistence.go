@@ -62,6 +62,15 @@ func PersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork, logger
 			logger.Error("failed to persist transaction", "error", err)
 			return
 		}
+
+		// Emit DepositPersistedEvent
+		_ = bus.Publish(ctx, events.DepositPersistedEvent{
+			DepositValidatedEvent: ve,
+			TransactionID:         txID,
+			UserID:                ve.UserID,
+			Amount:                ve.Amount,
+		})
+
 		logger.Info("emitting CurrencyConversionRequested", "transaction_id", txID)
 
 		// Emit CurrencyConversionRequested for the new conversion handler chain
