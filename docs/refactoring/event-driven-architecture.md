@@ -3,6 +3,23 @@ icon: material/circle
 ---
 # Event-Driven Architecture: Event Chaining Pattern
 
+## Lessons Learned
+
+### Problem: Coupling Conversion with Payment Initiation
+
+- When currency conversion events were shared across all business flows, payment initiation could be triggered for internal transfers, leading to unintended payments and confusion.
+
+### Problem: If-Statements for Control Flow
+
+- Using a 'purpose' field or similar to control flow in handlers led to if-else logic, which is error-prone and against clean architecture principles.
+
+### Solution: Distinct Event Types for Each Flow
+
+- By defining business-specific conversion and conversion-done events (e.g., DepositConversionDone, TransferConversionDone), each handler only subscribes to the events it cares about.
+- This eliminates the need for if-statements, prevents accidental cross-flow handling, and keeps event chains clear and decoupled.
+
+---
+
 ## Overview
 
 This document describes the event-driven architecture (EDA) pattern adopted in this project, with a focus on **event chaining** for dependent business logic. It explains why we moved away from both Chain of Responsibility (CoR) and naive multi-handler event buses, and how event chaining enables clear, maintainable, and extensible workflows.

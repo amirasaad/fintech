@@ -3,9 +3,27 @@ icon: octicons/sync-24
 ---
 # ⚡ Event-Driven Transfer Flow
 
-This document describes the event-driven architecture for the transfer workflow in the fintech system.
+## 🚩 Problems & Lessons Learned
 
----
+### Problem: Coupling Conversion with Payment Initiation
+
+- **Original Issue:** The initial design reused the same CurrencyConversionRequested/CurrencyConversionDone events for all flows (deposit, withdraw, transfer).
+- **Consequence:** This led to payment initiation being triggered after every currency conversion, even for internal transfers where no payment should occur.
+- **Risk:** Unintended or duplicate payments, confusion, and tightly coupled business logic.
+
+### Problem: If-Statements for Control Flow
+
+- **Original Issue:** To avoid triggering payment for transfers, handlers would check a 'purpose' field or similar, leading to if-else logic in event handlers.
+- **Consequence:** This is error-prone, hard to maintain, and against our clean architecture principles.
+
+## 🛠️ Refined Pattern: Distinct Event Types
+
+- **Solution:** Use distinct event types for each business flow (e.g., DepositConversionRequested, TransferConversionRequested, etc.).
+- **Result:**
+  - Each handler only subscribes to the events it cares about.
+  - No if-statements needed for control flow.
+  - No accidental cross-flow handling or unintended payments.
+  - Clear, decoupled, and extensible event chains.
 
 ## 🏁 Overview
 
@@ -29,8 +47,8 @@ sequenceDiagram
     API->>EB: TransferRequestedEvent
     EB->>VH: ValidationHandler (validates source/target accounts)
     VH->>EB: TransferValidatedEvent
-    EB->>CC: CurrencyConversionHandler (if needed)
-    CC->>EB: MoneyConvertedEvent
+    EB->>CC: TransferConversionHandler (if needed)
+    CC->>EB: TransferConversionDone
     EB->>DO: DomainOpHandler (executes transfer on domain)
     DO->>EB: TransferDomainOpDoneEvent
     EB->>P: PersistenceHandler (persists to DB)
@@ -45,7 +63,7 @@ The transfer workflow is orchestrated through a series of events and handlers:
 
 1. **User submits transfer request** (amount as `float64`, main unit). API emits `TransferRequestedEvent`.
 2. **Validation Handler** loads source and target accounts, checks domain validation (`ValidateTransfer`), emits `TransferValidatedEvent`.
-3. **Currency Conversion Handler** (if needed) converts currency, emits `MoneyConvertedEvent`.
+3. **Transfer Conversion Handler** (if needed) converts currency, emits `TransferConversionDone`.
 4. **Domain Operation Handler** executes the transfer on the domain model, emits `TransferDomainOpDoneEvent`.
 5. **Persistence Handler** persists the transaction(s), emits `TransferPersistedEvent`.
 6. **Webhook Handler** (optional) updates transaction status and account balances on payment confirmation.
@@ -56,13 +74,13 @@ The transfer workflow is orchestrated through a series of events and handlers:
 flowchart TD
     A["TransferRequestedEvent"] --> B["Validation Handler (domain validation)"]
     B --> C["TransferValidatedEvent"]
-    E --> F["Currency Conversion Handler (if needed)"]
-    F --> G["MoneyConvertedEvent"]
-    G --> H["Domain Operation Handler"]
-    H --> I["TransferDomainOpDoneEvent"]
-    I --> J["Persistence Handler (persists)"]
-    J --> K["TransferPersistedEvent"]
-    K --> L["Webhook Handler (optional)"]
+    C --> D["Transfer Conversion Handler (if needed)"]
+    D --> E["TransferConversionDone"]
+    E --> F["Domain Operation Handler"]
+    F --> G["TransferDomainOpDoneEvent"]
+    G --> H["Persistence Handler (persists)"]
+    H --> I["TransferPersistedEvent"]
+    I --> J["Webhook Handler (optional)"]
 ```
 
 ---
