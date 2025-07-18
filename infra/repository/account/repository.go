@@ -89,7 +89,6 @@ func mapModelToDTO(acct *model.Account) *dto.AccountRead {
 		CreatedAt: acct.CreatedAt,
 
 		// Status: acct.Status, // Uncomment if Status exists in model.Account
-		// CreatedAt: acct.CreatedAt, // Uncomment if CreatedAt exists in model.Account
 		// Add more fields as needed
 	}
 }

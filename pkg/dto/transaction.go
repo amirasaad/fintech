@@ -30,8 +30,7 @@ type TransactionCreate struct {
 
 // TransactionUpdate is a DTO for updating one or more fields of a transaction.
 type TransactionUpdate struct {
-	Status    *string  // Optional status update
-	PaymentID *string  // Optional payment provider ID update
-	Amount    *float64 // Optional amount update
+	Status    *string // Optional status update
+	PaymentID *string // Optional payment provider ID update
 	// Add more fields as needed for partial updates
 }
