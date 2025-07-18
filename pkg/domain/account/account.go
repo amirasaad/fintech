@@ -118,6 +118,9 @@ func (b *Builder) Build() (*Account, error) {
 	if !currency.IsValidCurrencyFormat(string(b.currency)) {
 		return nil, common.ErrInvalidCurrencyCode
 	}
+	if !currency.IsSupported(string(b.currency)) {
+		return nil, common.ErrUnsupportedCurrency
+	}
 	if b.userID == uuid.Nil {
 		return nil, errors.New("userID is required")
 	}
@@ -221,7 +224,7 @@ func (a *Account) validateAmount(amount money.Money) error {
 		return ErrTransactionAmountMustBePositive
 	}
 	if string(amount.Currency()) != string(a.Balance.Currency()) {
-		return common.ErrInvalidCurrencyCode
+		return common.ErrUnsupportedCurrency
 	}
 	return nil
 }

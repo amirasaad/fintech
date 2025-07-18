@@ -11,6 +11,7 @@ type AccountRead struct {
 	ID        uuid.UUID // Unique account identifier
 	UserID    uuid.UUID // User who owns the account
 	Balance   float64   // Account balance
+	Currency  string
 	Status    string    // Account status (e.g., active, closed)
 	CreatedAt time.Time // Timestamp of account creation
 	// Add more fields as needed for queries
@@ -18,9 +19,11 @@ type AccountRead struct {
 
 // AccountCreate is a DTO for creating a new account.
 type AccountCreate struct {
-	UserID  uuid.UUID // User who owns the account
-	Balance float64   // Initial balance
-	Status  string    // Initial status
+	ID       uuid.UUID
+	UserID   uuid.UUID // User who owns the account
+	Balance  int64     // Initial balance
+	Status   string    // Initial status
+	Currency string
 	// Add more fields as needed for creation
 }
 

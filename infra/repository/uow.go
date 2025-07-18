@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	infraaccount "github.com/amirasaad/fintech/infra/repository/account"
-	infratransaction "github.com/amirasaad/fintech/infra/repository/transaction"
+	repoaccount "github.com/amirasaad/fintech/infra/repository/account"
+	repotransaction "github.com/amirasaad/fintech/infra/repository/transaction"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/amirasaad/fintech/pkg/repository/account"
 	"github.com/amirasaad/fintech/pkg/repository/transaction"
@@ -74,9 +74,9 @@ func (u *UoW) GetRepository(repoType interface{}) (any, error) {
 		return NewUserRepository(dbToUse), nil
 	// --- CQRS-style repositories ---
 	case (*account.Repository)(nil):
-		return infraaccount.NewRepository(dbToUse), nil
+		return repoaccount.New(dbToUse), nil
 	case (*transaction.Repository)(nil):
-		return infratransaction.NewRepository(dbToUse), nil
+		return repotransaction.New(dbToUse), nil
 	default:
 		return nil, fmt.Errorf("unsupported repository type: %T", repoType)
 	}

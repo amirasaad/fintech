@@ -13,6 +13,11 @@ type repository struct {
 	db *gorm.DB
 }
 
+// NewRepository creates a new CQRS-style transaction repository using the provided *gorm.DB.
+func New(db *gorm.DB) repo.Repository {
+	return &repository{db: db}
+}
+
 // Create implements transaction.Repository.
 func (r *repository) Create(ctx context.Context, create dto.TransactionCreate) error {
 	panic("unimplemented")
@@ -51,9 +56,4 @@ func (r *repository) Update(ctx context.Context, id uuid.UUID, update dto.Transa
 // UpsertByPaymentID implements transaction.Repository.
 func (r *repository) UpsertByPaymentID(ctx context.Context, paymentID string, create dto.TransactionCreate) error {
 	panic("unimplemented")
-}
-
-// NewRepository creates a new CQRS-style transaction repository using the provided *gorm.DB.
-func NewRepository(db *gorm.DB) repo.Repository {
-	return &repository{db: db}
 }

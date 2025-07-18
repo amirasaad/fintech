@@ -33,99 +33,50 @@ func NewService(deps config.Deps) *Service {
 	}
 }
 
-// CreateAccount creates a new account for the specified user in a transaction.
-func (s *Service) CreateAccount(ctx context.Context, userID uuid.UUID) (a *account.Account, err error) {
+func (s *Service) CreateAccount(ctx context.Context, create dto.AccountCreate) (dto.AccountRead, error) {
 	uow := s.deps.Uow
-	err = uow.Do(ctx, func(uow repository.UnitOfWork) error {
-		repo, err := uow.AccountRepository()
+	var result *dto.AccountRead
+	err := uow.Do(ctx, func(uow repository.UnitOfWork) error {
+		repoAny, err := uow.GetRepository((*repoaccount.Repository)(nil))
 		if err != nil {
 			return err
 		}
-		a, err = account.New().WithUserID(userID).Build()
-		if err != nil {
-			return err
-		}
-		return repo.Create(a)
-	})
-	if err != nil {
-		a = nil
-	}
-	return
-}
+		acctRepo := repoAny.(repoaccount.Repository)
 
-// CreateAccountWithCurrency creates a new account for the specified user with a specific currency.
-// This method allows creating accounts in different currencies, which is useful for multi-currency
-// applications where users may need accounts in various currencies.
-//
-// The operation is wrapped with automatic transaction management and includes comprehensive
-// error handling and logging.
-//
-// Parameters:
-//   - userID: The UUID of the user who will own the account
-//   - currencyCode: The ISO 4217 currency code for the account (e.g., "USD", "EUR", "JPY")
-//
-// Returns:
-//   - A pointer to the created account with the specified currency
-//   - An error if the operation fails (e.g., invalid currency, user not found, database error)
-//
-// The method validates the currency code and ensures it's supported by the system.
-// If the currency is not supported, an appropriate domain error is returned.
-//
-// Example:
-//
-//	account, err := service.CreateAccountWithCurrency(userID, currency.Code("EUR"))
-//	if err != nil {
-//	    log.Error("Failed to create EUR account", "error", err)
-//	    return
-//	}
-//	log.Info("EUR account created", "accountID", account.ID, "currency", account.Currency)
-func (s *Service) CreateAccountWithCurrency(
-	userID uuid.UUID,
-	currencyCode currency.Code,
-) (acct *account.Account, err error) {
-	logger := s.deps.Logger.With("userID", userID, "currency", currencyCode)
-	logger.Info("CreateAccountWithCurrency started")
-	uow := s.deps.Uow
-	err = uow.Do(context.Background(), func(uow repository.UnitOfWork) error {
-		repo, err := uow.AccountRepository()
+		// Enforce domain invariants
+		curr := currency.Code(create.Currency)
+		if curr == "" {
+			curr = currency.DefaultCurrency
+		}
+		domainAcc, err := account.New().WithUserID(create.UserID).WithCurrency(curr).Build()
 		if err != nil {
-			logger.Error("CreateAccountWithCurrency failed: AccountRepository error", "error", err)
 			return err
 		}
-		acct, err = account.New().
-			WithUserID(userID).
-			WithCurrency(currencyCode).
-			Build()
+
+		// Map to DTO for persistence
+		createDTO := dto.AccountCreate{
+			ID:       domainAcc.ID,
+			UserID:   domainAcc.UserID,
+			Balance:  int64(domainAcc.Balance.Amount()), // or 0 if always zero at creation
+			Currency: curr.String(),
+			// Add more fields as needed
+		}
+		if err := acctRepo.Create(ctx, createDTO); err != nil {
+			return err
+		}
+
+		// Fetch for read DTO
+		read, err := acctRepo.Get(ctx, domainAcc.ID)
 		if err != nil {
-			logger.Error("CreateAccountWithCurrency failed: domain error", "error", err)
 			return err
 		}
-		if err = repo.Create(acct); err != nil {
-			logger.Error("CreateAccountWithCurrency failed: repo create error", "error", err)
-			return err
-		}
+		result = read
 		return nil
 	})
 	if err != nil {
-		acct = nil
-		logger.Error("CreateAccountWithCurrency failed: transaction error", "error", err)
-		return
+		return dto.AccountRead{}, err
 	}
-	logger.Info("CreateAccountWithCurrency successful", "accountID", acct.ID)
-	return
-}
-
-// CreateAccountCQRS demonstrates using the CQRS-style account.Repository via UoW.GetRepository.
-func (s *Service) CreateAccountCQRS(ctx context.Context, uow repository.UnitOfWork, create dto.AccountCreate) error {
-	repoAny, err := uow.GetRepository((*repoaccount.Repository)(nil))
-	if err != nil {
-		return err
-	}
-	acctRepo, ok := repoAny.(repoaccount.Repository)
-	if !ok {
-		return errors.New("invalid repository type for account.Repository")
-	}
-	return acctRepo.Create(ctx, create)
+	return *result, nil
 }
 
 // Deposit adds funds to the specified account and creates a transaction record.

@@ -4,6 +4,7 @@ import (
 	"github.com/amirasaad/fintech/config"
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/account"
+	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/middleware"
 	accountsvc "github.com/amirasaad/fintech/pkg/service/account"
 	authsvc "github.com/amirasaad/fintech/pkg/service/auth"
@@ -68,16 +69,12 @@ func CreateAccount(
 		if input == nil {
 			return err // error response already written
 		}
-		currencyCode := currency.USD
-		if input.Currency != "" {
-			currencyCode = currency.Code(input.Currency)
-		}
-		a, err := accountSvc.CreateAccountWithCurrency(userID, currencyCode)
+		a, err := accountSvc.CreateAccount(c.Context(), dto.AccountCreate{UserID: userID, Currency: input.Currency})
 		if err != nil {
 			log.Errorf("Failed to create account: %v", err)
 			return common.ProblemDetailsJSON(c, "Failed to create account", err)
 		}
-		log.Infof("Account created: %+v", a)
+		log.Infof("Account created: %+v")
 		return common.SuccessResponseJSON(c, fiber.StatusCreated, "Account created", a)
 	}
 }

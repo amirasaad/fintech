@@ -62,6 +62,43 @@ CQRS (Command Query Responsibility Segregation) separates write (command) and re
 - **Maintainability:**
   - Reduces coupling and manual mapping in handlers/services.
 
+## 🛡️ Enforcing Domain Invariants with DTOs
+
+A key best practice in CQRS and clean architecture is to keep all business rules and invariants in the domain layer, not in DTOs or repositories. Here’s how to achieve this:
+
+- **DTOs are for data transfer only:** They move data between layers (API, service, repository) and should not contain business logic or enforce invariants.
+- **Domain invariants live in the domain model:** All validation and business rules (e.g., valid states, amount > 0, currency checks) must be enforced in domain constructors, methods, or factories.
+- **Conversion step:** When receiving a DTO (from API or repository), always convert it to a domain model before applying business logic. If the DTO is invalid, the conversion fails with a domain error.
+- **Persistence:** Repositories accept DTOs for storage, but domain logic is always applied before persistence. For reads, repositories return DTOs, and services/handlers convert to domain models if business logic is needed.
+
+**Example Flow:**
+
+1. Handler receives DTO from API.
+2. Service converts DTO to domain model (enforcing invariants).
+3. If valid, service calls repository to persist DTO.
+4. For queries, repository returns DTO; service converts to domain model if needed.
+
+This ensures domain purity, prevents leaking infrastructure concerns into the domain, and keeps business rules centralized and testable.
+
+### Sequence Diagram: Enforcing Domain Invariants with DTOs
+
+```mermaid
+sequenceDiagram
+  participant API as "API Handler"
+  participant Service as "Service Layer"
+  participant Domain as "Domain Model"
+  participant Repo as "Repository"
+
+  API->>Service: Receives DTO
+  Service->>Domain: Converts DTO to Domain Model (enforces invariants)
+  Domain-->>Service: Returns Domain Model or Error
+  Service->>Repo: Persists DTO (if valid)
+  Repo-->>Service: Returns result
+  Repo->>Service: Returns DTO (for queries)
+  Service->>Domain: Converts DTO to Domain Model (if business logic needed)
+  Domain-->>Service: Returns Domain Model
+```
+
 ## ✅ Next Steps
 
 !!! note "Next Steps"

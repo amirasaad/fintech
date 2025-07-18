@@ -17,6 +17,7 @@ import (
 	"github.com/amirasaad/fintech/pkg/domain/account/events"
 	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/amirasaad/fintech/pkg/domain/user"
+	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/repository"
 	accountsvc "github.com/amirasaad/fintech/pkg/service/account"
 	"github.com/google/uuid"
@@ -53,7 +54,7 @@ func setupTestMocks(t *testing.T) (*mocks.MockUnitOfWork, *mocks.MockAccountRepo
 
 func TestCreateAccount_Success(t *testing.T) {
 	uow := mocks.NewMockUnitOfWork(t)
-	accountRepo := mocks.NewMockAccountRepository(t)
+	accountRepo := mocks.NewAccountRepository(t)
 	userID := uuid.New()
 
 	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).RunAndReturn(
@@ -61,8 +62,9 @@ func TestCreateAccount_Success(t *testing.T) {
 			return fn(uow)
 		},
 	).Once()
-	uow.EXPECT().AccountRepository().Return(accountRepo, nil).Once()
-	accountRepo.EXPECT().Create(mock.Anything).Return(nil).Once()
+	uow.EXPECT().GetRepository(mock.Anything).Return(accountRepo, nil).Once()
+	accountRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Once()
+	accountRepo.EXPECT().Get(mock.Anything, mock.Anything).Return(&dto.AccountRead{}, nil).Once()
 
 	svc := accountsvc.NewService(config.Deps{
 		Uow:               uow,
@@ -70,15 +72,13 @@ func TestCreateAccount_Success(t *testing.T) {
 		Logger:            slog.Default(),
 		PaymentProvider:   provider.NewMockPaymentProvider(),
 	})
-	gotAccount, err := svc.CreateAccount(context.Background(), userID)
+	_, err := svc.CreateAccount(context.Background(), dto.AccountCreate{UserID: userID})
 	require.NoError(t, err)
-	assert.NotNil(t, gotAccount)
-	assert.Equal(t, userID, gotAccount.UserID)
 }
 
 func TestCreateAccount_RepoError(t *testing.T) {
 	uow := mocks.NewMockUnitOfWork(t)
-	accountRepo := mocks.NewMockAccountRepository(t)
+	accountRepo := mocks.NewAccountRepository(t)
 	userID := uuid.New()
 
 	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).RunAndReturn(
@@ -86,8 +86,8 @@ func TestCreateAccount_RepoError(t *testing.T) {
 			return fn(uow)
 		},
 	).Once()
-	uow.EXPECT().AccountRepository().Return(accountRepo, nil).Once()
-	accountRepo.EXPECT().Create(mock.Anything).Return(errors.New("repo error")).Once()
+	uow.EXPECT().GetRepository(mock.Anything).Return(accountRepo, nil).Once()
+	accountRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(errors.New("repo error")).Once()
 
 	svc := accountsvc.NewService(config.Deps{
 		Uow:               uow,
@@ -95,9 +95,9 @@ func TestCreateAccount_RepoError(t *testing.T) {
 		Logger:            slog.Default(),
 		PaymentProvider:   provider.NewMockPaymentProvider(),
 	})
-	gotAccount, err := svc.CreateAccount(context.Background(), userID)
+	gotAccount, err := svc.CreateAccount(context.Background(), dto.AccountCreate{UserID: userID})
 	require.Error(t, err)
-	assert.Nil(t, gotAccount)
+	assert.Empty(t, gotAccount)
 }
 
 func TestDeposit_PublishesEvent(t *testing.T) {

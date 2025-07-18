@@ -18,6 +18,7 @@ import (
 	infra_repository "github.com/amirasaad/fintech/infra/repository"
 	"github.com/amirasaad/fintech/pkg/currency"
 	accountdomain "github.com/amirasaad/fintech/pkg/domain/account"
+	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/service/account"
 	"github.com/amirasaad/fintech/pkg/service/auth"
 	"github.com/fatih/color"
@@ -188,7 +189,7 @@ func handleCommand(args []string, scv *account.Service, errorMsg, successMsg fun
 }
 
 func handleCreateAccount(scv *account.Service, errorMsg, successMsg func(a ...interface{}) string) {
-	a, err := scv.CreateAccount(context.Background(), userID)
+	a, err := scv.CreateAccount(context.Background(), dto.AccountCreate{UserID: userID})
 	if err != nil {
 		fmt.Println(errorMsg("Error creating a:"), err)
 		return

@@ -7,6 +7,9 @@ import (
 // ErrInvalidCurrencyCode is returned when a currency code is invalid.
 var ErrInvalidCurrencyCode = errors.New("invalid currency code") // Use error type if needed
 
+// ErrUnsupportedCurrency is return when currency is not supported by global registry #see: /pkg/currency
+var ErrUnsupportedCurrency = errors.New("unsupported currency")
+
 // ErrInvalidDecimalPlaces is returned when a monetary amount has more decimal places than allowed by the currency.
 var ErrInvalidDecimalPlaces = errors.New("amount has more decimal places than allowed by the currency")
 
