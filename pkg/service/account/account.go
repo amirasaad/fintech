@@ -80,26 +80,23 @@ func (s *Service) CreateAccount(ctx context.Context, create dto.AccountCreate) (
 }
 
 // Deposit adds funds to the specified account and creates a transaction record.
-func (s *Service) Deposit(
-	userID, accountID uuid.UUID,
-	amount float64,
-	currencyCode currency.Code,
-	moneySource string,
-) error {
-	if amount <= 0 {
+func (s *Service) Deposit(ctx context.Context, create dto.TransactionCreate) error {
+	if create.Amount <= 0 {
 		return errors.New("amount must be positive")
 	}
-	// Publish event with paymentID
-	evt := events.DepositRequestedEvent{
+	// Enforce any additional domain invariants here as needed
+	// Publish event with paymentID or persist using repository as per your flow
+	// Example: publish event
+	// (You may want to include more fields from create in the event)
+	return s.deps.EventBus.Publish(ctx, events.DepositRequestedEvent{
 		EventID:   uuid.New(),
-		AccountID: accountID.String(),
-		UserID:    userID.String(),
-		Amount:    amount, // float64
-		Currency:  currencyCode.String(),
-		Source:    moneySource,
+		AccountID: create.AccountID.String(),
+		UserID:    create.UserID.String(),
+		Amount:    create.Amount,
+		Currency:  create.Currency,
+		Source:    create.MoneySource,
 		Timestamp: time.Now().Unix(),
-	}
-	return s.deps.EventBus.Publish(context.Background(), evt)
+	})
 }
 
 // Withdraw removes funds from the specified account to an external target and creates a transaction record.

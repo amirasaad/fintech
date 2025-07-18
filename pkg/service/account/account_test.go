@@ -117,9 +117,7 @@ func TestDeposit_PublishesEvent(t *testing.T) {
 		// Optionally, assert on event fields here
 	})
 
-	userID := uuid.New()
-	accountID := uuid.New()
-	err := svc.Deposit(userID, accountID, 100.0, currency.USD, "Cash")
+	err := svc.Deposit(context.Background(), dto.TransactionCreate{Amount: 100})
 	require.NoError(t, err)
 	assert.True(t, called, "Handler should have been called")
 }

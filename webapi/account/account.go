@@ -127,8 +127,15 @@ func Deposit(
 		if input.Currency != "" {
 			currencyCode = currency.Code(input.Currency)
 		}
-		log.Infof("Deposit handler: calling service for user %s, account %s, amount %v, currency %s, money_source %s", userID, accountID, input.Amount, currencyCode, input.MoneySource)
-		err = accountSvc.Deposit(userID, accountID, input.Amount, currencyCode, input.MoneySource)
+		createDTO := dto.TransactionCreate{
+			UserID:    userID,
+			AccountID: accountID,
+			Amount:    input.Amount,
+			Status:    "pending", // or appropriate status
+			Currency:  string(currencyCode),
+			// Add MoneySource, TargetCurrency, etc. if needed
+		}
+		err = accountSvc.Deposit(c.Context(), createDTO)
 		if err != nil {
 			return common.ProblemDetailsJSON(c, "Failed to deposit", err)
 		}

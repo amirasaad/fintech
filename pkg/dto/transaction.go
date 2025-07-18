@@ -20,11 +20,12 @@ type TransactionRead struct {
 
 // TransactionCreate is a DTO for creating a new transaction.
 type TransactionCreate struct {
-	UserID    uuid.UUID // User who owns the transaction
-	AccountID uuid.UUID // Account associated with the transaction
-	Amount    float64   // Transaction amount
-	Status    string    // Initial status
-	PaymentID string    // Optional payment provider ID
+	UserID      uuid.UUID // User who owns the transaction
+	AccountID   uuid.UUID // Account associated with the transaction
+	Amount      float64   // Transaction amount
+	Status      string    // Initial status
+	Currency    string
+	MoneySource string
 	// Add more fields as needed for creation
 }
 

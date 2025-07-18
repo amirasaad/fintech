@@ -99,11 +99,11 @@ func (r *repository) ListByAccount(ctx context.Context, accountID uuid.UUID) ([]
 func mapCreateDTOToModel(create dto.TransactionCreate) model.Transaction {
 	return model.Transaction{
 
-		UserID:    create.UserID,
-		AccountID: create.AccountID,
-		Amount:    int64(create.Amount),
-		Status:    create.Status,
-		PaymentID: create.PaymentID,
+		UserID:      create.UserID,
+		AccountID:   create.AccountID,
+		Amount:      int64(create.Amount),
+		Status:      create.Status,
+		MoneySource: create.MoneySource,
 		// Add more fields as needed
 	}
 }
