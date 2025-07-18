@@ -35,7 +35,8 @@ func (r *repository) Update(ctx context.Context, id uuid.UUID, update dto.Transa
 
 // PartialUpdate implements transaction.Repository.
 func (r *repository) PartialUpdate(ctx context.Context, id uuid.UUID, update dto.TransactionUpdate) error {
-	return r.Update(ctx, id, update)
+	updates := mapUpdateDTOToModel(update)
+	return r.db.WithContext(ctx).Model(&model.Transaction{}).Where("id = ?", id).Updates(updates).Error
 }
 
 // UpsertByPaymentID implements transaction.Repository.
@@ -101,21 +102,31 @@ func mapCreateDTOToModel(create dto.TransactionCreate) model.Transaction {
 		ID:          create.ID,
 		UserID:      create.UserID,
 		AccountID:   create.AccountID,
-		Amount:      int64(create.Amount),
+		Amount:      create.Amount,
 		Status:      create.Status,
 		MoneySource: create.MoneySource,
 		// Add more fields as needed
 	}
 }
 
-func mapUpdateDTOToModel(update dto.TransactionUpdate) map[string]interface{} {
-	updates := make(map[string]interface{})
+func mapUpdateDTOToModel(update dto.TransactionUpdate) map[string]any {
+	updates := make(map[string]any)
 	if update.Status != nil {
 		updates["status"] = *update.Status
 	}
 	if update.PaymentID != nil {
 		updates["payment_id"] = *update.PaymentID
 	}
+	if update.ConversionRate != nil {
+		updates["conversion_rate"] = update.ConversionRate
+	}
+	if update.OriginalAmount != nil {
+		updates["original_amount"] = update.OriginalAmount
+	}
+	if update.OriginalCurrency != nil {
+		updates["original_currency"] = *update.OriginalCurrency
+	}
+
 	// Add more fields as needed
 	return updates
 }

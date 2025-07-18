@@ -2,9 +2,9 @@ package account
 
 import (
 	"encoding/json"
+	"github.com/amirasaad/fintech/pkg/domain/events"
 	"net/http"
 
-	"github.com/amirasaad/fintech/pkg/domain/account/events"
 	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/amirasaad/fintech/pkg/service/account"
 	"github.com/gofiber/fiber/v2"

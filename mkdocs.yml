@@ -106,6 +106,8 @@ nav:
       - Account Service: refactoring/account-service.md
       - Lessons: refactoring/event-driven-lessons.md
       - Deposit Flow: refactoring/event-driven-deposit-flow.md
+      - Withdraw Flow: refactoring/event-driven-withdraw-flow.md
+      - Transfer Flow: refactoring/event-driven-transfer-flow.md
       - Stripe Webhook: payments/event-driven-stripe-webhook.md
       - Domain Events: domain-events.md
     - Dependency Injection:

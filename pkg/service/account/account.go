@@ -8,13 +8,13 @@ package account
 
 import (
 	"context"
-	"errors"
+	events2 "github.com/amirasaad/fintech/pkg/domain/events"
 	"time"
 
 	"github.com/amirasaad/fintech/config"
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/account"
-	"github.com/amirasaad/fintech/pkg/domain/account/events"
+	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/repository"
 	repoaccount "github.com/amirasaad/fintech/pkg/repository/account"
@@ -81,15 +81,16 @@ func (s *Service) CreateAccount(ctx context.Context, create dto.AccountCreate) (
 
 // Deposit adds funds to the specified account and creates a transaction record.
 func (s *Service) Deposit(ctx context.Context, cmd dto.TransactionCommand) error {
-	if cmd.Amount <= 0 {
-		return errors.New("amount must be positive")
+	amount, err := money.New(cmd.Amount, currency.Code(cmd.Currency))
+	if err != nil {
+		return err
 	}
-	return s.deps.EventBus.Publish(ctx, events.DepositRequestedEvent{
+
+	return s.deps.EventBus.Publish(ctx, events2.DepositRequestedEvent{
 		EventID:   uuid.New(),
 		AccountID: cmd.AccountID, // pass uuid.UUID directly
 		UserID:    cmd.UserID,    // pass uuid.UUID directly
-		Amount:    cmd.Amount,    // keep as float64 for event
-		Currency:  cmd.Currency,
+		Amount:    amount,
 		Source:    cmd.MoneySource,
 		Timestamp: time.Now().Unix(),
 	})
@@ -102,41 +103,35 @@ func (s *Service) Withdraw(
 	currencyCode currency.Code,
 	externalTarget account.ExternalTarget,
 ) error {
-	if amount <= 0 {
-		return errors.New("amount must be positive")
+	amountMoney, err := money.New(amount, currencyCode)
+	if err != nil {
+		return err
 	}
 	// Publish event with paymentID
-	evt := events.WithdrawRequestedEvent{
+	evt := events2.WithdrawRequestedEvent{
 		EventID:               uuid.New(),
 		AccountID:             accountID, // pass uuid.UUID directly
 		UserID:                userID,    // pass uuid.UUID directly
-		Amount:                amount,    // float64
-		Currency:              string(currencyCode),
+		Amount:                amountMoney,
 		BankAccountNumber:     externalTarget.BankAccountNumber,
 		RoutingNumber:         externalTarget.RoutingNumber,
 		ExternalWalletAddress: externalTarget.ExternalWalletAddress,
 		Timestamp:             time.Now().Unix(),
 		PaymentID:             "", // Set if available
 	}
-	err := s.deps.EventBus.Publish(context.Background(), evt)
-	if err != nil {
-		return err
-	}
-	return nil
+	return s.deps.EventBus.Publish(context.Background(), evt)
 }
 
 // Transfer moves funds from one account to another account.
 func (s *Service) Transfer(ctx context.Context, create dto.TransactionCreate, destAccountID uuid.UUID) error {
-	if create.Amount <= 0 {
-		return errors.New("amount must be positive")
-	}
+	amount := money.Zero(currency.Code(create.Currency)) // TODO: fix
 	// Only emit and publish event
-	return s.deps.EventBus.Publish(ctx, events.TransferRequestedEvent{
+	return s.deps.EventBus.Publish(ctx, events2.TransferRequestedEvent{
 		EventID:         uuid.New(),
 		SourceAccountID: create.AccountID,
 		DestAccountID:   destAccountID,
 		SenderUserID:    create.UserID,
-		Currency:        create.Currency,
+		Amount:          amount,
 		Source:          create.MoneySource, // or appropriate value
 		Timestamp:       time.Now().Unix(),
 	})

@@ -2,10 +2,10 @@ package transfer
 
 import (
 	"context"
+	"github.com/amirasaad/fintech/pkg/domain/events"
 	"log/slog"
 
 	"github.com/amirasaad/fintech/pkg/domain"
-	events "github.com/amirasaad/fintech/pkg/domain/account/events"
 	"github.com/amirasaad/fintech/pkg/eventbus"
 )
 

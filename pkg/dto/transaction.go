@@ -34,6 +34,10 @@ type TransactionCreate struct {
 type TransactionUpdate struct {
 	Status    *string // Optional status update
 	PaymentID *string // Optional payment provider ID update
+	// Conversion fields (nullable when no conversion occurs)
+	OriginalAmount   *float64
+	OriginalCurrency *string
+	ConversionRate   *float64
 	// Add more fields as needed for partial updates
 }
 

@@ -1,6 +1,7 @@
 package events
 
 import (
+	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/google/uuid"
 )
 
@@ -9,8 +10,7 @@ type WithdrawRequestedEvent struct {
 	EventID               uuid.UUID
 	AccountID             uuid.UUID
 	UserID                uuid.UUID
-	Amount                float64 // main unit (e.g., dollars)
-	Currency              string
+	Amount                money.Money
 	BankAccountNumber     string
 	RoutingNumber         string
 	ExternalWalletAddress string

@@ -2,6 +2,8 @@ package eventbus
 
 import (
 	"context"
+	"fmt"
+	"log/slog"
 	"sync"
 
 	"github.com/amirasaad/fintech/pkg/domain"
@@ -17,6 +19,8 @@ func NewSimpleEventBus() *SimpleEventBus {
 }
 
 func (b *SimpleEventBus) Publish(ctx context.Context, event domain.Event) error {
+	// Debug log: print concrete type and event type string
+	slog.Debug("EventBus.Publish", "event_type", event.EventType(), "concrete_type", fmt.Sprintf("%T", event))
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	for _, handler := range b.handlers[event.EventType()] {

@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/amirasaad/fintech/pkg/currency"
-	"github.com/amirasaad/fintech/pkg/domain/account/events"
 	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/amirasaad/fintech/pkg/domain/user"
@@ -223,9 +222,7 @@ func (a *Account) validateAmount(amount money.Money) error {
 	if !amount.IsPositive() {
 		return ErrTransactionAmountMustBePositive
 	}
-	if string(amount.Currency()) != string(a.Balance.Currency()) {
-		return common.ErrUnsupportedCurrency
-	}
+
 	return nil
 }
 
@@ -309,16 +306,16 @@ func (a *Account) Transfer(senderUserID, receiverUserID uuid.UUID, dest *Account
 		return ErrInsufficientFunds
 	}
 
-	a.events = append(a.events, events.TransferRequestedEvent{
-		EventID:         uuid.New(),
-		SenderUserID:    senderUserID,
-		ReceiverUserID:  receiverUserID,
-		SourceAccountID: a.ID,
-		DestAccountID:   dest.ID,
-		Amount:          amount.AmountFloat(), // float64
-		Currency:        amount.Currency().String(),
-		Source:          string(moneySource),
-		Timestamp:       time.Now().Unix(),
-	})
+	// a.events = append(a.events, events.TransferRequestedEvent{
+	// 	EventID:         uuid.New(),
+	// 	SenderUserID:    senderUserID,
+	// 	ReceiverUserID:  receiverUserID,
+	// 	SourceAccountID: a.ID,
+	// 	DestAccountID:   dest.ID,
+	// 	Amount:          amount.AmountFloat(), // float64
+	// 	Currency:        amount.Currency().String(),
+	// 	Source:          string(moneySource),
+	// 	Timestamp:       time.Now().Unix(),
+	// })
 	return nil
 }

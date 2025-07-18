@@ -1,8 +1,6 @@
-package deposit
+package mapper
 
 import (
-	"log/slog"
-
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/domain/money"
@@ -11,7 +9,6 @@ import (
 
 // MapAccountReadToDomain maps a dto.AccountRead to a domain Account.
 func MapAccountReadToDomain(dto *dto.AccountRead) *account.Account {
-	slog.Debug("MapAccountReadToDomain: creating money with", "balance", dto.Balance, "currency", dto.Currency)
 	balance, err := money.New(dto.Balance, currency.Code(dto.Currency))
 	if err != nil {
 		panic(err)

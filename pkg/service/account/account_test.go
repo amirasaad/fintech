@@ -5,6 +5,8 @@ import (
 	"errors"
 	"testing"
 
+	events2 "github.com/amirasaad/fintech/pkg/domain/events"
+
 	"log/slog"
 
 	"github.com/amirasaad/fintech/config"
@@ -14,7 +16,6 @@ import (
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain"
 	accountdomain "github.com/amirasaad/fintech/pkg/domain/account"
-	"github.com/amirasaad/fintech/pkg/domain/account/events"
 	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/amirasaad/fintech/pkg/domain/user"
 	"github.com/amirasaad/fintech/pkg/dto"
@@ -141,12 +142,12 @@ func TestWithdraw_PublishesEvent(t *testing.T) {
 	err := svc.Withdraw(userID, accountID, 50.0, currency.USD, externalTarget)
 	require.NoError(t, err)
 	require.Len(t, publishedEvents, 1)
-	evt, ok := publishedEvents[0].(events.WithdrawRequestedEvent)
+	evt, ok := publishedEvents[0].(events2.WithdrawRequestedEvent)
 	require.True(t, ok)
 	assert.Equal(t, userID, evt.UserID)
 	assert.Equal(t, accountID, evt.AccountID)
-	assert.InEpsilon(t, 50.0, evt.Amount, 0.01)
-	assert.Equal(t, "USD", evt.Currency)
+	assert.InEpsilon(t, 50.0, evt.Amount.AmountFloat(), 0.01)
+	assert.Equal(t, "USD", evt.Amount.Currency().String())
 	assert.Equal(t, externalTarget.BankAccountNumber, evt.BankAccountNumber)
 }
 
@@ -176,13 +177,13 @@ func TestTransfer_PublishesEvent(t *testing.T) {
 	err := svc.Transfer(context.TODO(), transferDTO, destAccountID)
 	require.NoError(t, err)
 	require.Len(t, publishedEvents, 1)
-	evt, ok := publishedEvents[0].(events.TransferRequestedEvent)
+	evt, ok := publishedEvents[0].(events2.TransferRequestedEvent)
 	require.True(t, ok)
 	assert.Equal(t, userID, evt.SenderUserID)
 	assert.Equal(t, sourceAccountID, evt.SourceAccountID)
 	assert.Equal(t, destAccountID, evt.DestAccountID)
 	// assert.InEpsilon(t, amount, evt.Amount, 0.01)
-	assert.Equal(t, currency, evt.Currency)
+	assert.Equal(t, currency, evt.Amount.Currency().String())
 	assert.Equal(t, moneySource, evt.Source)
 }
 

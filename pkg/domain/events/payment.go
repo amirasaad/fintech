@@ -4,7 +4,6 @@ import "github.com/google/uuid"
 
 // PaymentInitiationEvent is emitted after payment initiation with a provider.
 type PaymentInitiationEvent struct {
-	MoneyCreatedEvent
 	PaymentID     string
 	Status        string    // "pending"
 	TransactionID uuid.UUID // propagate TransactionID

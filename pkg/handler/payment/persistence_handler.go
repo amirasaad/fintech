@@ -5,8 +5,10 @@ import (
 	"errors"
 	"log/slog"
 
+	"github.com/amirasaad/fintech/pkg/domain/account"
+	"github.com/amirasaad/fintech/pkg/domain/events"
+
 	"github.com/amirasaad/fintech/pkg/domain"
-	"github.com/amirasaad/fintech/pkg/domain/account/events"
 	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/amirasaad/fintech/pkg/repository"
@@ -37,16 +39,16 @@ func PersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork, logger
 				logger.Error("PersistenceHandler: failed to retrieve repo type")
 				return errors.New("failed to retrieve repo type")
 			}
-			if err := txRepo.Update(ctx, pie.TransactionID, dto.TransactionUpdate{PaymentID: &pie.PaymentID}); err != nil {
+			status := account.TransactionStatusPending
+			if err := txRepo.Update(ctx, pie.TransactionID, dto.TransactionUpdate{PaymentID: &pie.PaymentID, Status: &status}); err != nil {
 				logger.Error("PersistenceHandler: failed to update transaction", "error", err)
 				return err
 			}
 			_ = bus.Publish(ctx, events.PaymentIdPersistedEvent{
 				PaymentInitiatedEvent: events.PaymentInitiatedEvent{
-					DepositPersistedEvent: pie.DepositPersistedEvent,
-					PaymentID:             pie.PaymentID,
-					Status:                pie.Status,
-					TransactionID:         pie.TransactionID,
+					Status:        pie.Status,
+					TransactionID: pie.TransactionID,
+					UserID:        pie.UserID,
 				},
 			})
 			return nil

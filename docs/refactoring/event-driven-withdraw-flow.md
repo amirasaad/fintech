@@ -1,15 +1,15 @@
 ---
 icon: octicons/sync-24
 ---
-# ⚡ Event-Driven Deposit Flow
+# ⚡ Event-Driven Withdraw Flow
 
-This document describes the event-driven architecture for the deposit workflow in the fintech system.
+This document describes the event-driven architecture for the withdraw workflow in the fintech system.
 
 ---
 
 ## 🏁 Overview
 
-The deposit process is now fully event-driven, with each business step handled by a dedicated event handler. This enables modularity, testability, and clear separation of concerns.
+The withdraw process is fully event-driven, with each business step handled by a dedicated event handler. This enables modularity, testability, and clear separation of concerns, following the same principles as the deposit flow.
 
 ---
 
@@ -24,37 +24,37 @@ sequenceDiagram
     participant P as "PersistenceHandler"
     participant PP as "PaymentInitiationHandler"
 
-    U->>API: POST /account/:id/deposit (DepositRequest)
-    API->>EB: DepositRequestedEvent
-    EB->>VH: ValidationHandler (validates account)
-    VH->>EB: DepositValidatedEvent
+    U->>API: POST /account/:id/withdraw (WithdrawRequest)
+    API->>EB: WithdrawRequestedEvent
+    EB->>VH: ValidationHandler (validates account, balance)
+    VH->>EB: WithdrawValidatedEvent
     EB->>P: PersistenceHandler (persists to DB)
-    P->>EB: DepositPersistedEvent
+    P->>EB: WithdrawPersistedEvent
     EB->>PP: PaymentInitiationHandler (initiates payment)
     PP->>EB: PaymentInitiatedEvent
 ```
 
 ---
 
-## 🔄 Workflow Clarification: Event-Driven Deposit Flow
+## 🔄 Workflow Clarification: Event-Driven Withdraw Flow
 
-The deposit workflow is orchestrated through a series of events and handlers:
+The withdraw workflow is orchestrated through a series of events and handlers:
 
-1. **User submits deposit request** (amount as `float64`, main unit). API emits `DepositRequestedEvent`.
-2. **Validation Handler** loads the account, calls domain validation (`ValidateDeposit`), emits `DepositValidatedEvent`.
-3. **Persistence Handler** converts the amount to a `money.Money` value object and persists the transaction, emits `DepositPersistedEvent`.
+1. **User submits withdraw request** (amount as `float64`, main unit). API emits `WithdrawRequestedEvent`.
+2. **Validation Handler** loads the account, checks balance and domain validation (`ValidateWithdraw`), emits `WithdrawValidatedEvent`.
+3. **Persistence Handler** converts the amount to a `money.Money` value object and persists the transaction, emits `WithdrawPersistedEvent`.
 4. **Payment Initiation Handler** initiates payment, emits `PaymentInitiatedEvent`.
 5. **PaymentId Persistence Handler** updates transaction with paymentId, emits `PaymentIdPersistedEvent`.
 6. **Webhook Handler** (optional) updates transaction status and account balance on payment confirmation.
 
-### 🖼️ Updated Deposit Workflow Diagram
+### 🖼️ Withdraw Workflow Diagram
 
 ```mermaid
 flowchart TD
-    A["DepositRequestedEvent"] --> B["Validation Handler (domain validation)"]
-    B --> C["DepositValidatedEvent"]
+    A["WithdrawRequestedEvent"] --> B["Validation Handler (domain validation)"]
+    B --> C["WithdrawValidatedEvent"]
     C --> D["Persistence Handler (creates money object, persists)"]
-    D --> E["DepositPersistedEvent"]
+    D --> E["WithdrawPersistedEvent"]
     E --> F["Payment Initiation Handler"]
     F --> G["PaymentInitiatedEvent"]
     G --> H["PaymentId Persistence Handler"]
@@ -68,26 +68,27 @@ flowchart TD
 
 ### 1. Validation Handler
 
-- **Purpose:** Performs business validation on the account
-- **Events Consumed:** `DepositRequestedEvent`
+- **Purpose:** Performs business validation on the account and balance
+- **Events Consumed:** `WithdrawRequestedEvent`
 - **Events Emitted:**
-  - `DepositValidatedEvent` - When validation passes
-  - (TODO: `DepositValidationFailedEvent` - When validation fails)
+  - `WithdrawValidatedEvent` - When validation passes
+  - (TODO: `WithdrawValidationFailedEvent` - When validation fails)
 - **Validation Rules:**
   - Account exists and belongs to user
   - Account has valid ID
   - Account is in valid state for operations
+  - Sufficient balance for withdrawal
 
 ### 2. Persistence Handler
 
-- **Purpose:** Converts the amount to a `money.Money` value object and persists the deposit transaction to the database
-- **Events Consumed:** `DepositValidatedEvent`
-- **Events Emitted:** `DepositPersistedEvent`
+- **Purpose:** Converts the amount to a `money.Money` value object and persists the withdraw transaction to the database
+- **Events Consumed:** `WithdrawValidatedEvent`
+- **Events Emitted:** `WithdrawPersistedEvent`
 
 ### 3. Payment Initiation Handler
 
 - **Purpose:** Initiates payment with external providers
-- **Events Consumed:** `DepositPersistedEvent`
+- **Events Consumed:** `WithdrawPersistedEvent`
 - **Events Emitted:** `PaymentInitiatedEvent`
 
 ---
@@ -129,22 +130,22 @@ Each handler has a single responsibility and can be developed, tested, and deplo
 ### Validation Handler Pattern
 
 ```go
-// Validation handler listens to deposit request events
-func DepositValidationHandler(bus eventbus.EventBus, logger *slog.Logger) func(context.Context, domain.Event) {
+// Validation handler listens to withdraw request events
+func WithdrawValidationHandler(bus eventbus.EventBus, logger *slog.Logger) func(context.Context, domain.Event) {
     return func(ctx context.Context, e domain.Event) {
-        event, ok := e.(accountdomain.DepositRequestedEvent)
+        event, ok := e.(accountdomain.WithdrawRequestedEvent)
         if !ok {
             return
         }
 
         // Perform business validation
         if validationFails {
-            // TODO: Emit DepositValidationFailedEvent
+            // TODO: Emit WithdrawValidationFailedEvent
             return
         }
 
         // Emit validation success
-        _ = bus.Publish(ctx, accountdomain.DepositValidatedEvent{...})
+        _ = bus.Publish(ctx, accountdomain.WithdrawValidatedEvent{...})
     }
 }
 ```
@@ -152,16 +153,16 @@ func DepositValidationHandler(bus eventbus.EventBus, logger *slog.Logger) func(c
 ### Persistence Handler Pattern
 
 ```go
-// Persistence handler listens to validated deposit events
-func DepositPersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork, logger *slog.Logger) func(context.Context, domain.Event) {
+// Persistence handler listens to validated withdraw events
+func WithdrawPersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork, logger *slog.Logger) func(context.Context, domain.Event) {
     return func(ctx context.Context, e domain.Event) {
-        event, ok := e.(accountdomain.DepositValidatedEvent)
+        event, ok := e.(accountdomain.WithdrawValidatedEvent)
         if !ok {
             return
         }
         // Convert amount to money.Money and persist transaction
         // ...
-        _ = bus.Publish(ctx, accountdomain.DepositPersistedEvent{...})
+        _ = bus.Publish(ctx, accountdomain.WithdrawPersistedEvent{...})
     }
 }
 ```
@@ -171,13 +172,15 @@ func DepositPersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork,
 ## 🛠️ Error Handling
 
 ### Validation Failures
+
 - Account inactive
 - Insufficient balance
 - Business rule violations
 - Invalid account state
 
 ### Event Flow on Errors
-1. Validation handler emits `DepositValidationFailedEvent` (TODO)
+
+1. Validation handler emits `WithdrawValidationFailedEvent` (TODO)
 2. Persistence handler is not triggered
 3. Error is returned to the caller
 4. Audit trail is maintained through events
@@ -187,22 +190,18 @@ func DepositPersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork,
 ## 🧪 Testing Strategy
 
 ### Unit Tests
+
 - Test each handler independently
 - Mock event bus and dependencies
 - Test success and failure scenarios
 
 ### Integration Tests
+
 - Test complete event flows
 - Use real event bus
 - Verify event sequences
 
 ### End-to-End Tests
+
 - Test full API endpoints
 - Verify business outcomes
-- Test error scenarios
-
----
-
-## 📚 Related Documentation
-
-- [Event-Driven Architecture Overview](https://github.com/amirasaad/fintech/architecture.md)

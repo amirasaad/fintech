@@ -8,13 +8,14 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/amirasaad/fintech/pkg/domain/events"
+
 	"log/slog"
 
 	"github.com/amirasaad/fintech/infra/provider"
 	fixturesmocks "github.com/amirasaad/fintech/internal/fixtures/mocks"
 	"github.com/amirasaad/fintech/pkg/domain"
 	accountdomain "github.com/amirasaad/fintech/pkg/domain/account"
-	"github.com/amirasaad/fintech/pkg/domain/account/events"
 	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/amirasaad/fintech/pkg/handler/payment"
@@ -93,8 +94,8 @@ func TestStripeWebhookHandler_Integration(t *testing.T) {
 	// Set up event bus and register handler
 	bus := eventbus.NewSimpleEventBus()
 	logger := slog.New(slog.NewTextHandler(nil, nil))
-	bus.Subscribe((events.PaymentCompletedEvent{}).EventType(), payment.PaymentCompletedHandler(bus, uow, logger))
-	bus.Subscribe((events.PaymentInitiationEvent{}).EventType(), payment.PaymentInitiationHandler(bus, provider.NewMockPaymentProvider()))
+	bus.Subscribe((events.PaymentCompletedEvent{}).EventType(), payment.CompletedHandler(bus, uow, logger))
+	bus.Subscribe((events.PaymentInitiationEvent{}).EventType(), payment.PaymentInitiationHandler(bus, provider.NewMockPaymentProvider(), logger))
 	bus.Subscribe((events.PaymentIdPersistedEvent{}).EventType(), payment.PersistenceHandler(bus, uow, logger))
 
 	// Set up Fiber app with webhook handler

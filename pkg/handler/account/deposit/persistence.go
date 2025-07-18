@@ -6,10 +6,9 @@ import (
 	"errors"
 	"log/slog"
 
-	"github.com/amirasaad/fintech/pkg/currency"
+	"github.com/amirasaad/fintech/pkg/domain/events"
+
 	"github.com/amirasaad/fintech/pkg/domain"
-	"github.com/amirasaad/fintech/pkg/domain/account/events"
-	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/amirasaad/fintech/pkg/repository"
@@ -32,13 +31,7 @@ func PersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork, logger
 			logger.Error("unexpected event", "event", e)
 			return
 		}
-
-		// Convert float64 amount and currency to money.Money value object
-		m, err := money.New(ve.Amount, currency.Code(ve.Currency))
-		if err != nil {
-			logger.Error("failed to convert amount to money.Money", "error", err)
-			return
-		}
+		logger.Info("received DepositValidatedEvent", "event", ve)
 
 		// Create a new transaction and persist it
 		txID := uuid.New()
@@ -52,32 +45,35 @@ func PersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork, logger
 			if !ok {
 				return errors.New("failed to retrieve repo")
 			}
-			return txRepo.Create(ctx, dto.TransactionCreate{
+			if err := txRepo.Create(ctx, dto.TransactionCreate{
 				ID:          txID,
 				UserID:      ve.UserID,
 				AccountID:   ve.AccountID,
-				Amount:      m.Amount(),
-				Currency:    m.Currency().String(),
+				Amount:      ve.Amount.Amount(),
+				Currency:    ve.Amount.Currency().String(),
 				Status:      "created",
 				MoneySource: ve.Source,
-			})
+			}); err != nil {
+				return err
+			}
+			logger.Info("transaction persisted", "transaction_id", txID)
+			return nil
 		}); err != nil {
 			logger.Error("failed to persist transaction", "error", err)
 			return
 		}
+		logger.Info("emitting CurrencyConversionRequested", "transaction_id", txID)
 
-		// Emit DepositPersistedEvent for the next step in the event flow
-		_ = bus.Publish(ctx, events.DepositPersistedEvent{
-			MoneyCreatedEvent: events.MoneyCreatedEvent{
-				DepositValidatedEvent: ve,
-				Amount:                m.Amount(),
-				Currency:              m.Currency().String(),
-				TargetCurrency:        ve.Currency,
-				TransactionID:         txID,
-				UserID:                ve.UserID,
-			},
-			TransactionID: txID,
-			UserID:        ve.UserID,
+		// Emit CurrencyConversionRequested for the new conversion handler chain
+		_ = bus.Publish(ctx, events.CurrencyConversionRequested{
+			EventID:        uuid.New(),
+			UserID:         ve.UserID,
+			AccountID:      ve.AccountID,
+			TransactionID:  txID,
+			Amount:         ve.Amount,
+			SourceCurrency: ve.Amount.Currency().String(),
+			TargetCurrency: ve.Account.Balance.Currency().String(), // Use ve.Currency as default; update if target differs
+			Timestamp:      ve.Timestamp,
 		})
 	}
 }

@@ -1,4 +1,4 @@
-// Stub for PaymentCompletedHandler tests. Add/port tests as needed.
+// Stub for CompletedHandler tests. Add/port tests as needed.
 package payment
 
 import "testing"

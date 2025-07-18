@@ -1,6 +1,7 @@
 package events
 
 import (
+	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/google/uuid"
 )
 
@@ -11,8 +12,7 @@ type TransferRequestedEvent struct {
 	DestAccountID   uuid.UUID
 	SenderUserID    uuid.UUID
 	ReceiverUserID  uuid.UUID
-	Amount          float64 // main unit (e.g., dollars)
-	Currency        string
+	Amount          money.Money
 	Source          string // MoneySource as string
 	Timestamp       int64
 }

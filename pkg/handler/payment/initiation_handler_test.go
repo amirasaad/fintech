@@ -5,8 +5,13 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/amirasaad/fintech/pkg/currency"
+	"github.com/amirasaad/fintech/pkg/domain/events"
+	"github.com/amirasaad/fintech/pkg/domain/money"
+
+	"log/slog"
+
 	"github.com/amirasaad/fintech/internal/fixtures/mocks"
-	"github.com/amirasaad/fintech/pkg/domain/account/events"
 	"github.com/amirasaad/fintech/pkg/provider"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -29,14 +34,12 @@ func (m *mockPaymentProvider) InitiatePayment(ctx context.Context, userID, accou
 func TestPaymentInitiationHandler_BusinessLogic(t *testing.T) {
 	userID := uuid.New()
 	accountID := uuid.New()
-	amount := 100.0 // 100$
-	amountInCents := int64(amount * 100)
-	currency := "USD"
+	amount, _ := money.New(100, currency.USD)
 	paymentID := "pay-123"
 
 	tests := []struct {
 		name        string
-		input       events.DepositPersistedEvent
+		input       events.CurrencyConversionDone
 		provider    *mockPaymentProvider
 		expectPub   bool
 		expectPayID string
@@ -48,33 +51,21 @@ func TestPaymentInitiationHandler_BusinessLogic(t *testing.T) {
 	}{
 		{
 			name: "provider success",
-			input: events.DepositPersistedEvent{
-				MoneyCreatedEvent: events.MoneyCreatedEvent{
-					DepositValidatedEvent: events.DepositValidatedEvent{
-						DepositRequestedEvent: events.DepositRequestedEvent{
-							EventID:   uuid.New(),
-							UserID:    userID,
-							AccountID: accountID,
-							Amount:    amount,
-							Currency:  currency,
-						},
-						AccountID: accountID,
-					},
-					Amount:         amountInCents,
-					Currency:       currency,
-					TargetCurrency: currency,
-					TransactionID:  uuid.New(),
-					UserID:         userID,
+			input: events.CurrencyConversionDone{
+				CurrencyConversionRequested: events.CurrencyConversionRequested{
+					TransactionID: uuid.New(),
+					UserID:        userID,
+					AccountID:     accountID,
+					Amount:        amount,
 				},
-				UserID: userID, // Ensure top-level UserID is set
-				// Add other fields if needed
+				ConvertedAmount: amount,
 			},
 			provider: &mockPaymentProvider{
 				initiateFn: func(ctx context.Context, u, a uuid.UUID, amt int64, cur string) (string, error) {
 					assert.Equal(t, userID, u)
 					assert.Equal(t, accountID, a)
-					assert.InEpsilon(t, amountInCents, amt, 0.1)
-					assert.Equal(t, currency, cur)
+					assert.Equal(t, amount.Amount(), amt)
+					assert.Equal(t, amount.Currency().String(), cur)
 					return paymentID, nil
 				},
 			},
@@ -82,33 +73,22 @@ func TestPaymentInitiationHandler_BusinessLogic(t *testing.T) {
 			expectPayID: paymentID,
 			expectUser:  userID,
 			expectAcc:   accountID,
-			expectAmt:   amount,
-			expectCur:   currency,
+			expectAmt:   amount.AmountFloat(),
+			expectCur:   amount.Currency().String(),
 			setupMocks: func(bus *mocks.MockEventBus) {
 				bus.On("Publish", mock.Anything, mock.AnythingOfType("events.PaymentInitiatedEvent")).Return(nil)
 			},
 		},
 		{
 			name: "provider error",
-			input: events.DepositPersistedEvent{
-				MoneyCreatedEvent: events.MoneyCreatedEvent{
-					DepositValidatedEvent: events.DepositValidatedEvent{
-						DepositRequestedEvent: events.DepositRequestedEvent{
-							EventID:   uuid.New(),
-							UserID:    userID,
-							AccountID: accountID,
-							Amount:    amount,
-							Currency:  currency,
-						},
-						AccountID: accountID,
-					},
-					Amount:         amountInCents,
-					Currency:       currency,
-					TargetCurrency: currency,
-					TransactionID:  uuid.New(),
-					UserID:         userID,
+			input: events.CurrencyConversionDone{
+				CurrencyConversionRequested: events.CurrencyConversionRequested{
+					TransactionID: uuid.New(),
+					UserID:        userID,
+					AccountID:     accountID,
+					Amount:        amount,
 				},
-				UserID: userID, // Ensure top-level UserID is set
+				ConvertedAmount: amount,
 			},
 			provider: &mockPaymentProvider{
 				initiateFn: func(ctx context.Context, u, a uuid.UUID, amt int64, cur string) (string, error) {
@@ -126,7 +106,7 @@ func TestPaymentInitiationHandler_BusinessLogic(t *testing.T) {
 			if tc.setupMocks != nil {
 				tc.setupMocks(bus)
 			}
-			handler := PaymentInitiationHandler(bus, tc.provider)
+			handler := PaymentInitiationHandler(bus, tc.provider, slog.Default())
 			ctx := context.Background()
 			handler(ctx, tc.input)
 			if tc.expectPub {

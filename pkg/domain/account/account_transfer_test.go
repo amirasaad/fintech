@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/amirasaad/fintech/pkg/currency"
-	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
@@ -128,18 +127,7 @@ func TestAccount_Transfer(t *testing.T) {
 			t.Parallel()
 			err := tc.sourceAccount.Transfer(tc.sourceUserID, tc.destUserID, tc.destAccount, tc.amount, MoneySourceCard)
 			require.ErrorIs(err, tc.expectedErr)
-			events := tc.sourceAccount.PullEvents()
 
-			if tc.eventExpectation.wantEvent {
-				require.Len(events, 1)
-				evt := events[0]
-				require.Equal(tc.eventExpectation.event, evt.EventType())
-			}
-			destEvents := []common.Event{}
-			if tc.destAccount != nil && tc.destAccount != tc.sourceAccount {
-				destEvents = tc.destAccount.PullEvents()
-			}
-			require.Empty(destEvents)
 		})
 	}
 }

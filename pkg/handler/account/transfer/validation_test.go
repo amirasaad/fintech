@@ -6,8 +6,10 @@ import (
 	"log/slog"
 	"testing"
 
+	"github.com/amirasaad/fintech/pkg/domain/events"
+
 	"github.com/amirasaad/fintech/internal/fixtures/mocks"
-	"github.com/amirasaad/fintech/pkg/domain/account/events"
+	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -20,8 +22,7 @@ func TestTransferValidationHandler(t *testing.T) {
 		DestAccountID:   uuid.New(),
 		SenderUserID:    uuid.New(),
 		ReceiverUserID:  uuid.New(),
-		Amount:          100,
-		Currency:        "USD",
+		Amount:          money.NewFromData(10000, "USD"),
 		Source:          "Internal",
 		Timestamp:       1234567890,
 	}
@@ -39,9 +40,8 @@ func TestTransferValidationHandler(t *testing.T) {
 		{"invalid sender UUID", func() events.TransferRequestedEvent { e := valid; e.SenderUserID = uuid.Nil; return e }(), false, nil},
 		{"invalid source account UUID", func() events.TransferRequestedEvent { e := valid; e.SourceAccountID = uuid.Nil; return e }(), false, nil},
 		{"invalid dest account UUID", func() events.TransferRequestedEvent { e := valid; e.DestAccountID = uuid.Nil; return e }(), false, nil},
-		{"zero amount", func() events.TransferRequestedEvent { e := valid; e.Amount = 0; return e }(), false, nil},
-		{"negative amount", func() events.TransferRequestedEvent { e := valid; e.Amount = -10; return e }(), false, nil},
-		{"missing currency", func() events.TransferRequestedEvent { e := valid; e.Currency = ""; return e }(), false, nil},
+		{"zero amount", func() events.TransferRequestedEvent { e := valid; e.Amount = money.NewFromData(0, "USD"); return e }(), false, nil},
+		{"negative amount", func() events.TransferRequestedEvent { e := valid; e.Amount = money.NewFromData(-1000, "USD"); return e }(), false, nil},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

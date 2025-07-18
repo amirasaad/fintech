@@ -4,18 +4,18 @@ import (
 	"context"
 	"log/slog"
 
+	"github.com/amirasaad/fintech/pkg/domain/events"
+
 	"github.com/amirasaad/fintech/pkg/domain"
-	"github.com/amirasaad/fintech/pkg/domain/account/events"
-	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/amirasaad/fintech/pkg/repository/account"
 )
 
-// DepositRequestedHandler validates the deposit request and emits DepositValidatedEvent on success.
-func DepositRequestedHandler(uow repository.UnitOfWork, bus eventbus.EventBus, logger *slog.Logger) func(context.Context, domain.Event) {
+// RequestedHandler validates the deposit request and emits DepositValidatedEvent on success.
+func RequestedHandler(uow repository.UnitOfWork, bus eventbus.EventBus, logger *slog.Logger) func(context.Context, domain.Event) {
 	return func(ctx context.Context, e domain.Event) {
-		log := logger.With("handler", "DepositRequestedHandler", "event_type", e.EventType())
+		log := logger.With("handler", "RequestedHandler", "event_type", e.EventType())
 		dr, ok := e.(events.DepositRequestedEvent)
 		if !ok {
 			log.Error("unexpected event type", "event", e)
@@ -33,12 +33,7 @@ func DepositRequestedHandler(uow repository.UnitOfWork, bus eventbus.EventBus, l
 			return
 		}
 		acc := MapAccountReadToDomain(accDto)
-		moneyObj, err := money.New(dr.Amount, acc.Balance.Currency())
-		if err != nil {
-			log.Error("invalid money for deposit", "error", err)
-			return
-		}
-		if err := acc.ValidateDeposit(dr.UserID, moneyObj); err != nil {
+		if err := acc.ValidateDeposit(dr.UserID, dr.Amount); err != nil {
 			log.Error("account validation failed", "error", err)
 			// TODO: Emit DepositValidationFailedEvent here per event-driven docs
 			return
@@ -47,6 +42,7 @@ func DepositRequestedHandler(uow repository.UnitOfWork, bus eventbus.EventBus, l
 		_ = bus.Publish(ctx, events.DepositValidatedEvent{
 			DepositRequestedEvent: dr,
 			AccountID:             acc.ID,
+			Account:               acc,
 		})
 	}
 }

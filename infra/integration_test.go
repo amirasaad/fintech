@@ -6,9 +6,11 @@ import (
 	"log/slog"
 	"testing"
 
+	"github.com/amirasaad/fintech/pkg/domain/events"
+
 	"github.com/amirasaad/fintech/internal/fixtures/mocks"
 	"github.com/amirasaad/fintech/pkg/domain"
-	events "github.com/amirasaad/fintech/pkg/domain/account/events"
+	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/handler/account/deposit"
 	"github.com/google/uuid"
@@ -50,14 +52,13 @@ func TestEventDrivenDepositFlow_Integration(t *testing.T) {
 		EventID:   uuid.New(),
 		AccountID: validAccount,
 		UserID:    validUser,
-		Amount:    100.0,
-		Currency:  "USD",
+		Amount:    money.NewFromData(10000, "USD"),
 		Source:    "Cash",
 		Timestamp: 1234567890,
 	}
 
 	// Step 2: Validation Handler
-	validationHandler := deposit.DepositRequestedHandler(uow, bus, logger)
+	validationHandler := deposit.RequestedHandler(uow, bus, logger)
 	validationHandler(ctx, depositRequested)
 	assert.Len(t, bus.published, 1, "Validation handler should publish DepositValidatedEvent")
 

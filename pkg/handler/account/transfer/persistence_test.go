@@ -5,8 +5,10 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/amirasaad/fintech/pkg/domain/events"
+
 	"github.com/amirasaad/fintech/internal/fixtures/mocks"
-	"github.com/amirasaad/fintech/pkg/domain/account/events"
+	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -29,8 +31,7 @@ func TestTransferPersistenceHandler_BusinessLogic(t *testing.T) {
 				DestAccountID:   uuid.New(),
 				SenderUserID:    uuid.New(),
 				ReceiverUserID:  uuid.New(),
-				Amount:          100,
-				Currency:        "USD",
+				Amount:          money.NewFromData(10000, "USD"),
 				Source:          "Internal",
 				Timestamp:       1234567890,
 			},
