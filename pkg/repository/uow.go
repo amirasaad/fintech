@@ -15,25 +15,22 @@ import (
 //
 // Do runs the given function in a transaction boundary, providing a UnitOfWork for repository access.
 // GetRepository provides type-safe access to repositories using the transaction session.
-// Example usage:
+// DEPRECATED: Use AccountRepository() or TransactionRepository() for all new code. This method is maintained for backward compatibility only.
 //
-//	repoAny, err := uow.GetRepository((*UserRepository)(nil))
-//	repo := repoAny.(UserRepository)
-type UnitOfWork interface {
-	// Do executes the given function within a transaction boundary.
-	// The provided function receives a UnitOfWork for repository access.
-	// If the function returns an error, the transaction is rolled back.
-	Do(ctx context.Context, fn func(uow UnitOfWork) error) error
+// This method is part of UoW to guarantee that all repository operations within a transaction
+// use the same DB session, ensuring atomicity and consistency. It also centralizes repository
+// construction and makes testing and extension easier.
+func (u *UoW) GetRepository(repoType interface{}) (any, error) {
+	// ... existing code ...
+}
 
-	// GetRepository returns a repository of the requested type, bound to the current transaction/session.
-	// This method is maintained for backward compatibility but is deprecated in favor of type-safe methods.
-	// Example:
-	//   repoAny, err := uow.GetRepository((*UserRepository)(nil))
-	//   repo := repoAny.(UserRepository)
-	GetRepository(repoType any) (any, error)
-
-	// Type-safe repository access methods (preferred approach)
-	AccountRepository() (AccountRepository, error)
-	TransactionRepository() (TransactionRepository, error)
-	UserRepository() (UserRepository, error)
+// Type-safe repository access methods (preferred approach)
+func (u *UoW) AccountRepository() (AccountRepository, error) {
+	// ... existing code ...
+}
+func (u *UoW) TransactionRepository() (TransactionRepository, error) {
+	// ... existing code ...
+}
+func (u *UoW) UserRepository() (UserRepository, error) {
+	// ... existing code ...
 }
