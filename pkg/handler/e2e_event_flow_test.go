@@ -21,6 +21,9 @@ import (
 	"github.com/amirasaad/fintech/pkg/provider"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/amirasaad/fintech/pkg/dto"
+	mocks "github.com/amirasaad/fintech/internal/fixtures/mocks"
 )
 
 type inMemoryAccountRepo struct {
@@ -66,15 +69,48 @@ func (u *inMemoryUow) Do(ctx context.Context, fn func(repository.UnitOfWork) err
 	return fn(u)
 }
 
+type mockUow struct {
+	accRepo *mocks.AccountRepository
+	txRepo  *mocks.TransactionRepository
+}
+
+func (u *mockUow) GetRepository(repoType interface{}) (interface{}, error) {
+	switch repoType.(type) {
+	case *account.Repository:
+		return u.accRepo, nil
+	case *transaction.Repository:
+		return u.txRepo, nil
+	}
+	return nil, repository.ErrRepositoryNotFound
+}
+
+func (u *mockUow) Do(ctx context.Context, fn func(repository.UnitOfWork) error) error {
+	return fn(u)
+}
+
 func TestDepositE2EEventFlow(t *testing.T) {
 	ctx := context.Background()
 	userID := uuid.New()
 	accountID := uuid.New()
 	amount, _ := money.New(100, currency.USD)
-	acc := &account.Account{ID: accountID, UserID: userID, Balance: amount}
-	accRepo := &inMemoryAccountRepo{accounts: map[uuid.UUID]*account.Account{accountID: acc}}
-	uow := &inMemoryUow{accRepo: accRepo}
+
+	// Setup mocks
+	accRepo := mocks.NewAccountRepository(t)
+	txRepo := mocks.NewTransactionRepository(t)
+	uow := &mockUow{accRepo: accRepo, txRepo: txRepo}
 	bus := eventbus.NewSimpleEventBus()
+
+	// Prepare account read DTO
+	accRead := &dto.AccountRead{
+		ID:       accountID,
+		UserID:   userID,
+		Balance:  amount.Amount(),
+		Currency: amount.Currency().String(),
+	}
+
+	// Expectations
+	accRepo.On("Get", mock.Anything, accountID).Return(accRead, nil)
+	txRepo.On("Create", mock.Anything, mock.AnythingOfType("dto.TransactionCreate")).Return(nil)
 
 	// Track event emissions
 	emitted := make([]string, 0, 10)
@@ -118,4 +154,7 @@ func TestDepositE2EEventFlow(t *testing.T) {
 		"DepositValidatedEvent",
 		"DepositPersistedEvent",
 	}, emitted, "event chain should match deposit flow")
+
+	accRepo.AssertExpectations(t)
+	txRepo.AssertExpectations(t)
 }
