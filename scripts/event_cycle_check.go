@@ -50,7 +50,7 @@ func main() {
 	// 2. Parse handler files for bus.Publish lines
 	// (for simplicity, scan pkg/handler/ recursively for bus.Publish)
 	publishRe := regexp.MustCompile(`bus\.Publish\(.*?([A-Za-z0-9]+Event)\{`)
-	edges := []Edge{}
+	handlerEmits := make(map[string][]string) // handler func -> []emitted event types
 
 	err = walkDir("pkg/handler", func(path string) {
 		f, err := os.Open(path)
@@ -74,11 +74,7 @@ func main() {
 			matches := publishRe.FindStringSubmatch(line)
 			if len(matches) == 2 && currentHandler != "" {
 				emittedEvent := matches[1]
-				// Find which event this handler consumes
-				consumedEvent := handlerToEvent[currentHandler]
-				if consumedEvent != "" {
-					edges = append(edges, Edge{From: consumedEvent, To: emittedEvent, Handler: currentHandler})
-				}
+				handlerEmits[currentHandler] = append(handlerEmits[currentHandler], emittedEvent)
 			}
 		}
 	})
@@ -88,6 +84,23 @@ func main() {
 	}
 
 	// 3. Build event flow graph and detect cycles
+	edges := []Edge{}
+	for handler, consumedEvent := range handlerToEvent {
+		emittedEvents := handlerEmits[handler]
+		for _, emittedEvent := range emittedEvents {
+			edges = append(edges, Edge{From: consumedEvent, To: emittedEvent, Handler: handler})
+		}
+	}
+	// Also handle handlers registered for multiple event types
+	for _, consumedEvents := range eventToHandlers {
+		for _, handlerFunc := range consumedEvents {
+			emittedEvents := handlerEmits[handlerFunc]
+			for _, emittedEvent := range emittedEvents {
+				edges = append(edges, Edge{From: handlerFunc, To: emittedEvent, Handler: handlerFunc})
+			}
+		}
+	}
+
 	graph := make(map[string][]string)
 	for _, edge := range edges {
 		graph[edge.From] = append(graph[edge.From], edge.To)
