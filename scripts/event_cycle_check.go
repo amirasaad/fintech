@@ -91,8 +91,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	// 3. Build event flow graph and detect cycles
-	// Each node is an event type; edges are from consumed event type to emitted event type
+	// 3. Build event-to-event graph and detect cycles
 	graph := make(map[string][]string)
 	for eventType, handlers := range eventToHandlers {
 		for _, handler := range handlers {
