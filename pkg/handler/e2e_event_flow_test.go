@@ -2,6 +2,7 @@ package handler_test
 
 import (
 	"context"
+	"log/slog"
 	"sync"
 	"testing"
 	"time"
@@ -53,13 +54,14 @@ func TestDepositE2EEventFlow(t *testing.T) {
 	}
 
 	// Register handlers (real logic)
+	logger := slog.Default()
 	bus.Subscribe("DepositRequestedEvent", func(ctx context.Context, e domain.Event) {
 		track("DepositRequestedEvent")
-		deposithandler.ValidationHandler(bus, uow, nil)(ctx, e)
+		deposithandler.ValidationHandler(bus, uow, logger)(ctx, e)
 	})
 	bus.Subscribe("DepositValidatedEvent", func(ctx context.Context, e domain.Event) {
 		track("DepositValidatedEvent")
-		deposithandler.PersistenceHandler(bus, uow, nil)(ctx, e)
+		deposithandler.PersistenceHandler(bus, uow, logger)(ctx, e)
 	})
 	bus.Subscribe("DepositPersistedEvent", func(ctx context.Context, e domain.Event) {
 		track("DepositPersistedEvent")
