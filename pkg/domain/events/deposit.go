@@ -40,24 +40,6 @@ type DepositPersistedEvent struct {
 	Amount        money.Money // Amount to deposit
 }
 
-// Legacy events for backward compatibility
-type DepositConversionRequested struct {
-	DepositValidatedEvent
-	EventID        uuid.UUID
-	TransactionID  uuid.UUID
-	AccountID      uuid.UUID
-	UserID         uuid.UUID
-	Amount         money.Money
-	SourceCurrency string
-	TargetCurrency string
-	Timestamp      int64
-}
-
-type DepositConversionDone struct {
-	DepositConversionRequested
-	ConvertedAmount money.Money
-}
-
 // After conversion, for business validation in account currency
 // Emitted by BusinessValidationHandler after DepositConversionDoneEvent
 // Triggers payment initiation
@@ -72,6 +54,4 @@ func (e DepositRequestedEvent) EventType() string      { return "DepositRequeste
 func (e DepositValidatedEvent) EventType() string      { return "DepositValidatedEvent" }
 func (e DepositConversionDoneEvent) EventType() string { return "DepositConversionDoneEvent" }
 func (e DepositPersistedEvent) EventType() string      { return "DepositPersistedEvent" }
-func (e DepositConversionRequested) EventType() string { return "DepositConversionRequested" }
-func (e DepositConversionDone) EventType() string      { return "DepositConversionDone" }
 func (e DepositBusinessValidatedEvent) EventType() string { return "DepositBusinessValidatedEvent" }

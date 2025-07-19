@@ -42,28 +42,3 @@ type WithdrawPersistedEvent struct {
 	WithdrawValidatedEvent
 	TransactionID uuid.UUID
 }
-
-// Legacy events for backward compatibility
-type WithdrawConversionRequested struct {
-	WithdrawValidatedEvent
-	EventID        uuid.UUID
-	TransactionID  uuid.UUID
-	AccountID      uuid.UUID
-	UserID         uuid.UUID
-	Amount         money.Money
-	SourceCurrency string
-	TargetCurrency string
-	Timestamp      int64
-}
-
-type WithdrawConversionDone struct {
-	WithdrawConversionRequested
-	ConvertedAmount money.Money
-}
-
-func (e WithdrawRequestedEvent) EventType() string      { return "WithdrawRequestedEvent" }
-func (e WithdrawValidatedEvent) EventType() string      { return "WithdrawValidatedEvent" }
-func (e WithdrawConversionDoneEvent) EventType() string { return "WithdrawConversionDoneEvent" }
-func (e WithdrawPersistedEvent) EventType() string      { return "WithdrawPersistedEvent" }
-func (e WithdrawConversionRequested) EventType() string { return "WithdrawConversionRequested" }
-func (e WithdrawConversionDone) EventType() string      { return "WithdrawConversionDone" }

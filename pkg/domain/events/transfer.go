@@ -44,30 +44,3 @@ type TransferPersistedEvent struct {
 	TransferDomainOpDoneEvent
 	// Add fields for DB transaction, etc.
 }
-
-// Legacy events for backward compatibility
-type TransferConversionRequested struct {
-	TransferValidatedEvent
-	EventID         uuid.UUID
-	TransactionID   uuid.UUID
-	SourceAccountID uuid.UUID
-	DestAccountID   uuid.UUID
-	UserID          uuid.UUID
-	Amount          money.Money
-	SourceCurrency  string
-	TargetCurrency  string
-	Timestamp       int64
-}
-
-type TransferConversionDone struct {
-	TransferConversionRequested
-	ConvertedAmount money.Money
-}
-
-func (e TransferRequestedEvent) EventType() string      { return "TransferRequestedEvent" }
-func (e TransferValidatedEvent) EventType() string      { return "TransferValidatedEvent" }
-func (e TransferConversionDoneEvent) EventType() string { return "TransferConversionDoneEvent" }
-func (e TransferDomainOpDoneEvent) EventType() string   { return "TransferDomainOpDoneEvent" }
-func (e TransferPersistedEvent) EventType() string      { return "TransferPersistedEvent" }
-func (e TransferConversionRequested) EventType() string { return "TransferConversionRequested" }
-func (e TransferConversionDone) EventType() string      { return "TransferConversionDone" }
