@@ -5,13 +5,10 @@ import (
 	"log/slog"
 
 	"github.com/amirasaad/fintech/pkg/domain/events"
-	"github.com/amirasaad/fintech/pkg/mapper"
 
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/amirasaad/fintech/pkg/repository"
-	"github.com/amirasaad/fintech/pkg/repository/account"
-	"github.com/google/uuid"
 )
 
 // ConversionDoneHandler handles DepositConversionDoneEvent and performs business validation after conversion.
