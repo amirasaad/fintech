@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/amirasaad/fintech/pkg/domain/money"
-	"github.com/google/uuid"
 )
 
 // ConversionRequestedEvent is a generic event for requesting currency conversion in any business flow.
