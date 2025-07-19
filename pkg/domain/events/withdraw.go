@@ -34,7 +34,7 @@ type WithdrawConversionDoneEvent struct {
 	ConversionDoneEvent
 	UserID    string
 	AccountID string
-	Source    string // Flow type, e.g., "withdraw"
+	FlowType  string // Flow type, e.g., "withdraw"
 }
 
 // WithdrawPersistedEvent is emitted after withdraw persistence is complete.

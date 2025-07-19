@@ -26,7 +26,7 @@ func ConversionDoneHandler(bus eventbus.EventBus, uow repository.UnitOfWork, log
 			"request_id", cde.RequestID)
 		depositEvent := events.DepositConversionDoneEvent{
 			ConversionDoneEvent: cde,
-			Source: "deposit",
+			FlowType: "deposit",
 		}
 		log.Info("📤 [EMIT] Emitting DepositConversionDoneEvent", "event", depositEvent)
 		_ = bus.Publish(ctx, depositEvent)

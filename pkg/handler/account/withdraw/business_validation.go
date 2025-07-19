@@ -21,8 +21,8 @@ func BusinessValidationHandler(bus eventbus.EventBus, logger *slog.Logger) func(
 			log.Warn("⚠️ [WARN] Unexpected event type in WithdrawBusinessValidationHandler", "event_type", e.EventType(), "event", e)
 			return
 		}
-		if wce.Source != "withdraw" {
-			log.Warn("⚠️ [WARN] WithdrawBusinessValidationHandler received event for wrong flow", "source", wce.Source)
+		if wce.FlowType != "withdraw" {
+			log.Warn("⚠️ [WARN] WithdrawBusinessValidationHandler received event for wrong flow", "flow_type", wce.FlowType)
 			return
 		}
 		// Perform business validation in account currency here...

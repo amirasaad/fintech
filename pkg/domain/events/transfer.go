@@ -28,7 +28,7 @@ type TransferConversionDoneEvent struct {
 	SenderUserID    string
 	SourceAccountID string
 	TargetAccountID string
-	Source         string // Flow type, e.g., "transfer"
+	FlowType        string // Flow type, e.g., "transfer"
 }
 
 // TransferDomainOpDoneEvent is emitted after the transfer domain operation is complete.
