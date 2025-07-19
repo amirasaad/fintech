@@ -78,8 +78,7 @@ func New(deps config.Deps) *fiber.App {
 	// c. Conversion done: persist conversion data
 	bus.Subscribe("WithdrawConversionDoneEvent", withdrawhandler.ConversionPersistenceHandler(bus, deps.Uow, deps.Logger))
 	// d. Business validation after conversion (in account currency)
-	// NOTE: If you add a WithdrawBusinessValidationHandler, register it here:
-	// bus.Subscribe("WithdrawConversionDoneEvent", withdrawhandler.BusinessValidationHandler(bus, deps.Logger))
+	bus.Subscribe("WithdrawConversionDoneEvent", withdrawhandler.BusinessValidationHandler(bus, deps.Logger))
 	// e. Payment initiation (after business validation or directly after conversion if no extra validation step)
 	bus.Subscribe("WithdrawConversionDoneEvent", paymenthandler.PaymentInitiationHandler(bus, deps.PaymentProvider, deps.Logger))
 	// f. Payment persistence
