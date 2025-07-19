@@ -34,7 +34,6 @@ func TestTransferValidationHandler(t *testing.T) {
 	}{
 		{"valid", valid, true, func(bus *mocks.MockEventBus) {
 			bus.On("Publish", mock.Anything, mock.AnythingOfType("events.TransferValidatedEvent")).Return(nil)
-			bus.On("Publish", mock.Anything, mock.AnythingOfType("events.ConversionRequested")).Return(nil)
 		}},
 		{"invalid", invalid, false, nil},
 		{"invalid sender UUID", func() events.TransferRequestedEvent { e := valid; e.SenderUserID = uuid.Nil; return e }(), false, nil},

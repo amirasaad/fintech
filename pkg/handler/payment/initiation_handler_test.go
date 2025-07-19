@@ -62,16 +62,17 @@ func TestPaymentInitiationHandler_BusinessLogic(t *testing.T) {
 	}{
 		{
 			name: "deposit validation success",
-			input: events.DepositValidatedEvent{
-				DepositRequestedEvent: events.DepositRequestedEvent{
-					EventID:   uuid.New(),
-					AccountID: accountID,
-					UserID:    userID,
-					Amount:    amount,
-					Source:    "deposit",
+			input: events.DepositBusinessValidatedEvent{
+				DepositConversionDoneEvent: events.DepositConversionDoneEvent{
+					ConversionDoneEvent: events.ConversionDoneEvent{
+						ToAmount: amount,
+					},
+					UserID: userID.String(),
+					AccountID: accountID.String(),
+					FlowType: "deposit",
+					CorrelationID: "test-corr-id",
 				},
-				AccountID: accountID,
-				Account:   mockAccount,
+				CorrelationID: "test-corr-id",
 			},
 			provider: &mockPaymentProvider{
 				initiateFn: func(ctx context.Context, u, a uuid.UUID, amt int64, cur string) (string, error) {
@@ -125,16 +126,17 @@ func TestPaymentInitiationHandler_BusinessLogic(t *testing.T) {
 		},
 		{
 			name: "provider error",
-			input: events.DepositValidatedEvent{
-				DepositRequestedEvent: events.DepositRequestedEvent{
-					EventID:   uuid.New(),
-					AccountID: accountID,
-					UserID:    userID,
-					Amount:    amount,
-					Source:    "deposit",
+			input: events.DepositBusinessValidatedEvent{
+				DepositConversionDoneEvent: events.DepositConversionDoneEvent{
+					ConversionDoneEvent: events.ConversionDoneEvent{
+						ToAmount: amount,
+					},
+					UserID: userID.String(),
+					AccountID: accountID.String(),
+					FlowType: "deposit",
+					CorrelationID: "test-corr-id",
 				},
-				AccountID: accountID,
-				Account:   mockAccount,
+				CorrelationID: "test-corr-id",
 			},
 			provider: &mockPaymentProvider{
 				initiateFn: func(ctx context.Context, u, a uuid.UUID, amt int64, cur string) (string, error) {
