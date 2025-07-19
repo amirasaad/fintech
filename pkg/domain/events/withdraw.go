@@ -42,3 +42,8 @@ type WithdrawPersistedEvent struct {
 	WithdrawValidatedEvent
 	TransactionID uuid.UUID
 }
+
+func (e WithdrawRequestedEvent) EventType() string { return "WithdrawRequestedEvent" }
+func (e WithdrawValidatedEvent) EventType() string { return "WithdrawValidatedEvent" }
+func (e WithdrawConversionDoneEvent) EventType() string { return "WithdrawConversionDoneEvent" }
+func (e WithdrawPersistedEvent) EventType() string { return "WithdrawPersistedEvent" }

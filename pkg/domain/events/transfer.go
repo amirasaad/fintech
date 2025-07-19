@@ -44,3 +44,9 @@ type TransferPersistedEvent struct {
 	TransferDomainOpDoneEvent
 	// Add fields for DB transaction, etc.
 }
+
+func (e TransferRequestedEvent) EventType() string { return "TransferRequestedEvent" }
+func (e TransferValidatedEvent) EventType() string { return "TransferValidatedEvent" }
+func (e TransferConversionDoneEvent) EventType() string { return "TransferConversionDoneEvent" }
+func (e TransferDomainOpDoneEvent) EventType() string { return "TransferDomainOpDoneEvent" }
+func (e TransferPersistedEvent) EventType() string { return "TransferPersistedEvent" }

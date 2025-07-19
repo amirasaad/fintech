@@ -6,7 +6,6 @@ import (
 
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/domain/events"
-	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/amirasaad/fintech/pkg/mapper"
 	"github.com/amirasaad/fintech/pkg/repository"
@@ -19,47 +18,17 @@ func ConversionDoneHandler(bus eventbus.EventBus, uow repository.UnitOfWork, log
 	return func(ctx context.Context, e domain.Event) {
 		logger := logger.With("handler", "TransferConversionDoneHandler")
 
-		// Handle both old and new event types for backward compatibility
-		var convertedAmount money.Money
-		var senderUserID string
-		var sourceAccountID string
-		var targetAccountID string
-
-		switch evt := e.(type) {
-		case events.TransferConversionDoneEvent:
-			convertedAmount = evt.ToAmount
-			senderUserID = evt.SenderUserID
-			sourceAccountID = evt.SourceAccountID
-			targetAccountID = evt.TargetAccountID
-			logger.Info("received TransferConversionDoneEvent", "event", evt)
-		case events.ConversionDoneEvent:
-			convertedAmount = evt.ToAmount
-			// Extract user and account info from request ID or context
-			logger.Info("received ConversionDoneEvent for transfer", "event", evt)
-			return
-		case events.ConversionDone:
-			if evt.FlowType != "transfer" {
-				return // Not a transfer flow
-			}
-			convertedAmount = evt.ConvertedAmount
-			// Extract user and account from original event
-			if orig, ok := evt.OriginalEvent.(events.TransferValidatedEvent); ok {
-				senderUserID = orig.SenderUserID.String()
-				sourceAccountID = orig.SourceAccountID.String()
-				targetAccountID = orig.DestAccountID.String()
-			} else {
-				logger.Error("could not extract user/account from original event", "event", evt.OriginalEvent)
-				return
-			}
-		case events.TransferConversionDone:
-			convertedAmount = evt.ConvertedAmount
-			senderUserID = evt.SenderUserID.String()
-			sourceAccountID = evt.SourceAccountID.String()
-			targetAccountID = evt.DestAccountID.String()
-		default:
+		// Only handle TransferConversionDoneEvent
+		evt, ok := e.(events.TransferConversionDoneEvent)
+		if !ok {
 			logger.Error("unexpected event type for transfer conversion done", "event", e)
 			return
 		}
+		convertedAmount := evt.ToAmount
+		senderUserID := evt.SenderUserID
+		sourceAccountID := evt.SourceAccountID
+		targetAccountID := evt.TargetAccountID
+		logger.Info("received TransferConversionDoneEvent", "event", evt)
 
 		// Validate that the converted amount is positive
 		if convertedAmount.AmountFloat() <= 0 {
