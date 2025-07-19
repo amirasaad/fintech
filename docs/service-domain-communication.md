@@ -69,3 +69,20 @@ func (s *AccountService) Deposit(userID, accountID uuid.UUID, amount float64, cu
 ## DTOs and Domain Invariants
 
 DTOs (Data Transfer Objects) are used strictly for moving data between layers (API, service, repository). All business rules and invariants must be enforced in the domain layer. Always convert DTOs to domain models before applying any business logic or persisting data. Repositories should never enforce business rules—this keeps the domain pure and the system maintainable.
+
+---
+
+## 🧩 Event-Driven Architecture: Notes & Lessons (2024 Refactor)
+
+- **Event Bus Pattern:** All business flows (deposit, withdraw, transfer) use an event bus to decouple event emission from handling. Handlers are registered for specific event types, not for generic interfaces or central switch/if logic.
+- **SRP & DRY:** Each handler is responsible for a single event type and business concern. Shared logic is factored into helpers or interfaces only when multiple stable use cases exist.
+- **Payment Initiation is Flow-Agnostic:** The payment initiation handler accepts both deposit and withdraw validated events, extracting the required fields without caring about the flow type. This avoids unnecessary branching and keeps the handler extensible.
+- **Cycle Detection:** A static analysis tool (`scripts/event_cycle_check.go`) is used to detect event cycles and is integrated into pre-commit hooks to prevent infinite event loops.
+- **Consistent Logging:** All handlers use structured, emoji-rich logging for clarity and traceability.
+- **Legacy Cleanup:** All legacy event types and handlers have been removed for clarity and maintainability.
+- **Design Lessons:**
+    - Prefer explicit handler registration for extensibility and SRP.
+    - Use interfaces for shared event contracts only when justified by multiple stable use cases (YAGNI principle).
+    - Avoid "refactor ping-pong" between switch/if and abstraction by documenting design decisions and refactoring only when requirements change.
+
+See the main `README.md` for a summary and further references.
