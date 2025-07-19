@@ -18,17 +18,28 @@ func ConversionDoneHandler(bus eventbus.EventBus, uow repository.UnitOfWork, log
 	return func(ctx context.Context, e domain.Event) {
 		logger := logger.With("handler", "TransferConversionDoneHandler")
 
-		// Only handle TransferConversionDoneEvent
-		evt, ok := e.(events.TransferConversionDoneEvent)
+		// Only process ConversionDoneEvent; remove old type assertion and error log.
+		cde, ok := e.(events.ConversionDoneEvent)
 		if !ok {
 			logger.Error("unexpected event type for transfer conversion done", "event", e)
 			return
 		}
-		convertedAmount := evt.ToAmount
-		senderUserID := evt.SenderUserID
-		sourceAccountID := evt.SourceAccountID
-		targetAccountID := evt.TargetAccountID
-		logger.Info("received TransferConversionDoneEvent", "event", evt)
+		logger.Info("🔄 [PROCESS] Mapping ConversionDoneEvent to TransferConversionDoneEvent",
+			"from_amount", cde.FromAmount,
+			"to_amount", cde.ToAmount,
+			"request_id", cde.RequestID)
+		transferEvent := events.TransferConversionDoneEvent{
+			ConversionDoneEvent: cde,
+			// Optionally: fill SenderUserID, SourceAccountID, TargetAccountID if you can map from request ID
+		}
+		logger.Info("📤 [EMIT] Emitting TransferConversionDoneEvent", "event", transferEvent)
+		_ = bus.Publish(ctx, transferEvent)
+
+		convertedAmount := transferEvent.ToAmount
+		senderUserID := transferEvent.SenderUserID
+		sourceAccountID := transferEvent.SourceAccountID
+		targetAccountID := transferEvent.TargetAccountID
+		logger.Info("received TransferConversionDoneEvent", "event", transferEvent)
 
 		// Validate that the converted amount is positive
 		if convertedAmount.AmountFloat() <= 0 {

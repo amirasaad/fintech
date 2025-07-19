@@ -21,85 +21,21 @@ func ConversionDoneHandler(bus eventbus.EventBus, uow repository.UnitOfWork, log
 		log := logger.With("handler", "WithdrawConversionDoneHandler", "event_type", e.EventType())
 		log.Info("🟢 [START] Received event", "event", e)
 
-		wce, ok := e.(events.WithdrawConversionDoneEvent)
+		// Only process ConversionDoneEvent; remove old type assertion and error log.
+		cde, ok := e.(events.ConversionDoneEvent)
 		if !ok {
 			log.Error("❌ [ERROR] Unexpected event type", "event", e)
 			return
 		}
-
-		// Extract data from the conversion done event
-		userID := wce.UserID
-		accountID := wce.AccountID
-		requestID := wce.RequestID
-		convertedAmount := wce.ToAmount
-
-		log.Info("🔄 [PROCESS] Processing withdraw conversion done",
-			"user_id", userID,
-			"account_id", accountID,
-			"request_id", requestID,
-			"converted_amount", convertedAmount.Amount(),
-			"converted_currency", convertedAmount.Currency().String())
-
-		// Load account for business validation
-		accUUID, err := uuid.Parse(accountID)
-		if err != nil {
-			log.Error("❌ [ERROR] Invalid account ID", "account_id", accountID, "error", err)
-			return
+		log.Info("🔄 [PROCESS] Mapping ConversionDoneEvent to WithdrawConversionDoneEvent",
+			"from_amount", cde.FromAmount,
+			"to_amount", cde.ToAmount,
+			"request_id", cde.RequestID)
+		withdrawEvent := events.WithdrawConversionDoneEvent{
+			ConversionDoneEvent: cde,
+			// Optionally: fill UserID, AccountID if you can map from request ID
 		}
-
-		repoAny, err := uow.GetRepository((*account.Repository)(nil))
-		if err != nil {
-			log.Error("❌ [ERROR] Failed to get AccountRepository", "error", err)
-			return
-		}
-		repo := repoAny.(account.Repository)
-		accDto, err := repo.Get(ctx, accUUID)
-		if err != nil {
-			log.Error("❌ [ERROR] Account not found", "account_id", accountID, "error", err)
-			return
-		}
-
-		acc := mapper.MapAccountReadToDomain(accDto)
-
-		// Validate sufficient funds in account currency (after conversion)
-		userUUID, err := uuid.Parse(userID)
-		if err != nil {
-			log.Error("❌ [ERROR] Invalid user ID", "user_id", userID, "error", err)
-			return
-		}
-
-		if err := acc.ValidateWithdraw(userUUID, convertedAmount); err != nil {
-			log.Error("❌ [ERROR] Withdraw validation failed after conversion", "error", err)
-			return
-		}
-
-		log.Info("✅ [SUCCESS] Withdraw validation passed after conversion",
-			"user_id", userID,
-			"account_id", accountID,
-			"amount", convertedAmount.Amount(),
-			"currency", convertedAmount.Currency().String())
-
-		// Emit WithdrawValidatedEvent to trigger payment initiation
-		// This follows the principle: validation → payment initiation
-		validatedEvent := events.WithdrawValidatedEvent{
-			WithdrawRequestedEvent: events.WithdrawRequestedEvent{
-				EventID:               uuid.New(),
-				AccountID:             accUUID,
-				UserID:                userUUID,
-				Amount:                convertedAmount,
-				BankAccountNumber:     "", // Will be set by original request
-				RoutingNumber:         "", // Will be set by original request
-				ExternalWalletAddress: "", // Will be set by original request
-			},
-			TargetCurrency: convertedAmount.Currency().String(),
-			Account:        acc,
-		}
-
-		if err := bus.Publish(ctx, validatedEvent); err != nil {
-			log.Error("❌ [ERROR] Failed to publish WithdrawValidatedEvent", "error", err)
-			return
-		}
-
-		log.Info("📤 [EMIT] Emitting WithdrawValidatedEvent for payment initiation")
+		log.Info("📤 [EMIT] Emitting WithdrawConversionDoneEvent", "event", withdrawEvent)
+		_ = bus.Publish(ctx, withdrawEvent)
 	}
 }

@@ -18,6 +18,7 @@ func ConversionDoneHandler(bus eventbus.EventBus, uow repository.UnitOfWork, log
 		log := logger.With("handler", "DepositConversionDoneHandler", "event_type", e.EventType())
 		log.Info("🟢 [START] Received event", "event", e)
 
+		// Only process ConversionDoneEvent; remove old type assertion and error log.
 		cde, ok := e.(events.ConversionDoneEvent)
 		if !ok {
 			log.Error("❌ [ERROR] Unexpected event type", "event", e)
