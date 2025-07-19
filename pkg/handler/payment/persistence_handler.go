@@ -22,7 +22,7 @@ func PaymentPersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork,
 	return func(ctx context.Context, e domain.Event) {
 		logger := logger.With(
 			"handler", "PaymentPersistenceHandler",
-			"event_type", e.EventType(),
+			"event_type", e.Type(),
 		)
 		logger.Info("received payment initiated event", "event", e)
 

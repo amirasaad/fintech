@@ -48,5 +48,5 @@ var (
 
 // Event represents a domain event in the system.
 type Event interface {
-	EventType() string
+	Type() string
 }

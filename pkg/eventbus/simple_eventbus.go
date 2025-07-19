@@ -20,10 +20,10 @@ func NewSimpleEventBus() *SimpleEventBus {
 
 func (b *SimpleEventBus) Publish(ctx context.Context, event domain.Event) error {
 	// Debug log: print concrete type and event type string
-	slog.Debug("EventBus.Publish", "event_type", event.EventType(), "concrete_type", fmt.Sprintf("%T", event))
+	slog.Debug("EventBus.Publish", "event_type", event.Type(), "concrete_type", fmt.Sprintf("%T", event))
 	b.mu.RLock()
 	defer b.mu.RUnlock()
-	for _, handler := range b.handlers[event.EventType()] {
+	for _, handler := range b.handlers[event.Type()] {
 		handler(ctx, event)
 	}
 	return nil

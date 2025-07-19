@@ -43,8 +43,8 @@ type DepositBusinessValidatedEvent struct {
 	TransactionID uuid.UUID
 }
 
-func (e DepositRequestedEvent) EventType() string         { return "DepositRequestedEvent" }
-func (e DepositValidatedEvent) EventType() string         { return "DepositValidatedEvent" }
-func (e DepositConversionDoneEvent) EventType() string    { return "DepositConversionDoneEvent" }
-func (e DepositPersistedEvent) EventType() string         { return "DepositPersistedEvent" }
-func (e DepositBusinessValidatedEvent) EventType() string { return "DepositBusinessValidatedEvent" }
+func (e DepositRequestedEvent) Type() string         { return "DepositRequestedEvent" }
+func (e DepositValidatedEvent) Type() string         { return "DepositValidatedEvent" }
+func (e DepositConversionDoneEvent) Type() string    { return "DepositConversionDoneEvent" }
+func (e DepositPersistedEvent) Type() string         { return "DepositPersistedEvent" }
+func (e DepositBusinessValidatedEvent) Type() string { return "DepositBusinessValidatedEvent" }

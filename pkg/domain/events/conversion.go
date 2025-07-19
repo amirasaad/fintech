@@ -27,5 +27,5 @@ type ConversionDoneEvent struct {
 	Timestamp  time.Time
 }
 
-func (e ConversionRequestedEvent) EventType() string { return "ConversionRequestedEvent" }
-func (e ConversionDoneEvent) EventType() string      { return "ConversionDoneEvent" }
+func (e ConversionRequestedEvent) Type() string { return "ConversionRequestedEvent" }
+func (e ConversionDoneEvent) Type() string      { return "ConversionDoneEvent" }

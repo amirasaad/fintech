@@ -16,7 +16,7 @@ import (
 // InitialPersistenceHandler handles TransferValidatedEvent: creates initial transaction record and triggers conversion.
 func InitialPersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork, logger *slog.Logger) func(context.Context, domain.Event) {
 	return func(ctx context.Context, e domain.Event) {
-		log := logger.With("handler", "TransferInitialPersistenceHandler", "event_type", e.EventType())
+		log := logger.With("handler", "TransferInitialPersistenceHandler", "event_type", e.Type())
 		log.Info("🟢 [START] Received event", "event", e)
 
 		ve, ok := e.(events.TransferValidatedEvent)

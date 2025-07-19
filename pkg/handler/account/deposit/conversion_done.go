@@ -15,7 +15,7 @@ import (
 // This handler focuses ONLY on business validation - payment initiation is handled separately by payment handlers.
 func ConversionDoneHandler(bus eventbus.EventBus, uow repository.UnitOfWork, logger *slog.Logger) func(context.Context, domain.Event) {
 	return func(ctx context.Context, e domain.Event) {
-		log := logger.With("handler", "DepositConversionDoneHandler", "event_type", e.EventType())
+		log := logger.With("handler", "DepositConversionDoneHandler", "event_type", e.Type())
 		log.Info("🟢 [START] Received event", "event", e)
 
 		// Only process ConversionDoneEvent; remove old type assertion and error log.
@@ -25,7 +25,7 @@ func ConversionDoneHandler(bus eventbus.EventBus, uow repository.UnitOfWork, log
 			return
 		}
 
-		log.Info("🔄 [PROCESS] Mapping DepositConversionDoneEvent to DepositBusinessValidatedEvent", "handler", "DepositConversionDoneHandler", "event_type", e.EventType(), "correlation_id", de.CorrelationID, "from_amount", de.FromAmount.String(), "to_amount", de.ToAmount.String(), "request_id", de.RequestID)
+		log.Info("🔄 [PROCESS] Mapping DepositConversionDoneEvent to DepositBusinessValidatedEvent", "handler", "DepositConversionDoneHandler", "event_type", e.Type(), "correlation_id", de.CorrelationID, "from_amount", de.FromAmount.String(), "to_amount", de.ToAmount.String(), "request_id", de.RequestID)
 
 		// Emit DepositBusinessValidatedEvent
 		depositEvent := events.DepositBusinessValidatedEvent{

@@ -7,7 +7,7 @@ type GetAccountQuery struct {
 	UserID    uuid.UUID
 }
 
-func (q GetAccountQuery) EventType() string { return "GetAccountQuery" }
+func (q GetAccountQuery) Type() string { return "GetAccountQuery" }
 
 type GetAccountResult struct {
 	AccountID uuid.UUID

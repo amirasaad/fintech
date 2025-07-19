@@ -14,7 +14,7 @@ import (
 // Emits DepositBusinessValidatedEvent to trigger payment initiation.
 func BusinessValidationHandler(bus eventbus.EventBus, logger *slog.Logger) func(context.Context, domain.Event) {
 	return func(ctx context.Context, e domain.Event) {
-		log := logger.With("handler", "DepositBusinessValidationHandler", "event_type", e.EventType())
+		log := logger.With("handler", "DepositBusinessValidationHandler", "event_type", e.Type())
 		log.Info("🟢 [START] Received event", "event", e)
 		dce, ok := e.(events.DepositConversionDoneEvent)
 		if !ok {

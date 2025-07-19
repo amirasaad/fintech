@@ -36,8 +36,8 @@ type TransferPersistedEvent struct {
 	TransferDomainOpDoneEvent
 }
 
-func (e TransferRequestedEvent) EventType() string      { return "TransferRequestedEvent" }
-func (e TransferValidatedEvent) EventType() string      { return "TransferValidatedEvent" }
-func (e TransferConversionDoneEvent) EventType() string { return "TransferConversionDoneEvent" }
-func (e TransferDomainOpDoneEvent) EventType() string   { return "TransferDomainOpDoneEvent" }
-func (e TransferPersistedEvent) EventType() string      { return "TransferPersistedEvent" }
+func (e TransferRequestedEvent) Type() string      { return "TransferRequestedEvent" }
+func (e TransferValidatedEvent) Type() string      { return "TransferValidatedEvent" }
+func (e TransferConversionDoneEvent) Type() string { return "TransferConversionDoneEvent" }
+func (e TransferDomainOpDoneEvent) Type() string   { return "TransferDomainOpDoneEvent" }
+func (e TransferPersistedEvent) Type() string      { return "TransferPersistedEvent" }

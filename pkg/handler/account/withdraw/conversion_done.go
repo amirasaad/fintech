@@ -16,7 +16,7 @@ import (
 // This handler focuses ONLY on business validation - payment initiation is handled separately by payment handlers.
 func ConversionDoneHandler(bus eventbus.EventBus, uow repository.UnitOfWork, logger *slog.Logger) func(context.Context, domain.Event) {
 	return func(ctx context.Context, e domain.Event) {
-		log := logger.With("handler", "WithdrawConversionDoneHandler", "event_type", e.EventType())
+		log := logger.With("handler", "WithdrawConversionDoneHandler", "event_type", e.Type())
 		log.Info("🟢 [START] Received event", "event", e)
 
 		we, ok := e.(events.WithdrawConversionDoneEvent)
@@ -25,7 +25,7 @@ func ConversionDoneHandler(bus eventbus.EventBus, uow repository.UnitOfWork, log
 			return
 		}
 
-		log.Info("🔄 [PROCESS] Mapping WithdrawConversionDoneEvent to WithdrawValidatedEvent", "handler", "WithdrawConversionDoneHandler", "event_type", e.EventType(), "correlation_id", we.CorrelationID, "from_amount", we.FromAmount.String(), "to_amount", we.ToAmount.String(), "request_id", we.RequestID)
+		log.Info("🔄 [PROCESS] Mapping WithdrawConversionDoneEvent to WithdrawValidatedEvent", "handler", "WithdrawConversionDoneHandler", "event_type", e.Type(), "correlation_id", we.CorrelationID, "from_amount", we.FromAmount.String(), "to_amount", we.ToAmount.String(), "request_id", we.RequestID)
 
 		// Emit WithdrawValidatedEvent
 		withdrawEvent := events.WithdrawValidatedEvent{

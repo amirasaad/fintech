@@ -15,7 +15,7 @@ import (
 // TransferValidationHandler handles TransferRequestedEvent, maps DTO to domain, validates, and publishes TransferValidatedEvent.
 func TransferValidationHandler(bus eventbus.EventBus, logger *slog.Logger) func(context.Context, domain.Event) {
 	return func(ctx context.Context, e domain.Event) {
-		log := logger.With("handler", "TransferValidationHandler", "event_type", e.EventType())
+		log := logger.With("handler", "TransferValidationHandler", "event_type", e.Type())
 		log.Info("🟢 [START] Received event", "event", e)
 		tr, ok := e.(events.TransferRequestedEvent)
 		if !ok {

@@ -39,7 +39,7 @@ type WithdrawPersistedEvent struct {
 	TransactionID uuid.UUID
 }
 
-func (e WithdrawRequestedEvent) EventType() string      { return "WithdrawRequestedEvent" }
-func (e WithdrawValidatedEvent) EventType() string      { return "WithdrawValidatedEvent" }
-func (e WithdrawConversionDoneEvent) EventType() string { return "WithdrawConversionDoneEvent" }
-func (e WithdrawPersistedEvent) EventType() string      { return "WithdrawPersistedEvent" }
+func (e WithdrawRequestedEvent) Type() string      { return "WithdrawRequestedEvent" }
+func (e WithdrawValidatedEvent) Type() string      { return "WithdrawValidatedEvent" }
+func (e WithdrawConversionDoneEvent) Type() string { return "WithdrawConversionDoneEvent" }
+func (e WithdrawPersistedEvent) Type() string      { return "WithdrawPersistedEvent" }

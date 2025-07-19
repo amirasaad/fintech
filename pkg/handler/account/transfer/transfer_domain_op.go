@@ -13,7 +13,7 @@ import (
 // TransferDomainOpHandler handles TransferConversionDoneEvent, performs the domain transfer, and emits TransferDomainOpDoneEvent.
 func TransferDomainOpHandler(bus eventbus.EventBus, operator interface{}) func(context.Context, domain.Event) {
 	return func(ctx context.Context, e domain.Event) {
-		logger := slog.Default().With("handler", "TransferDomainOpHandler", "event_type", e.EventType())
+		logger := slog.Default().With("handler", "TransferDomainOpHandler", "event_type", e.Type())
 		ce, ok := e.(events.TransferConversionDoneEvent)
 		if !ok {
 			logger.Error("unexpected event type", "event", e)

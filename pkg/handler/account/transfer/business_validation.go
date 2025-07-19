@@ -13,7 +13,7 @@ import (
 // Emits TransferDomainOpDoneEvent to trigger domain operation.
 func BusinessValidationHandler(bus eventbus.EventBus, logger *slog.Logger) func(context.Context, domain.Event) {
 	return func(ctx context.Context, e domain.Event) {
-		log := logger.With("handler", "TransferBusinessValidationHandler", "event_type", e.EventType())
+		log := logger.With("handler", "TransferBusinessValidationHandler", "event_type", e.Type())
 		log.Info("🟢 [START] Received event", "event", e)
 		tce, ok := e.(events.TransferConversionDoneEvent)
 		if !ok {

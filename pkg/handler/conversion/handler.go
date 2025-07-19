@@ -19,9 +19,9 @@ func Handler(bus eventbus.EventBus, converter money.CurrencyConverter, logger *s
 	return func(ctx context.Context, e domain.Event) {
 		log := logger.With(
 			"handler", "ConversionHandler",
-			"event_type", e.EventType(),
+			"event_type", e.Type(),
 		)
-		log.Info("🟢 [START] Conversion handler triggered", "event_type", e.EventType(), "event", e)
+		log.Info("🟢 [START] Conversion handler triggered", "event_type", e.Type(), "event", e)
 
 		// Only handle ConversionRequestedEvent
 		cre, ok := e.(events.ConversionRequestedEvent)

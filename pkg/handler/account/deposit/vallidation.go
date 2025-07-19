@@ -17,7 +17,7 @@ import (
 // ValidationHandler validates the deposit request and emits DepositValidatedEvent on success.
 func ValidationHandler(bus eventbus.EventBus, uow repository.UnitOfWork, logger *slog.Logger) func(context.Context, domain.Event) {
 	return func(ctx context.Context, e domain.Event) {
-		log := logger.With("handler", "DepositValidationHandler", "event_type", e.EventType())
+		log := logger.With("handler", "DepositValidationHandler", "event_type", e.Type())
 		dr, ok := e.(events.DepositRequestedEvent)
 		if !ok {
 			log.Error("❌ [ERROR] Unexpected event type", "event", e)

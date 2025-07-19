@@ -16,7 +16,7 @@ import (
 // WithdrawValidationHandler handles WithdrawRequestedEvent, performs validation, and publishes WithdrawValidatedEvent.
 func WithdrawValidationHandler(bus eventbus.EventBus, uow repository.UnitOfWork, logger *slog.Logger) func(context.Context, domain.Event) {
 	return func(ctx context.Context, e domain.Event) {
-		log := logger.With("handler", "WithdrawValidationHandler", "event_type", e.EventType())
+		log := logger.With("handler", "WithdrawValidationHandler", "event_type", e.Type())
 		log.Info("🟢 [START] Received event", "event", e)
 		we, ok := e.(events.WithdrawRequestedEvent)
 		if !ok {

@@ -18,7 +18,7 @@ import (
 // WithdrawPersistenceHandler handles WithdrawValidatedEvent: persists the withdraw transaction and emits WithdrawPersistedEvent.
 func WithdrawPersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork, logger *slog.Logger) func(context.Context, domain.Event) {
 	return func(ctx context.Context, e domain.Event) {
-		log := logger.With("handler", "WithdrawPersistenceHandler", "event_type", e.EventType())
+		log := logger.With("handler", "WithdrawPersistenceHandler", "event_type", e.Type())
 		log.Info("🟢 [START] Received event", "event", e)
 
 		ve, ok := e.(events.WithdrawValidatedEvent)
@@ -76,7 +76,7 @@ func WithdrawPersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork
 			Timestamp:  time.Now(),
 		}
 		log.Info("DEBUG: Full ConversionRequestedEvent", "event", conversionEvent)
-		log.Info("📤 [EMIT] About to emit ConversionRequestedEvent", "handler", "WithdrawPersistenceHandler", "event_type", conversionEvent.EventType(), "correlation_id", correlationID.String())
+		log.Info("📤 [EMIT] About to emit ConversionRequestedEvent", "handler", "WithdrawPersistenceHandler", "event_type", conversionEvent.Type(), "correlation_id", correlationID.String())
 		_ = bus.Publish(ctx, conversionEvent)
 	}
 }

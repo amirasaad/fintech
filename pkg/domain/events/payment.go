@@ -54,8 +54,8 @@ type PaymentIdPersistedEvent struct {
 	CorrelationID uuid.UUID
 }
 
-func (e PaymentInitiationEvent) EventType() string  { return "PaymentInitiationEvent" }
-func (e PaymentCompletedEvent) EventType() string   { return "PaymentCompletedEvent" }
-func (e PaymentFailedEvent) EventType() string      { return "PaymentFailedEvent" }
-func (e PaymentInitiatedEvent) EventType() string   { return "PaymentInitiatedEvent" }
-func (e PaymentIdPersistedEvent) EventType() string { return "PaymentIdPersistedEvent" }
+func (e PaymentInitiationEvent) Type() string  { return "PaymentInitiationEvent" }
+func (e PaymentCompletedEvent) Type() string   { return "PaymentCompletedEvent" }
+func (e PaymentFailedEvent) Type() string      { return "PaymentFailedEvent" }
+func (e PaymentInitiatedEvent) Type() string   { return "PaymentInitiatedEvent" }
+func (e PaymentIdPersistedEvent) Type() string { return "PaymentIdPersistedEvent" }

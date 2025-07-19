@@ -20,7 +20,7 @@ import (
 // PersistenceHandler handles DepositValidatedEvent: converts the float64 amount and currency to money.Money, persists the transaction, and emits DepositPersistedEvent.
 func PersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork, logger *slog.Logger) func(context.Context, domain.Event) {
 	return func(ctx context.Context, e domain.Event) {
-		log := logger.With("handler", "DepositPersistenceHandler", "event_type", e.EventType())
+		log := logger.With("handler", "DepositPersistenceHandler", "event_type", e.Type())
 		log.Info("🟢 [START] Received event", "event", e)
 
 		// Expect DepositValidatedEvent from validation handler
@@ -88,7 +88,7 @@ func PersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork, logger
 			Timestamp:  time.Now(),
 		}
 		log.Info("DEBUG: Full ConversionRequestedEvent", "event", conversionEvent)
-		log.Info("📤 [EMIT] About to emit ConversionRequestedEvent", "handler", "DepositPersistenceHandler", "event_type", conversionEvent.EventType(), "correlation_id", correlationID.String())
+		log.Info("📤 [EMIT] About to emit ConversionRequestedEvent", "handler", "DepositPersistenceHandler", "event_type", conversionEvent.Type(), "correlation_id", correlationID.String())
 		_ = bus.Publish(ctx, conversionEvent)
 	}
 }

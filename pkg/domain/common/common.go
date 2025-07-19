@@ -27,5 +27,5 @@ type ConversionInfo struct {
 
 // Event represents a domain event in the common package.
 type Event interface {
-	EventType() string
+	Type() string
 }

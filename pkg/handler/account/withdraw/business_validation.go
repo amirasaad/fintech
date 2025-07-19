@@ -14,7 +14,7 @@ import (
 // Emits WithdrawValidatedEvent to trigger payment initiation.
 func BusinessValidationHandler(bus eventbus.EventBus, logger *slog.Logger) func(context.Context, domain.Event) {
 	return func(ctx context.Context, e domain.Event) {
-		log := logger.With("handler", "WithdrawBusinessValidationHandler", "event_type", e.EventType())
+		log := logger.With("handler", "WithdrawBusinessValidationHandler", "event_type", e.Type())
 		log.Info("🟢 [START] Received event", "event", e)
 		wce, ok := e.(events.WithdrawConversionDoneEvent)
 		if !ok {

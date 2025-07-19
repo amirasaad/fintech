@@ -18,7 +18,7 @@ func PaymentInitiationHandler(bus eventbus.EventBus, paymentProvider provider.Pa
 	return func(ctx context.Context, e domain.Event) {
 		log := logger.With(
 			"handler", "PaymentInitiationHandler",
-			"event_type", e.EventType(),
+			"event_type", e.Type(),
 		)
 		log.Info("🟢 [START] Received validation event", "event", e)
 
@@ -55,7 +55,7 @@ func PaymentInitiationHandler(bus eventbus.EventBus, paymentProvider provider.Pa
 				"user_id", userID, "account_id", accountID, "amount", amount, "currency", currency, "correlation_id", correlationID)
 
 		default:
-			log.Warn("⚠️ [WARN] Unexpected event type for payment initiation", "event_type", e.EventType(), "event", e)
+			log.Warn("⚠️ [WARN] Unexpected event type for payment initiation", "event_type", e.Type(), "event", e)
 			return
 		}
 

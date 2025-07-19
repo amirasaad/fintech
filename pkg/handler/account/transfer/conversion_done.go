@@ -23,7 +23,7 @@ func ConversionDoneHandler(bus eventbus.EventBus, uow repository.UnitOfWork, log
 			return
 		}
 
-		logger.Info("🔄 [PROCESS] Mapping TransferConversionDoneEvent to TransferDomainOpDoneEvent", "handler", "TransferConversionDoneHandler", "event_type", e.EventType(), "correlation_id", te.CorrelationID, "from_amount", te.FromAmount.String(), "to_amount", te.ToAmount.String(), "request_id", te.RequestID)
+		logger.Info("🔄 [PROCESS] Mapping TransferConversionDoneEvent to TransferDomainOpDoneEvent", "handler", "TransferConversionDoneHandler", "event_type", e.Type(), "correlation_id", te.CorrelationID, "from_amount", te.FromAmount.String(), "to_amount", te.ToAmount.String(), "request_id", te.RequestID)
 
 		// Emit TransferDomainOpDoneEvent
 		transferEvent := events.TransferDomainOpDoneEvent{
