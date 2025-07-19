@@ -19,18 +19,13 @@ func ConversionDoneHandler(bus eventbus.EventBus, uow repository.UnitOfWork, log
 		log.Info("🟢 [START] Received event", "event", e)
 
 		// Only process ConversionDoneEvent; remove old type assertion and error log.
-		cde, ok := e.(events.ConversionDoneEvent)
-		if !ok {
-			log.Error("❌ [ERROR] Unexpected event type", "event", e)
-			return
-		}
+		cde := e.(events.ConversionDoneEvent)
 		log.Info("🔄 [PROCESS] Mapping ConversionDoneEvent to WithdrawConversionDoneEvent",
 			"from_amount", cde.FromAmount,
 			"to_amount", cde.ToAmount,
 			"request_id", cde.RequestID)
 		withdrawEvent := events.WithdrawConversionDoneEvent{
 			ConversionDoneEvent: cde,
-			// Optionally: fill UserID, AccountID if you can map from request ID
 		}
 		log.Info("📤 [EMIT] Emitting WithdrawConversionDoneEvent", "event", withdrawEvent)
 		_ = bus.Publish(ctx, withdrawEvent)

@@ -19,18 +19,13 @@ func ConversionDoneHandler(bus eventbus.EventBus, uow repository.UnitOfWork, log
 		logger := logger.With("handler", "TransferConversionDoneHandler")
 
 		// Only process ConversionDoneEvent; remove old type assertion and error log.
-		cde, ok := e.(events.ConversionDoneEvent)
-		if !ok {
-			logger.Error("unexpected event type for transfer conversion done", "event", e)
-			return
-		}
+		cde := e.(events.ConversionDoneEvent)
 		logger.Info("🔄 [PROCESS] Mapping ConversionDoneEvent to TransferConversionDoneEvent",
 			"from_amount", cde.FromAmount,
 			"to_amount", cde.ToAmount,
 			"request_id", cde.RequestID)
 		transferEvent := events.TransferConversionDoneEvent{
 			ConversionDoneEvent: cde,
-			// Optionally: fill SenderUserID, SourceAccountID, TargetAccountID if you can map from request ID
 		}
 		logger.Info("📤 [EMIT] Emitting TransferConversionDoneEvent", "event", transferEvent)
 		_ = bus.Publish(ctx, transferEvent)
