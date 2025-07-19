@@ -135,6 +135,10 @@ func main() {
 	}
 
 	fmt.Println("\nCycle Detection:")
+	hasCycle = false
+	visited = make(map[string]bool)
+	stack = make(map[string]bool)
+	path = nil
 	for node := range graph {
 		if !visited[node] {
 			dfs(node)
@@ -143,9 +147,9 @@ func main() {
 	if hasCycle {
 		fmt.Println("\n❌ Event cycle(s) detected! Review your event flow.")
 		os.Exit(1)
-	} else {
-		fmt.Println("\n✅ No event cycles detected.")
 	}
+	// Only print success if no cycles were detected
+	fmt.Println("\n✅ No event cycles detected.")
 }
 
 // walkDir recursively walks a directory and calls fn for each .go file
