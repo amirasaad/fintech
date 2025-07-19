@@ -49,7 +49,7 @@ func main() {
 	// 2. Parse handler files for bus.Publish lines
 	// (for simplicity, scan pkg/handler/ recursively for bus.Publish)
 	// Improved regex to match more event emission patterns
-	publishRe := regexp.MustCompile(`bus\.Publish\([^,]+,\s*([a-zA-Z0-9_.]+)\{`)
+	publishRe := regexp.MustCompile(`bus\.Publish\([^,]+,\s*(?:[a-zA-Z0-9_]+\.)*([A-Za-z0-9]+Event)\s*\{`)
 	handlerEmits := make(map[string][]string) // handler func -> []emitted event types
 
 	err = walkDir("pkg/handler", func(path string) {
