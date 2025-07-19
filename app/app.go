@@ -43,50 +43,68 @@ func New(deps config.Deps) *fiber.App {
 	bus := deps.EventBus
 
 	// ============================================================================
-	// EVENT HANDLER REGISTRATION - CLEAN EVENT-DRIVEN ARCHITECTURE
+	// 🧩 EVENT HANDLER REGISTRATION – CLEAN, SINGLE-PASS EVENT-DRIVEN ARCHITECTURE
 	// ============================================================================
 
-	// 1. GENERIC CONVERSION HANDLER (reusable across all operations)
-	// Handles ConversionRequestedEvent only - ConversionDoneEvent is handled by business-specific handlers
+	// 1️⃣ GENERIC CONVERSION HANDLER
+	// Handles all ConversionRequestedEvent for any operation (deposit, withdraw, transfer)
 	bus.Subscribe("ConversionRequestedEvent", conversion.Handler(bus, deps.CurrencyConverter, deps.Logger))
 
-	// 2. DEPOSIT FLOW HANDLERS
-	// Validation → Persistence → Conversion → Business Validation → Payment → Payment Persistence
+	// 2️⃣ DEPOSIT FLOW
+	// User request → Initial Validation → Persistence → Conversion → Business Validation → Payment Initiation → Payment Persistence
+
+	// a. Initial validation of deposit request
 	bus.Subscribe("DepositRequestedEvent", deposithandler.ValidationHandler(bus, deps.Uow, deps.Logger))
+	// b. Persist transaction after validation
 	bus.Subscribe("DepositValidatedEvent", deposithandler.PersistenceHandler(bus, deps.Uow, deps.Logger))
-	bus.Subscribe("DepositConversionDoneEvent", deposithandler.ConversionDoneHandler(bus, deps.Uow, deps.Logger))
+	// c. Conversion done: persist conversion data
 	bus.Subscribe("DepositConversionDoneEvent", deposithandler.ConversionPersistenceHandler(bus, deps.Uow, deps.Logger))
-
-	// 3. WITHDRAW FLOW HANDLERS
-	// Validation → Persistence → Conversion → Business Validation → Payment → Payment Persistence
-	bus.Subscribe("WithdrawRequestedEvent", withdrawhandler.WithdrawValidationHandler(bus, deps.Uow, deps.Logger))
-	bus.Subscribe("WithdrawValidatedEvent", withdrawhandler.WithdrawPersistenceHandler(bus, deps.Uow, deps.Logger))
-	bus.Subscribe("WithdrawConversionDoneEvent", withdrawhandler.ConversionDoneHandler(bus, deps.Uow, deps.Logger))
-	bus.Subscribe("WithdrawConversionDoneEvent", withdrawhandler.ConversionPersistenceHandler(bus, deps.Uow, deps.Logger))
-
-	// 4. TRANSFER FLOW HANDLERS
-	// Validation → Initial Persistence → Conversion → Business Validation → Domain Op → Final Persistence → Conversion Persistence
-	bus.Subscribe("TransferRequestedEvent", transferhandler.TransferValidationHandler(bus, deps.Logger))
-	bus.Subscribe("TransferValidatedEvent", transferhandler.InitialPersistenceHandler(bus, deps.Uow, deps.Logger))
-	bus.Subscribe("TransferConversionDoneEvent", transferhandler.ConversionDoneHandler(bus, deps.Uow, deps.Logger))
-	bus.Subscribe("TransferConversionDoneEvent", transferhandler.ConversionPersistenceHandler(bus, deps.Uow, deps.Logger))
-	bus.Subscribe("TransferConversionDoneEvent", transferhandler.TransferDomainOpHandler(bus, nil))
-	bus.Subscribe("TransferDomainOpDoneEvent", transferhandler.TransferPersistenceHandler(bus, deps.Uow, deps.Logger))
-
-	// 5. GENERIC PAYMENT HANDLERS (DRY - no operation-specific payment handlers)
-	// Payment initiation triggered by validation events (DepositValidatedEvent, WithdrawValidatedEvent)
-	bus.Subscribe("DepositValidatedEvent", paymenthandler.PaymentInitiationHandler(bus, deps.PaymentProvider, deps.Logger))
-	bus.Subscribe("WithdrawValidatedEvent", paymenthandler.PaymentInitiationHandler(bus, deps.PaymentProvider, deps.Logger))
-	
-	// Payment persistence triggered by PaymentInitiatedEvent (generic for all operations)
+	// d. Business validation after conversion (in account currency)
+	bus.Subscribe("DepositConversionDoneEvent", deposithandler.BusinessValidationHandler(bus, deps.Logger))
+	// e. Payment initiation (only after business validation)
+	bus.Subscribe("DepositBusinessValidatedEvent", paymenthandler.PaymentInitiationHandler(bus, deps.PaymentProvider, deps.Logger))
+	// f. Payment persistence (store payment ID, etc.)
 	bus.Subscribe("PaymentInitiatedEvent", paymenthandler.PaymentPersistenceHandler(bus, deps.Uow, deps.Logger))
 
-	// ============================================================================
-	// LEGACY HANDLER REGISTRATION (for backward compatibility)
-	// ============================================================================
+	// 3️⃣ WITHDRAW FLOW
+	// User request → Initial Validation → Persistence → Conversion → Business Validation → Payment Initiation → Payment Persistence
 
-	// Legacy conversion events
-	bus.Subscribe("ConversionRequested", conversion.Handler(bus, deps.CurrencyConverter, deps.Logger))
+	// a. Initial validation of withdraw request
+	bus.Subscribe("WithdrawRequestedEvent", withdrawhandler.WithdrawValidationHandler(bus, deps.Uow, deps.Logger))
+	// b. Persist transaction after validation
+	bus.Subscribe("WithdrawValidatedEvent", withdrawhandler.WithdrawPersistenceHandler(bus, deps.Uow, deps.Logger))
+	// c. Conversion done: persist conversion data
+	bus.Subscribe("WithdrawConversionDoneEvent", withdrawhandler.ConversionPersistenceHandler(bus, deps.Uow, deps.Logger))
+	// d. Business validation after conversion (in account currency)
+	// NOTE: If you add a WithdrawBusinessValidationHandler, register it here:
+	// bus.Subscribe("WithdrawConversionDoneEvent", withdrawhandler.BusinessValidationHandler(bus, deps.Logger))
+	// e. Payment initiation (after business validation or directly after conversion if no extra validation step)
+	bus.Subscribe("WithdrawConversionDoneEvent", paymenthandler.PaymentInitiationHandler(bus, deps.PaymentProvider, deps.Logger))
+	// f. Payment persistence
+	bus.Subscribe("PaymentInitiatedEvent", paymenthandler.PaymentPersistenceHandler(bus, deps.Uow, deps.Logger))
+
+	// 4️⃣ TRANSFER FLOW
+	// User request → Initial Validation → Initial Persistence → Conversion → Domain Operation → Final Persistence
+
+	// a. Initial validation of transfer request
+	bus.Subscribe("TransferRequestedEvent", transferhandler.TransferValidationHandler(bus, deps.Logger))
+	// b. Initial persistence after validation
+	bus.Subscribe("TransferValidatedEvent", transferhandler.InitialPersistenceHandler(bus, deps.Uow, deps.Logger))
+	// c. Conversion done: persist conversion data
+	bus.Subscribe("TransferConversionDoneEvent", transferhandler.ConversionPersistenceHandler(bus, deps.Uow, deps.Logger))
+	// d. Domain operation (move funds between accounts)
+	bus.Subscribe("TransferConversionDoneEvent", transferhandler.TransferDomainOpHandler(bus, nil))
+	// e. Final persistence after domain operation
+	bus.Subscribe("TransferDomainOpDoneEvent", transferhandler.TransferPersistenceHandler(bus, deps.Uow, deps.Logger))
+
+	// ============================================================================
+	// 📝 DOCUMENTATION
+	// - Each handler is responsible for a single step in the workflow (SRP).
+	// - Payment initiation is only triggered after business validation (not for internal transfers).
+	// - Conversion handlers are generic and reusable across flows.
+	// - No handler emits an event that would trigger itself or create a cycle (prevents infinite loops).
+	// - Add/extend business validation handlers for withdraw/transfer as needed for your domain.
+	// ============================================================================
 
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
