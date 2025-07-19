@@ -8,6 +8,7 @@ type PaymentInitiationEvent struct {
 	Status        string    // "pending"
 	TransactionID uuid.UUID // propagate TransactionID
 	UserID        string    // propagate UserID
+	CorrelationID string    // For distributed tracing
 }
 
 // PaymentCompletedEvent is emitted when payment is confirmed by the provider.
@@ -16,6 +17,7 @@ type PaymentCompletedEvent struct {
 	// Optionally: add provider response, timestamp, etc.
 	TransactionID uuid.UUID // propagate TransactionID
 	UserID        uuid.UUID // propagate UserID
+	CorrelationID string    // For distributed tracing
 }
 
 // PaymentFailedEvent is emitted when payment fails.
@@ -24,6 +26,7 @@ type PaymentFailedEvent struct {
 	Reason        string
 	TransactionID uuid.UUID // propagate TransactionID
 	UserID        uuid.UUID // propagate UserID
+	CorrelationID string    // For distributed tracing
 }
 
 // PaymentInitiatedEvent is emitted after payment initiation with a provider (event-driven workflow).
@@ -33,6 +36,7 @@ type PaymentInitiatedEvent struct {
 	Status        string    // e.g., "initiated"
 	TransactionID uuid.UUID // propagate TransactionID
 	UserID        uuid.UUID // propagate UserID
+	CorrelationID string    // For distributed tracing
 }
 
 // PaymentIdPersistedEvent is emitted after the paymentId is persisted to the transaction.
@@ -40,6 +44,7 @@ type PaymentIdPersistedEvent struct {
 	PaymentInitiatedEvent
 	TransactionID uuid.UUID // propagate TransactionID
 	UserID        uuid.UUID // propagate UserID
+	CorrelationID string    // For distributed tracing
 	// Add DB transaction info if needed
 }
 

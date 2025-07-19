@@ -13,6 +13,7 @@ type ConversionRequestedEvent struct {
 	ToCurrency string
 	RequestID  string
 	Timestamp  time.Time
+	CorrelationID string // For distributed tracing
 }
 
 // ConversionDoneEvent is a generic event for reporting the result of a currency conversion.
@@ -22,6 +23,7 @@ type ConversionDoneEvent struct {
 	ToAmount   money.Money
 	RequestID  string
 	Timestamp  time.Time
+	CorrelationID string // For distributed tracing
 }
 
 func (e ConversionRequestedEvent) EventType() string    { return "ConversionRequestedEvent" }

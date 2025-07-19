@@ -16,6 +16,7 @@ type DepositRequestedEvent struct {
 	Amount    money.Money
 	Source    string // MoneySource as string
 	Timestamp time.Time
+	CorrelationID string // For distributed tracing
 }
 
 // DepositValidatedEvent is emitted after deposit validation succeeds.
@@ -23,6 +24,7 @@ type DepositValidatedEvent struct {
 	DepositRequestedEvent
 	AccountID uuid.UUID
 	Account   *account.Account
+	CorrelationID string // For distributed tracing
 }
 
 // DepositConversionDoneEvent is emitted after deposit currency conversion is completed.
@@ -31,6 +33,7 @@ type DepositConversionDoneEvent struct {
 	UserID    string
 	AccountID string
 	FlowType  string // Flow type, e.g., "deposit"
+	CorrelationID string // For distributed tracing
 }
 
 // DepositPersistedEvent is emitted after persistence is complete.
@@ -39,6 +42,7 @@ type DepositPersistedEvent struct {
 	TransactionID uuid.UUID   // propagate TransactionID
 	UserID        uuid.UUID   // propagate UserID
 	Amount        money.Money // Amount to deposit
+	CorrelationID string // For distributed tracing
 }
 
 // After conversion, for business validation in account currency
@@ -48,6 +52,7 @@ type DepositPersistedEvent struct {
 // DepositBusinessValidatedEvent is emitted after business validation in account currency.
 type DepositBusinessValidatedEvent struct {
 	DepositConversionDoneEvent
+	CorrelationID string // For distributed tracing
 	// Add any additional fields needed for business validation
 }
 

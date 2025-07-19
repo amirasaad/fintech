@@ -19,6 +19,7 @@ type WithdrawRequestedEvent struct {
 	ExternalWalletAddress string
 	Timestamp             time.Time
 	PaymentID             string // Added for payment provider integration
+	CorrelationID         string // For distributed tracing
 }
 
 // WithdrawValidatedEvent is emitted after withdraw validation succeeds.
@@ -26,6 +27,7 @@ type WithdrawValidatedEvent struct {
 	WithdrawRequestedEvent
 	TargetCurrency string
 	Account        *account.Account
+	CorrelationID  string // For distributed tracing
 	// Add any fields produced by validation (e.g., loaded Account)
 }
 
@@ -35,12 +37,14 @@ type WithdrawConversionDoneEvent struct {
 	UserID    string
 	AccountID string
 	FlowType  string // Flow type, e.g., "withdraw"
+	CorrelationID string // For distributed tracing
 }
 
 // WithdrawPersistedEvent is emitted after withdraw persistence is complete.
 type WithdrawPersistedEvent struct {
 	WithdrawValidatedEvent
 	TransactionID uuid.UUID
+	CorrelationID string // For distributed tracing
 }
 
 func (e WithdrawRequestedEvent) EventType() string { return "WithdrawRequestedEvent" }
