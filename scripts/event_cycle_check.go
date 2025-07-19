@@ -84,21 +84,13 @@ func main() {
 	}
 
 	// 3. Build event flow graph and detect cycles
+	// Each node is an event type; edges are from consumed event type to emitted event type
 	edges := []Edge{}
-	// For each handler, for every event type it is registered for, create an edge from that event type to every event it emits
-	for handler, emittedEvents := range handlerEmits {
-		// Find all event types this handler is registered for
-		var consumedEvents []string
-		for eventType, handlers := range eventToHandlers {
-			for _, h := range handlers {
-				if h == handler {
-					consumedEvents = append(consumedEvents, eventType)
-				}
-			}
-		}
-		for _, consumedEvent := range consumedEvents {
+	for eventType, handlers := range eventToHandlers {
+		for _, handler := range handlers {
+			emittedEvents := handlerEmits[handler]
 			for _, emittedEvent := range emittedEvents {
-				edges = append(edges, Edge{From: consumedEvent, To: emittedEvent, Handler: handler})
+				edges = append(edges, Edge{From: eventType, To: emittedEvent, Handler: handler})
 			}
 		}
 	}
