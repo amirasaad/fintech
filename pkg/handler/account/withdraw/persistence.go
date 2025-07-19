@@ -62,14 +62,11 @@ func WithdrawPersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork
 		})
 
 		// Emit ConversionRequested to trigger currency conversion for withdraw (decoupled from payment)
-		log.Info("📤 [EMIT] Emitting ConversionRequested for withdraw", "transaction_id", txID)
-		_ = bus.Publish(ctx, events.ConversionRequested{
-			CorrelationID:  txID.String(),
-			FlowType:       "withdraw",
-			OriginalEvent:  ve,
-			Amount:         ve.Amount,
-			SourceCurrency: ve.Amount.Currency().String(),
-			TargetCurrency: ve.TargetCurrency,
+		log.Info("📤 [EMIT] Emitting ConversionRequestedEvent for withdraw", "transaction_id", txID)
+		_ = bus.Publish(ctx, events.ConversionRequestedEvent{
+			FromAmount:    ve.Amount,
+			ToCurrency:    ve.TargetCurrency,
+			RequestID:     txID.String(),
 		})
 	}
 }

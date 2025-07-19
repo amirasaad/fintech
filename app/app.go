@@ -49,6 +49,7 @@ func New(deps config.Deps) *fiber.App {
 	// 1️⃣ GENERIC CONVERSION HANDLER
 	// Handles all ConversionRequestedEvent for any operation (deposit, withdraw, transfer)
 	bus.Subscribe("ConversionRequestedEvent", conversion.Handler(bus, deps.CurrencyConverter, deps.Logger))
+	bus.Subscribe("ConversionRequested", conversion.Handler(bus, deps.CurrencyConverter, deps.Logger))
 
 	// 2️⃣ DEPOSIT FLOW
 	// User request → Initial Validation → Persistence → Conversion → Business Validation → Payment Initiation → Payment Persistence

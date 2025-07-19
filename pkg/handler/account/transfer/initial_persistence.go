@@ -60,14 +60,11 @@ func InitialPersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork,
 		// For now, we'll use the same currency as the source (no conversion needed)
 		targetCurrency := ve.Amount.Currency().String()
 
-		log.Info("📤 [EMIT] Emitting ConversionRequested for transfer", "transaction_id", txID)
-		_ = bus.Publish(ctx, events.ConversionRequested{
-			CorrelationID:  txID.String(),
-			FlowType:       "transfer",
-			OriginalEvent:  ve,
-			Amount:         ve.Amount,
-			SourceCurrency: ve.Amount.Currency().String(),
-			TargetCurrency: targetCurrency,
+		log.Info("📤 [EMIT] Emitting ConversionRequestedEvent for transfer", "transaction_id", txID)
+		_ = bus.Publish(ctx, events.ConversionRequestedEvent{
+			FromAmount:    ve.Amount,
+			ToCurrency:    targetCurrency,
+			RequestID:     txID.String(),
 		})
 	}
 }
