@@ -76,7 +76,7 @@ func TestEventDrivenDepositFlow_Integration(t *testing.T) {
 	assert.Equal(t, validUser, depositPersisted.UserID)
 	assert.Equal(t, validAccount, depositPersisted.AccountID)
 
-	conversionRequested, ok := bus.published[2].(events.ConversionRequested)
+	conversionRequested, ok := bus.published[2].(events.ConversionRequestedEvent)
 	require.True(t, ok, "Third event should be ConversionRequested")
 	assert.Equal(t, "deposit", conversionRequested.FlowType)
 	assert.Equal(t, validUser, conversionRequested.OriginalEvent.(events.DepositValidatedEvent).UserID)
