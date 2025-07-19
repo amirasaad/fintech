@@ -13,20 +13,22 @@ import (
 // Emits DepositBusinessValidatedEvent to trigger payment initiation.
 func BusinessValidationHandler(bus eventbus.EventBus, logger *slog.Logger) func(context.Context, domain.Event) {
 	return func(ctx context.Context, e domain.Event) {
-		logger := logger.With("handler", "DepositBusinessValidationHandler", "event_type", e.EventType())
+		log := logger.With("handler", "DepositBusinessValidationHandler", "event_type", e.EventType())
+		log.Info("🟢 [START] Received event", "event", e)
 		dce, ok := e.(events.DepositConversionDoneEvent)
 		if !ok {
-			logger.Error("unexpected event type", "event", e)
+			log.Error("❌ [ERROR] Unexpected event type", "event", e)
 			return
 		}
 		// Perform business validation in account currency here...
-		logger.Info("business validation passed after conversion, emitting DepositBusinessValidatedEvent",
+		log.Info("✅ [SUCCESS] Business validation passed after conversion, emitting DepositBusinessValidatedEvent",
 			"user_id", dce.UserID,
 			"account_id", dce.AccountID,
 			"amount", dce.ToAmount.Amount(),
 			"currency", dce.ToAmount.Currency().String())
 
 		// Emit DepositBusinessValidatedEvent
+		log.Info("📤 [EMIT] Emitting DepositBusinessValidatedEvent")
 		bus.Publish(ctx, events.DepositBusinessValidatedEvent{
 			DepositConversionDoneEvent: dce,
 		})
