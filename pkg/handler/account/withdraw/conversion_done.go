@@ -53,13 +53,17 @@ func ConversionDoneHandler(bus eventbus.EventBus, uow repository.UnitOfWork, log
 		userID := tx.UserID.String()
 		accountID := tx.AccountID.String()
 
-		withdrawEvent := events.WithdrawConversionDoneEvent{
-			ConversionDoneEvent: cde,
-			UserID: userID,
-			AccountID: accountID,
-			FlowType: "withdraw",
+		if cde.FlowType == "withdraw" {
+			withdrawEvent := events.WithdrawConversionDoneEvent{
+				ConversionDoneEvent: cde,
+				UserID: userID,
+				AccountID: accountID,
+				FlowType: "withdraw",
+			}
+			log.Info("🟢 [EMIT] Emitting WithdrawConversionDoneEvent", "event", withdrawEvent)
+			_ = bus.Publish(ctx, withdrawEvent)
+		} else {
+			log.Info("Skipping WithdrawConversionDoneEvent emission: flow type is not withdraw", "flow_type", cde.FlowType)
 		}
-		log.Info("🟢 [EMIT] Emitting WithdrawConversionDoneEvent", "event", withdrawEvent)
-		_ = bus.Publish(ctx, withdrawEvent)
 	}
 }

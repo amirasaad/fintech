@@ -58,14 +58,18 @@ func ConversionDoneHandler(bus eventbus.EventBus, uow repository.UnitOfWork, log
 		userID := tx.UserID.String()
 		accountID := tx.AccountID.String()
 
-		depositEvent := events.DepositConversionDoneEvent{
-			ConversionDoneEvent: cde,
-			UserID: userID,
-			AccountID: accountID,
-			FlowType: "deposit",
-			CorrelationID: correlationID,
+		if cde.FlowType == "deposit" {
+			depositEvent := events.DepositConversionDoneEvent{
+				ConversionDoneEvent: cde,
+				UserID: userID,
+				AccountID: accountID,
+				FlowType: "deposit",
+				CorrelationID: correlationID,
+			}
+			log.Info("📤 [EMIT] Emitting DepositConversionDoneEvent", "event", depositEvent, "correlation_id", correlationID)
+			_ = bus.Publish(ctx, depositEvent)
+		} else {
+			log.Info("Skipping DepositConversionDoneEvent emission: flow type is not deposit", "flow_type", cde.FlowType)
 		}
-		log.Info("📤 [EMIT] Emitting DepositConversionDoneEvent", "event", depositEvent, "correlation_id", correlationID)
-		_ = bus.Publish(ctx, depositEvent)
 	}
 }
