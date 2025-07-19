@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain"
@@ -18,6 +19,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/amirasaad/fintech/pkg/eventbus"
 )
 
 type mockPaymentProvider struct {
@@ -177,4 +179,61 @@ func TestPaymentInitiationHandler_BusinessLogic(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestDepositEventChain_NoInfiniteLoop(t *testing.T) {
+	// Setup
+	ctx := context.Background()
+	userID := uuid.New()
+	accountID := uuid.New()
+	amount, _ := money.New(100, currency.USD)
+
+	// Track handler invocations
+	handlerCalls := make(map[string]int)
+
+	bus := eventbus.NewSimpleEventBus()
+
+	// Minimal stub for account and UoW
+	mockAccount := &account.Account{ID: accountID, UserID: userID, Balance: amount}
+	txID := uuid.New()
+
+	// Register handlers for the deposit flow
+	bus.Subscribe("DepositRequestedEvent", func(ctx context.Context, e domain.Event) {
+		handlerCalls["DepositRequestedEvent"]++
+		dr := e.(events.DepositRequestedEvent)
+		bus.Publish(ctx, events.DepositValidatedEvent{
+			DepositRequestedEvent: dr,
+			AccountID:             dr.AccountID,
+			Account:               mockAccount,
+		})
+	})
+	bus.Subscribe("DepositValidatedEvent", func(ctx context.Context, e domain.Event) {
+		handlerCalls["DepositValidatedEvent"]++
+		ve := e.(events.DepositValidatedEvent)
+		bus.Publish(ctx, events.DepositPersistedEvent{
+			DepositValidatedEvent: ve,
+			TransactionID:         txID,
+			UserID:                ve.UserID,
+			Amount:                ve.Amount,
+		})
+	})
+	bus.Subscribe("DepositPersistedEvent", func(ctx context.Context, e domain.Event) {
+		handlerCalls["DepositPersistedEvent"]++
+		// End of chain for this test
+	})
+
+	// Start the chain
+	bus.Publish(ctx, events.DepositRequestedEvent{
+		EventID:   uuid.New(),
+		AccountID: accountID,
+		UserID:    userID,
+		Amount:    amount,
+		Source:    "deposit",
+		Timestamp: time.Now(),
+	})
+
+	// Assert each handler called exactly once
+	assert.Equal(t, 1, handlerCalls["DepositRequestedEvent"], "DepositRequestedEvent handler should be called once")
+	assert.Equal(t, 1, handlerCalls["DepositValidatedEvent"], "DepositValidatedEvent handler should be called once")
+	assert.Equal(t, 1, handlerCalls["DepositPersistedEvent"], "DepositPersistedEvent handler should be called once")
 }
