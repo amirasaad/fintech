@@ -137,6 +137,10 @@ func (b *Builder) Build() (*Account, error) {
 	}, nil
 }
 
+func (a *Account) Currency() currency.Code {
+	return a.Balance.Currency()
+}
+
 // NewAccount creates a new Account for the given user ID.
 // Deprecated: Use New().WithUserID(...).WithCurrency(...).Build() instead.
 func NewAccount(userID uuid.UUID) (acc *Account) {

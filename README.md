@@ -56,6 +56,28 @@ It’s designed for educational use—explore event-driven architecture, clean c
 
 ---
 
+## 🧩 Event-Driven Architecture & Handler Design
+
+This project uses a clean, DRY, and SRP-compliant event-driven architecture for all core flows (deposit, withdraw, transfer):
+
+- **Event Bus Pattern:** Handlers are registered for specific event types. The bus dispatches events to the correct handler, avoiding central switch/if logic.
+- **SRP & DRY:** Each handler is responsible for a single event type and business concern. Shared logic is factored into helpers or interfaces.
+- **Flow-Agnostic Payment Initiation:** Payment initiation is triggered by both deposit and withdraw validated events, without caring about the flow type. This is achieved by accepting both event types in the handler, with no flow-specific logic.
+- **Cycle Detection:** A static analysis tool (`scripts/event_cycle_check.go`) detects event cycles and is integrated into pre-commit hooks to prevent infinite event loops.
+- **Consistent Logging:** All handlers use structured, emoji-rich logging for clarity and traceability.
+- **Legacy Cleanup:** All legacy event types and handlers have been removed for clarity and maintainability.
+- **Extensibility:** New flows can be added by defining new event types and handlers, or by extending interfaces if logic is shared.
+
+**Design Lessons:**
+- Prefer explicit handler registration over central switch/if statements for extensibility and SRP.
+- Use interfaces for shared event contracts when multiple event types trigger the same logic.
+- Only refactor to interfaces when you have multiple stable use cases (YAGNI principle).
+- Document handler design decisions to avoid "refactor ping-pong" between switch/if and abstraction.
+
+See `docs/service-domain-communication.md` for more on service/domain boundaries.
+
+---
+
 ## 🚀 Getting Started
 
 See the full guide: [docs/getting-started.md](docs/getting-started.md)

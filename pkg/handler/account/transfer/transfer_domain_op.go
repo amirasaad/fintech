@@ -24,29 +24,14 @@ func TransferDomainOpHandler(bus eventbus.EventBus, operator interface{}) func(c
 
 		// Parse UUIDs from strings
 		logger.Info("parsing UUIDs from TransferConversionDoneEvent",
-			"sourceAccountID", ce.SourceAccountID,
-			"targetAccountID", ce.TargetAccountID,
-			"senderUserID", ce.SenderUserID)
+			"sourceAccountID", ce.AccountID,
+			"senderUserID", ce.UserID)
 
-		sourceAccountID, err := uuid.Parse(ce.SourceAccountID)
-		if err != nil {
-			logger.Error("failed to parse source account ID", "error", err, "value", ce.SourceAccountID)
-			return
-		}
-		targetAccountID, err := uuid.Parse(ce.TargetAccountID)
-		if err != nil {
-			logger.Error("failed to parse target account ID", "error", err, "value", ce.TargetAccountID)
-			return
-		}
-		senderUserID, err := uuid.Parse(ce.SenderUserID)
-		if err != nil {
-			logger.Error("failed to parse sender user ID", "error", err, "value", ce.SenderUserID)
-			return
-		}
+		sourceAccountID := ce.AccountID
+		senderUserID := ce.UserID
 
 		logger.Info("successfully parsed UUIDs",
 			"sourceAccountID", sourceAccountID,
-			"targetAccountID", targetAccountID,
 			"senderUserID", senderUserID)
 
 		// Parse the original transaction ID from the conversion event
@@ -59,18 +44,10 @@ func TransferDomainOpHandler(bus eventbus.EventBus, operator interface{}) func(c
 		// Create the domain operation done event
 		domainOpEvent := events.TransferDomainOpDoneEvent{
 			TransferValidatedEvent: events.TransferValidatedEvent{TransferRequestedEvent: events.TransferRequestedEvent{
-				EventID:         originalTxID, // Use the original transaction ID
-				SourceAccountID: sourceAccountID,
-				DestAccountID:   targetAccountID,
-				SenderUserID:    senderUserID,
-				ReceiverUserID:  senderUserID, // Same user for internal transfer
-				Amount:          ce.ToAmount,
-				Source:          "transfer",
+				ID:             originalTxID, // Use the original transaction ID
+				ReceiverUserID: senderUserID, // Same user for internal transfer
+				// TODO: Add Amount and Source fields
 			}},
-			SenderUserID:    senderUserID,
-			SourceAccountID: sourceAccountID,
-			Amount:          ce.ToAmount,
-			Source:          "transfer",
 		}
 
 		logger.Info("TransferDomainOpDoneEvent published",

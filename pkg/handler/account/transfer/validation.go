@@ -15,32 +15,29 @@ import (
 // TransferValidationHandler handles TransferRequestedEvent, maps DTO to domain, validates, and publishes TransferValidatedEvent.
 func TransferValidationHandler(bus eventbus.EventBus, logger *slog.Logger) func(context.Context, domain.Event) {
 	return func(ctx context.Context, e domain.Event) {
-		te, ok := e.(events.TransferRequestedEvent)
+		log := logger.With("handler", "TransferValidationHandler", "event_type", e.EventType())
+		log.Info("🟢 [START] Received event", "event", e)
+		tr, ok := e.(events.TransferRequestedEvent)
 		if !ok {
-			logger.Error("TransferValidationHandler: unexpected event type", "event", e)
+			log.Error("❌ [ERROR] Unexpected event type", "event", e)
 			return
 		}
-		if te.SenderUserID == uuid.Nil ||
-			te.SourceAccountID == uuid.Nil ||
-			te.DestAccountID == uuid.Nil {
-			logger.Error("TransferValidationHandler: missing or invalid fields", "event", te)
+		if tr.DestAccountID == uuid.Nil ||
+			tr.ReceiverUserID == uuid.Nil ||
+			tr.UserID == uuid.Nil ||
+			tr.AccountID == uuid.Nil {
+			log.Error("❌ [ERROR] Missing or invalid fields", "event", tr)
 			return
 		}
-		if te.Amount.AmountFloat() <= 0 {
-			logger.Error("TransferValidationHandler: amount must be positive", "event", te)
+		if tr.Amount.AmountFloat() <= 0 {
+			log.Error("❌ [ERROR] Amount must be positive", "event", tr)
 			return
 		}
-		// TODO; transfer validation logic
-		_ = bus.Publish(ctx, events.TransferValidatedEvent{TransferRequestedEvent: te})
-
-		// Emit ConversionRequested to trigger currency conversion for transfer (decoupled from payment)
-		_ = bus.Publish(ctx, events.ConversionRequested{
-			CorrelationID:  uuid.New().String(),
-			FlowType:       "transfer",
-			OriginalEvent:  events.TransferValidatedEvent{TransferRequestedEvent: te},
-			Amount:         te.Amount,
-			SourceCurrency: te.Amount.Currency().String(),
-			TargetCurrency: te.Amount.Currency().String(), // TODO: set to dest account currency if different
-		})
+		correlationID := uuid.New()
+		validatedEvent := events.TransferValidatedEvent{
+			TransferRequestedEvent: tr,
+		}
+		log.Info("✅ [SUCCESS] Transfer validated, emitting TransferValidatedEvent", "dest_account_id", tr.DestAccountID, "receiver_user_id", tr.ReceiverUserID, "correlation_id", correlationID.String())
+		_ = bus.Publish(ctx, validatedEvent)
 	}
 }

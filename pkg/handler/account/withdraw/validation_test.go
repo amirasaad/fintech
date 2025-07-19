@@ -21,14 +21,22 @@ func TestWithdrawValidationHandler(t *testing.T) {
 	validUserID := uuid.New()
 	validAccountID := uuid.New()
 	validEvent := events.WithdrawRequestedEvent{
-		UserID:    validUserID,
-		AccountID: validAccountID,
-		Amount:    money.NewFromData(10000, "USD"),
+		FlowEvent: events.FlowEvent{
+			AccountID:     validAccountID,
+			UserID:        validUserID,
+			CorrelationID: uuid.New(),
+			FlowType:      "withdraw",
+		},
+		Amount: money.NewFromData(10000, "USD"),
 	}
 	invalidEvent := events.WithdrawRequestedEvent{
-		UserID:    uuid.Nil,
-		AccountID: uuid.Nil,
-		Amount:    money.NewFromData(-5000, "USD"),
+		FlowEvent: events.FlowEvent{
+			AccountID:     uuid.Nil,
+			UserID:        uuid.Nil,
+			CorrelationID: uuid.New(),
+			FlowType:      "withdraw",
+		},
+		Amount: money.NewFromData(-5000, "USD"),
 	}
 
 	tests := []struct {
@@ -54,13 +62,29 @@ func TestWithdrawValidationHandler(t *testing.T) {
 			uow.On("GetRepository", mock.Anything).Return(accountRepo, nil)
 			accountRepo.On("Get", mock.Anything, mock.Anything).Return(nil, errors.New("account not found"))
 		}},
-		{"invalid accountID (empty)", events.WithdrawRequestedEvent{UserID: validUserID, AccountID: uuid.Nil, Amount: money.NewFromData(10000, "USD")}, false, func(bus *mocks.MockEventBus, uow *mocks.MockUnitOfWork) {
+		{"invalid accountID (empty)", events.WithdrawRequestedEvent{
+			FlowEvent: events.FlowEvent{
+				AccountID:     uuid.Nil,
+				UserID:        validUserID,
+				CorrelationID: uuid.New(),
+				FlowType:      "withdraw",
+			},
+			Amount: money.NewFromData(10000, "USD"),
+		}, false, func(bus *mocks.MockEventBus, uow *mocks.MockUnitOfWork) {
 			// Mock GetRepository for invalid account ID
 			accountRepo := new(mocks.AccountRepository)
 			uow.On("GetRepository", mock.Anything).Return(accountRepo, nil)
 			accountRepo.On("Get", mock.Anything, mock.Anything).Return(nil, errors.New("account not found"))
 		}},
-		{"zero amount", events.WithdrawRequestedEvent{UserID: validUserID, AccountID: validAccountID, Amount: money.NewFromData(0, "USD")}, false, func(bus *mocks.MockEventBus, uow *mocks.MockUnitOfWork) {
+		{"zero amount", events.WithdrawRequestedEvent{
+			FlowEvent: events.FlowEvent{
+				AccountID:     validAccountID,
+				UserID:        validUserID,
+				CorrelationID: uuid.New(),
+				FlowType:      "withdraw",
+			},
+			Amount: money.NewFromData(0, "USD"),
+		}, false, func(bus *mocks.MockEventBus, uow *mocks.MockUnitOfWork) {
 			// Mock GetRepository for zero amount (handler calls it before validation)
 			accountRepo := new(mocks.AccountRepository)
 			uow.On("GetRepository", mock.Anything).Return(accountRepo, nil)
@@ -71,7 +95,15 @@ func TestWithdrawValidationHandler(t *testing.T) {
 				Currency: "USD",
 			}, nil)
 		}},
-		{"negative amount", events.WithdrawRequestedEvent{UserID: validUserID, AccountID: validAccountID, Amount: money.NewFromData(-1000, "USD")}, false, func(bus *mocks.MockEventBus, uow *mocks.MockUnitOfWork) {
+		{"negative amount", events.WithdrawRequestedEvent{
+			FlowEvent: events.FlowEvent{
+				AccountID:     validAccountID,
+				UserID:        validUserID,
+				CorrelationID: uuid.New(),
+				FlowType:      "withdraw",
+			},
+			Amount: money.NewFromData(-1000, "USD"),
+		}, false, func(bus *mocks.MockEventBus, uow *mocks.MockUnitOfWork) {
 			// Mock GetRepository for negative amount (handler calls it before validation)
 			accountRepo := new(mocks.AccountRepository)
 			uow.On("GetRepository", mock.Anything).Return(accountRepo, nil)

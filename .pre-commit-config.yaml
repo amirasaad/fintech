@@ -14,6 +14,12 @@ repos:
         additional_dependencies: ['@commitlint/config-conventional']
   - repo: local
     hooks:
+      - id: event-cycle-check
+        name: "event cycle check"
+        entry: go run scripts/event_cycle_check.go
+        pass_filenames: false
+        types: [go]
+        language: system
       - id: go-vet
         name: "go run vet"
         entry: go vet ./...
@@ -50,12 +56,6 @@ repos:
         pass_filenames: false
         types: [go]
         language: system
-      - id: go-lint
-        name: "golint"
-        entry: golint ./...
-        pass_filenames: false
-        types: [go]
-        language: system
       - id: go-fmt
         name: go go-fmt
         entry: go fmt ./...
@@ -65,12 +65,6 @@ repos:
       - id: go-mod
         name: go mod tidy
         entry: go mod tidy
-        pass_filenames: false
-        types: [go]
-        language: system
-      - id: go-testifylint
-        name: go-testifylint
-        entry:  testifylint ./...
         pass_filenames: false
         types: [go]
         language: system

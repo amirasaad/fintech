@@ -60,7 +60,12 @@ func TestHandler_ConversionRequestedEvent(t *testing.T) {
 	// Create test event
 	fromAmount, _ := money.New(100.0, "USD")
 	event := events.ConversionRequestedEvent{
-		EventID:    "test-event-id",
+		FlowEvent: events.FlowEvent{
+			AccountID:     uuid.New(),
+			UserID:        uuid.New(),
+			CorrelationID: uuid.New(),
+			FlowType:      "conversion",
+		},
 		FromAmount: fromAmount,
 		ToCurrency: "EUR",
 		RequestID:  "test-request-id",
@@ -75,7 +80,7 @@ func TestHandler_ConversionRequestedEvent(t *testing.T) {
 		ConversionRate:    0.85,
 	}
 	mockConverter.On("Convert", 100.0, "USD", "EUR").Return(conversionInfo, nil)
-	mockBus.On("Publish", mock.Anything, mock.AnythingOfType("events.ConversionDoneEvent")).Return(nil)
+	mockBus.On("Publish", mock.Anything, mock.AnythingOfType("events.ConversionDoneEvent")).Return(nil).Once()
 
 	// Execute
 	ctx := context.Background()
@@ -98,7 +103,12 @@ func TestHandler_ConversionDoneEvent_ShouldReject(t *testing.T) {
 	fromAmount, _ := money.New(100.0, "USD")
 	toAmount, _ := money.New(85.0, "EUR")
 	event := events.ConversionDoneEvent{
-		EventID:    "test-event-id",
+		FlowEvent: events.FlowEvent{
+			AccountID:     uuid.New(),
+			UserID:        uuid.New(),
+			CorrelationID: uuid.New(),
+			FlowType:      "conversion",
+		},
 		FromAmount: fromAmount,
 		ToAmount:   toAmount,
 		RequestID:  "test-request-id",
@@ -125,9 +135,13 @@ func TestHandler_UnknownEvent_ShouldReject(t *testing.T) {
 	// Create an unknown event type
 	amount, _ := money.New(100.0, "USD")
 	event := events.DepositRequestedEvent{
-		EventID:   uuid.New(),
-		AccountID: uuid.New(),
-		UserID:    uuid.New(),
+		FlowEvent: events.FlowEvent{
+			AccountID:     uuid.New(),
+			UserID:        uuid.New(),
+			CorrelationID: uuid.New(),
+			FlowType:      "deposit",
+		},
+		ID:        uuid.New(),
 		Amount:    amount,
 		Source:    "test",
 		Timestamp: time.Now(),

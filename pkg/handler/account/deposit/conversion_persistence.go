@@ -23,14 +23,20 @@ func ConversionPersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWo
 		var originalAmount float64
 		var originalCurrency string
 		var requestID string
+		var correlationID uuid.UUID
 
-		switch evt := e.(type) {
+		var evt events.DepositConversionDoneEvent
+		switch v := e.(type) {
 		case events.DepositConversionDoneEvent:
-			convertedAmount = evt.ToAmount.AmountFloat()
-			originalAmount = evt.FromAmount.AmountFloat()
-			originalCurrency = evt.FromAmount.Currency().String()
-			requestID = evt.RequestID
-			logger.Info("received DepositConversionDoneEvent", "event", evt)
+			correlationID = v.CorrelationID
+			convertedAmount = v.ToAmount.AmountFloat()
+			originalAmount = v.FromAmount.AmountFloat()
+			originalCurrency = v.FromAmount.Currency().String()
+			requestID = v.RequestID
+			logger = logger.With("correlation_id", correlationID)
+			logger.Info("received DepositConversionDoneEvent", "event", v, "correlation_id", correlationID)
+			// assign to evt for use after switch
+			evt = v
 		default:
 			logger.Error("unexpected event type for deposit conversion persistence", "event", e)
 			return
@@ -56,7 +62,8 @@ func ConversionPersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWo
 			"original_amount", originalAmount,
 			"original_currency", originalCurrency,
 			"converted_amount", convertedAmount,
-			"conversion_rate", conversionRate)
+			"conversion_rate", conversionRate,
+			"correlation_id", correlationID)
 
 		// Update the transaction with conversion data
 		err = uow.Do(ctx, func(uow repository.UnitOfWork) error {
@@ -82,7 +89,7 @@ func ConversionPersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWo
 				return err
 			}
 
-			logger.Info("transaction updated with conversion data", "transaction_id", txID)
+			logger.Info("transaction updated with conversion data", "transaction_id", txID, "correlation_id", correlationID)
 			return nil
 		})
 
@@ -91,6 +98,17 @@ func ConversionPersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWo
 			return
 		}
 
-		logger.Info("conversion data persisted successfully", "transaction_id", txID)
+		logger.Info("conversion data persisted successfully", "transaction_id", txID, "correlation_id", correlationID)
+
+		// Emit DepositConversionDoneEvent with all relevant fields
+		conversionDoneEvent := events.DepositConversionDoneEvent{
+			DepositValidatedEvent: evt.DepositValidatedEvent,
+			ConversionDoneEvent:   evt.ConversionDoneEvent,
+			TransactionID:         txID,
+		}
+		if err := bus.Publish(ctx, conversionDoneEvent); err != nil {
+			logger.Error("failed to publish DepositConversionDoneEvent", "error", err)
+			return
+		}
 	}
 }

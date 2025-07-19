@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"time"
 
 	"github.com/amirasaad/fintech/pkg/domain/events"
 
@@ -19,31 +20,34 @@ import (
 // PersistenceHandler handles DepositValidatedEvent: converts the float64 amount and currency to money.Money, persists the transaction, and emits DepositPersistedEvent.
 func PersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork, logger *slog.Logger) func(context.Context, domain.Event) {
 	return func(ctx context.Context, e domain.Event) {
-		logger := logger.With(
-			"handler", "PersistenceHandler",
-			"event_type", e.EventType(),
-		)
-		logger.Info("received event", "event", e)
+		log := logger.With("handler", "DepositPersistenceHandler", "event_type", e.EventType())
+		log.Info("🟢 [START] Received event", "event", e)
 
 		// Expect DepositValidatedEvent from validation handler
 		ve, ok := e.(events.DepositValidatedEvent)
 		if !ok {
-			logger.Error("unexpected event", "event", e)
+			log.Error("❌ [ERROR] Unexpected event", "event", e)
 			return
 		}
-		logger.Info("received DepositValidatedEvent", "event", ve)
+		correlationID := ve.CorrelationID
+		if correlationID == uuid.Nil {
+			correlationID = uuid.New()
+		}
+		log = log.With("correlation_id", correlationID)
+		log.Info("🔄 [PROCESS] Received DepositValidatedEvent", "event", ve)
 
 		// Create a new transaction and persist it
 		txID := uuid.New()
 		if err := uow.Do(ctx, func(uow repository.UnitOfWork) error {
 			txRepoAny, err := uow.GetRepository((*transaction.Repository)(nil))
 			if err != nil {
-				logger.Error("failed to get repo", "err", err)
+				log.Error("❌ [ERROR] Failed to get repo", "err", err)
 				return err
 			}
 			txRepo, ok := txRepoAny.(transaction.Repository)
 			if !ok {
-				return errors.New("failed to retrieve repo")
+				log.Error("❌ [ERROR] Failed to retrieve repo type")
+				return errors.New("failed to retrieve repo type")
 			}
 			if err := txRepo.Create(ctx, dto.TransactionCreate{
 				ID:          txID,
@@ -56,30 +60,35 @@ func PersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork, logger
 			}); err != nil {
 				return err
 			}
-			logger.Info("transaction persisted", "transaction_id", txID)
+			log.Info("✅ [SUCCESS] Transaction persisted", "transaction_id", txID, "correlation_id", correlationID)
 			return nil
 		}); err != nil {
-			logger.Error("failed to persist transaction", "error", err)
+			log.Error("❌ [ERROR] Failed to persist transaction", "error", err)
 			return
 		}
 
 		// Emit DepositPersistedEvent
-		_ = bus.Publish(ctx, events.DepositPersistedEvent{
+		persistedEvent := events.DepositPersistedEvent{
 			DepositValidatedEvent: ve,
 			TransactionID:         txID,
-			UserID:                ve.UserID,
 			Amount:                ve.Amount,
-		})
+		}
+		log.Info("📤 [EMIT] Emitting DepositPersistedEvent", "event", persistedEvent, "correlation_id", correlationID.String())
+		_ = bus.Publish(ctx, persistedEvent)
 
 		// Emit ConversionRequested to trigger currency conversion for deposit (decoupled from payment)
-		logger.Info("emitting ConversionRequested for deposit", "transaction_id", txID)
-		_ = bus.Publish(ctx, events.ConversionRequested{
-			CorrelationID:  txID.String(),
-			FlowType:       "deposit",
-			OriginalEvent:  ve,
-			Amount:         ve.Amount,
-			SourceCurrency: ve.Amount.Currency().String(),
-			TargetCurrency: ve.Account.Balance.Currency().String(),
-		})
+		log.Info("📤 [EMIT] Emitting ConversionRequestedEvent for deposit", "transaction_id", txID, "correlation_id", correlationID)
+		log.Info("DEBUG: ve.UserID and ve.AccountID", "user_id", ve.UserID, "account_id", ve.AccountID)
+		conversionEvent := events.ConversionRequestedEvent{
+			FlowEvent:  ve.FlowEvent,
+			ID:         uuid.New(),
+			FromAmount: ve.Amount,
+			ToCurrency: ve.Amount.Currency().String(),
+			RequestID:  txID.String(),
+			Timestamp:  time.Now(),
+		}
+		log.Info("DEBUG: Full ConversionRequestedEvent", "event", conversionEvent)
+		log.Info("📤 [EMIT] About to emit ConversionRequestedEvent", "handler", "DepositPersistenceHandler", "event_type", conversionEvent.EventType(), "correlation_id", correlationID.String())
+		_ = bus.Publish(ctx, conversionEvent)
 	}
 }

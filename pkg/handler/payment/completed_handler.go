@@ -24,6 +24,7 @@ func CompletedHandler(bus eventbus.EventBus, uow repository.UnitOfWork, logger *
 			logger.Error("CompletedHandler: unexpected event type", "event", e)
 			return
 		}
+		// Access all fields directly: pe.TransactionID, pe.PaymentID, pe.Status, pe.UserID, pe.AccountID, pe.CorrelationID
 		err := uow.Do(ctx, func(uow repository.UnitOfWork) error {
 			repo, err := uow.TransactionRepository()
 			if err != nil {

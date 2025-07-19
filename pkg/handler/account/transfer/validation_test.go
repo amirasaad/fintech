@@ -16,14 +16,23 @@ import (
 )
 
 func TestTransferValidationHandler(t *testing.T) {
+	senderID := uuid.New()
+	sourceAccountID := uuid.New()
+	destAccountID := uuid.New()
+	receiverID := uuid.New()
+
 	valid := events.TransferRequestedEvent{
-		EventID:         uuid.New(),
-		SourceAccountID: uuid.New(),
-		DestAccountID:   uuid.New(),
-		SenderUserID:    uuid.New(),
-		ReceiverUserID:  uuid.New(),
-		Amount:          money.NewFromData(10000, "USD"),
-		Source:          "Internal",
+		FlowEvent: events.FlowEvent{
+			FlowType:      "transfer",
+			UserID:        senderID,
+			AccountID:     sourceAccountID,
+			CorrelationID: uuid.New(),
+		},
+		ID:             uuid.New(),
+		Amount:         money.NewFromData(1000, "USD"),
+		Source:         "transfer",
+		DestAccountID:  destAccountID,
+		ReceiverUserID: receiverID,
 	}
 	invalid := events.TransferRequestedEvent{}
 	tests := []struct {
@@ -34,11 +43,14 @@ func TestTransferValidationHandler(t *testing.T) {
 	}{
 		{"valid", valid, true, func(bus *mocks.MockEventBus) {
 			bus.On("Publish", mock.Anything, mock.AnythingOfType("events.TransferValidatedEvent")).Return(nil)
-			bus.On("Publish", mock.Anything, mock.AnythingOfType("events.ConversionRequested")).Return(nil)
 		}},
 		{"invalid", invalid, false, nil},
-		{"invalid sender UUID", func() events.TransferRequestedEvent { e := valid; e.SenderUserID = uuid.Nil; return e }(), false, nil},
-		{"invalid source account UUID", func() events.TransferRequestedEvent { e := valid; e.SourceAccountID = uuid.Nil; return e }(), false, nil},
+		{"invalid sender UUID", func() events.TransferRequestedEvent { e := valid; e.UserID = uuid.Nil; return e }(), false, func(bus *mocks.MockEventBus) {
+			bus.On("Publish", mock.Anything, mock.AnythingOfType("events.TransferValidatedEvent")).Return(nil)
+		}},
+		{"invalid source account UUID", func() events.TransferRequestedEvent { e := valid; e.AccountID = uuid.Nil; return e }(), false, func(bus *mocks.MockEventBus) {
+			bus.On("Publish", mock.Anything, mock.AnythingOfType("events.TransferValidatedEvent")).Return(nil)
+		}},
 		{"invalid dest account UUID", func() events.TransferRequestedEvent { e := valid; e.DestAccountID = uuid.Nil; return e }(), false, nil},
 		{"zero amount", func() events.TransferRequestedEvent { e := valid; e.Amount = money.NewFromData(0, "USD"); return e }(), false, nil},
 		{"negative amount", func() events.TransferRequestedEvent { e := valid; e.Amount = money.NewFromData(-1000, "USD"); return e }(), false, nil},
@@ -46,7 +58,7 @@ func TestTransferValidationHandler(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			bus := mocks.NewMockEventBus(t)
-			if tc.setupMocks != nil {
+			if tc.expectPub && tc.setupMocks != nil {
 				tc.setupMocks(bus)
 			}
 			handler := TransferValidationHandler(bus, slog.New(slog.NewTextHandler(io.Discard, nil)))
