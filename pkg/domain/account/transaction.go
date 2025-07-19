@@ -3,6 +3,7 @@ package account
 import (
 	"time"
 
+	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/google/uuid"
 )
@@ -41,6 +42,10 @@ type Transaction struct {
 	ExternalTarget ExternalTarget
 	PaymentID      string // External payment provider ID for webhook correlation
 	CreatedAt      time.Time
+	// TargetCurrency is the currency the account is credited in (for multi-currency deposits)
+	TargetCurrency string
+	// ConversionInfo holds details about a currency conversion performed during the transaction (if any)
+	ConversionInfo *common.ConversionInfo
 }
 
 // NewTransactionFromData creates a Transaction from raw data (used for DB hydration or test fixtures).

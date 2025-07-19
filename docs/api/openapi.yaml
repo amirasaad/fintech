@@ -1,4 +1,10 @@
 openapi: 3.1.1
+servers:
+  - url: https://fintech-beryl-beta.vercel.app
+    description: Optional server description, e.g. Main (production) server
+  - url: http://localhost:3000
+    description: Optional server description, e.g. Internal staging server for testing
+
 info:
   title: Fintech
   version: 2.0.0
@@ -315,6 +321,8 @@ paths:
               default:
                 summary: Create account with default currency
                 value: {}
+      security:
+        - Bearer: []
       responses:
         201:
           description: Account created
@@ -339,7 +347,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: "#/components/schemas/ProblemDetails"
               examples:
                 error:
                   summary: Internal server error
@@ -352,7 +360,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: "#/components/schemas/ProblemDetails"
               examples:
                 tooManyRequests:
                   summary: Too Many Requests
@@ -558,7 +566,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: "#/components/schemas/ProblemDetails"
               examples:
                 notFound:
                   summary: Account not found
@@ -573,13 +581,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: "#/components/schemas/ProblemDetails"
               examples:
-                internalServerError:
+                internalServerProblemDetails:
                   summary: Internal server error
                   value:
                     type: "/errors/internal-server-error"
-                    title: "Internal Server Error"
+                    title: "Internal Server ProblemDetails"
                     status: 500
                     detail: "An unexpected error occurred."
                     instance: "/account/{id}/balance"
@@ -588,7 +596,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: "#/components/schemas/ProblemDetails"
               examples:
                 tooManyRequests:
                   summary: Too Many Requests
@@ -637,7 +645,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: "#/components/schemas/ProblemDetails"
               examples:
                 notFound:
                   summary: Account not found
@@ -652,13 +660,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: "#/components/schemas/ProblemDetails"
               examples:
-                internalServerError:
+                internalServerProblemDetails:
                   summary: Internal server error
                   value:
                     type: "/errors/internal-server-error"
-                    title: "Internal Server Error"
+                    title: "Internal Server ProblemDetails"
                     status: 500
                     detail: "An unexpected error occurred."
                     instance: "/account/{id}/transactions"
@@ -667,7 +675,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: "#/components/schemas/ProblemDetails"
               examples:
                 tooManyRequests:
                   summary: Too Many Requests
@@ -677,8 +685,12 @@ paths:
                     status: 429
                     detail: "Rate limit exceeded"
                     instance: "/account/{id}/transactions"
-
 components:
+  securitySchemes:
+    bearerAuth: # arbitrary name for the security scheme
+      type: http
+      scheme: bearer
+      bearerFormat: JWT # optional, arbitrary value for documentation purposes
   schemas:
     Account:
       type: object

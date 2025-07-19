@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/mock"
@@ -21,7 +22,7 @@ func BenchmarkCreateAccount(b *testing.B) {
 	userID := uuid.New()
 	b.ResetTimer()
 	for b.Loop() {
-		_, err := svc.CreateAccount(context.Background(), userID)
+		_, err := svc.CreateAccount(context.Background(), dto.AccountCreate{UserID: userID})
 		require.NoError(err)
 
 	}

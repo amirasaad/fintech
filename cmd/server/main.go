@@ -3,17 +3,20 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"log/slog"
+	"os"
+	"time"
 
 	"github.com/amirasaad/fintech/app"
 
 	"github.com/amirasaad/fintech/config"
 	"github.com/amirasaad/fintech/infra"
-	"github.com/amirasaad/fintech/infra/eventbus"
 	"github.com/amirasaad/fintech/infra/provider"
 	infra_repository "github.com/amirasaad/fintech/infra/repository"
 	"github.com/amirasaad/fintech/pkg/currency"
+	"github.com/amirasaad/fintech/pkg/eventbus"
+
+	"github.com/charmbracelet/log"
 )
 
 // @title Fintech API
@@ -32,8 +35,15 @@ import (
 // @name Authorization
 // @description "Enter your Bearer token in the format: `Bearer {token}`"
 func main() {
+	handler := log.NewWithOptions(os.Stdout, log.Options{
+		ReportTimestamp: true,
+		TimeFunction:    log.NowUTC,
+		TimeFormat:      time.Kitchen,
+		ReportCaller:    true,
+		Prefix:          "Server 🗄️ ",
+	})
 	// Setup structured logging
-	logger := slog.New(slog.NewTextHandler(log.Writer(), &slog.HandlerOptions{Level: slog.LevelDebug}))
+	logger := slog.New(handler)
 	slog.SetDefault(logger)
 
 	// Load application configuration
@@ -81,7 +91,7 @@ func main() {
 		CurrencyRegistry:  currencyRegistry,
 		Logger:            logger,
 		PaymentProvider:   provider.NewStripePaymentProvider(cfg.PaymentProviders.Stripe.ApiKey, logger),
-		EventBus:          eventbus.NewMemoryEventBus(),
+		EventBus:          eventbus.NewSimpleEventBus(),
 		Config:            cfg,
 	}).Listen(fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)))
 }

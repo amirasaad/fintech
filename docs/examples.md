@@ -1,4 +1,8 @@
-# 💡 Examples
+---
+icon: material/lightbulb
+---
+
+# Examples
 
 Here are some examples demonstrating how to interact with the Fintech Platform.
 

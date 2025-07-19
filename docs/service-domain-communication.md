@@ -1,4 +1,8 @@
-# 🔄 Service ↔ Domain Layer Communication
+---
+icon: material/repeat
+---
+
+# Service Domain Layer Communication
 
 This project follows clean architecture principles, with clear separation between the service and domain layers.
 
@@ -61,3 +65,7 @@ func (s *AccountService) Deposit(userID, accountID uuid.UUID, amount float64, cu
 - **Domain Layer**: Enforces business rules and invariants.
 - **Repositories**: Abstract persistence, injected into services.
 - **Unit of Work**: Ensures atomicity of operations.
+
+## DTOs and Domain Invariants
+
+DTOs (Data Transfer Objects) are used strictly for moving data between layers (API, service, repository). All business rules and invariants must be enforced in the domain layer. Always convert DTOs to domain models before applying any business logic or persisting data. Repositories should never enforce business rules—this keeps the domain pure and the system maintainable.

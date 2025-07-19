@@ -1,0 +1,10 @@
+coverage:
+ status:
+  project: true
+ignore:
+  - "internal"
+  - "docs"
+  - "cmd"
+  - "api"
+  - "**/*_test.go"
+  - "**/testuitls.go"

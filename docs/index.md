@@ -1,10 +1,12 @@
 ---
 icon: material/school
 ---
+#
 
-# Fintech Platform
-
-> **A modern, event-driven fintech platform for learning, prototyping, and experimentation.**
+<p align="center">
+  <img src="assets/fintech-banner.svg" alt="Fintech Platform Banner"/>
+</p>
+<h2 align="center">A modern, event-driven fintech platform for learning, prototyping, and experimentation.</h2>
 
 This project demonstrates best practices in Go for building scalable, secure, and modular financial systems.
 It’s designed for educational use—explore event-driven architecture, clean code, and real-world fintech patterns in a safe, open-source environment.

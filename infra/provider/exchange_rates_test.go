@@ -91,7 +91,7 @@ func TestExchangeRateService_GetRate_FromCache(t *testing.T) {
 	rate, err := service.GetRate("USD", "EUR")
 	require.NoError(t, err)
 	assert.InEpsilon(t, 0.85, rate.Rate, 0.0001)
-	assert.Empty(t, rate.Source)
+	assert.Equal(t, "test", rate.Source)
 }
 
 func TestExchangeRateService_GetRate_FromProvider(t *testing.T) {

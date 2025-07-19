@@ -32,7 +32,7 @@ These instructions will guide you through setting up and running the Fintech Pla
 
 ## ▶️ Running the Application
 
-### Using Docker Compose (Recommended)
+### 🐳 Using Docker Compose (Recommended)
 
 ```bash
 docker compose up --build -d
@@ -41,7 +41,7 @@ docker compose up --build -d
 - The app will be at `http://localhost:3000`.
 - PostgreSQL at port `5432`.
 
-### Running Locally (without Docker for Go app)
+### 🏠 Running Locally (without Docker for Go app)
 
 1. Start PostgreSQL with Docker Compose:
 
@@ -55,7 +55,7 @@ docker compose up --build -d
    go run cmd/server/main.go
    ```
 
-### Running the CLI
+### 🖥️ Running the CLI
 
 ```bash
 go run cmd/cli/main.go

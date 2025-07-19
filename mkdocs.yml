@@ -58,12 +58,16 @@ markdown_extensions:
   - pymdownx.tabbed:
       alternate_style: true
   - admonition
+  - def_list
+  - pymdownx.tasklist:
+      custom_checkbox: true
 
 plugins:
   - search
   - tags
   - offline
   - blog
+  - swagger-ui-tag
 
 extra:
   version:
@@ -80,17 +84,39 @@ nav:
     - Testing: testing.md
     - Examples: examples.md
   - Currency & Exchange:
-      - Currency System: currency/currency-system.md
-      - Exchange Rates: currency/exchange-rates.md
-      - Multi-Currency: currency/multi-currency.md
+    - currency/index.md
+    - Currency System: currency/currency-system.md
+    - Exchange Rates: currency/exchange-rates.md
+    - Multi-Currency: currency/multi-currency.md
   - Payments:
+    - payments/index.md
     - Event-Driven Payments: payments/event-driven-payments.md
     - Stripe Integration: payments/stripe-integration.md
   - Refactoring:
-      - Patterns: refactoring/patterns.md
-      - Account Service: refactoring/account-service.md
+    - refactoring/index.md
+    - Patterns:
+      - refactoring/patterns.md
       - Decorator Pattern: refactoring/decorator-pattern.md
       - UOW Pattern: refactoring/uow-pattern.md
-  - API Reference: api/openapi.yaml
+    - CQRS:
+      - Transaction CQRS Refactor: refactoring/transaction-cqrs-refactor.md
+      - Transaction Persistence Refactor: refactoring/transaction-persistence-refactor.md
+    - Event-Driven:
+      - Architecture: refactoring/event-driven-architecture.md
+      - Account Service: refactoring/account-service.md
+      - Lessons: refactoring/event-driven-lessons.md
+      - Deposit Flow: refactoring/event-driven-deposit-flow.md
+      - Withdraw Flow: refactoring/event-driven-withdraw-flow.md
+      - Transfer Flow: refactoring/event-driven-transfer-flow.md
+      - Stripe Webhook: payments/event-driven-stripe-webhook.md
+      - Domain Events: domain-events.md
+    - Dependency Injection:
+      - Layered-dependency-injection: refactoring/layered-dependency-injection.md
+  - API Reference:
+    - api/index.md
+    - Requests(REST Client):
+      - requests/index.md
+      - Account: requests/account.http
+      - Currencies: requests/currencies.http
   - Blog:
     - blog/index.md

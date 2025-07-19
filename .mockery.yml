@@ -1,29 +1,53 @@
 template: testify
 packages:
-    github.com/amirasaad/fintech/pkg/repository:
-        config:
-            dir: "internal/fixtures/mocks"
-            filename: "repository.go"
-            pkgname: "mocks"
-            structname: "Mock{{.InterfaceName}}"
-        interfaces:
-            TransactionRepository:
-            AccountRepository:
-            UserRepository:
-            UnitOfWork:
-    github.com/amirasaad/fintech/pkg/service/auth:
-        config:
-            dir: "internal/fixtures/mocks"
-            filename: "auth.go"
-            pkgname: "mocks"
-            structname: "Mock{{.InterfaceName}}"
-        interfaces:
-            AuthStrategy:
-    github.com/amirasaad/fintech/pkg/domain:
-        config:
-            dir: "internal/fixtures/mocks"
-            filename: "domain.go"
-            pkgname: "mocks"
-            structname: "Mock{{.InterfaceName}}"
-        interfaces:
-            CurrencyConverter:
+  github.com/amirasaad/fintech/pkg/repository:
+    config:
+      dir: "internal/fixtures/mocks"
+      filename: "repository.go"
+      pkgname: "mocks"
+      structname: "Mock{{.InterfaceName}}"
+    interfaces:
+      TransactionRepository:
+      AccountRepository:
+      UserRepository:
+      UnitOfWork:
+  github.com/amirasaad/fintech/pkg/repository/account:
+    config:
+      dir: "internal/fixtures/mocks"
+      filename: "account.go"
+      pkgname: "mocks"
+      structname: "Account{{.InterfaceName}}"
+    interfaces:
+      Repository:
+  github.com/amirasaad/fintech/pkg/repository/transaction:
+    config:
+      dir: "internal/fixtures/mocks"
+      filename: "transaction.go"
+      pkgname: "mocks"
+      structname: "Transaction{{.InterfaceName}}"
+    interfaces:
+      Repository:
+  github.com/amirasaad/fintech/pkg/service/auth:
+    config:
+      dir: "internal/fixtures/mocks"
+      filename: "auth.go"
+      pkgname: "mocks"
+      structname: "Mock{{.InterfaceName}}"
+    interfaces:
+      AuthStrategy:
+  github.com/amirasaad/fintech/pkg/domain:
+    config:
+      dir: "internal/fixtures/mocks"
+      filename: "domain.go"
+      pkgname: "mocks"
+      structname: "Mock{{.InterfaceName}}"
+    interfaces:
+      CurrencyConverter:
+  github.com/amirasaad/fintech/pkg/eventbus:
+    config:
+      dir: "internal/fixtures/mocks"
+      filename: "eventbus.go"
+      pkgname: "mocks"
+      structname: "Mock{{.InterfaceName}}"
+    interfaces:
+      EventBus:

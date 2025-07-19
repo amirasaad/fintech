@@ -1,4 +1,8 @@
-# 🗂️ Project Structure
+---
+icon: material/folder
+---
+
+# Project Structure
 
 The project is meticulously organized to promote modularity, maintainability, and adherence to Domain-Driven Design (DDD) principles. This structure facilitates clear separation of concerns and simplifies development and testing.
 

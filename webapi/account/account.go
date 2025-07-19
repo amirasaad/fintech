@@ -2,8 +2,9 @@ package account
 
 import (
 	"github.com/amirasaad/fintech/config"
+	"github.com/amirasaad/fintech/pkg/commands"
 	"github.com/amirasaad/fintech/pkg/currency"
-	"github.com/amirasaad/fintech/pkg/handler"
+	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/middleware"
 	accountsvc "github.com/amirasaad/fintech/pkg/service/account"
 	authsvc "github.com/amirasaad/fintech/pkg/service/auth"
@@ -68,16 +69,12 @@ func CreateAccount(
 		if input == nil {
 			return err // error response already written
 		}
-		currencyCode := currency.USD
-		if input.Currency != "" {
-			currencyCode = currency.Code(input.Currency)
-		}
-		a, err := accountSvc.CreateAccountWithCurrency(userID, currencyCode)
+		a, err := accountSvc.CreateAccount(c.Context(), dto.AccountCreate{UserID: userID, Currency: input.Currency})
 		if err != nil {
 			log.Errorf("Failed to create account: %v", err)
 			return common.ProblemDetailsJSON(c, "Failed to create account", err)
 		}
-		log.Infof("Account created: %+v", a)
+		log.Infof("Account created: %+v")
 		return common.SuccessResponseJSON(c, fiber.StatusCreated, "Account created", a)
 	}
 }
@@ -130,8 +127,14 @@ func Deposit(
 		if input.Currency != "" {
 			currencyCode = currency.Code(input.Currency)
 		}
-		log.Infof("Deposit handler: calling service for user %s, account %s, amount %v, currency %s, money_source %s", userID, accountID, input.Amount, currencyCode, input.MoneySource)
-		err = accountSvc.Deposit(userID, accountID, input.Amount, currencyCode, input.MoneySource)
+		depositCmd := commands.DepositCommand{
+			UserID:    userID,
+			AccountID: accountID,
+			Amount:    input.Amount,
+			Currency:  string(currencyCode),
+			// Add MoneySource, TargetCurrency, etc. if needed
+		}
+		err = accountSvc.Deposit(c.Context(), depositCmd)
 		if err != nil {
 			return common.ProblemDetailsJSON(c, "Failed to deposit", err)
 		}
@@ -196,12 +199,17 @@ func Withdraw(
 		if input.Currency != "" {
 			currencyCode = currency.Code(input.Currency)
 		}
-		handlerTarget := handler.ExternalTarget{
-			BankAccountNumber:     input.ExternalTarget.BankAccountNumber,
-			RoutingNumber:         input.ExternalTarget.RoutingNumber,
-			ExternalWalletAddress: input.ExternalTarget.ExternalWalletAddress,
-		}
-		err = accountSvc.Withdraw(userID, accountID, input.Amount, currencyCode, handlerTarget)
+		err = accountSvc.Withdraw(c.Context(), commands.WithdrawCommand{
+			UserID:    userID,
+			AccountID: accountID,
+			Amount:    input.Amount,
+			Currency:  string(currencyCode),
+			ExternalTarget: &commands.ExternalTarget{
+				BankAccountNumber:     input.ExternalTarget.BankAccountNumber,
+				RoutingNumber:         input.ExternalTarget.RoutingNumber,
+				ExternalWalletAddress: input.ExternalTarget.ExternalWalletAddress,
+			},
+		})
 		if err != nil {
 			return common.ProblemDetailsJSON(c, "Failed to withdraw", err)
 		}
@@ -255,13 +263,19 @@ func Transfer(accountSvc *accountsvc.Service, authSvc *authsvc.AuthService) fibe
 		if input.Currency != "" {
 			currencyCode = currency.Code(input.Currency)
 		}
-		log.Infof("Transfer handler: calling service for user %s, source account %s, dest account %s, amount %v, currency %s", userID, sourceAccountID, destAccountID, input.Amount, currencyCode)
-		err = accountSvc.Transfer(userID, sourceAccountID, destAccountID, input.Amount, currencyCode)
-		if err != nil {
-			return common.ProblemDetailsJSON(c, "Failed to transfer", err, err.Error())
+		// Construct a DTO for transfer
+		transferDTO := dto.TransactionCreate{
+			UserID:      userID,
+			AccountID:   sourceAccountID,
+			Amount:      int64(input.Amount),
+			Currency:    string(currencyCode),
+			MoneySource: "transfer", // Use consistent source for transfers
 		}
-		resp := fiber.Map{}
-		return common.SuccessResponseJSON(c, fiber.StatusAccepted, "Transfer request is being processed. Your transfer is being started and will be completed soon.", resp)
+		err = accountSvc.Transfer(c.Context(), transferDTO, destAccountID)
+		if err != nil {
+			return common.ProblemDetailsJSON(c, "Failed to transfer", err)
+		}
+		return common.SuccessResponseJSON(c, fiber.StatusAccepted, "Transfer request is being processed. Your transfer is being started and will be completed soon.", fiber.Map{})
 	}
 }
 

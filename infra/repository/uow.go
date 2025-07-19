@@ -4,7 +4,11 @@ import (
 	"context"
 	"fmt"
 
+	repoaccount "github.com/amirasaad/fintech/infra/repository/account"
+	repotransaction "github.com/amirasaad/fintech/infra/repository/transaction"
 	"github.com/amirasaad/fintech/pkg/repository"
+	"github.com/amirasaad/fintech/pkg/repository/account"
+	"github.com/amirasaad/fintech/pkg/repository/transaction"
 	"gorm.io/gorm"
 )
 
@@ -60,7 +64,7 @@ func (u *UoW) GetRepository(repoType interface{}) (any, error) {
 		dbToUse = u.db
 	}
 
-	// Create repositories on-demand for backward compatibility
+	// Create repositories on-demand for backward compatibility and CQRS
 	switch repoType {
 	case (*repository.AccountRepository)(nil):
 		return NewAccountRepository(dbToUse), nil
@@ -68,6 +72,11 @@ func (u *UoW) GetRepository(repoType interface{}) (any, error) {
 		return NewTransactionRepository(dbToUse), nil
 	case (*repository.UserRepository)(nil):
 		return NewUserRepository(dbToUse), nil
+	// --- CQRS-style repositories ---
+	case (*account.Repository)(nil):
+		return repoaccount.New(dbToUse), nil
+	case (*transaction.Repository)(nil):
+		return repotransaction.New(dbToUse), nil
 	default:
 		return nil, fmt.Errorf("unsupported repository type: %T", repoType)
 	}

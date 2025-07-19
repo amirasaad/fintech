@@ -129,6 +129,8 @@ func errorToStatusCode(err error) int {
 		return fiber.StatusBadRequest
 	case errors.Is(err, common.ErrAmountExceedsMaxSafeInt):
 		return fiber.StatusBadRequest
+	case errors.Is(err, common.ErrUnsupportedCurrency):
+		return fiber.StatusUnprocessableEntity
 	// Money/currency conversion errors
 	case errors.Is(err, domain.ErrExchangeRateUnavailable):
 		return fiber.StatusServiceUnavailable
