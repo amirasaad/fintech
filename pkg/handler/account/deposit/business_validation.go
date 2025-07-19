@@ -39,10 +39,12 @@ func BusinessValidationHandler(bus eventbus.EventBus, logger *slog.Logger) func(
 			"correlation_id", correlationID)
 
 		// Emit DepositBusinessValidatedEvent
-		log.Info("📤 [EMIT] Emitting DepositBusinessValidatedEvent", "correlation_id", correlationID)
+		log.Info("\ud83d\udce4 [EMIT] Emitting DepositBusinessValidatedEvent", "correlation_id", correlationID)
 		bus.Publish(ctx, events.DepositBusinessValidatedEvent{
 			DepositConversionDoneEvent: dce,
 			CorrelationID: correlationID,
+			UserID: dce.UserID,
+			AccountID: dce.AccountID,
 		})
 	}
 }
