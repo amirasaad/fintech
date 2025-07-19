@@ -28,6 +28,11 @@ func PersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork, logger
 			log.Error("❌ [ERROR] Unexpected event", "event", e)
 			return
 		}
+		correlationID := ve.CorrelationID
+		if correlationID == "" {
+			correlationID = uuid.NewString()
+		}
+		log = log.With("correlation_id", correlationID)
 		log.Info("🔄 [PROCESS] Received DepositValidatedEvent", "event", ve)
 
 		// Create a new transaction and persist it
@@ -54,7 +59,7 @@ func PersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork, logger
 			}); err != nil {
 				return err
 			}
-			log.Info("✅ [SUCCESS] Transaction persisted", "transaction_id", txID)
+			log.Info("✅ [SUCCESS] Transaction persisted", "transaction_id", txID, "correlation_id", correlationID)
 			return nil
 		}); err != nil {
 			log.Error("❌ [ERROR] Failed to persist transaction", "error", err)
@@ -62,22 +67,24 @@ func PersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork, logger
 		}
 
 		// Emit DepositPersistedEvent
-		log.Info("📤 [EMIT] Emitting DepositPersistedEvent", "transaction_id", txID)
+		log.Info("📤 [EMIT] Emitting DepositPersistedEvent", "transaction_id", txID, "correlation_id", correlationID)
 		_ = bus.Publish(ctx, events.DepositPersistedEvent{
 			DepositValidatedEvent: ve,
 			TransactionID:         txID,
 			UserID:                ve.UserID,
 			Amount:                ve.Amount,
+			CorrelationID:         correlationID,
 		})
 
 		// Emit ConversionRequested to trigger currency conversion for deposit (decoupled from payment)
-		log.Info("📤 [EMIT] Emitting ConversionRequestedEvent for deposit", "transaction_id", txID)
+		log.Info("📤 [EMIT] Emitting ConversionRequestedEvent for deposit", "transaction_id", txID, "correlation_id", correlationID)
 		conversionEvent := events.ConversionRequestedEvent{
 			FromAmount:    ve.Amount,
 			ToCurrency:    ve.Account.Currency().String(),
 			RequestID:     txID.String(),
+			CorrelationID: correlationID,
 		}
-		log.Info("📤 [EMIT] About to emit ConversionRequestedEvent", "event_type", conversionEvent.EventType())
+		log.Info("📤 [EMIT] About to emit ConversionRequestedEvent", "event_type", conversionEvent.EventType(), "correlation_id", correlationID)
 		_ = bus.Publish(ctx, conversionEvent)
 	}
 }

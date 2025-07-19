@@ -11,18 +11,24 @@ import (
 	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/amirasaad/fintech/pkg/repository/account"
+	"github.com/google/uuid"
 )
 
 // ValidationHandler validates the deposit request and emits DepositValidatedEvent on success.
 func ValidationHandler(bus eventbus.EventBus, uow repository.UnitOfWork, logger *slog.Logger) func(context.Context, domain.Event) {
 	return func(ctx context.Context, e domain.Event) {
 		log := logger.With("handler", "DepositValidationHandler", "event_type", e.EventType())
-		log.Info("🟢 [START] Received event", "event", e)
 		dr, ok := e.(events.DepositRequestedEvent)
 		if !ok {
 			log.Error("❌ [ERROR] Unexpected event type", "event", e)
 			return
 		}
+		correlationID := dr.CorrelationID
+		if correlationID == "" {
+			correlationID = uuid.NewString()
+		}
+		log = log.With("correlation_id", correlationID)
+		log.Info("🟢 [START] Received event", "event", e)
 		repoAny, err := uow.GetRepository((*account.Repository)(nil))
 		if err != nil {
 			log.Error("❌ [ERROR] Failed to get AccountRepository", "error", err)
@@ -39,11 +45,12 @@ func ValidationHandler(bus eventbus.EventBus, uow repository.UnitOfWork, logger 
 			log.Error("❌ [ERROR] Account validation failed", "error", err)
 			return
 		}
-		log.Info("✅ [SUCCESS] Account validated, emitting DepositValidatedEvent", "account_id", accDto.ID, "user_id", accDto.UserID)
+		log.Info("✅ [SUCCESS] Account validated, emitting DepositValidatedEvent", "account_id", accDto.ID, "user_id", accDto.UserID, "correlation_id", correlationID)
 		_ = bus.Publish(ctx, events.DepositValidatedEvent{
 			DepositRequestedEvent: dr,
 			AccountID:             acc.ID,
 			Account:               acc,
+			CorrelationID:         correlationID,
 		})
 	}
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/amirasaad/fintech/pkg/repository"
+	"github.com/google/uuid"
 )
 
 // ConversionDoneHandler handles DepositConversionDoneEvent and performs business validation after conversion.
@@ -20,6 +21,11 @@ func ConversionDoneHandler(bus eventbus.EventBus, uow repository.UnitOfWork, log
 
 		// Only process ConversionDoneEvent; remove old type assertion and error log.
 		cde := e.(events.ConversionDoneEvent)
+		correlationID := cde.CorrelationID
+		if correlationID == "" {
+			correlationID = uuid.NewString()
+		}
+		log = log.With("correlation_id", correlationID)
 		log.Info("🔄 [PROCESS] Mapping ConversionDoneEvent to DepositConversionDoneEvent",
 			"from_amount", cde.FromAmount,
 			"to_amount", cde.ToAmount,
@@ -27,8 +33,9 @@ func ConversionDoneHandler(bus eventbus.EventBus, uow repository.UnitOfWork, log
 		depositEvent := events.DepositConversionDoneEvent{
 			ConversionDoneEvent: cde,
 			FlowType: "deposit",
+			CorrelationID: correlationID,
 		}
-		log.Info("📤 [EMIT] Emitting DepositConversionDoneEvent", "event", depositEvent)
+		log.Info("📤 [EMIT] Emitting DepositConversionDoneEvent", "event", depositEvent, "correlation_id", correlationID)
 		_ = bus.Publish(ctx, depositEvent)
 	}
 }

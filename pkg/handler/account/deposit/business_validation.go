@@ -7,6 +7,7 @@ import (
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/amirasaad/fintech/pkg/domain"
+	"github.com/google/uuid"
 )
 
 // BusinessValidationHandler performs business validation in account currency after conversion.
@@ -20,6 +21,11 @@ func BusinessValidationHandler(bus eventbus.EventBus, logger *slog.Logger) func(
 			log.Warn("⚠️ [WARN] Unexpected event type in DepositBusinessValidationHandler", "event_type", e.EventType(), "event", e)
 			return // Ignore unrelated events
 		}
+		correlationID := dce.CorrelationID
+		if correlationID == "" {
+			correlationID = uuid.NewString()
+		}
+		log = log.With("correlation_id", correlationID)
 		if dce.FlowType != "deposit" {
 			log.Warn("⚠️ [WARN] DepositBusinessValidationHandler received event for wrong flow", "flow_type", dce.FlowType)
 			return
@@ -29,12 +35,14 @@ func BusinessValidationHandler(bus eventbus.EventBus, logger *slog.Logger) func(
 			"user_id", dce.UserID,
 			"account_id", dce.AccountID,
 			"amount", dce.ToAmount.Amount(),
-			"currency", dce.ToAmount.Currency().String())
+			"currency", dce.ToAmount.Currency().String(),
+			"correlation_id", correlationID)
 
 		// Emit DepositBusinessValidatedEvent
-		log.Info("📤 [EMIT] Emitting DepositBusinessValidatedEvent")
+		log.Info("📤 [EMIT] Emitting DepositBusinessValidatedEvent", "correlation_id", correlationID)
 		bus.Publish(ctx, events.DepositBusinessValidatedEvent{
 			DepositConversionDoneEvent: dce,
+			CorrelationID: correlationID,
 		})
 	}
 }
