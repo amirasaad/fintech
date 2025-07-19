@@ -78,7 +78,7 @@ func TestStripeWebhookHandler_PublishesEvent(t *testing.T) {
 func TestStripeWebhookHandler_Integration(t *testing.T) {
 	// Mocks
 	txRepo := fixturesmocks.NewMockTransactionRepository(t)
-	accRepo := fixturesmocks.NewMockAccountRepository(t)
+	accRepo := fixturesmocks.NewAccountRepository(t)
 	uow := fixturesmocks.NewMockUnitOfWork(t)
 
 	// Use a real *account.Transaction for the fake transaction
