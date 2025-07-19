@@ -320,3 +320,119 @@ func TestDepositAndWithdrawEventChains_NoCrossWorkflowInfiniteLoop(t *testing.T)
 	assert.Equal(t, 1, handlerCalls["WithdrawValidatedEvent"], "WithdrawValidatedEvent handler should be called once")
 	assert.Equal(t, 1, handlerCalls["WithdrawPersistedEvent"], "WithdrawPersistedEvent handler should be called once")
 }
+
+func TestAllWorkflowsEventChains_NoCrossWorkflowInfiniteLoop(t *testing.T) {
+	ctx := context.Background()
+	userID := uuid.New()
+	accountID := uuid.New()
+	amount, _ := money.New(100, currency.USD)
+
+	handlerCalls := make(map[string]int)
+	bus := eventbus.NewSimpleEventBus()
+	mockAccount := &account.Account{ID: accountID, UserID: userID, Balance: amount}
+	txID := uuid.New()
+
+	// Deposit workflow
+	bus.Subscribe("DepositRequestedEvent", func(ctx context.Context, e domain.Event) {
+		handlerCalls["DepositRequestedEvent"]++
+		dr := e.(events.DepositRequestedEvent)
+		bus.Publish(ctx, events.DepositValidatedEvent{
+			DepositRequestedEvent: dr,
+			AccountID:             dr.AccountID,
+			Account:               mockAccount,
+		})
+	})
+	bus.Subscribe("DepositValidatedEvent", func(ctx context.Context, e domain.Event) {
+		handlerCalls["DepositValidatedEvent"]++
+		ve := e.(events.DepositValidatedEvent)
+		bus.Publish(ctx, events.DepositPersistedEvent{
+			DepositValidatedEvent: ve,
+			TransactionID:         txID,
+			UserID:                ve.UserID,
+			Amount:                ve.Amount,
+		})
+	})
+	bus.Subscribe("DepositPersistedEvent", func(ctx context.Context, e domain.Event) {
+		handlerCalls["DepositPersistedEvent"]++
+	})
+
+	// Withdraw workflow
+	bus.Subscribe("WithdrawRequestedEvent", func(ctx context.Context, e domain.Event) {
+		handlerCalls["WithdrawRequestedEvent"]++
+		wr := e.(events.WithdrawRequestedEvent)
+		bus.Publish(ctx, events.WithdrawValidatedEvent{
+			WithdrawRequestedEvent: wr,
+			TargetCurrency:         amount.Currency().String(),
+			Account:                mockAccount,
+		})
+	})
+	bus.Subscribe("WithdrawValidatedEvent", func(ctx context.Context, e domain.Event) {
+		handlerCalls["WithdrawValidatedEvent"]++
+		wv := e.(events.WithdrawValidatedEvent)
+		bus.Publish(ctx, events.WithdrawPersistedEvent{
+			WithdrawValidatedEvent: wv,
+			TransactionID:          txID,
+		})
+	})
+	bus.Subscribe("WithdrawPersistedEvent", func(ctx context.Context, e domain.Event) {
+		handlerCalls["WithdrawPersistedEvent"]++
+	})
+
+	// Transfer workflow
+	bus.Subscribe("TransferRequestedEvent", func(ctx context.Context, e domain.Event) {
+		handlerCalls["TransferRequestedEvent"]++
+		tr := e.(events.TransferRequestedEvent)
+		bus.Publish(ctx, events.TransferValidatedEvent{TransferRequestedEvent: tr})
+	})
+	bus.Subscribe("TransferValidatedEvent", func(ctx context.Context, e domain.Event) {
+		handlerCalls["TransferValidatedEvent"]++
+		tv := e.(events.TransferValidatedEvent)
+		bus.Publish(ctx, events.TransferDomainOpDoneEvent{TransferValidatedEvent: tv})
+	})
+	bus.Subscribe("TransferDomainOpDoneEvent", func(ctx context.Context, e domain.Event) {
+		handlerCalls["TransferDomainOpDoneEvent"]++
+		do := e.(events.TransferDomainOpDoneEvent)
+		bus.Publish(ctx, events.TransferPersistedEvent{TransferDomainOpDoneEvent: do})
+	})
+	bus.Subscribe("TransferPersistedEvent", func(ctx context.Context, e domain.Event) {
+		handlerCalls["TransferPersistedEvent"]++
+	})
+
+	// Start all chains
+	bus.Publish(ctx, events.DepositRequestedEvent{
+		EventID:   uuid.New(),
+		AccountID: accountID,
+		UserID:    userID,
+		Amount:    amount,
+		Source:    "deposit",
+		Timestamp: time.Now(),
+	})
+	bus.Publish(ctx, events.WithdrawRequestedEvent{
+		EventID:   uuid.New(),
+		AccountID: accountID,
+		UserID:    userID,
+		Amount:    amount,
+		Timestamp: time.Now(),
+	})
+	bus.Publish(ctx, events.TransferRequestedEvent{
+		EventID:         uuid.New(),
+		SourceAccountID: accountID,
+		DestAccountID:   accountID,
+		SenderUserID:    userID,
+		ReceiverUserID:  userID,
+		Amount:          amount,
+		Source:          "transfer",
+	})
+
+	// Assert each handler called exactly once per event
+	assert.Equal(t, 1, handlerCalls["DepositRequestedEvent"], "DepositRequestedEvent handler should be called once")
+	assert.Equal(t, 1, handlerCalls["DepositValidatedEvent"], "DepositValidatedEvent handler should be called once")
+	assert.Equal(t, 1, handlerCalls["DepositPersistedEvent"], "DepositPersistedEvent handler should be called once")
+	assert.Equal(t, 1, handlerCalls["WithdrawRequestedEvent"], "WithdrawRequestedEvent handler should be called once")
+	assert.Equal(t, 1, handlerCalls["WithdrawValidatedEvent"], "WithdrawValidatedEvent handler should be called once")
+	assert.Equal(t, 1, handlerCalls["WithdrawPersistedEvent"], "WithdrawPersistedEvent handler should be called once")
+	assert.Equal(t, 1, handlerCalls["TransferRequestedEvent"], "TransferRequestedEvent handler should be called once")
+	assert.Equal(t, 1, handlerCalls["TransferValidatedEvent"], "TransferValidatedEvent handler should be called once")
+	assert.Equal(t, 1, handlerCalls["TransferDomainOpDoneEvent"], "TransferDomainOpDoneEvent handler should be called once")
+	assert.Equal(t, 1, handlerCalls["TransferPersistedEvent"], "TransferPersistedEvent handler should be called once")
+}
