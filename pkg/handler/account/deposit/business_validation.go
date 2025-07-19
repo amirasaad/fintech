@@ -17,7 +17,7 @@ func BusinessValidationHandler(bus eventbus.EventBus, logger *slog.Logger) func(
 		log.Info("🟢 [START] Received event", "event", e)
 		dce, ok := e.(events.DepositConversionDoneEvent)
 		if !ok {
-			log.Warn("[WARN] Unexpected event type in DepositBusinessValidationHandler", "event_type", e.EventType(), "event", e)
+			log.Warn("⚠️ [WARN] Unexpected event type in DepositBusinessValidationHandler", "event_type", e.EventType(), "event", e)
 			return // Ignore unrelated events
 		}
 		// Perform business validation in account currency here...
