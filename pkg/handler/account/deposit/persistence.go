@@ -78,7 +78,7 @@ func PersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork, logger
 			OriginalEvent:  ve,
 			Amount:         ve.Amount,
 			SourceCurrency: ve.Amount.Currency().String(),
-			TargetCurrency: ve.Account.Currency().String(),
+			TargetCurrency: ve.Account.Balance.Currency().String(),
 		})
 	}
 }

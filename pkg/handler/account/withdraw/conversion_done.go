@@ -18,15 +18,12 @@ import (
 // This handler focuses ONLY on business validation - payment initiation is handled separately by payment handlers.
 func ConversionDoneHandler(bus eventbus.EventBus, uow repository.UnitOfWork, logger *slog.Logger) func(context.Context, domain.Event) {
 	return func(ctx context.Context, e domain.Event) {
-		logger := logger.With(
-			"handler", "WithdrawConversionDoneHandler",
-			"event_type", e.EventType(),
-		)
-		logger.Info("received conversion done event", "event", e)
+		log := logger.With("handler", "WithdrawConversionDoneHandler", "event_type", e.EventType())
+		log.Info("🟢 [START] Received event", "event", e)
 
 		wce, ok := e.(events.WithdrawConversionDoneEvent)
 		if !ok {
-			logger.Error("unexpected event type", "event", e)
+			log.Error("❌ [ERROR] Unexpected event type", "event", e)
 			return
 		}
 
@@ -36,7 +33,7 @@ func ConversionDoneHandler(bus eventbus.EventBus, uow repository.UnitOfWork, log
 		requestID := wce.RequestID
 		convertedAmount := wce.ToAmount
 
-		logger.Info("processing withdraw conversion done",
+		log.Info("🔄 [PROCESS] Processing withdraw conversion done",
 			"user_id", userID,
 			"account_id", accountID,
 			"request_id", requestID,
@@ -46,19 +43,19 @@ func ConversionDoneHandler(bus eventbus.EventBus, uow repository.UnitOfWork, log
 		// Load account for business validation
 		accUUID, err := uuid.Parse(accountID)
 		if err != nil {
-			logger.Error("invalid account ID", "account_id", accountID, "error", err)
+			log.Error("❌ [ERROR] Invalid account ID", "account_id", accountID, "error", err)
 			return
 		}
 
 		repoAny, err := uow.GetRepository((*account.Repository)(nil))
 		if err != nil {
-			logger.Error("failed to get AccountRepository", "error", err)
+			log.Error("❌ [ERROR] Failed to get AccountRepository", "error", err)
 			return
 		}
 		repo := repoAny.(account.Repository)
 		accDto, err := repo.Get(ctx, accUUID)
 		if err != nil {
-			logger.Error("account not found", "account_id", accountID, "error", err)
+			log.Error("❌ [ERROR] Account not found", "account_id", accountID, "error", err)
 			return
 		}
 
@@ -67,16 +64,16 @@ func ConversionDoneHandler(bus eventbus.EventBus, uow repository.UnitOfWork, log
 		// Validate sufficient funds in account currency (after conversion)
 		userUUID, err := uuid.Parse(userID)
 		if err != nil {
-			logger.Error("invalid user ID", "user_id", userID, "error", err)
+			log.Error("❌ [ERROR] Invalid user ID", "user_id", userID, "error", err)
 			return
 		}
 
 		if err := acc.ValidateWithdraw(userUUID, convertedAmount); err != nil {
-			logger.Error("withdraw validation failed after conversion", "error", err)
+			log.Error("❌ [ERROR] Withdraw validation failed after conversion", "error", err)
 			return
 		}
 
-		logger.Info("withdraw validation passed after conversion",
+		log.Info("✅ [SUCCESS] Withdraw validation passed after conversion",
 			"user_id", userID,
 			"account_id", accountID,
 			"amount", convertedAmount.Amount(),
@@ -99,10 +96,10 @@ func ConversionDoneHandler(bus eventbus.EventBus, uow repository.UnitOfWork, log
 		}
 
 		if err := bus.Publish(ctx, validatedEvent); err != nil {
-			logger.Error("failed to publish WithdrawValidatedEvent", "error", err)
+			log.Error("❌ [ERROR] Failed to publish WithdrawValidatedEvent", "error", err)
 			return
 		}
 
-		logger.Info("WithdrawValidatedEvent published to trigger payment initiation", "event", validatedEvent)
+		log.Info("📤 [EMIT] Emitting WithdrawValidatedEvent for payment initiation")
 	}
 }

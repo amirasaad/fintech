@@ -20,7 +20,7 @@ func PaymentInitiationHandler(bus eventbus.EventBus, paymentProvider provider.Pa
 			"handler", "PaymentInitiationHandler",
 			"event_type", e.EventType(),
 		)
-		log.Info("received validation event", "event", e)
+		log.Info("🟢 [START] Received validation event", "event", e)
 
 		// Extract payment details from different validation events
 		var userID uuid.UUID
@@ -36,7 +36,7 @@ func PaymentInitiationHandler(bus eventbus.EventBus, paymentProvider provider.Pa
 			amount = evt.Amount.Amount() // Use Amount() for int64 (smallest currency unit)
 			currency = evt.Amount.Currency().String()
 			transactionID = uuid.New() // Will be set by persistence handler
-			log.Info("processing deposit validation for payment initiation", 
+			log.Info("🔄 [PROCESS] Processing deposit validation for payment initiation", 
 				"user_id", userID, "account_id", accountID, "amount", amount, "currency", currency)
 
 		case events.WithdrawValidatedEvent:
@@ -45,22 +45,22 @@ func PaymentInitiationHandler(bus eventbus.EventBus, paymentProvider provider.Pa
 			amount = evt.Amount.Amount() // Use Amount() for int64 (smallest currency unit)
 			currency = evt.Amount.Currency().String()
 			transactionID = uuid.New() // Will be set by persistence handler
-			log.Info("processing withdraw validation for payment initiation", 
+			log.Info("🔄 [PROCESS] Processing withdraw validation for payment initiation", 
 				"user_id", userID, "account_id", accountID, "amount", amount, "currency", currency)
 
 		default:
-			log.Error("unexpected event type for payment initiation", "event", e)
+			log.Error("❌ [ERROR] Unexpected event type for payment initiation", "event", e)
 			return
 		}
 
 		// Initiate payment with the provider
 		paymentID, err := paymentProvider.InitiatePayment(ctx, userID, accountID, amount, currency)
 		if err != nil {
-			log.Error("payment initiation failed", "error", err)
+			log.Error("❌ [ERROR] Payment initiation failed", "error", err)
 			return
 		}
 
-		log.Info("payment initiated successfully", "payment_id", paymentID)
+		log.Info("✅ [SUCCESS] Payment initiated successfully", "payment_id", paymentID)
 
 		// Emit PaymentInitiatedEvent
 		paymentEvent := events.PaymentInitiatedEvent{
@@ -71,10 +71,10 @@ func PaymentInitiationHandler(bus eventbus.EventBus, paymentProvider provider.Pa
 		}
 
 		if err := bus.Publish(ctx, paymentEvent); err != nil {
-			log.Error("failed to publish PaymentInitiatedEvent", "error", err)
+			log.Error("❌ [ERROR] Failed to publish PaymentInitiatedEvent", "error", err)
 			return
 		}
 
-		log.Info("PaymentInitiatedEvent published", "event", paymentEvent)
+		log.Info("📤 [EMIT] PaymentInitiatedEvent published", "event", paymentEvent)
 	}
 }

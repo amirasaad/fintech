@@ -18,25 +18,26 @@ import (
 func WithdrawPersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork, logger *slog.Logger) func(context.Context, domain.Event) {
 	return func(ctx context.Context, e domain.Event) {
 		log := logger.With("handler", "WithdrawPersistenceHandler", "event_type", e.EventType())
-		log.Info("received event", "event", e)
+		log.Info("🟢 [START] Received event", "event", e)
 
 		ve, ok := e.(events.WithdrawValidatedEvent)
 		if !ok {
-			log.Error("unexpected event", "event", e)
+			log.Error("❌ [ERROR] Unexpected event", "event", e)
 			return
 		}
-		log.Info("received WithdrawValidatedEvent", "event", ve)
+		log.Info("🔄 [PROCESS] Received WithdrawValidatedEvent", "event", ve)
 
 		txID := uuid.New()
 		if err := uow.Do(ctx, func(uow repository.UnitOfWork) error {
 			txRepoAny, err := uow.GetRepository((*transaction.Repository)(nil))
 			if err != nil {
-				log.Error("failed to get repo", "err", err)
+				log.Error("❌ [ERROR] Failed to get repo", "err", err)
 				return err
 			}
 			txRepo, ok := txRepoAny.(transaction.Repository)
 			if !ok {
-				return errors.New("failed to retrieve repo")
+				log.Error("❌ [ERROR] Failed to retrieve repo type")
+				return errors.New("failed to retrieve repo type")
 			}
 			if err := txRepo.Create(ctx, dto.TransactionCreate{
 				ID:        txID,
@@ -48,20 +49,20 @@ func WithdrawPersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork
 			}); err != nil {
 				return err
 			}
-			log.Info("withdraw transaction persisted", "transaction_id", txID)
+			log.Info("✅ [SUCCESS] Withdraw transaction persisted", "transaction_id", txID)
 			return nil
 		}); err != nil {
-			log.Error("failed to persist withdraw transaction", "error", err)
+			log.Error("❌ [ERROR] Failed to persist withdraw transaction", "error", err)
 			return
 		}
-		log.Info("emitting WithdrawPersistedEvent", "transaction_id", txID)
+		log.Info("📤 [EMIT] Emitting WithdrawPersistedEvent", "transaction_id", txID)
 		_ = bus.Publish(ctx, events.WithdrawPersistedEvent{
 			WithdrawValidatedEvent: ve,
 			TransactionID:          txID,
 		})
 
 		// Emit ConversionRequested to trigger currency conversion for withdraw (decoupled from payment)
-		logger.Info("emitting ConversionRequested for withdraw", "transaction_id", txID)
+		log.Info("📤 [EMIT] Emitting ConversionRequested for withdraw", "transaction_id", txID)
 		_ = bus.Publish(ctx, events.ConversionRequested{
 			CorrelationID:  txID.String(),
 			FlowType:       "withdraw",
