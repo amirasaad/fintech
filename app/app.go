@@ -97,6 +97,8 @@ func New(deps config.Deps) *fiber.App {
 	bus.Subscribe("TransferConversionDoneEvent", transferhandler.TransferDomainOpHandler(bus, nil))
 	// e. Final persistence after domain operation
 	bus.Subscribe("TransferDomainOpDoneEvent", transferhandler.TransferPersistenceHandler(bus, deps.Uow, deps.Logger))
+	// f. Business validation after conversion (in account currency)
+	bus.Subscribe("TransferConversionDoneEvent", transferhandler.BusinessValidationHandler(bus, deps.Logger))
 
 	// Register ConversionDoneEvent handlers for deposit, withdraw, and transfer flows to continue the event-driven flow after conversion.
 	bus.Subscribe("ConversionDoneEvent", deposithandler.ConversionDoneHandler(bus, deps.Uow, deps.Logger))
