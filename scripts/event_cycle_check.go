@@ -4,6 +4,7 @@
 package main
 
 import (
+	"slices"
 	"bufio"
 	"fmt"
 	"os"
@@ -107,11 +108,9 @@ func main() {
 		}
 		visited[node] = true
 		stack[node] = true
-		for _, neighbor := range graph[node] {
-			if dfs(neighbor) {
+		if slices.ContainsFunc(graph[node], dfs) {
 				return true
 			}
-		}
 		stack[node] = false
 		return false
 	}
