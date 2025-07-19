@@ -21,6 +21,7 @@ func BusinessValidationHandler(bus eventbus.EventBus, logger *slog.Logger) func(
 			log.Warn("⚠️ [WARN] Unexpected event type in DepositBusinessValidationHandler", "event_type", e.EventType(), "event", e)
 			return // Ignore unrelated events
 		}
+		log.Info("[DEBUG] Incoming DepositConversionDoneEvent IDs", "user_id", dce.UserID, "account_id", dce.AccountID)
 		correlationID := dce.CorrelationID
 		if correlationID == "" {
 			correlationID = uuid.NewString()

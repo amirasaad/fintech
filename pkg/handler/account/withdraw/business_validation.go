@@ -21,6 +21,7 @@ func BusinessValidationHandler(bus eventbus.EventBus, logger *slog.Logger) func(
 			log.Warn("⚠️ [WARN] Unexpected event type in WithdrawBusinessValidationHandler", "event_type", e.EventType(), "event", e)
 			return
 		}
+		log.Info("[DEBUG] Incoming WithdrawConversionDoneEvent IDs", "user_id", wce.UserID, "account_id", wce.AccountID)
 		if wce.FlowType != "withdraw" {
 			log.Warn("⚠️ [WARN] WithdrawBusinessValidationHandler received event for wrong flow", "flow_type", wce.FlowType)
 			return
