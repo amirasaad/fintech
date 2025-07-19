@@ -58,9 +58,20 @@ type DepositConversionDone struct {
 	ConvertedAmount money.Money
 }
 
+// After conversion, for business validation in account currency
+// Emitted by BusinessValidationHandler after DepositConversionDoneEvent
+// Triggers payment initiation
+
+// DepositBusinessValidatedEvent is emitted after business validation in account currency.
+type DepositBusinessValidatedEvent struct {
+	DepositConversionDoneEvent
+	// Add any additional fields needed for business validation
+}
+
 func (e DepositRequestedEvent) EventType() string      { return "DepositRequestedEvent" }
 func (e DepositValidatedEvent) EventType() string      { return "DepositValidatedEvent" }
 func (e DepositConversionDoneEvent) EventType() string { return "DepositConversionDoneEvent" }
 func (e DepositPersistedEvent) EventType() string      { return "DepositPersistedEvent" }
 func (e DepositConversionRequested) EventType() string { return "DepositConversionRequested" }
 func (e DepositConversionDone) EventType() string      { return "DepositConversionDone" }
+func (e DepositBusinessValidatedEvent) EventType() string { return "DepositBusinessValidatedEvent" }
