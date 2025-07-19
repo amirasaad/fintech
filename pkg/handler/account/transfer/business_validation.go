@@ -21,6 +21,10 @@ func BusinessValidationHandler(bus eventbus.EventBus, logger *slog.Logger) func(
 			log.Warn("⚠️ [WARN] Unexpected event type in TransferBusinessValidationHandler", "event_type", e.EventType(), "event", e)
 			return
 		}
+		if tce.Source != "transfer" {
+			log.Warn("⚠️ [WARN] TransferBusinessValidationHandler received event for wrong flow", "source", tce.Source)
+			return
+		}
 		// Perform business validation in account currency here...
 		log.Info("✅ [SUCCESS] Business validation passed after conversion, emitting TransferDomainOpDoneEvent",
 			"sender_user_id", tce.SenderUserID,

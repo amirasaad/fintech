@@ -26,6 +26,7 @@ func ConversionDoneHandler(bus eventbus.EventBus, uow repository.UnitOfWork, log
 			"request_id", cde.RequestID)
 		withdrawEvent := events.WithdrawConversionDoneEvent{
 			ConversionDoneEvent: cde,
+			Source: "withdraw",
 		}
 		log.Info("📤 [EMIT] Emitting WithdrawConversionDoneEvent", "event", withdrawEvent)
 		_ = bus.Publish(ctx, withdrawEvent)

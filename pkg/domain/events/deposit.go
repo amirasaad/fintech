@@ -30,6 +30,7 @@ type DepositConversionDoneEvent struct {
 	ConversionDoneEvent
 	UserID    string
 	AccountID string
+	Source    string // Flow type, e.g., "deposit"
 }
 
 // DepositPersistedEvent is emitted after persistence is complete.

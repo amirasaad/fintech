@@ -26,6 +26,7 @@ func ConversionDoneHandler(bus eventbus.EventBus, uow repository.UnitOfWork, log
 			"request_id", cde.RequestID)
 		transferEvent := events.TransferConversionDoneEvent{
 			ConversionDoneEvent: cde,
+			Source: "transfer",
 		}
 		logger.Info("📤 [EMIT] Emitting TransferConversionDoneEvent", "event", transferEvent)
 		_ = bus.Publish(ctx, transferEvent)
