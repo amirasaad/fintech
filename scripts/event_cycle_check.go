@@ -21,6 +21,14 @@ type Edge struct {
 	Handler string
 }
 
+// Helper to normalize handler function names (strip package prefix)
+func normalizeHandlerName(name string) string {
+	if idx := strings.LastIndex(name, "."); idx != -1 {
+		return name[idx+1:]
+	}
+	return name
+}
+
 func main() {
 	// 1. Parse app/app.go for bus.Subscribe lines
 	appFile, err := os.Open("app/app.go")
@@ -40,7 +48,7 @@ func main() {
 		matches := subscribeRe.FindStringSubmatch(line)
 		if len(matches) == 3 {
 			eventType := matches[1]
-			handlerFunc := matches[2]
+			handlerFunc := normalizeHandlerName(matches[2])
 			handlerToEvent[handlerFunc] = eventType
 			eventToHandlers[eventType] = append(eventToHandlers[eventType], handlerFunc)
 		}
@@ -68,7 +76,7 @@ func main() {
 				if idx := strings.Index(fn, "("); idx > 0 {
 					fn = fn[:idx]
 				}
-				currentHandler = fn
+				currentHandler = normalizeHandlerName(fn)
 			}
 			// Detect bus.Publish
 			matches := publishRe.FindStringSubmatch(line)
