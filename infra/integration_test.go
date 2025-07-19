@@ -69,17 +69,18 @@ func TestEventDrivenDepositFlow_Integration(t *testing.T) {
 	// Step 3: Persistence Handler
 	persistHandler := deposit.PersistenceHandler(bus, uow, logger)
 	persistHandler(ctx, depositValidated)
-	assert.Len(t, bus.published, 3, "Persistence handler should publish DepositPersistedEvent and CurrencyConversionRequested")
+	assert.Len(t, bus.published, 3, "Persistence handler should publish DepositPersistedEvent and ConversionRequested")
 
 	depositPersisted, ok := bus.published[1].(events.DepositPersistedEvent)
 	require.True(t, ok, "Second event should be DepositPersistedEvent")
 	assert.Equal(t, validUser, depositPersisted.UserID)
 	assert.Equal(t, validAccount, depositPersisted.AccountID)
 
-	conversionRequested, ok := bus.published[2].(events.CurrencyConversionRequested)
-	require.True(t, ok, "Third event should be CurrencyConversionRequested")
-	assert.Equal(t, validUser, conversionRequested.UserID)
-	assert.Equal(t, validAccount, conversionRequested.AccountID)
+	conversionRequested, ok := bus.published[2].(events.ConversionRequested)
+	require.True(t, ok, "Third event should be ConversionRequested")
+	assert.Equal(t, "deposit", conversionRequested.FlowType)
+	assert.Equal(t, validUser, conversionRequested.OriginalEvent.(events.DepositValidatedEvent).UserID)
+	assert.Equal(t, validAccount, conversionRequested.OriginalEvent.(events.DepositValidatedEvent).AccountID)
 
 	t.Logf("Published events: %#v", bus.published)
 	t.Logf("✅ Event-driven deposit flow completed successfully:")
