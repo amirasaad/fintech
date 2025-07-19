@@ -10,6 +10,7 @@ import (
 
 	"github.com/amirasaad/fintech/pkg/domain/events"
 
+	"io"
 	"log/slog"
 
 	"github.com/amirasaad/fintech/infra/provider"
@@ -17,10 +18,12 @@ import (
 	"github.com/amirasaad/fintech/pkg/domain"
 	accountdomain "github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/domain/money"
+	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/amirasaad/fintech/pkg/handler/payment"
 	"github.com/amirasaad/fintech/webapi/account"
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -75,25 +78,40 @@ func TestStripeWebhookHandler_PublishesEvent(t *testing.T) {
 func TestStripeWebhookHandler_Integration(t *testing.T) {
 	// Mocks
 	txRepo := fixturesmocks.NewMockTransactionRepository(t)
+	accRepo := fixturesmocks.NewMockAccountRepository(t)
 	uow := fixturesmocks.NewMockUnitOfWork(t)
 	uow.On("TransactionRepository").Return(txRepo, nil)
+	uow.On("GetRepository", mock.Anything).Return(accRepo, nil)
 
 	// Use a real *account.Transaction for the fake transaction
 	fakeTx := &accountdomain.Transaction{
+		ID:        uuid.New(),
+		UserID:    uuid.New(),
+		AccountID: uuid.New(),
 		Status:    "initiated",
 		PaymentID: "pi_test",
-		Amount:    money.NewFromData(0, "USD"), // or a valid amount/currency
+		Amount:    money.NewFromData(1000, "USD"), // Use a valid amount
 		Balance:   money.NewFromData(0, "USD"),
+	}
+
+	// Mock account data
+	fakeAccount := &dto.AccountRead{
+		ID:       fakeTx.AccountID,
+		UserID:   fakeTx.UserID,
+		Balance:  0,
+		Currency: "USD",
 	}
 
 	txRepo.On("GetByPaymentID", "pi_test").Return(fakeTx, nil)
 	txRepo.On("Update", fakeTx).Run(func(args mock.Arguments) {
 		fakeTx.Status = "succeeded"
 	}).Return(nil)
+	accRepo.On("Get", mock.Anything, fakeTx.AccountID).Return(fakeAccount, nil)
+	accRepo.On("Update", mock.Anything, fakeTx.AccountID, mock.Anything).Return(nil)
 
 	// Set up event bus and register handler
 	bus := eventbus.NewSimpleEventBus()
-	logger := slog.New(slog.NewTextHandler(nil, nil))
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	bus.Subscribe((events.PaymentCompletedEvent{}).EventType(), payment.CompletedHandler(bus, uow, logger))
 	bus.Subscribe((events.PaymentInitiationEvent{}).EventType(), payment.PaymentInitiationHandler(bus, provider.NewMockPaymentProvider(), logger))
 	bus.Subscribe((events.PaymentIdPersistedEvent{}).EventType(), payment.PersistenceHandler(bus, uow, logger))
