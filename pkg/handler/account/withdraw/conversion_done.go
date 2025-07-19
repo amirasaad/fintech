@@ -9,6 +9,7 @@ import (
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/amirasaad/fintech/pkg/repository"
+	"github.com/google/uuid"
 )
 
 // ConversionDoneHandler handles WithdrawConversionDoneEvent and performs business validation after conversion.
@@ -24,11 +25,41 @@ func ConversionDoneHandler(bus eventbus.EventBus, uow repository.UnitOfWork, log
 			"from_amount", cde.FromAmount,
 			"to_amount", cde.ToAmount,
 			"request_id", cde.RequestID)
+
+		// Parse the request ID (which is the transaction ID)
+		txID, err := uuid.Parse(cde.RequestID)
+		if err != nil {
+			log.Error("invalid transaction ID in request", "request_id", cde.RequestID, "error", err)
+			return
+		}
+
+		// Look up the transaction to get UserID and AccountID
+		txRepoAny, err := uow.GetRepository((*repository.TransactionRepository)(nil))
+		if err != nil {
+			log.Error("failed to get transaction repository", "error", err)
+			return
+		}
+		txRepo, ok := txRepoAny.(repository.TransactionRepository)
+		if !ok {
+			log.Error("failed to cast to TransactionRepository")
+			return
+		}
+		tx, err := txRepo.Get(ctx, txID)
+		if err != nil {
+			log.Error("failed to get transaction for conversion done", "transaction_id", txID, "error", err)
+			return
+		}
+
+		userID := tx.UserID.String()
+		accountID := tx.AccountID.String()
+
 		withdrawEvent := events.WithdrawConversionDoneEvent{
 			ConversionDoneEvent: cde,
+			UserID: userID,
+			AccountID: accountID,
 			FlowType: "withdraw",
 		}
-		log.Info("📤 [EMIT] Emitting WithdrawConversionDoneEvent", "event", withdrawEvent)
+		log.Info("🟢 [EMIT] Emitting WithdrawConversionDoneEvent", "event", withdrawEvent)
 		_ = bus.Publish(ctx, withdrawEvent)
 	}
 }
