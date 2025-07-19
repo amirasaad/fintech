@@ -7,6 +7,7 @@ import (
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/amirasaad/fintech/pkg/domain"
+	"github.com/google/uuid"
 )
 
 // BusinessValidationHandler performs business validation in account currency after conversion.
@@ -32,8 +33,8 @@ func BusinessValidationHandler(bus eventbus.EventBus, logger *slog.Logger) func(
 		log.Info("📤 [EMIT] Emitting TransferDomainOpDoneEvent")
 		bus.Publish(ctx, events.TransferDomainOpDoneEvent{
 			TransferValidatedEvent: events.TransferValidatedEvent{}, // Fill as needed
-			SenderUserID:    domain.MustParseUUID(tce.SenderUserID),
-			SourceAccountID: domain.MustParseUUID(tce.SourceAccountID),
+			SenderUserID:    uuid.MustParse(tce.SenderUserID),
+			SourceAccountID: uuid.MustParse(tce.SourceAccountID),
 			Amount:          tce.ToAmount,
 			Source:          "transfer",
 		})

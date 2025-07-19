@@ -7,6 +7,7 @@ import (
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/amirasaad/fintech/pkg/domain"
+	"github.com/google/uuid"
 )
 
 // BusinessValidationHandler performs business validation in account currency after conversion.
@@ -31,9 +32,9 @@ func BusinessValidationHandler(bus eventbus.EventBus, logger *slog.Logger) func(
 		log.Info("📤 [EMIT] Emitting WithdrawValidatedEvent")
 		bus.Publish(ctx, events.WithdrawValidatedEvent{
 			WithdrawRequestedEvent: events.WithdrawRequestedEvent{
-				EventID:   wce.ConversionDoneEvent.EventID,
-				AccountID: domain.MustParseUUID(wce.AccountID),
-				UserID:    domain.MustParseUUID(wce.UserID),
+				EventID:   uuid.MustParse(wce.ConversionDoneEvent.EventID),
+				AccountID: uuid.MustParse(wce.AccountID),
+				UserID:    uuid.MustParse(wce.UserID),
 				Amount:    wce.ToAmount,
 			},
 			TargetCurrency: wce.ToAmount.Currency().String(),
