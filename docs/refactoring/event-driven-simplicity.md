@@ -58,6 +58,30 @@ Achieve a simple, maintainable, and robust event-driven architecture by:
 
 ---
 
+## 🖼️ Event Flow Example
+
+```mermaid
+flowchart TD
+    A["DepositInitiated Event"] --> B["DepositValidationHandler"]
+    B --> C["DepositPersistenceHandler"]
+    C --> D["DepositConversionHandler"]
+    D --> E["DepositCompletedHandler"]
+
+    subgraph Legend
+      direction LR
+      L1["Event"] -- triggers --> L2["Handler"]
+    end
+
+    style A fill:#f9f,stroke:#333,stroke-width:2px
+    style B fill:#bbf,stroke:#333,stroke-width:2px
+    style C fill:#bbf,stroke:#333,stroke-width:2px
+    style D fill:#bbf,stroke:#333,stroke-width:2px
+    style E fill:#bbf,stroke:#333,stroke-width:2px
+    style Legend fill:#fff,stroke:#333,stroke-width:1px
+```
+
+---
+
 ### 5. Refactor Event Bus Interface
 
 - Define an interface in `pkg/eventbus`:
