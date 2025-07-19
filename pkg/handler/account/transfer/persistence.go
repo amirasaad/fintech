@@ -16,61 +16,47 @@ import (
 // TransferPersistenceHandler handles TransferDomainOpDoneEvent, persists to DB, and publishes TransferPersistedEvent.
 func TransferPersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork, logger *slog.Logger) func(context.Context, domain.Event) {
 	return func(ctx context.Context, e domain.Event) {
-		logger = logger.With("handler", "TransferPersistenceHandler")
+		log := logger.With("handler", "TransferPersistenceHandler", "event_type", e.EventType())
+		log.Info("🟢 [START] Received event", "event", e)
 		evt, ok := e.(events.TransferDomainOpDoneEvent)
 		if !ok {
-			logger.Error("unexpected event type", "event", e)
+			log.Error("❌ [ERROR] Unexpected event type", "event", e)
 			return
 		}
-		logger.Info("received TransferDomainOpDoneEvent, persisting transfer",
+		log.Info("🔄 [PROCESS] Received TransferDomainOpDoneEvent, persisting transfer",
 			"event", evt,
 			"dest_account_id", evt.DestAccountID,
 			"source_account_id", evt.SourceAccountID,
 			"sender_user_id", evt.SenderUserID)
 
 		err := uow.Do(ctx, func(uow repository.UnitOfWork) error {
-			repoAny, err := uow.GetRepository((*transaction.Repository)(nil))
+			txRepoAny, err := uow.GetRepository((*transaction.Repository)(nil))
 			if err != nil {
+				log.Error("❌ [ERROR] Failed to get repo", "err", err)
 				return err
 			}
-			txRepo := repoAny.(transaction.Repository)
-
-			// Update the original transaction to completed status (it already has conversion data)
-			originalTxID := evt.EventID // This is the original transaction ID from InitialPersistenceHandler
-			completedStatus := "completed"
-			update := dto.TransactionUpdate{
-				Status: &completedStatus,
-			}
-			if err := txRepo.Update(ctx, originalTxID, update); err != nil {
-				logger.Error("failed to update original transaction to completed", "error", err, "transaction_id", originalTxID)
+			txRepo, ok := txRepoAny.(transaction.Repository)
+			if !ok {
+				log.Error("❌ [ERROR] Failed to retrieve repo type")
 				return err
 			}
-			logger.Info("original transaction updated to completed status", "transaction_id", originalTxID)
-
-			// Create incoming transaction (positive amount to destination account)
-			incomingTxID := uuid.New()
-			incomingCreate := dto.TransactionCreate{
-				ID:          incomingTxID,
-				UserID:      evt.SenderUserID, // Same user for now (internal transfer)
-				AccountID:   evt.DestAccountID,
-				Amount:      evt.Amount.Amount(), // Positive amount for incoming
-				Status:      "completed",         // Transfer is completed
-				Currency:    evt.Amount.Currency().String(),
-				MoneySource: evt.Source,
-			}
-			if err := txRepo.Create(ctx, incomingCreate); err != nil {
-				logger.Error("failed to create incoming transaction", "error", err)
+			if err := txRepo.Create(ctx, dto.TransactionCreate{
+				ID:        uuid.New(),
+				UserID:    evt.SenderUserID,
+				AccountID: evt.DestAccountID,
+				Amount:    evt.Amount.Amount(),
+				Currency:  evt.Amount.Currency().String(),
+				Status:    "completed",
+			}); err != nil {
 				return err
 			}
-			logger.Info("incoming transaction created", "transaction_id", incomingTxID, "amount", evt.Amount.Amount())
-
+			log.Info("✅ [SUCCESS] Incoming transfer transaction created", "dest_account_id", evt.DestAccountID)
 			return nil
-		})
-		if err != nil {
-			logger.Error("persistence failed", "error", err)
+		}); err != nil {
+			log.Error("❌ [ERROR] Failed to create incoming transfer transaction", "error", err)
 			return
 		}
-		logger.Info("transfer persisted successfully - both outgoing and incoming transactions created", "event", evt)
+		log.Info("📤 [EMIT] Emitting TransferPersistedEvent", "dest_account_id", evt.DestAccountID)
 		_ = bus.Publish(ctx, events.TransferPersistedEvent{TransferDomainOpDoneEvent: evt})
 	}
 }

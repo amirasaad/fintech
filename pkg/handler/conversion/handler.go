@@ -18,11 +18,11 @@ import (
 // This handler should only be subscribed to ConversionRequestedEvent, not ConversionDoneEvent.
 func Handler(bus eventbus.EventBus, converter money.CurrencyConverter, logger *slog.Logger) func(context.Context, domain.Event) {
 	return func(ctx context.Context, e domain.Event) {
-		logger := logger.With(
+		log := logger.With(
 			"handler", "ConversionHandler",
 			"event_type", e.EventType(),
 		)
-		logger.Info("received conversion request", "event", e)
+		log.Info("🟢 [START] Received event", "event", e)
 
 		// Handle both old and new event types for backward compatibility
 		var fromAmount money.Money
@@ -44,25 +44,25 @@ func Handler(bus eventbus.EventBus, converter money.CurrencyConverter, logger *s
 			flowType = evt.FlowType
 			originalEvent = evt.OriginalEvent
 		default:
-			logger.Error("unexpected event type for conversion handler - should only receive ConversionRequestedEvent", "event", e)
+			log.Error("❌ [ERROR] Unexpected event type for conversion handler - should only receive ConversionRequestedEvent", "event", e)
 			return
 		}
 
 		// Perform currency conversion
 		convInfo, err := converter.Convert(fromAmount.AmountFloat(), fromAmount.Currency().String(), toCurrency)
 		if err != nil {
-			logger.Error("currency conversion failed", "error", err, "from", fromAmount.Currency().String(), "to", toCurrency)
+			log.Error("❌ [ERROR] Currency conversion failed", "error", err, "from", fromAmount.Currency().String(), "to", toCurrency)
 			return
 		}
 
 		// Create converted amount
 		converted, err := money.New(convInfo.ConvertedAmount, currency.Code(toCurrency))
 		if err != nil {
-			logger.Error("failed to create converted money", "error", err)
+			log.Error("❌ [ERROR] Failed to create converted money", "error", err)
 			return
 		}
 
-		logger.Info("conversion completed successfully",
+		log.Info("🔄 [PROCESS] Conversion completed successfully",
 			"from", fromAmount,
 			"to", converted,
 			"request_id", requestID,
@@ -84,10 +84,10 @@ func Handler(bus eventbus.EventBus, converter money.CurrencyConverter, logger *s
 					AccountID: orig.AccountID.String(),
 				}
 				if err := bus.Publish(ctx, doneEvent); err != nil {
-					logger.Error("failed to publish DepositConversionDoneEvent", "error", err)
+					log.Error("❌ [ERROR] Failed to publish DepositConversionDoneEvent", "error", err)
 					return
 				}
-				logger.Info("DepositConversionDoneEvent published", "event", doneEvent)
+				log.Info("📤 [EMIT] DepositConversionDoneEvent published", "event", doneEvent)
 			}
 		case "withdraw":
 			if orig, ok := originalEvent.(events.WithdrawValidatedEvent); ok {
@@ -103,10 +103,10 @@ func Handler(bus eventbus.EventBus, converter money.CurrencyConverter, logger *s
 					AccountID: orig.AccountID.String(),
 				}
 				if err := bus.Publish(ctx, doneEvent); err != nil {
-					logger.Error("failed to publish WithdrawConversionDoneEvent", "error", err)
+					log.Error("❌ [ERROR] Failed to publish WithdrawConversionDoneEvent", "error", err)
 					return
 				}
-				logger.Info("WithdrawConversionDoneEvent published", "event", doneEvent)
+				log.Info("📤 [EMIT] WithdrawConversionDoneEvent published", "event", doneEvent)
 			}
 		case "transfer":
 			if orig, ok := originalEvent.(events.TransferValidatedEvent); ok {
@@ -123,10 +123,10 @@ func Handler(bus eventbus.EventBus, converter money.CurrencyConverter, logger *s
 					TargetAccountID: orig.DestAccountID.String(),
 				}
 				if err := bus.Publish(ctx, doneEvent); err != nil {
-					logger.Error("failed to publish TransferConversionDoneEvent", "error", err)
+					log.Error("❌ [ERROR] Failed to publish TransferConversionDoneEvent", "error", err)
 					return
 				}
-				logger.Info("TransferConversionDoneEvent published", "event", doneEvent)
+				log.Info("📤 [EMIT] TransferConversionDoneEvent published", "event", doneEvent)
 			}
 		default:
 			// Fallback to generic event for unknown flow types
@@ -138,10 +138,10 @@ func Handler(bus eventbus.EventBus, converter money.CurrencyConverter, logger *s
 				Timestamp:  time.Now(),
 			}
 			if err := bus.Publish(ctx, doneEvent); err != nil {
-				logger.Error("failed to publish ConversionDoneEvent", "error", err)
+				log.Error("❌ [ERROR] Failed to publish ConversionDoneEvent", "error", err)
 				return
 			}
-			logger.Info("ConversionDoneEvent published (fallback)", "event", doneEvent)
+			log.Info("📤 [EMIT] ConversionDoneEvent published (fallback)", "event", doneEvent)
 		}
 	}
 }
