@@ -35,7 +35,7 @@ func BusinessValidationHandler(bus eventbus.EventBus, logger *slog.Logger) func(
 			"currency", wce.ToAmount.Currency().String())
 
 		// Emit WithdrawValidatedEvent
-		log.Info("\ud83d\udce4 [EMIT] Emitting WithdrawValidatedEvent")
+		log.Info("📤 [EMIT] Emitting WithdrawValidatedEvent")
 		bus.Publish(ctx, events.WithdrawValidatedEvent{
 			WithdrawRequestedEvent: events.WithdrawRequestedEvent{
 				EventID:   uuid.MustParse(wce.ConversionDoneEvent.EventID),
@@ -45,8 +45,6 @@ func BusinessValidationHandler(bus eventbus.EventBus, logger *slog.Logger) func(
 			},
 			TargetCurrency: wce.ToAmount.Currency().String(),
 			CorrelationID: wce.CorrelationID,
-			UserID: wce.UserID,
-			AccountID: wce.AccountID,
 		})
 	}
 }

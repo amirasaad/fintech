@@ -49,7 +49,7 @@ func ConversionDoneHandler(bus eventbus.EventBus, uow repository.UnitOfWork, log
 			log.Error("failed to cast to TransactionRepository")
 			return
 		}
-		tx, err := txRepo.Get(ctx, txID)
+		tx, err := txRepo.Get(txID)
 		if err != nil {
 			log.Error("failed to get transaction for conversion done", "transaction_id", txID, "error", err)
 			return
@@ -58,18 +58,18 @@ func ConversionDoneHandler(bus eventbus.EventBus, uow repository.UnitOfWork, log
 		userID := tx.UserID.String()
 		accountID := tx.AccountID.String()
 
-		if cde.FlowType == "deposit" {
-			depositEvent := events.DepositConversionDoneEvent{
-				ConversionDoneEvent: cde,
-				UserID: userID,
-				AccountID: accountID,
-				FlowType: "deposit",
-				CorrelationID: correlationID,
-			}
+		depositEvent := events.DepositConversionDoneEvent{
+			ConversionDoneEvent: cde,
+			UserID: userID,
+			AccountID: accountID,
+			FlowType: "deposit",
+			CorrelationID: correlationID,
+		}
+		if depositEvent.FlowType == "deposit" {
 			log.Info("📤 [EMIT] Emitting DepositConversionDoneEvent", "event", depositEvent, "correlation_id", correlationID)
 			_ = bus.Publish(ctx, depositEvent)
 		} else {
-			log.Info("Skipping DepositConversionDoneEvent emission: flow type is not deposit", "flow_type", cde.FlowType)
+			log.Info("Skipping DepositConversionDoneEvent emission: flow type is not deposit", "flow_type", depositEvent.FlowType)
 		}
 	}
 }
