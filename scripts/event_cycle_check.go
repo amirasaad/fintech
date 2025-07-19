@@ -4,7 +4,6 @@
 package main
 
 import (
-	"slices"
 	"bufio"
 	"fmt"
 	"os"
@@ -49,7 +48,8 @@ func main() {
 
 	// 2. Parse handler files for bus.Publish lines
 	// (for simplicity, scan pkg/handler/ recursively for bus.Publish)
-	publishRe := regexp.MustCompile(`bus\.Publish\(.*?([A-Za-z0-9]+Event)\{`)
+	// Improved regex to match more event emission patterns
+	publishRe := regexp.MustCompile(`bus\.Publish\([^,]+,\s*([a-zA-Z0-9_.]+)\{`)
 	handlerEmits := make(map[string][]string) // handler func -> []emitted event types
 
 	err = walkDir("pkg/handler", func(path string) {
@@ -85,28 +85,24 @@ func main() {
 
 	// 3. Build event flow graph and detect cycles
 	// Each node is an event type; edges are from consumed event type to emitted event type
-	edges := []Edge{}
+	graph := make(map[string][]string)
 	for eventType, handlers := range eventToHandlers {
 		for _, handler := range handlers {
 			emittedEvents := handlerEmits[handler]
 			for _, emittedEvent := range emittedEvents {
-				edges = append(edges, Edge{From: eventType, To: emittedEvent, Handler: handler})
+				graph[eventType] = append(graph[eventType], emittedEvent)
 			}
 		}
-	}
-
-	graph := make(map[string][]string)
-	for _, edge := range edges {
-		graph[edge.From] = append(graph[edge.From], edge.To)
 	}
 
 	visited := make(map[string]bool)
 	stack := make(map[string]bool)
 	var hasCycle bool
+	var path []string
 	var dfs func(string) bool
 	dfs = func(node string) bool {
 		if stack[node] {
-			fmt.Println("Cycle detected at:", node)
+			fmt.Println("Cycle detected:", append(path, node))
 			hasCycle = true
 			return true
 		}
@@ -115,10 +111,14 @@ func main() {
 		}
 		visited[node] = true
 		stack[node] = true
-		if slices.ContainsFunc(graph[node], dfs) {
+		path = append(path, node)
+		for _, neighbor := range graph[node] {
+			if dfs(neighbor) {
 				return true
 			}
+		}
 		stack[node] = false
+		path = path[:len(path)-1]
 		return false
 	}
 
