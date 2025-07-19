@@ -2,6 +2,7 @@ package app
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/amirasaad/fintech/pkg/handler/conversion"
@@ -48,6 +49,7 @@ func New(deps config.Deps) *fiber.App {
 
 	// 1️⃣ GENERIC CONVERSION HANDLER
 	// Handles all ConversionRequestedEvent for any operation (deposit, withdraw, transfer)
+	fmt.Println("Registering handler for event type:", "ConversionRequestedEvent")
 	bus.Subscribe("ConversionRequestedEvent", conversion.Handler(bus, deps.CurrencyConverter, deps.Logger))
 
 	// 2️⃣ DEPOSIT FLOW

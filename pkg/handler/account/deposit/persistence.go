@@ -72,10 +72,12 @@ func PersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork, logger
 
 		// Emit ConversionRequested to trigger currency conversion for deposit (decoupled from payment)
 		log.Info("📤 [EMIT] Emitting ConversionRequestedEvent for deposit", "transaction_id", txID)
-		_ = bus.Publish(ctx, events.ConversionRequestedEvent{
-			FromAmount: ve.Amount,
-			ToCurrency: ve.Account.Balance.Currency().String(),
-			RequestID:  txID.String(),
-		})
+		conversionEvent := events.ConversionRequestedEvent{
+			FromAmount:    ve.Amount,
+			ToCurrency:    ve.Account.Currency().String(),
+			RequestID:     txID.String(),
+		}
+		log.Info("📤 [EMIT] About to emit ConversionRequestedEvent", "event_type", conversionEvent.EventType())
+		_ = bus.Publish(ctx, conversionEvent)
 	}
 }
