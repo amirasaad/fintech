@@ -9,49 +9,72 @@ import (
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/amirasaad/fintech/pkg/provider"
+	"github.com/google/uuid"
 )
 
-// PaymentInitiationHandler handles CurrencyConversionDone, initiates payment, and publishes PaymentInitiatedEvent.
-func PaymentInitiationHandler(bus eventbus.EventBus, provider provider.PaymentProvider, logger *slog.Logger) func(context.Context, domain.Event) {
+// PaymentInitiationHandler handles validation events and initiates payment with the provider.
+// This is a generic handler that can process DepositValidatedEvent, WithdrawValidatedEvent, etc.
+func PaymentInitiationHandler(bus eventbus.EventBus, paymentProvider provider.PaymentProvider, logger *slog.Logger) func(context.Context, domain.Event) {
 	return func(ctx context.Context, e domain.Event) {
 		log := logger.With(
 			"handler", "PaymentInitiationHandler",
 			"event_type", e.EventType(),
 		)
-		log.Info("received event", "event", e)
-		pe, ok := e.(events.CurrencyConversionDone)
-		if !ok {
-			log.Error("unexpected event type", "event", e)
+		log.Info("received validation event", "event", e)
+
+		// Extract payment details from different validation events
+		var userID uuid.UUID
+		var accountID uuid.UUID
+		var amount int64
+		var currency string
+		var transactionID uuid.UUID
+
+		switch evt := e.(type) {
+		case events.DepositValidatedEvent:
+			userID = evt.UserID
+			accountID = evt.AccountID
+			amount = evt.Amount.Amount() // Use Amount() for int64 (smallest currency unit)
+			currency = evt.Amount.Currency().String()
+			transactionID = uuid.New() // Will be set by persistence handler
+			log.Info("processing deposit validation for payment initiation", 
+				"user_id", userID, "account_id", accountID, "amount", amount, "currency", currency)
+
+		case events.WithdrawValidatedEvent:
+			userID = evt.UserID
+			accountID = evt.AccountID
+			amount = evt.Amount.Amount() // Use Amount() for int64 (smallest currency unit)
+			currency = evt.Amount.Currency().String()
+			transactionID = uuid.New() // Will be set by persistence handler
+			log.Info("processing withdraw validation for payment initiation", 
+				"user_id", userID, "account_id", accountID, "amount", amount, "currency", currency)
+
+		default:
+			log.Error("unexpected event type for payment initiation", "event", e)
 			return
 		}
-		log.Info("processing CurrencyConversionDone",
-			"transaction_id", pe.TransactionID,
-			"user_id", pe.UserID,
-			"account_id", pe.AccountID,
-			"converted_amount", pe.ConvertedAmount.Amount(),
-			"converted_currency", pe.ConvertedAmount.Currency().String(),
-		)
 
-		userID := pe.UserID
-		accountID := pe.AccountID
-		amount := pe.ConvertedAmount.Amount()
-		currency := pe.ConvertedAmount.Currency().String()
-		log.Info("initiating payment with provider",
-			"user_id", userID, "account_id", accountID, "amount", amount, "currency", currency)
-
-		paymentID, err := provider.InitiatePayment(ctx, userID, accountID, amount, currency)
+		// Initiate payment with the provider
+		paymentID, err := paymentProvider.InitiatePayment(ctx, userID, accountID, amount, currency)
 		if err != nil {
-			log.Error("provider failed", "error", err)
+			log.Error("payment initiation failed", "error", err)
 			return
 		}
+
 		log.Info("payment initiated successfully", "payment_id", paymentID)
-		log.Info("publishing PaymentInitiatedEvent",
-			"transaction_id", pe.TransactionID, "user_id", userID, "payment_id", paymentID)
-		_ = bus.Publish(ctx, events.PaymentInitiatedEvent{
+
+		// Emit PaymentInitiatedEvent
+		paymentEvent := events.PaymentInitiatedEvent{
 			PaymentID:     paymentID,
 			Status:        "initiated",
-			TransactionID: pe.TransactionID,
+			TransactionID: transactionID,
 			UserID:        userID,
-		})
+		}
+
+		if err := bus.Publish(ctx, paymentEvent); err != nil {
+			log.Error("failed to publish PaymentInitiatedEvent", "error", err)
+			return
+		}
+
+		log.Info("PaymentInitiatedEvent published", "event", paymentEvent)
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/amirasaad/fintech/pkg/handler/conversion"
+	paymenthandler "github.com/amirasaad/fintech/pkg/handler/payment"
 
 	deposithandler "github.com/amirasaad/fintech/pkg/handler/account/deposit"
 	transferhandler "github.com/amirasaad/fintech/pkg/handler/account/transfer"
@@ -42,7 +43,7 @@ func New(deps config.Deps) *fiber.App {
 	bus := deps.EventBus
 
 	// ============================================================================
-	// EVENT HANDLER REGISTRATION - FINAL EVENT-DRIVEN ARCHITECTURE
+	// EVENT HANDLER REGISTRATION - CLEAN EVENT-DRIVEN ARCHITECTURE
 	// ============================================================================
 
 	// 1. GENERIC CONVERSION HANDLER (reusable across all operations)
@@ -50,20 +51,18 @@ func New(deps config.Deps) *fiber.App {
 	bus.Subscribe("ConversionRequestedEvent", conversion.Handler(bus, deps.CurrencyConverter, deps.Logger))
 
 	// 2. DEPOSIT FLOW HANDLERS
-	// Validation → Persistence → Conversion → Business Validation → Payment → [Conversion Persistence + Payment Persistence]
+	// Validation → Persistence → Conversion → Business Validation → Payment → Payment Persistence
 	bus.Subscribe("DepositRequestedEvent", deposithandler.ValidationHandler(bus, deps.Uow, deps.Logger))
 	bus.Subscribe("DepositValidatedEvent", deposithandler.PersistenceHandler(bus, deps.Uow, deps.Logger))
-	bus.Subscribe("DepositConversionDoneEvent", deposithandler.ConversionDoneHandler(bus, deps.Uow, deps.PaymentProvider, deps.Logger))
+	bus.Subscribe("DepositConversionDoneEvent", deposithandler.ConversionDoneHandler(bus, deps.Uow, deps.Logger))
 	bus.Subscribe("DepositConversionDoneEvent", deposithandler.ConversionPersistenceHandler(bus, deps.Uow, deps.Logger))
-	bus.Subscribe("PaymentInitiatedEvent", deposithandler.PaymentPersistenceHandler(bus, deps.Uow, deps.Logger))
 
 	// 3. WITHDRAW FLOW HANDLERS
-	// Validation → Persistence → Conversion → Business Validation → Payment → [Conversion Persistence + Payment Persistence]
+	// Validation → Persistence → Conversion → Business Validation → Payment → Payment Persistence
 	bus.Subscribe("WithdrawRequestedEvent", withdrawhandler.WithdrawValidationHandler(bus, deps.Uow, deps.Logger))
 	bus.Subscribe("WithdrawValidatedEvent", withdrawhandler.WithdrawPersistenceHandler(bus, deps.Uow, deps.Logger))
-	bus.Subscribe("WithdrawConversionDoneEvent", withdrawhandler.ConversionDoneHandler(bus, deps.Uow, deps.PaymentProvider, deps.Logger))
+	bus.Subscribe("WithdrawConversionDoneEvent", withdrawhandler.ConversionDoneHandler(bus, deps.Uow, deps.Logger))
 	bus.Subscribe("WithdrawConversionDoneEvent", withdrawhandler.ConversionPersistenceHandler(bus, deps.Uow, deps.Logger))
-	bus.Subscribe("PaymentInitiatedEvent", withdrawhandler.PaymentPersistenceHandler(bus, deps.Uow, deps.Logger))
 
 	// 4. TRANSFER FLOW HANDLERS
 	// Validation → Initial Persistence → Conversion → Business Validation → Domain Op → Final Persistence → Conversion Persistence
@@ -74,10 +73,13 @@ func New(deps config.Deps) *fiber.App {
 	bus.Subscribe("TransferConversionDoneEvent", transferhandler.TransferDomainOpHandler(bus, nil))
 	bus.Subscribe("TransferDomainOpDoneEvent", transferhandler.TransferPersistenceHandler(bus, deps.Uow, deps.Logger))
 
-	// 5. PAYMENT HANDLERS (for payment completion)
-	// TODO: Implement payment handlers when needed
-	// bus.Subscribe("PaymentInitiatedEvent", account.PaymentInitiationHandler(bus, deps.Logger))
-	// bus.Subscribe("PaymentCompletedEvent", account.PaymentCompletedHandler(bus, deps.Logger))
+	// 5. GENERIC PAYMENT HANDLERS (DRY - no operation-specific payment handlers)
+	// Payment initiation triggered by validation events (DepositValidatedEvent, WithdrawValidatedEvent)
+	bus.Subscribe("DepositValidatedEvent", paymenthandler.PaymentInitiationHandler(bus, deps.PaymentProvider, deps.Logger))
+	bus.Subscribe("WithdrawValidatedEvent", paymenthandler.PaymentInitiationHandler(bus, deps.PaymentProvider, deps.Logger))
+	
+	// Payment persistence triggered by PaymentInitiatedEvent (generic for all operations)
+	bus.Subscribe("PaymentInitiatedEvent", paymenthandler.PaymentPersistenceHandler(bus, deps.Uow, deps.Logger))
 
 	// ============================================================================
 	// LEGACY HANDLER REGISTRATION (for backward compatibility)

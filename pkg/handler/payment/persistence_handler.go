@@ -15,46 +15,60 @@ import (
 	"github.com/amirasaad/fintech/pkg/repository/transaction"
 )
 
-// PersistenceHandler handles MoneyConvertedEvent, persists the transaction, and emits DepositPersistedEvent with TransactionID.
-func PersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork, logger *slog.Logger) func(context.Context, domain.Event) {
+// PaymentPersistenceHandler handles PaymentInitiatedEvent and updates the transaction with payment ID.
+// This is a generic handler that can process payment events for all operations (deposit, withdraw, transfer).
+func PaymentPersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork, logger *slog.Logger) func(context.Context, domain.Event) {
 	return func(ctx context.Context, e domain.Event) {
 		logger := logger.With(
-			"handler", "PersistenceHandler",
+			"handler", "PaymentPersistenceHandler",
 			"event_type", e.EventType(),
 		)
-		logger.Info("received event", "event", e)
+		logger.Info("received payment initiated event", "event", e)
+
 		pie, ok := e.(events.PaymentInitiatedEvent)
 		if !ok {
-			logger.Error("PersistenceHandler: unexpected event type", "type", e.EventType(), "event", pie, "error", e)
+			logger.Error("unexpected event type for payment persistence", "event", e)
 			return
 		}
-		err := uow.Do(ctx, func(uow repository.UnitOfWork) error {
+
+		logger.Info("updating transaction with payment ID",
+			"transaction_id", pie.TransactionID,
+			"payment_id", pie.PaymentID)
+
+		// Update the transaction with payment ID
+		if err := uow.Do(ctx, func(uow repository.UnitOfWork) error {
 			txRepoAny, err := uow.GetRepository((*transaction.Repository)(nil))
 			if err != nil {
-				logger.Error("PersistenceHandler: failed to get transaction repo", "error", err)
+				logger.Error("failed to get transaction repo", "error", err)
 				return err
 			}
 			txRepo, ok := txRepoAny.(transaction.Repository)
 			if !ok {
-				logger.Error("PersistenceHandler: failed to retrieve repo type")
+				logger.Error("failed to retrieve repo type")
 				return errors.New("failed to retrieve repo type")
 			}
+
 			status := account.TransactionStatusPending
-			if err := txRepo.Update(ctx, pie.TransactionID, dto.TransactionUpdate{PaymentID: &pie.PaymentID, Status: &status}); err != nil {
-				logger.Error("PersistenceHandler: failed to update transaction", "error", err)
+			if err := txRepo.Update(ctx, pie.TransactionID, dto.TransactionUpdate{
+				PaymentID: &pie.PaymentID, 
+				Status:    &status,
+			}); err != nil {
+				logger.Error("failed to update transaction with payment ID", "error", err)
 				return err
 			}
+
+			logger.Info("transaction updated with payment ID", 
+				"transaction_id", pie.TransactionID, 
+				"payment_id", pie.PaymentID)
+
+			// Emit PaymentIdPersistedEvent
 			_ = bus.Publish(ctx, events.PaymentIdPersistedEvent{
-				PaymentInitiatedEvent: events.PaymentInitiatedEvent{
-					Status:        pie.Status,
-					TransactionID: pie.TransactionID,
-					UserID:        pie.UserID,
-				},
+				PaymentInitiatedEvent: pie,
 			})
+
 			return nil
-		})
-		if err != nil {
-			logger.Error("PersistenceHandler: persistence failed", "error", err)
+		}); err != nil {
+			logger.Error("payment persistence failed", "error", err)
 			return
 		}
 	}

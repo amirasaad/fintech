@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/amirasaad/fintech/pkg/currency"
+	"github.com/amirasaad/fintech/pkg/domain"
+	"github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/domain/money"
 
@@ -37,28 +39,37 @@ func TestPaymentInitiationHandler_BusinessLogic(t *testing.T) {
 	amount, _ := money.New(100, currency.USD)
 	paymentID := "pay-123"
 
+	// Create a mock account for testing
+	mockAccount := &account.Account{
+		ID:     accountID,
+		UserID: userID,
+		Balance: amount,
+	}
+
 	tests := []struct {
 		name        string
-		input       events.CurrencyConversionDone
+		input       domain.Event
 		provider    *mockPaymentProvider
 		expectPub   bool
 		expectPayID string
 		expectUser  uuid.UUID
 		expectAcc   uuid.UUID
-		expectAmt   float64
+		expectAmt   int64
 		expectCur   string
 		setupMocks  func(bus *mocks.MockEventBus)
 	}{
 		{
-			name: "provider success",
-			input: events.CurrencyConversionDone{
-				CurrencyConversionRequested: events.CurrencyConversionRequested{
-					TransactionID: uuid.New(),
-					UserID:        userID,
-					AccountID:     accountID,
-					Amount:        amount,
+			name: "deposit validation success",
+			input: events.DepositValidatedEvent{
+				DepositRequestedEvent: events.DepositRequestedEvent{
+					EventID:   uuid.New(),
+					AccountID: accountID,
+					UserID:    userID,
+					Amount:    amount,
+					Source:    "deposit",
 				},
-				ConvertedAmount: amount,
+				AccountID: accountID,
+				Account:   mockAccount,
 			},
 			provider: &mockPaymentProvider{
 				initiateFn: func(ctx context.Context, u, a uuid.UUID, amt int64, cur string) (string, error) {
@@ -73,7 +84,38 @@ func TestPaymentInitiationHandler_BusinessLogic(t *testing.T) {
 			expectPayID: paymentID,
 			expectUser:  userID,
 			expectAcc:   accountID,
-			expectAmt:   amount.AmountFloat(),
+			expectAmt:   amount.Amount(),
+			expectCur:   amount.Currency().String(),
+			setupMocks: func(bus *mocks.MockEventBus) {
+				bus.On("Publish", mock.Anything, mock.AnythingOfType("events.PaymentInitiatedEvent")).Return(nil)
+			},
+		},
+		{
+			name: "withdraw validation success",
+			input: events.WithdrawValidatedEvent{
+				WithdrawRequestedEvent: events.WithdrawRequestedEvent{
+					EventID:   uuid.New(),
+					AccountID: accountID,
+					UserID:    userID,
+					Amount:    amount,
+				},
+				TargetCurrency: amount.Currency().String(),
+				Account:        mockAccount,
+			},
+			provider: &mockPaymentProvider{
+				initiateFn: func(ctx context.Context, u, a uuid.UUID, amt int64, cur string) (string, error) {
+					assert.Equal(t, userID, u)
+					assert.Equal(t, accountID, a)
+					assert.Equal(t, amount.Amount(), amt)
+					assert.Equal(t, amount.Currency().String(), cur)
+					return paymentID, nil
+				},
+			},
+			expectPub:   true,
+			expectPayID: paymentID,
+			expectUser:  userID,
+			expectAcc:   accountID,
+			expectAmt:   amount.Amount(),
 			expectCur:   amount.Currency().String(),
 			setupMocks: func(bus *mocks.MockEventBus) {
 				bus.On("Publish", mock.Anything, mock.AnythingOfType("events.PaymentInitiatedEvent")).Return(nil)
@@ -81,18 +123,37 @@ func TestPaymentInitiationHandler_BusinessLogic(t *testing.T) {
 		},
 		{
 			name: "provider error",
-			input: events.CurrencyConversionDone{
-				CurrencyConversionRequested: events.CurrencyConversionRequested{
-					TransactionID: uuid.New(),
-					UserID:        userID,
-					AccountID:     accountID,
-					Amount:        amount,
+			input: events.DepositValidatedEvent{
+				DepositRequestedEvent: events.DepositRequestedEvent{
+					EventID:   uuid.New(),
+					AccountID: accountID,
+					UserID:    userID,
+					Amount:    amount,
+					Source:    "deposit",
 				},
-				ConvertedAmount: amount,
+				AccountID: accountID,
+				Account:   mockAccount,
 			},
 			provider: &mockPaymentProvider{
 				initiateFn: func(ctx context.Context, u, a uuid.UUID, amt int64, cur string) (string, error) {
 					return "", errors.New("provider failed")
+				},
+			},
+			expectPub:   false,
+			expectPayID: "",
+			setupMocks:  nil,
+		},
+		{
+			name: "unexpected event type",
+			input: events.ConversionDoneEvent{
+				EventID:    uuid.New().String(),
+				FromAmount: amount,
+				ToAmount:   amount,
+				RequestID:  uuid.New().String(),
+			},
+			provider: &mockPaymentProvider{
+				initiateFn: func(ctx context.Context, u, a uuid.UUID, amt int64, cur string) (string, error) {
+					return paymentID, nil
 				},
 			},
 			expectPub:   false,
