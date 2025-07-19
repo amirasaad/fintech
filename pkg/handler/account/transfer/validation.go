@@ -32,16 +32,7 @@ func TransferValidationHandler(bus eventbus.EventBus, logger *slog.Logger) func(
 			log.Error("❌ [ERROR] Amount must be positive", "event", te)
 			return
 		}
-		log.Info("✅ [SUCCESS] Transfer validated, emitting TransferValidatedEvent and ConversionRequested", "event", te)
+		log.Info("✅ [SUCCESS] Transfer validated, emitting TransferValidatedEvent", "event", te)
 		_ = bus.Publish(ctx, events.TransferValidatedEvent{TransferRequestedEvent: te})
-		log.Info("📤 [EMIT] Emitting ConversionRequested for transfer", "event", te)
-		_ = bus.Publish(ctx, events.ConversionRequested{
-			CorrelationID:  uuid.New().String(),
-			FlowType:       "transfer",
-			OriginalEvent:  events.TransferValidatedEvent{TransferRequestedEvent: te},
-			Amount:         te.Amount,
-			SourceCurrency: te.Amount.Currency().String(),
-			TargetCurrency: te.Amount.Currency().String(), // TODO: set to dest account currency if different
-		})
 	}
 }

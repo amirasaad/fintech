@@ -22,7 +22,7 @@ func Handler(bus eventbus.EventBus, converter money.CurrencyConverter, logger *s
 			"handler", "ConversionHandler",
 			"event_type", e.EventType(),
 		)
-		log.Info("🟢 [START] Received event", "event", e)
+		log.Info("🟢 [START] Conversion handler triggered", "event_type", e.EventType(), "event", e)
 
 		// Handle both old and new event types for backward compatibility
 		var fromAmount money.Money
