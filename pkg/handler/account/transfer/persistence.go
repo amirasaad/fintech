@@ -29,7 +29,7 @@ func TransferPersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork
 			"source_account_id", evt.SourceAccountID,
 			"sender_user_id", evt.SenderUserID)
 
-		err := uow.Do(ctx, func(uow repository.UnitOfWork) error {
+		if err := uow.Do(ctx, func(uow repository.UnitOfWork) error {
 			txRepoAny, err := uow.GetRepository((*transaction.Repository)(nil))
 			if err != nil {
 				log.Error("❌ [ERROR] Failed to get repo", "err", err)
