@@ -16,25 +16,26 @@ import (
 // InitialPersistenceHandler handles TransferValidatedEvent: creates initial transaction record and triggers conversion.
 func InitialPersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork, logger *slog.Logger) func(context.Context, domain.Event) {
 	return func(ctx context.Context, e domain.Event) {
-		logger := logger.With("handler", "TransferInitialPersistenceHandler")
-		logger.Info("received event", "event", e)
+		log := logger.With("handler", "TransferInitialPersistenceHandler", "event_type", e.EventType())
+		log.Info("🟢 [START] Received event", "event", e)
 
 		ve, ok := e.(events.TransferValidatedEvent)
 		if !ok {
-			logger.Error("unexpected event type", "event", e)
+			log.Error("❌ [ERROR] Unexpected event type", "event", e)
 			return
 		}
-		logger.Info("received TransferValidatedEvent", "event", ve)
+		log.Info("🔄 [PROCESS] Received TransferValidatedEvent", "event", ve)
 
 		txID := uuid.New()
 		if err := uow.Do(ctx, func(uow repository.UnitOfWork) error {
 			txRepoAny, err := uow.GetRepository((*transaction.Repository)(nil))
 			if err != nil {
-				logger.Error("failed to get repo", "err", err)
+				log.Error("❌ [ERROR] Failed to get repo", "err", err)
 				return err
 			}
 			txRepo, ok := txRepoAny.(transaction.Repository)
 			if !ok {
+				log.Error("❌ [ERROR] Failed to retrieve repo type")
 				return err
 			}
 			if err := txRepo.Create(ctx, dto.TransactionCreate{
@@ -48,10 +49,10 @@ func InitialPersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork,
 			}); err != nil {
 				return err
 			}
-			logger.Info("outgoing transfer transaction created", "transaction_id", txID, "amount", -ve.Amount.Amount())
+			log.Info("✅ [SUCCESS] Outgoing transfer transaction created", "transaction_id", txID, "amount", -ve.Amount.Amount())
 			return nil
 		}); err != nil {
-			logger.Error("failed to create transfer transaction", "error", err)
+			log.Error("❌ [ERROR] Failed to create transfer transaction", "error", err)
 			return
 		}
 
@@ -59,7 +60,7 @@ func InitialPersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork,
 		// For now, we'll use the same currency as the source (no conversion needed)
 		targetCurrency := ve.Amount.Currency().String()
 
-		logger.Info("emitting ConversionRequested for transfer", "transaction_id", txID)
+		log.Info("📤 [EMIT] Emitting ConversionRequested for transfer", "transaction_id", txID)
 		_ = bus.Publish(ctx, events.ConversionRequested{
 			CorrelationID:  txID.String(),
 			FlowType:       "transfer",
