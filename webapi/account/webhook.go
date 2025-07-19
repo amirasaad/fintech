@@ -2,12 +2,14 @@ package account
 
 import (
 	"encoding/json"
-	"github.com/amirasaad/fintech/pkg/domain/events"
 	"net/http"
+
+	"github.com/amirasaad/fintech/pkg/domain/events"
 
 	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/amirasaad/fintech/pkg/service/account"
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 	"github.com/stripe/stripe-go/v82"
 )
 
@@ -58,6 +60,8 @@ func StripeWebhookHandler(eventBus eventbus.EventBus, signingSecret string) fibe
 					PaymentID: paymentIntent.ID,
 					Status:    string(paymentIntent.Status),
 				},
+				TransactionID: uuid.New(), // TODO: Get from transaction lookup
+				UserID:        uuid.New(), // TODO: Get from transaction lookup
 			}
 			if err := eventBus.Publish(c.Context(), paymentEvent); err != nil {
 				return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})

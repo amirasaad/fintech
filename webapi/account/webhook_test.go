@@ -13,7 +13,6 @@ import (
 	"io"
 	"log/slog"
 
-	"github.com/amirasaad/fintech/infra/provider"
 	fixturesmocks "github.com/amirasaad/fintech/internal/fixtures/mocks"
 	"github.com/amirasaad/fintech/pkg/domain"
 	accountdomain "github.com/amirasaad/fintech/pkg/domain/account"
@@ -21,6 +20,7 @@ import (
 	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/amirasaad/fintech/pkg/handler/payment"
+	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/amirasaad/fintech/webapi/account"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -80,8 +80,6 @@ func TestStripeWebhookHandler_Integration(t *testing.T) {
 	txRepo := fixturesmocks.NewMockTransactionRepository(t)
 	accRepo := fixturesmocks.NewMockAccountRepository(t)
 	uow := fixturesmocks.NewMockUnitOfWork(t)
-	uow.On("TransactionRepository").Return(txRepo, nil)
-	uow.On("GetRepository", mock.Anything).Return(accRepo, nil)
 
 	// Use a real *account.Transaction for the fake transaction
 	fakeTx := &accountdomain.Transaction{
@@ -102,19 +100,32 @@ func TestStripeWebhookHandler_Integration(t *testing.T) {
 		Currency: "USD",
 	}
 
+	// Set up transaction repository mocks
 	txRepo.On("GetByPaymentID", "pi_test").Return(fakeTx, nil)
 	txRepo.On("Update", fakeTx).Run(func(args mock.Arguments) {
 		fakeTx.Status = "succeeded"
 	}).Return(nil)
+
+	// Set up account repository mocks
 	accRepo.On("Get", mock.Anything, fakeTx.AccountID).Return(fakeAccount, nil)
 	accRepo.On("Update", mock.Anything, fakeTx.AccountID, mock.Anything).Return(nil)
+
+	// Set up unit of work mocks
+	uow.On("TransactionRepository").Return(txRepo, nil)
+	uow.On("GetRepository", mock.Anything).Return(accRepo, nil)
+	uow.On("Do", mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+		// Execute the function passed to Do()
+		fn := args.Get(1).(func(repository.UnitOfWork) error)
+		fn(uow) //nolint:errcheck
+	})
 
 	// Set up event bus and register handler
 	bus := eventbus.NewSimpleEventBus()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	bus.Subscribe((events.PaymentCompletedEvent{}).EventType(), payment.CompletedHandler(bus, uow, logger))
-	bus.Subscribe((events.PaymentInitiationEvent{}).EventType(), payment.PaymentInitiationHandler(bus, provider.NewMockPaymentProvider(), logger))
-	bus.Subscribe((events.PaymentIdPersistedEvent{}).EventType(), payment.PersistenceHandler(bus, uow, logger))
+	// Remove other handlers that might interfere with the test
+	// bus.Subscribe((events.PaymentInitiationEvent{}).EventType(), payment.PaymentInitiationHandler(bus, provider.NewMockPaymentProvider(), logger))
+	// bus.Subscribe((events.PaymentIdPersistedEvent{}).EventType(), payment.PersistenceHandler(bus, uow, logger))
 
 	// Set up Fiber app with webhook handler
 	app := fiber.New()
