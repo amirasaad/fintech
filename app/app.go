@@ -66,12 +66,6 @@ func New(deps config.Deps) *fiber.App {
 	// f. Payment persistence (store payment ID, etc.)
 	bus.Subscribe("PaymentInitiatedEvent", paymenthandler.PaymentPersistenceHandler(bus, deps.Uow, deps.Logger))
 
-	// 🚨 INTENTIONAL CYCLE FOR TESTING: DepositBusinessValidatedEvent triggers DepositRequestedEvent
-	bus.Subscribe("DepositBusinessValidatedEvent", deposithandler.ValidationHandler(bus, deps.Uow, deps.Logger))
-
-	// 🚨 INTENTIONAL TRUE CYCLE FOR TESTING
-	bus.Subscribe("DepositValidatedEvent", deposithandler.BusinessValidationHandler(bus, deps.Logger))
-
 	// 3️⃣ WITHDRAW FLOW
 	// User request → Initial Validation → Persistence → Conversion → Business Validation → Payment Initiation → Payment Persistence
 
