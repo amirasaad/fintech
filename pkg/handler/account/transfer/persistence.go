@@ -86,12 +86,12 @@ func Persistence(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logge
 			}
 			// Emit ConversionRequestedEvent for transfer (for currency conversion, if needed)
 			conversionEvent := events.ConversionRequestedEvent{
-				FlowEvent:  te.FlowEvent,
-				ID:         uuid.New(),
-				FromAmount: te.Amount,
-				ToCurrency: te.Amount.Currency().String(),
-				RequestID:  txOutID.String(),
-				Timestamp:  time.Now(),
+				FlowEvent:     te.FlowEvent,
+				ID:            uuid.New(),
+				FromAmount:    te.Amount,
+				ToCurrency:    te.Amount.Currency().String(),
+				RequestID:     txOutID.String(),
+				Timestamp:     time.Now(),
 				TransactionID: txOutID,
 			}
 			log.Info("[EMIT] About to emit ConversionRequestedEvent for transfer", "event", conversionEvent)

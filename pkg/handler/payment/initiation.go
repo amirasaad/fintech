@@ -52,27 +52,25 @@ func Initiation(bus eventbus.Bus, paymentProvider provider.PaymentProvider, logg
 	}
 }
 
-// WithdrawInitiation handles WithdrawPersistedEvent and initiates payment for withdrawals.
+// WithdrawInitiation handles WithdrawValidatedEvent and initiates payment for withdrawals.
 func WithdrawInitiation(bus eventbus.Bus, paymentProvider provider.PaymentProvider, logger *slog.Logger) func(ctx context.Context, e domain.Event) error {
 	return func(ctx context.Context, e domain.Event) error {
 		log := logger.With("handler", "WithdrawInitiation")
-		// Change event type to WithdrawPersistedEvent
-		// evt, ok := e.(events.WithdrawValidatedEvent)
-		wpEvt, ok := e.(events.WithdrawPersistedEvent)
+		evt, ok := e.(events.WithdrawValidatedEvent)
 		if !ok {
 			log.Debug("🚫 [SKIP] Skipping: unexpected event type in WithdrawInitiation", "event", e)
 			return nil
 		}
-		transactionID := wpEvt.TransactionID
+		transactionID := evt.ID
 		idempotencyKey := transactionID.String()
 		if _, already := processedPaymentInitiation.LoadOrStore(idempotencyKey, struct{}{}); already {
 			log.Info("🔁 [SKIP] PaymentInitiatedEvent already emitted for this transaction", "transaction_id", transactionID)
 			return nil
 		}
 		log.Info("✅ [SUCCESS] Initiating payment", "transaction_id", transactionID)
-		amount := wpEvt.Amount.Amount()
-		currency := wpEvt.TargetCurrency
-		paymentID, err := paymentProvider.InitiatePayment(ctx, wpEvt.UserID, wpEvt.AccountID, amount, currency)
+		amount := evt.Amount.Amount()
+		currency := evt.TargetCurrency
+		paymentID, err := paymentProvider.InitiatePayment(ctx, evt.UserID, evt.AccountID, amount, currency)
 		if err != nil {
 			log.Error("❌ [ERROR] Payment initiation failed", "error", err)
 			return err
@@ -83,9 +81,9 @@ func WithdrawInitiation(bus eventbus.Bus, paymentProvider provider.PaymentProvid
 			TransactionID: transactionID,
 			PaymentID:     paymentID,
 			Status:        "initiated",
-			UserID:        wpEvt.UserID,
-			AccountID:     wpEvt.AccountID,
-			CorrelationID: wpEvt.CorrelationID,
+			UserID:        evt.UserID,
+			AccountID:     evt.AccountID,
+			CorrelationID: evt.CorrelationID,
 		})
 	}
 }

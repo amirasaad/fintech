@@ -213,7 +213,7 @@ func TestWithdrawE2EEventFlow(t *testing.T) {
 		return nil
 	})
 
-	_ = bus.Emit(ctx, events.WithdrawRequestedEvent{
+	bus.Emit(ctx, events.WithdrawRequestedEvent{ //nolint:errcheck
 		FlowEvent: events.FlowEvent{
 			AccountID:     accountID,
 			UserID:        userID,
@@ -223,7 +223,7 @@ func TestWithdrawE2EEventFlow(t *testing.T) {
 		ID:        uuid.New(),
 		Amount:    amount,
 		Timestamp: time.Now(),
-	}) //nolint:errcheck // Intentionally ignoring error for test clarity
+	}) //nolint:errcheck
 	time.Sleep(10 * time.Millisecond)
 	assert.Equal(t, []string{
 		"WithdrawRequestedEvent",
@@ -313,7 +313,7 @@ func TestTransferE2EEventFlow(t *testing.T) {
 		return nil
 	})
 
-	_ = bus.Emit(ctx, events.TransferRequestedEvent{
+	bus.Emit(ctx, events.TransferRequestedEvent{ //nolint:errcheck
 		FlowEvent: events.FlowEvent{
 			AccountID:     accountID,
 			UserID:        userID,
@@ -325,7 +325,7 @@ func TestTransferE2EEventFlow(t *testing.T) {
 		Source:         "transfer",
 		DestAccountID:  uuid.New(),
 		ReceiverUserID: uuid.New(),
-	}) //nolint:errcheck // Intentionally ignoring error for test clarity
+	}) //nolint:errcheck
 	time.Sleep(10 * time.Millisecond)
 	assert.Equal(t, []string{
 		"TransferRequestedEvent",
