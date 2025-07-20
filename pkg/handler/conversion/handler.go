@@ -3,6 +3,7 @@ package conversion
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 
 	"github.com/amirasaad/fintech/pkg/currency"
@@ -13,21 +14,20 @@ import (
 	"github.com/google/uuid"
 )
 
-// Handler processes ConversionRequestedEvent, performs conversion, and emits ConversionDoneEvent.
-// This handler should only be subscribed to ConversionRequestedEvent, not ConversionDoneEvent.
-func Handler(bus eventbus.EventBus, converter money.CurrencyConverter, logger *slog.Logger) func(context.Context, domain.Event) {
-	return func(ctx context.Context, e domain.Event) {
-		log := logger.With(
-			"handler", "ConversionHandler",
-			"event_type", e.Type(),
-		)
-		log.Info("🟢 [START] Conversion handler triggered", "event_type", e.Type(), "event", e)
+// Handler processes ConversionRequestedEvent and emits conversion done events for deposit/withdraw/transfer.
+func Handler(bus eventbus.Bus, converter money.CurrencyConverter, logger *slog.Logger) func(ctx context.Context, e domain.Event) error {
+	return func(ctx context.Context, e domain.Event) error {
+		log := logger.With("handler", "ConversionHandler", "event_type", e.Type())
+		log.Info("🟢 [START] Received event", "event", e)
 
-		// Only handle ConversionRequestedEvent
 		cre, ok := e.(events.ConversionRequestedEvent)
 		if !ok {
-			log.Error("unexpected event type for conversion handler", "event", e)
-			return
+			log.Debug("🚫 [SKIP] Skipping: unexpected event type in ConversionHandler", "event", e)
+			return nil
+		}
+		if cre.TransactionID == uuid.Nil {
+			log.Error("Transaction ID is nil, aborting ConversionDoneEvent emission", "event", cre)
+			return errors.New("invalid transaction ID")
 		}
 		fromAmount := cre.FromAmount
 		toCurrency := cre.ToCurrency
@@ -37,19 +37,19 @@ func Handler(bus eventbus.EventBus, converter money.CurrencyConverter, logger *s
 		convInfo, err := converter.Convert(fromAmount.AmountFloat(), fromAmount.Currency().String(), toCurrency)
 		if err != nil {
 			log.Error("❌ [ERROR] Currency conversion failed", "error", err, "from", fromAmount.Currency().String(), "to", toCurrency)
-			return
+			return err
 		}
 
 		// Create Money objects for original and converted amounts
 		originalMoney, err := money.New(convInfo.OriginalAmount, currency.Code(convInfo.OriginalCurrency))
 		if err != nil {
 			log.Error("❌ [ERROR] Failed to create original money", "error", err)
-			return
+			return err
 		}
 		convertedMoney, err := money.New(convInfo.ConvertedAmount, currency.Code(convInfo.ConvertedCurrency))
 		if err != nil {
 			log.Error("❌ [ERROR] Failed to create converted money", "error", err)
-			return
+			return err
 		}
 
 		log.Info("🔄 [PROCESS] Conversion completed successfully",
@@ -69,6 +69,9 @@ func Handler(bus eventbus.EventBus, converter money.CurrencyConverter, logger *s
 
 		switch flowType {
 		case "deposit":
+			conversionRate := convInfo.ConversionRate
+			originalCurrency := originalMoney.Currency().String()
+			convertedAmount := convertedMoney.AmountFloat()
 			depositEvent := events.DepositConversionDoneEvent{
 				DepositValidatedEvent: events.DepositValidatedEvent{
 					DepositRequestedEvent: events.DepositRequestedEvent{
@@ -79,10 +82,27 @@ func Handler(bus eventbus.EventBus, converter money.CurrencyConverter, logger *s
 						Timestamp: cre.Timestamp,
 					},
 				},
-				// ConversionDoneEvent: conversionDone,
+				ConversionDoneEvent: events.ConversionDoneEvent{
+					FlowEvent:        cre.FlowEvent,
+					ID:               uuid.New(),
+					FromAmount:       cre.FromAmount,
+					ToAmount:         convertedMoney,
+					RequestID:        cre.RequestID,
+					TransactionID:    cre.TransactionID,
+					Timestamp:        cre.Timestamp,
+					ConversionRate:   conversionRate,
+					OriginalCurrency: originalCurrency,
+					ConvertedAmount:  convertedAmount,
+				},
+				TransactionID: cre.TransactionID,
 			}
 			log.Info("📤 [EMIT] Emitting DepositConversionDoneEvent", "event", depositEvent, "correlation_id", cre.CorrelationID.String())
-			_ = bus.Publish(ctx, depositEvent)
+			// After constructing ConversionDoneEvent and DepositConversionDoneEvent
+			log.Info("[DEBUG] Conversion event construction",
+				"from_currency", cre.FromAmount.Currency().String(),
+				"to_currency", convertedMoney.Currency().String(),
+				"original_currency", originalCurrency)
+			return bus.Emit(ctx, depositEvent)
 		case "withdraw":
 			withdrawEvent := events.WithdrawConversionDoneEvent{
 				WithdrawValidatedEvent: events.WithdrawValidatedEvent{
@@ -96,7 +116,7 @@ func Handler(bus eventbus.EventBus, converter money.CurrencyConverter, logger *s
 				// ConversionDoneEvent: conversionDone,
 			}
 			log.Info("📤 [EMIT] Emitting WithdrawConversionDoneEvent", "event", withdrawEvent, "correlation_id", cre.CorrelationID.String())
-			_ = bus.Publish(ctx, withdrawEvent)
+			return bus.Emit(ctx, withdrawEvent)
 		case "transfer":
 			transferEvent := events.TransferConversionDoneEvent{
 				TransferValidatedEvent: events.TransferValidatedEvent{
@@ -112,20 +132,28 @@ func Handler(bus eventbus.EventBus, converter money.CurrencyConverter, logger *s
 				// ConversionDoneEvent: conversionDone,
 			}
 			log.Info("📤 [EMIT] Emitting TransferConversionDoneEvent", "event", transferEvent, "correlation_id", cre.CorrelationID.String())
-			_ = bus.Publish(ctx, transferEvent)
+			return bus.Emit(ctx, transferEvent)
 		case "conversion":
+			conversionRate := convInfo.ConversionRate
+			originalCurrency := originalMoney.Currency().String()
+			convertedAmount := convertedMoney.AmountFloat()
 			conversionDone := events.ConversionDoneEvent{
-				FlowEvent:  cre.FlowEvent,
-				ID:         uuid.New(),
-				FromAmount: originalMoney,
-				ToAmount:   convertedMoney,
-				RequestID:  cre.RequestID,
-				Timestamp:  cre.Timestamp,
+				FlowEvent:        cre.FlowEvent,
+				ID:               uuid.New(),
+				FromAmount:       cre.FromAmount,
+				ToAmount:         convertedMoney,
+				RequestID:        cre.RequestID,
+				TransactionID:    cre.TransactionID,
+				Timestamp:        cre.Timestamp,
+				ConversionRate:   conversionRate,
+				OriginalCurrency: originalCurrency,
+				ConvertedAmount:  convertedAmount,
 			}
 			log.Info("📤 [EMIT] Emitting ConversionDoneEvent", "event", conversionDone, "correlation_id", cre.CorrelationID.String())
-			_ = bus.Publish(ctx, conversionDone)
+			return bus.Emit(ctx, conversionDone)
 		default:
 			log.Warn("Unknown flow type in ConversionRequestedEvent", "flow_type", flowType)
+			return nil
 		}
 	}
 }

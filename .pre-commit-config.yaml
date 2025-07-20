@@ -16,9 +16,9 @@ repos:
     hooks:
       - id: event-cycle-check
         name: "event cycle check"
-        entry: go run scripts/event_cycle_check.go
+        entry: ./scripts/event_cycle_check.go
         pass_filenames: false
-        types: [go]
+        types: [bash]
         language: system
       - id: go-vet
         name: "go run vet"

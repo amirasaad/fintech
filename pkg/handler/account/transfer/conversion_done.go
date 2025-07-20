@@ -13,14 +13,14 @@ import (
 )
 
 // ConversionDoneHandler handles ConversionDoneEvent for transfer flows and triggers domain transfer operations.
-func ConversionDoneHandler(bus eventbus.EventBus, uow repository.UnitOfWork, logger *slog.Logger) func(context.Context, domain.Event) {
-	return func(ctx context.Context, e domain.Event) {
+func ConversionDoneHandler(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e domain.Event) error {
+	return func(ctx context.Context, e domain.Event) error {
 		logger := logger.With("handler", "TransferConversionDoneHandler")
 
 		te, ok := e.(events.TransferConversionDoneEvent)
 		if !ok {
 			logger.Debug("🚫 [SKIP] Skipping: unexpected event type in TransferConversionDoneHandler", "event", e)
-			return
+			return nil
 		}
 
 		logger.Info("🔄 [PROCESS] Mapping TransferConversionDoneEvent to TransferDomainOpDoneEvent", "handler", "TransferConversionDoneHandler", "event_type", e.Type(), "correlation_id", te.CorrelationID, "from_amount", te.FromAmount.String(), "to_amount", te.ToAmount.String(), "request_id", te.RequestID)
@@ -31,7 +31,9 @@ func ConversionDoneHandler(bus eventbus.EventBus, uow repository.UnitOfWork, log
 			// Add any additional fields as needed
 		}
 		logger.Info("📤 [EMIT] Emitting TransferDomainOpDoneEvent", "event", transferEvent, "correlation_id", te.CorrelationID.String())
-		_ = bus.Publish(ctx, transferEvent)
+		if err := bus.Emit(ctx, transferEvent); err != nil {
+			return err
+		}
 
 		// TODO: The following logic references removed fields and needs to be revisited for the new event structure.
 		// convertedAmount := te.ToAmount
@@ -43,7 +45,7 @@ func ConversionDoneHandler(bus eventbus.EventBus, uow repository.UnitOfWork, log
 		// Validate that the converted amount is positive
 		if te.ToAmount.AmountFloat() <= 0 {
 			logger.Error("transfer amount must be positive", "converted_amount", te.ToAmount)
-			return
+			return nil
 		}
 
 		logger.Info("processing transfer conversion done",
@@ -56,7 +58,7 @@ func ConversionDoneHandler(bus eventbus.EventBus, uow repository.UnitOfWork, log
 		repoAny, err := uow.GetRepository((*account.Repository)(nil))
 		if err != nil {
 			logger.Error("failed to get account repository", "error", err)
-			return
+			return nil
 		}
 		repo := repoAny.(account.Repository)
 
@@ -65,7 +67,7 @@ func ConversionDoneHandler(bus eventbus.EventBus, uow repository.UnitOfWork, log
 		sourceAccDto, err := repo.Get(ctx, sourceAccUUID)
 		if err != nil {
 			logger.Error("source account not found", "account_id", te.AccountID, "error", err)
-			return
+			return nil
 		}
 
 		sourceAcc := mapper.MapAccountReadToDomain(sourceAccDto)
@@ -75,7 +77,7 @@ func ConversionDoneHandler(bus eventbus.EventBus, uow repository.UnitOfWork, log
 
 		if err := sourceAcc.ValidateWithdraw(senderUserUUID, te.ToAmount); err != nil {
 			logger.Error("transfer validation failed after conversion", "error", err)
-			return
+			return nil
 		}
 
 		logger.Info("transfer validation passed after conversion, performing domain transfer operation",
@@ -123,11 +125,12 @@ func ConversionDoneHandler(bus eventbus.EventBus, uow repository.UnitOfWork, log
 
 		if err != nil {
 			logger.Error("domain transfer operation failed", "error", err)
-			return
+			return nil
 		}
 
 		logger.Info("domain transfer operation completed successfully")
 		// Note: TransferDomainOpDoneEvent will be published by TransferDomainOpHandler
 		// which is subscribed to TransferConversionDoneEvent
+		return nil
 	}
 }

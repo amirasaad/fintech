@@ -9,44 +9,46 @@ import (
 	"github.com/amirasaad/fintech/pkg/eventbus"
 )
 
+const EventDepthKey = "eventDepth"
+const MaxEventDepth = 10
+
 // MemoryEventBus is a simple in-memory implementation of the EventBus interface.
 type MemoryEventBus struct {
-	handlers map[string][]func(context.Context, domain.Event)
+	handlers map[string][]eventbus.HandlerFunc
 	mu       sync.RWMutex
 }
 
 // NewMemoryEventBus creates a new in-memory event bus for event-driven communication.
 func NewMemoryEventBus() *MemoryEventBus {
 	return &MemoryEventBus{
-		handlers: make(map[string][]func(context.Context, domain.Event)),
+		handlers: make(map[string][]eventbus.HandlerFunc),
 	}
 }
 
-// Subscribe registers a handler for a specific event type.
-func (b *MemoryEventBus) Subscribe(eventType string, handler func(context.Context, domain.Event)) {
+// Register i registers a handler for a specific event type.
+func (b *MemoryEventBus) Register(eventType string, handler eventbus.HandlerFunc) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.handlers[eventType] = append(b.handlers[eventType], handler)
 }
 
 // Publish dispatches the event to all registered handlers for its type.
-func (b *MemoryEventBus) Publish(ctx context.Context, event domain.Event) error {
+func (b *MemoryEventBus) Emit(ctx context.Context, event domain.Event) error {
 	eventType := reflect.TypeOf(event).Name()
 	b.mu.RLock()
 	handlers := b.handlers[eventType]
 	b.mu.RUnlock()
 	for _, handler := range handlers {
-		handler(ctx, event)
+		handler(ctx, event) //nolint:errcheck
 	}
 	return nil
 }
 
 // Ensure MemoryEventBus implements the EventBus interface.
-var _ eventbus.EventBus = (*MemoryEventBus)(nil)
+var _ eventbus.Bus = (*MemoryEventBus)(nil)
 
 // MemoryRegistryEventBus is a registry-based in-memory event bus implementation.
 type MemoryRegistryEventBus struct {
-	mu       sync.RWMutex
 	handlers map[string][]eventbus.HandlerFunc
 }
 
@@ -57,18 +59,12 @@ func NewMemoryRegistryEventBus() *MemoryRegistryEventBus {
 	}
 }
 
-// Register adds a handler for a specific event type.
 func (b *MemoryRegistryEventBus) Register(eventType string, handler eventbus.HandlerFunc) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
 	b.handlers[eventType] = append(b.handlers[eventType], handler)
 }
 
-// Emit dispatches the event to all registered handlers for its type.
-func (b *MemoryRegistryEventBus) Emit(ctx context.Context, event eventbus.Event) error {
-	b.mu.RLock()
+func (b *MemoryRegistryEventBus) Emit(ctx context.Context, event domain.Event) error {
 	handlers := b.handlers[event.Type()]
-	b.mu.RUnlock()
 	for _, handler := range handlers {
 		if err := handler(ctx, event); err != nil {
 			return err
@@ -77,5 +73,5 @@ func (b *MemoryRegistryEventBus) Emit(ctx context.Context, event eventbus.Event)
 	return nil
 }
 
-// Ensure MemoryRegistryEventBus implements the RegistryEventBus interface.
-var _ eventbus.RegistryEventBus = (*MemoryRegistryEventBus)(nil)
+// Ensure MemoryRegistryEventBus implements the Bus interface.
+var _ eventbus.Bus = (*MemoryRegistryEventBus)(nil)

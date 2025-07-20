@@ -14,12 +14,10 @@ import (
 
 	"log/slog"
 
-	"github.com/amirasaad/fintech/internal/fixtures/mocks"
 	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/amirasaad/fintech/pkg/provider"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 )
 
 type mockPaymentProvider struct {
@@ -33,6 +31,27 @@ func (m *mockPaymentProvider) GetPaymentStatus(ctx context.Context, paymentID st
 
 func (m *mockPaymentProvider) InitiatePayment(ctx context.Context, userID, accountID uuid.UUID, amount int64, currency string) (string, error) {
 	return m.initiateFn(ctx, userID, accountID, amount, currency)
+}
+
+type mockBus struct {
+	handlers map[string][]eventbus.HandlerFunc
+}
+
+func (m *mockBus) Emit(ctx context.Context, event domain.Event) error {
+	handlers := m.handlers[event.Type()]
+	for _, handler := range handlers {
+		if err := handler(ctx, event); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (m *mockBus) Register(eventType string, handler eventbus.HandlerFunc) {
+	if m.handlers == nil {
+		m.handlers = make(map[string][]eventbus.HandlerFunc)
+	}
+	m.handlers[eventType] = append(m.handlers[eventType], handler)
 }
 
 func TestPaymentInitiationHandler_BusinessLogic(t *testing.T) {
@@ -58,7 +77,7 @@ func TestPaymentInitiationHandler_BusinessLogic(t *testing.T) {
 		expectAcc   uuid.UUID
 		expectAmt   int64
 		expectCur   string
-		setupMocks  func(bus *mocks.MockEventBus)
+		setupMocks  func(bus *mockBus)
 	}{
 		{
 			name: "deposit validation success",
@@ -111,8 +130,14 @@ func TestPaymentInitiationHandler_BusinessLogic(t *testing.T) {
 			expectAcc:   accountID,
 			expectAmt:   amount.Amount(),
 			expectCur:   amount.Currency().String(),
-			setupMocks: func(bus *mocks.MockEventBus) {
-				bus.On("Publish", mock.Anything, mock.AnythingOfType("events.PaymentInitiatedEvent")).Return(nil)
+			setupMocks: func(bus *mockBus) {
+				bus.Register("PaymentInitiatedEvent", func(ctx context.Context, e domain.Event) error {
+					pi := e.(events.PaymentInitiatedEvent)
+					assert.Equal(t, paymentID, pi.PaymentID)
+					assert.Equal(t, userID, pi.UserID)
+					assert.Equal(t, accountID, pi.AccountID)
+					return nil
+				})
 			},
 		},
 		{
@@ -147,8 +172,14 @@ func TestPaymentInitiationHandler_BusinessLogic(t *testing.T) {
 			expectAcc:   accountID,
 			expectAmt:   amount.Amount(),
 			expectCur:   amount.Currency().String(),
-			setupMocks: func(bus *mocks.MockEventBus) {
-				bus.On("Publish", mock.Anything, mock.AnythingOfType("events.PaymentInitiatedEvent")).Return(nil)
+			setupMocks: func(bus *mockBus) {
+				bus.Register("PaymentInitiatedEvent", func(ctx context.Context, e domain.Event) error {
+					pi := e.(events.PaymentInitiatedEvent)
+					assert.Equal(t, paymentID, pi.PaymentID)
+					assert.Equal(t, userID, pi.UserID)
+					assert.Equal(t, accountID, pi.AccountID)
+					return nil
+				})
 			},
 		},
 		{
@@ -223,17 +254,17 @@ func TestPaymentInitiationHandler_BusinessLogic(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			bus := mocks.NewMockEventBus(t)
+			bus := &mockBus{}
 			if tc.setupMocks != nil {
 				tc.setupMocks(bus)
 			}
 			handler := PaymentInitiationHandler(bus, tc.provider, slog.Default())
 			ctx := context.Background()
-			handler(ctx, tc.input)
+			handler(ctx, tc.input) //nolint:errcheck
 			if tc.expectPub {
-				assert.True(t, bus.AssertCalled(t, "Publish", ctx, mock.AnythingOfType("events.PaymentInitiatedEvent")), "should publish PaymentInitiatedEvent")
+				assert.True(t, bus.handlers["PaymentInitiatedEvent"] != nil, "should publish PaymentInitiatedEvent")
 			} else {
-				bus.AssertNotCalled(t, "Publish", ctx, mock.AnythingOfType("events.PaymentInitiatedEvent"))
+				assert.True(t, bus.handlers["PaymentInitiatedEvent"] == nil, "should not publish PaymentInitiatedEvent")
 			}
 		})
 	}
@@ -249,37 +280,40 @@ func TestDepositEventChain_NoInfiniteLoop(t *testing.T) {
 	// Track handler invocations
 	handlerCalls := make(map[string]int)
 
-	bus := eventbus.NewSimpleEventBus()
+	bus := &mockBus{}
 
 	// Minimal stub for account and UoW
 	mockAccount := &account.Account{ID: accountID, UserID: userID, Balance: amount}
 	txID := uuid.New()
 
 	// Register handlers for the deposit flow
-	bus.Subscribe("DepositRequestedEvent", func(ctx context.Context, e domain.Event) {
+	bus.Register("DepositRequestedEvent", func(ctx context.Context, e domain.Event) error {
 		handlerCalls["DepositRequestedEvent"]++
 		dr := e.(events.DepositRequestedEvent)
-		_ = bus.Publish(ctx, events.DepositValidatedEvent{
+		_ = bus.Emit(ctx, events.DepositValidatedEvent{
 			DepositRequestedEvent: dr,
 			Account:               mockAccount,
 		})
+		return nil
 	})
-	bus.Subscribe("DepositValidatedEvent", func(ctx context.Context, e domain.Event) {
+	bus.Register("DepositValidatedEvent", func(ctx context.Context, e domain.Event) error {
 		handlerCalls["DepositValidatedEvent"]++
 		ve := e.(events.DepositValidatedEvent)
-		_ = bus.Publish(ctx, events.DepositPersistedEvent{
+		_ = bus.Emit(ctx, events.DepositPersistedEvent{
 			DepositValidatedEvent: ve,
 			TransactionID:         txID,
 			Amount:                ve.Amount,
 		})
+		return nil
 	})
-	bus.Subscribe("DepositPersistedEvent", func(ctx context.Context, e domain.Event) {
+	bus.Register("DepositPersistedEvent", func(ctx context.Context, e domain.Event) error {
 		handlerCalls["DepositPersistedEvent"]++
 		// End of chain for this test
+		return nil
 	})
 
 	// Start the chain
-	_ = bus.Publish(ctx, events.DepositRequestedEvent{
+	_ = bus.Emit(ctx, events.DepositRequestedEvent{
 		FlowEvent: events.FlowEvent{
 			UserID:        userID,
 			AccountID:     accountID,
@@ -305,56 +339,62 @@ func TestDepositAndWithdrawEventChains_NoCrossWorkflowInfiniteLoop(t *testing.T)
 	amount, _ := money.New(100, currency.USD)
 
 	handlerCalls := make(map[string]int)
-	bus := eventbus.NewSimpleEventBus()
+	bus := &mockBus{}
 	mockAccount := &account.Account{ID: accountID, UserID: userID, Balance: amount}
 	txID := uuid.New()
 
 	// Deposit workflow
-	bus.Subscribe("DepositRequestedEvent", func(ctx context.Context, e domain.Event) {
+	bus.Register("DepositRequestedEvent", func(ctx context.Context, e domain.Event) error {
 		handlerCalls["DepositRequestedEvent"]++
 		dr := e.(events.DepositRequestedEvent)
-		_ = bus.Publish(ctx, events.DepositValidatedEvent{
+		_ = bus.Emit(ctx, events.DepositValidatedEvent{
 			DepositRequestedEvent: dr,
 			Account:               mockAccount,
 		})
+		return nil
 	})
-	bus.Subscribe("DepositValidatedEvent", func(ctx context.Context, e domain.Event) {
+	bus.Register("DepositValidatedEvent", func(ctx context.Context, e domain.Event) error {
 		handlerCalls["DepositValidatedEvent"]++
 		ve := e.(events.DepositValidatedEvent)
-		_ = bus.Publish(ctx, events.DepositPersistedEvent{
+		_ = bus.Emit(ctx, events.DepositPersistedEvent{
 			DepositValidatedEvent: ve,
 			TransactionID:         txID,
 			Amount:                ve.Amount,
 		})
+		return nil
 	})
-	bus.Subscribe("DepositPersistedEvent", func(ctx context.Context, e domain.Event) {
+	bus.Register("DepositPersistedEvent", func(ctx context.Context, e domain.Event) error {
 		handlerCalls["DepositPersistedEvent"]++
+		return nil
 	})
 
 	// Withdraw workflow
-	bus.Subscribe("WithdrawRequestedEvent", func(ctx context.Context, e domain.Event) {
+	bus.Register("WithdrawRequestedEvent", func(ctx context.Context, e domain.Event) error {
 		handlerCalls["WithdrawRequestedEvent"]++
 		wr := e.(events.WithdrawRequestedEvent)
-		_ = bus.Publish(ctx, events.WithdrawValidatedEvent{
+		_ = bus.Emit(ctx, events.WithdrawValidatedEvent{
 			WithdrawRequestedEvent: wr,
 			TargetCurrency:         amount.Currency().String(),
 			Account:                mockAccount,
 		})
+		return nil
 	})
-	bus.Subscribe("WithdrawValidatedEvent", func(ctx context.Context, e domain.Event) {
+	bus.Register("WithdrawValidatedEvent", func(ctx context.Context, e domain.Event) error {
 		handlerCalls["WithdrawValidatedEvent"]++
 		wv := e.(events.WithdrawValidatedEvent)
-		_ = bus.Publish(ctx, events.WithdrawPersistedEvent{
+		_ = bus.Emit(ctx, events.WithdrawPersistedEvent{
 			WithdrawValidatedEvent: wv,
 			TransactionID:          txID,
 		})
+		return nil
 	})
-	bus.Subscribe("WithdrawPersistedEvent", func(ctx context.Context, e domain.Event) {
+	bus.Register("WithdrawPersistedEvent", func(ctx context.Context, e domain.Event) error {
 		handlerCalls["WithdrawPersistedEvent"]++
+		return nil
 	})
 
 	// Start both chains
-	_ = bus.Publish(ctx, events.DepositRequestedEvent{
+	_ = bus.Emit(ctx, events.DepositRequestedEvent{
 		FlowEvent: events.FlowEvent{
 			UserID:        userID,
 			AccountID:     accountID,
@@ -366,7 +406,7 @@ func TestDepositAndWithdrawEventChains_NoCrossWorkflowInfiniteLoop(t *testing.T)
 		Source:    "deposit",
 		Timestamp: time.Now(),
 	})
-	_ = bus.Publish(ctx, events.WithdrawRequestedEvent{
+	_ = bus.Emit(ctx, events.WithdrawRequestedEvent{
 		FlowEvent: events.FlowEvent{
 			UserID:        userID,
 			AccountID:     accountID,
@@ -394,76 +434,86 @@ func TestAllWorkflowsEventChains_NoCrossWorkflowInfiniteLoop(t *testing.T) {
 	amount, _ := money.New(100, currency.USD)
 
 	handlerCalls := make(map[string]int)
-	bus := eventbus.NewSimpleEventBus()
+	bus := &mockBus{}
 	mockAccount := &account.Account{ID: accountID, UserID: userID, Balance: amount}
 	txID := uuid.New()
 
 	// Deposit workflow
-	bus.Subscribe("DepositRequestedEvent", func(ctx context.Context, e domain.Event) {
+	bus.Register("DepositRequestedEvent", func(ctx context.Context, e domain.Event) error {
 		handlerCalls["DepositRequestedEvent"]++
 		dr := e.(events.DepositRequestedEvent)
-		_ = bus.Publish(ctx, events.DepositValidatedEvent{
+		_ = bus.Emit(ctx, events.DepositValidatedEvent{
 			DepositRequestedEvent: dr,
 			Account:               mockAccount,
 		})
+		return nil
 	})
-	bus.Subscribe("DepositValidatedEvent", func(ctx context.Context, e domain.Event) {
+	bus.Register("DepositValidatedEvent", func(ctx context.Context, e domain.Event) error {
 		handlerCalls["DepositValidatedEvent"]++
 		ve := e.(events.DepositValidatedEvent)
-		_ = bus.Publish(ctx, events.DepositPersistedEvent{
+		_ = bus.Emit(ctx, events.DepositPersistedEvent{
 			DepositValidatedEvent: ve,
 			TransactionID:         txID,
 			Amount:                ve.Amount,
 		})
+		return nil
 	})
-	bus.Subscribe("DepositPersistedEvent", func(ctx context.Context, e domain.Event) {
+	bus.Register("DepositPersistedEvent", func(ctx context.Context, e domain.Event) error {
 		handlerCalls["DepositPersistedEvent"]++
+		return nil
 	})
 
 	// Withdraw workflow
-	bus.Subscribe("WithdrawRequestedEvent", func(ctx context.Context, e domain.Event) {
+	bus.Register("WithdrawRequestedEvent", func(ctx context.Context, e domain.Event) error {
 		handlerCalls["WithdrawRequestedEvent"]++
 		wr := e.(events.WithdrawRequestedEvent)
-		_ = bus.Publish(ctx, events.WithdrawValidatedEvent{
+		_ = bus.Emit(ctx, events.WithdrawValidatedEvent{
 			WithdrawRequestedEvent: wr,
 			TargetCurrency:         amount.Currency().String(),
 			Account:                mockAccount,
 		})
+		return nil
 	})
-	bus.Subscribe("WithdrawValidatedEvent", func(ctx context.Context, e domain.Event) {
+	bus.Register("WithdrawValidatedEvent", func(ctx context.Context, e domain.Event) error {
 		handlerCalls["WithdrawValidatedEvent"]++
 		wv := e.(events.WithdrawValidatedEvent)
-		_ = bus.Publish(ctx, events.WithdrawPersistedEvent{
+		_ = bus.Emit(ctx, events.WithdrawPersistedEvent{
 			WithdrawValidatedEvent: wv,
 			TransactionID:          txID,
 		})
+		return nil
 	})
-	bus.Subscribe("WithdrawPersistedEvent", func(ctx context.Context, e domain.Event) {
+	bus.Register("WithdrawPersistedEvent", func(ctx context.Context, e domain.Event) error {
 		handlerCalls["WithdrawPersistedEvent"]++
+		return nil
 	})
 
 	// Transfer workflow
-	bus.Subscribe("TransferRequestedEvent", func(ctx context.Context, e domain.Event) {
+	bus.Register("TransferRequestedEvent", func(ctx context.Context, e domain.Event) error {
 		handlerCalls["TransferRequestedEvent"]++
 		tr := e.(events.TransferRequestedEvent)
-		_ = bus.Publish(ctx, events.TransferValidatedEvent{TransferRequestedEvent: tr})
+		_ = bus.Emit(ctx, events.TransferValidatedEvent{TransferRequestedEvent: tr})
+		return nil
 	})
-	bus.Subscribe("TransferValidatedEvent", func(ctx context.Context, e domain.Event) {
+	bus.Register("TransferValidatedEvent", func(ctx context.Context, e domain.Event) error {
 		handlerCalls["TransferValidatedEvent"]++
 		tv := e.(events.TransferValidatedEvent)
-		_ = bus.Publish(ctx, events.TransferDomainOpDoneEvent{TransferValidatedEvent: tv})
+		_ = bus.Emit(ctx, events.TransferDomainOpDoneEvent{TransferValidatedEvent: tv})
+		return nil
 	})
-	bus.Subscribe("TransferDomainOpDoneEvent", func(ctx context.Context, e domain.Event) {
+	bus.Register("TransferDomainOpDoneEvent", func(ctx context.Context, e domain.Event) error {
 		handlerCalls["TransferDomainOpDoneEvent"]++
 		do := e.(events.TransferDomainOpDoneEvent)
-		_ = bus.Publish(ctx, events.TransferPersistedEvent{TransferDomainOpDoneEvent: do})
+		_ = bus.Emit(ctx, events.TransferPersistedEvent{TransferDomainOpDoneEvent: do})
+		return nil
 	})
-	bus.Subscribe("TransferPersistedEvent", func(ctx context.Context, e domain.Event) {
+	bus.Register("TransferPersistedEvent", func(ctx context.Context, e domain.Event) error {
 		handlerCalls["TransferPersistedEvent"]++
+		return nil
 	})
 
 	// Start all chains
-	_ = bus.Publish(ctx, events.DepositRequestedEvent{
+	_ = bus.Emit(ctx, events.DepositRequestedEvent{
 		FlowEvent: events.FlowEvent{
 			UserID:        userID,
 			AccountID:     accountID,
@@ -475,7 +525,7 @@ func TestAllWorkflowsEventChains_NoCrossWorkflowInfiniteLoop(t *testing.T) {
 		Source:    "deposit",
 		Timestamp: time.Now(),
 	})
-	_ = bus.Publish(ctx, events.WithdrawRequestedEvent{
+	_ = bus.Emit(ctx, events.WithdrawRequestedEvent{
 		FlowEvent: events.FlowEvent{
 			UserID:        userID,
 			AccountID:     accountID,
@@ -486,7 +536,7 @@ func TestAllWorkflowsEventChains_NoCrossWorkflowInfiniteLoop(t *testing.T) {
 		Amount:    amount,
 		Timestamp: time.Now(),
 	})
-	_ = bus.Publish(ctx, events.TransferRequestedEvent{
+	_ = bus.Emit(ctx, events.TransferRequestedEvent{
 		FlowEvent: events.FlowEvent{
 			UserID:        userID,
 			AccountID:     accountID,

@@ -34,7 +34,7 @@ func PaymentWebhookHandler(svc *account.Service) fiber.Handler {
 }
 
 // StripeWebhookHandler handles incoming Stripe webhook events.
-func StripeWebhookHandler(eventBus eventbus.EventBus, signingSecret string) fiber.Handler {
+func StripeWebhookHandler(eventBus eventbus.Bus, signingSecret string) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		const MaxBodyBytes = int64(65536)
 		request := c.Request()
@@ -64,7 +64,7 @@ func StripeWebhookHandler(eventBus eventbus.EventBus, signingSecret string) fibe
 				AccountID:     uuid.New(), // TODO: Get from transaction lookup or context
 				CorrelationID: uuid.New(), // TODO: Get from event chain or context
 			}
-			if err := eventBus.Publish(c.Context(), paymentEvent); err != nil {
+			if err := eventBus.Emit(c.Context(), paymentEvent); err != nil {
 				return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 			}
 		} else {

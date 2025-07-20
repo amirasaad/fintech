@@ -2,6 +2,7 @@ package payment
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 
 	"github.com/amirasaad/fintech/pkg/domain/events"
@@ -14,8 +15,8 @@ import (
 
 // PaymentInitiationHandler handles validation events and initiates payment with the provider.
 // This is a generic handler that can process DepositValidatedEvent, WithdrawValidatedEvent, etc.
-func PaymentInitiationHandler(bus eventbus.EventBus, paymentProvider provider.PaymentProvider, logger *slog.Logger) func(context.Context, domain.Event) {
-	return func(ctx context.Context, e domain.Event) {
+func PaymentInitiationHandler(bus eventbus.Bus, paymentProvider provider.PaymentProvider, logger *slog.Logger) func(ctx context.Context, e domain.Event) error {
+	return func(ctx context.Context, e domain.Event) error {
 		log := logger.With(
 			"handler", "PaymentInitiationHandler",
 			"event_type", e.Type(),
@@ -56,22 +57,26 @@ func PaymentInitiationHandler(bus eventbus.EventBus, paymentProvider provider.Pa
 
 		default:
 			log.Warn("⚠️ [WARN] Unexpected event type for payment initiation", "event_type", e.Type(), "event", e)
-			return
+			return nil
 		}
 
 		// Initiate payment with the provider
 		paymentID, err := paymentProvider.InitiatePayment(ctx, userID, accountID, amount, currency)
 		if err != nil {
 			log.Error("❌ [ERROR] Payment initiation failed", "error", err, "correlation_id", correlationID)
-			return
+			return nil
 		}
 
 		log.Info("✅ [SUCCESS] Payment initiated successfully", "payment_id", paymentID, "correlation_id", correlationID)
 
 		// Emit PaymentInitiatedEvent
+		if transactionID == uuid.Nil {
+			log.Error("Transaction ID is nil, aborting PaymentInitiatedEvent emission", "event", e)
+			return errors.New("invalid transaction ID")
+		}
 		paymentEvent := events.PaymentInitiatedEvent{
 			ID:            uuid.New().String(),
-			TransactionID: transactionID, // This must be passed in from the event chain
+			TransactionID: transactionID, // Always propagate!
 			PaymentID:     paymentID,
 			Status:        "initiated",
 			UserID:        userID,
@@ -79,11 +84,12 @@ func PaymentInitiationHandler(bus eventbus.EventBus, paymentProvider provider.Pa
 			CorrelationID: correlationID,
 		}
 
-		if err := bus.Publish(ctx, paymentEvent); err != nil {
+		if err := bus.Emit(ctx, paymentEvent); err != nil {
 			log.Error("❌ [ERROR] Failed to publish PaymentInitiatedEvent", "error", err, "correlation_id", correlationID)
-			return
+			return nil
 		}
 
 		log.Info("📤 [EMIT] PaymentInitiatedEvent published", "event", paymentEvent, "correlation_id", correlationID)
+		return nil
 	}
 }

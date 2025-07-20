@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/amirasaad/fintech/pkg/domain/events"
+	"github.com/amirasaad/fintech/pkg/eventbus"
 
 	"github.com/amirasaad/fintech/internal/fixtures/mocks"
 	"github.com/amirasaad/fintech/pkg/domain"
@@ -23,11 +24,11 @@ type mockBus struct {
 	published []domain.Event
 }
 
-func (m *mockBus) Publish(ctx context.Context, event domain.Event) error {
+func (m *mockBus) Emit(ctx context.Context, event domain.Event) error {
 	m.published = append(m.published, event)
 	return nil
 }
-func (m *mockBus) Subscribe(eventType string, handler func(context.Context, domain.Event)) {}
+func (m *mockBus) Register(eventType string, handler eventbus.HandlerFunc) {}
 
 func TestDrivenDepositFlow_Integration(t *testing.T) {
 	// Setup
@@ -51,6 +52,7 @@ func TestDrivenDepositFlow_Integration(t *testing.T) {
 	depositRequested := events.DepositRequestedEvent{
 		ID: uuid.New(),
 		FlowEvent: events.FlowEvent{
+			FlowType:  "deposit",
 			AccountID: validAccount,
 			UserID:    validUser,
 		},
@@ -60,7 +62,7 @@ func TestDrivenDepositFlow_Integration(t *testing.T) {
 
 	// Step 2: Validation Handler
 	validationHandler := deposit.ValidationHandler(bus, uow, logger)
-	validationHandler(ctx, depositRequested)
+	validationHandler(ctx, depositRequested) //nolint:errcheck
 	assert.Len(t, bus.published, 1, "Validation handler should publish DepositValidated")
 
 	depositValidated, ok := bus.published[0].(events.DepositValidatedEvent)
@@ -70,7 +72,7 @@ func TestDrivenDepositFlow_Integration(t *testing.T) {
 
 	// Step 3: Persistence Handler
 	persistHandler := deposit.PersistenceHandler(bus, uow, logger)
-	persistHandler(ctx, depositValidated)
+	persistHandler(ctx, depositValidated) //nolint:errcheck
 	assert.Len(t, bus.published, 3, "Persistence handler should publish DepositPersisted and ConversionRequested")
 
 	depositPersisted, ok := bus.published[1].(events.DepositPersistedEvent)

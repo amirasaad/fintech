@@ -16,13 +16,13 @@ import (
 )
 
 // CompletedHandler handles PaymentCompletedEvent, updates the transaction status in the DB, and publishes a follow-up event if needed.
-func CompletedHandler(bus eventbus.EventBus, uow repository.UnitOfWork, logger *slog.Logger) func(context.Context, domain.Event) {
-	return func(ctx context.Context, e domain.Event) {
+func CompletedHandler(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e domain.Event) error {
+	return func(ctx context.Context, e domain.Event) error {
 		logger.Info("CompletedHandler: received event", "event", e)
 		pe, ok := e.(*events.PaymentCompletedEvent)
 		if !ok {
-			logger.Error("CompletedHandler: unexpected event type", "event", e)
-			return
+			logger.Error("event is not PaymentCompletedEvent", "event", e)
+			return nil
 		}
 		// Access all fields directly: pe.TransactionID, pe.PaymentID, pe.Status, pe.UserID, pe.AccountID, pe.CorrelationID
 		err := uow.Do(ctx, func(uow repository.UnitOfWork) error {
@@ -72,9 +72,10 @@ func CompletedHandler(bus eventbus.EventBus, uow repository.UnitOfWork, logger *
 		})
 		if err != nil {
 			logger.Error("CompletedHandler: transaction failed", "error", err)
-			return
+			return nil
 		}
 		// Optionally: publish a UI/account balance update event
-		// _ = bus.Publish(ctx, events.AccountBalanceUpdatedEvent{UserID: tx.UserID, AccountID: tx.AccountID, NewBalance: ...})
+		// return bus.Emit(ctx, events.AccountBalanceUpdatedEvent{UserID: tx.UserID, AccountID: tx.AccountID, NewBalance: ...})
+		return nil
 	}
 }

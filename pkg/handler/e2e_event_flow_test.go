@@ -55,21 +55,24 @@ func TestDepositE2EEventFlow(t *testing.T) {
 
 	// Register handlers (real logic)
 	logger := slog.Default()
-	bus.Subscribe("DepositRequestedEvent", func(ctx context.Context, e domain.Event) {
+	bus.Register("DepositRequestedEvent", func(ctx context.Context, e domain.Event) error {
 		track("DepositRequestedEvent")
-		deposithandler.ValidationHandler(bus, uow, logger)(ctx, e)
+		deposithandler.ValidationHandler(bus, uow, logger)(ctx, e) //nolint:errcheck
+		return nil
 	})
-	bus.Subscribe("DepositValidatedEvent", func(ctx context.Context, e domain.Event) {
+	bus.Register("DepositValidatedEvent", func(ctx context.Context, e domain.Event) error {
 		track("DepositValidatedEvent")
-		deposithandler.PersistenceHandler(bus, uow, logger)(ctx, e)
+		deposithandler.PersistenceHandler(bus, uow, logger)(ctx, e) //nolint:errcheck
+		return nil
 	})
-	bus.Subscribe("DepositPersistedEvent", func(ctx context.Context, e domain.Event) {
+	bus.Register("DepositPersistedEvent", func(ctx context.Context, e domain.Event) error {
 		track("DepositPersistedEvent")
 		// End of chain for this E2E
+		return nil
 	})
 
 	// Start the chain
-	_ = bus.Publish(ctx, events.DepositRequestedEvent{
+	_ = bus.Emit(ctx, events.DepositRequestedEvent{
 		FlowEvent: events.FlowEvent{
 			AccountID:     accountID,
 			UserID:        userID,

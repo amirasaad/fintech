@@ -353,7 +353,7 @@ func (b *SimpleEventBus) Unsubscribe(observer RegistryObserver) error {
 }
 
 // Publish publishes an event to all observers
-func (b *SimpleEventBus) Publish(ctx context.Context, event RegistryEvent) error {
+func (b *SimpleEventBus) Emit(ctx context.Context, event RegistryEvent) error {
 	b.mu.RLock()
 	observers := make([]RegistryObserver, len(b.observers))
 	copy(observers, b.observers)

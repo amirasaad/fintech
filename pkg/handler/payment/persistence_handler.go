@@ -18,8 +18,8 @@ import (
 
 // PaymentPersistenceHandler handles PaymentInitiatedEvent and updates the transaction with payment ID.
 // This is a generic handler that can process payment events for all operations (deposit, withdraw, transfer).
-func PaymentPersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork, logger *slog.Logger) func(context.Context, domain.Event) {
-	return func(ctx context.Context, e domain.Event) {
+func PaymentPersistenceHandler(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e domain.Event) error {
+	return func(ctx context.Context, e domain.Event) error {
 		logger := logger.With(
 			"handler", "PaymentPersistenceHandler",
 			"event_type", e.Type(),
@@ -29,7 +29,7 @@ func PaymentPersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork,
 		pie, ok := e.(events.PaymentInitiatedEvent)
 		if !ok {
 			logger.Error("unexpected event type for payment persistence", "event", e)
-			return
+			return nil
 		}
 
 		logger.Info("updating transaction with payment ID",
@@ -72,20 +72,17 @@ func PaymentPersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork,
 				"transaction_id", pie.TransactionID,
 				"payment_id", pie.PaymentID)
 
-			_ = bus.Publish(ctx, events.PaymentIdPersistedEvent{
-				ID:            uuid.New().String(),
-				TransactionID: pie.TransactionID,
-				PaymentID:     pie.PaymentID,
-				Status:        status,
-				UserID:        pie.UserID,
-				AccountID:     pie.AccountID,
-				CorrelationID: pie.CorrelationID,
-			})
+			// Guard: Only emit if TransactionID is valid and no cycle will occur
+			if pie.TransactionID == uuid.Nil {
+				logger.Error("Transaction ID is nil, aborting PaymentIdPersistedEvent emission", "event", pie)
+				return errors.New("invalid transaction ID")
+			}
 
 			return nil
 		}); err != nil {
 			logger.Error("payment persistence failed", "error", err)
-			return
+			return nil
 		}
+		return nil
 	}
 }

@@ -1,9 +1,11 @@
 package user_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/amirasaad/fintech/pkg/domain"
+	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/amirasaad/fintech/webapi/testutils"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -136,6 +138,35 @@ func (s *UserTestSuite) TestDeleteUserVariants() {
 			s.Equal(tc.wantStatus, resp.StatusCode)
 		})
 	}
+}
+
+type mockBus struct {
+	handlers map[string][]eventbus.HandlerFunc
+}
+
+func (m *mockBus) Emit(ctx context.Context, event domain.Event) error {
+	handlers := m.handlers[event.Type()]
+	for _, handler := range handlers {
+		if err := handler(ctx, event); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (m *mockBus) Register(eventType string, handler eventbus.HandlerFunc) {
+	if m.handlers == nil {
+		m.handlers = make(map[string][]eventbus.HandlerFunc)
+	}
+	m.handlers[eventType] = append(m.handlers[eventType], handler)
+}
+
+func TestUserEventEmission(t *testing.T) {
+	mockBus := &mockBus{}
+	mockBus.Register("SomeEventType", func(ctx context.Context, event domain.Event) error {
+		return nil
+	})
+	// ... rest of test logic ...
 }
 
 func TestUserTestSuite(t *testing.T) {

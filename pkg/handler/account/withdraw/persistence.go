@@ -16,15 +16,15 @@ import (
 )
 
 // WithdrawPersistenceHandler handles WithdrawValidatedEvent: persists the withdraw transaction and emits WithdrawPersistedEvent.
-func WithdrawPersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork, logger *slog.Logger) func(context.Context, domain.Event) {
-	return func(ctx context.Context, e domain.Event) {
+func WithdrawPersistenceHandler(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e domain.Event) error {
+	return func(ctx context.Context, e domain.Event) error {
 		log := logger.With("handler", "WithdrawPersistenceHandler", "event_type", e.Type())
 		log.Info("🟢 [START] Received event", "event", e)
 
 		ve, ok := e.(events.WithdrawValidatedEvent)
 		if !ok {
 			log.Error("❌ [ERROR] Unexpected event", "event", e)
-			return
+			return nil
 		}
 		log.Info("🔄 [PROCESS] Received WithdrawValidatedEvent", "event", ve)
 
@@ -54,7 +54,7 @@ func WithdrawPersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork
 			return nil
 		}); err != nil {
 			log.Error("❌ [ERROR] Failed to persist withdraw transaction", "error", err)
-			return
+			return nil
 		}
 		correlationID := ve.CorrelationID
 		persistedEvent := events.WithdrawPersistedEvent{
@@ -62,7 +62,9 @@ func WithdrawPersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork
 			TransactionID:          txID,
 		}
 		log.Info("📤 [EMIT] Emitting WithdrawPersistedEvent", "event", persistedEvent, "correlation_id", correlationID.String())
-		_ = bus.Publish(ctx, persistedEvent)
+		if err := bus.Emit(ctx, persistedEvent); err != nil {
+			return err
+		}
 
 		// Emit ConversionRequested to trigger currency conversion for withdraw (decoupled from payment)
 		correlationID = uuid.New()
@@ -77,6 +79,6 @@ func WithdrawPersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork
 		}
 		log.Info("DEBUG: Full ConversionRequestedEvent", "event", conversionEvent)
 		log.Info("📤 [EMIT] About to emit ConversionRequestedEvent", "handler", "WithdrawPersistenceHandler", "event_type", conversionEvent.Type(), "correlation_id", correlationID.String())
-		_ = bus.Publish(ctx, conversionEvent)
+		return bus.Emit(ctx, conversionEvent)
 	}
 }

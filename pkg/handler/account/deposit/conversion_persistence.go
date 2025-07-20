@@ -14,15 +14,15 @@ import (
 )
 
 // ConversionPersistenceHandler handles DepositConversionDoneEvent and updates the transaction with conversion data.
-func ConversionPersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork, logger *slog.Logger) func(context.Context, domain.Event) {
-	return func(ctx context.Context, e domain.Event) {
+func ConversionPersistenceHandler(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e domain.Event) error {
+	return func(ctx context.Context, e domain.Event) error {
 		logger := logger.With("handler", "DepositConversionPersistenceHandler")
 		logger.Info("received event", "event", e)
 
 		var convertedAmount float64
 		var originalAmount float64
 		var originalCurrency string
-		var requestID string
+		var txID uuid.UUID
 		var correlationID uuid.UUID
 
 		var evt events.DepositConversionDoneEvent
@@ -32,21 +32,14 @@ func ConversionPersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWo
 			convertedAmount = v.ToAmount.AmountFloat()
 			originalAmount = v.FromAmount.AmountFloat()
 			originalCurrency = v.FromAmount.Currency().String()
-			requestID = v.RequestID
+			txID = v.TransactionID
 			logger = logger.With("correlation_id", correlationID)
 			logger.Info("received DepositConversionDoneEvent", "event", v, "correlation_id", correlationID)
 			// assign to evt for use after switch
 			evt = v
 		default:
 			logger.Error("unexpected event type for deposit conversion persistence", "event", e)
-			return
-		}
-
-		// Parse the request ID (which is the transaction ID)
-		txID, err := uuid.Parse(requestID)
-		if err != nil {
-			logger.Error("invalid transaction ID in request", "request_id", requestID, "error", err)
-			return
+			return nil
 		}
 
 		// Calculate conversion rate (handle division by zero)
@@ -66,7 +59,7 @@ func ConversionPersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWo
 			"correlation_id", correlationID)
 
 		// Update the transaction with conversion data
-		err = uow.Do(ctx, func(uow repository.UnitOfWork) error {
+		err := uow.Do(ctx, func(uow repository.UnitOfWork) error {
 			txRepoAny, err := uow.GetRepository((*transaction.Repository)(nil))
 			if err != nil {
 				logger.Error("failed to get transaction repository", "error", err)
@@ -77,14 +70,19 @@ func ConversionPersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWo
 				return err
 			}
 
-			// Update transaction with conversion data
+			// Correct assignment: originalCurrency is the source currency (USD), targetCurrency is the destination (e.g., JPY)
+			originalAmount := evt.FromAmount.AmountFloat()
+			convertedAmount := evt.ToAmount.AmountFloat()
+			originalCurrency := evt.FromAmount.Currency().String() // Source currency
+			conversionRate := evt.ConversionRate
+			logger.Info("[CHECK] Conversion data before update", "original_amount", originalAmount, "converted_amount", convertedAmount, "original_currency", originalCurrency, "conversion_rate", conversionRate)
 			update := dto.TransactionUpdate{
 				OriginalAmount:   &originalAmount,
 				OriginalCurrency: &originalCurrency,
 				ConversionRate:   &conversionRate,
+				// ... other fields as needed ...
 			}
-
-			if err := txRepo.Update(ctx, txID, update); err != nil {
+			if err := txRepo.Update(ctx, evt.TransactionID, update); err != nil {
 				logger.Error("failed to update transaction with conversion data", "error", err)
 				return err
 			}
@@ -95,7 +93,7 @@ func ConversionPersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWo
 
 		if err != nil {
 			logger.Error("failed to persist conversion data", "error", err)
-			return
+			return nil
 		}
 
 		logger.Info("conversion data persisted successfully", "transaction_id", txID, "correlation_id", correlationID)
@@ -106,9 +104,11 @@ func ConversionPersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWo
 			ConversionDoneEvent:   evt.ConversionDoneEvent,
 			TransactionID:         txID,
 		}
-		if err := bus.Publish(ctx, conversionDoneEvent); err != nil {
+		if err := bus.Emit(ctx, conversionDoneEvent); err != nil {
 			logger.Error("failed to publish DepositConversionDoneEvent", "error", err)
-			return
+			return nil
 		}
+		// End of handler
+		return nil
 	}
 }

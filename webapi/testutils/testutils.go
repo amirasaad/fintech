@@ -144,7 +144,7 @@ func (s *E2ETestSuite) setupApp() {
 			CurrencyRegistry:  currencyRegistry,
 			Uow:               uow,
 			PaymentProvider:   provider.NewMockPaymentProvider(),
-			EventBus:          eventbus.NewMemoryEventBus(),
+			EventBus:          eventbus.NewMemoryRegistryEventBus(),
 			Logger:            logger,
 			Config:            s.cfg,
 		},

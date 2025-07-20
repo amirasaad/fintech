@@ -50,4 +50,4 @@ packages:
       pkgname: "mocks"
       structname: "Mock{{.InterfaceName}}"
     interfaces:
-      EventBus:
+      Bus:

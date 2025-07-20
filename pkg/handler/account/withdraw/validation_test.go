@@ -13,7 +13,6 @@ import (
 	"github.com/amirasaad/fintech/internal/fixtures/mocks"
 	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/google/uuid"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -43,9 +42,9 @@ func TestWithdrawValidationHandler(t *testing.T) {
 		name       string
 		input      events.WithdrawRequestedEvent
 		expectPub  bool
-		setupMocks func(bus *mocks.MockEventBus, uow *mocks.MockUnitOfWork)
+		setupMocks func(bus *mocks.MockBus, uow *mocks.MockUnitOfWork)
 	}{
-		{"valid event", validEvent, true, func(bus *mocks.MockEventBus, uow *mocks.MockUnitOfWork) {
+		{"valid event", validEvent, true, func(bus *mocks.MockBus, uow *mocks.MockUnitOfWork) {
 			accountRepo := new(mocks.AccountRepository)
 			uow.On("GetRepository", mock.Anything).Return(accountRepo, nil)
 			accountRepo.On("Get", mock.Anything, validAccountID).Return(&dto.AccountRead{
@@ -54,9 +53,9 @@ func TestWithdrawValidationHandler(t *testing.T) {
 				Balance:  10000,
 				Currency: "USD",
 			}, nil)
-			bus.On("Publish", mock.Anything, mock.AnythingOfType("events.WithdrawValidatedEvent")).Return(nil)
+			bus.On("Emit", mock.Anything, mock.AnythingOfType("events.WithdrawValidatedEvent")).Return(nil)
 		}},
-		{"invalid event", invalidEvent, false, func(bus *mocks.MockEventBus, uow *mocks.MockUnitOfWork) {
+		{"invalid event", invalidEvent, false, func(bus *mocks.MockBus, uow *mocks.MockUnitOfWork) {
 			// Mock GetRepository for invalid event (handler calls it before validation)
 			accountRepo := new(mocks.AccountRepository)
 			uow.On("GetRepository", mock.Anything).Return(accountRepo, nil)
@@ -70,7 +69,7 @@ func TestWithdrawValidationHandler(t *testing.T) {
 				FlowType:      "withdraw",
 			},
 			Amount: money.NewFromData(10000, "USD"),
-		}, false, func(bus *mocks.MockEventBus, uow *mocks.MockUnitOfWork) {
+		}, false, func(bus *mocks.MockBus, uow *mocks.MockUnitOfWork) {
 			// Mock GetRepository for invalid account ID
 			accountRepo := new(mocks.AccountRepository)
 			uow.On("GetRepository", mock.Anything).Return(accountRepo, nil)
@@ -84,7 +83,7 @@ func TestWithdrawValidationHandler(t *testing.T) {
 				FlowType:      "withdraw",
 			},
 			Amount: money.NewFromData(0, "USD"),
-		}, false, func(bus *mocks.MockEventBus, uow *mocks.MockUnitOfWork) {
+		}, false, func(bus *mocks.MockBus, uow *mocks.MockUnitOfWork) {
 			// Mock GetRepository for zero amount (handler calls it before validation)
 			accountRepo := new(mocks.AccountRepository)
 			uow.On("GetRepository", mock.Anything).Return(accountRepo, nil)
@@ -103,7 +102,7 @@ func TestWithdrawValidationHandler(t *testing.T) {
 				FlowType:      "withdraw",
 			},
 			Amount: money.NewFromData(-1000, "USD"),
-		}, false, func(bus *mocks.MockEventBus, uow *mocks.MockUnitOfWork) {
+		}, false, func(bus *mocks.MockBus, uow *mocks.MockUnitOfWork) {
 			// Mock GetRepository for negative amount (handler calls it before validation)
 			accountRepo := new(mocks.AccountRepository)
 			uow.On("GetRepository", mock.Anything).Return(accountRepo, nil)
@@ -117,18 +116,18 @@ func TestWithdrawValidationHandler(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			bus := mocks.NewMockEventBus(t)
+			bus := mocks.NewMockBus(t)
 			uow := mocks.NewMockUnitOfWork(t)
 			if tc.setupMocks != nil {
 				tc.setupMocks(bus, uow)
 			}
 			handler := WithdrawValidationHandler(bus, uow, slog.New(slog.NewTextHandler(io.Discard, nil)))
 			ctx := context.Background()
-			handler(ctx, tc.input)
+			handler(ctx, tc.input) //nolint:errcheck
 			if tc.expectPub {
-				assert.True(t, bus.AssertCalled(t, "Publish", ctx, mock.AnythingOfType("events.WithdrawValidatedEvent")), "should publish WithdrawValidatedEvent")
+				bus.AssertCalled(t, "Emit", ctx, mock.AnythingOfType("events.WithdrawValidatedEvent"))
 			} else {
-				bus.AssertNotCalled(t, "Publish", ctx, mock.AnythingOfType("events.WithdrawValidatedEvent"))
+				bus.AssertNotCalled(t, "Emit", ctx, mock.AnythingOfType("events.WithdrawValidatedEvent"))
 			}
 		})
 	}

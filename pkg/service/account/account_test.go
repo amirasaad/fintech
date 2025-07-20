@@ -114,9 +114,10 @@ func TestDeposit_PublishesEvent(t *testing.T) {
 
 	// Register the handler before publishing
 	var called bool
-	memBus.Subscribe("DepositRequestedEvent", func(c context.Context, e domain.Event) {
+	memBus.Register("DepositRequestedEvent", func(c context.Context, e domain.Event) error {
 		called = true
 		// Optionally, assert on event fields here
+		return nil
 	})
 
 	err := svc.Deposit(context.Background(), commands.DepositCommand{Amount: 100})
@@ -136,8 +137,9 @@ func TestWithdraw_PublishesEvent(t *testing.T) {
 	userID := uuid.New()
 	accountID := uuid.New()
 	var publishedEvents []domain.Event
-	memBus.Subscribe("WithdrawRequestedEvent", func(c context.Context, e domain.Event) {
+	memBus.Register("WithdrawRequestedEvent", func(c context.Context, e domain.Event) error {
 		publishedEvents = append(publishedEvents, e)
+		return nil
 	})
 	err := svc.Withdraw(context.Background(), commands.WithdrawCommand{
 		UserID:    userID,
@@ -172,8 +174,9 @@ func TestTransfer_PublishesEvent(t *testing.T) {
 		EventBus: memBus,
 	})
 	var publishedEvents []domain.Event
-	memBus.Subscribe("TransferRequestedEvent", func(c context.Context, e domain.Event) {
+	memBus.Register("TransferRequestedEvent", func(c context.Context, e domain.Event) error {
 		publishedEvents = append(publishedEvents, e)
+		return nil
 	})
 	transferDTO := dto.TransactionCreate{
 		UserID:      userID,

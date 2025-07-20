@@ -29,22 +29,35 @@ import (
 )
 
 // --- Mock EventBus for unit test ---
-type mockEventBus struct {
-	called    bool
-	lastEvent domain.Event
-	returnErr error
+type mockBus struct {
+	handlers map[string][]eventbus.HandlerFunc
 }
 
-func (m *mockEventBus) Publish(_ context.Context, event domain.Event) error {
-	m.called = true
-	m.lastEvent = event
-	return m.returnErr
+func (m *mockBus) Emit(ctx context.Context, event domain.Event) error {
+	handlers := m.handlers[event.Type()]
+	for _, handler := range handlers {
+		if err := handler(ctx, event); err != nil {
+			return err
+		}
+	}
+	return nil
 }
-func (m *mockEventBus) Subscribe(_ string, _ func(context.Context, domain.Event)) {}
+
+func (m *mockBus) Register(eventType string, handler eventbus.HandlerFunc) {
+	if m.handlers == nil {
+		m.handlers = make(map[string][]eventbus.HandlerFunc)
+	}
+	m.handlers[eventType] = append(m.handlers[eventType], handler)
+}
 
 func TestStripeWebhookHandler_PublishesEvent(t *testing.T) {
 	app := fiber.New()
-	mockBus := &mockEventBus{}
+	var called bool
+	mockBus := &mockBus{}
+	mockBus.Register("SomeEventType", func(ctx context.Context, event domain.Event) error {
+		called = true
+		return nil
+	})
 	app.Post("/webhook/stripe", account.StripeWebhookHandler(mockBus, "test_secret"))
 
 	stripeEvent := map[string]interface{}{
@@ -63,7 +76,7 @@ func TestStripeWebhookHandler_PublishesEvent(t *testing.T) {
 	resp, _ := app.Test(req)
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	assert.True(t, mockBus.called, "EventBus should be called")
+	assert.True(t, called, "EventBus should be called")
 	// Optionally, assert on mockBus.lastEvent fields if needed
 }
 

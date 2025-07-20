@@ -83,12 +83,13 @@ func (s *Service) CreateAccount(ctx context.Context, create dto.AccountCreate) (
 
 // Deposit adds funds to the specified account and creates a transaction record.
 func (s *Service) Deposit(ctx context.Context, cmd commands.DepositCommand) error {
+	// Always use the source currency for the initial deposit event
 	amount, err := money.New(cmd.Amount, currency.Code(cmd.Currency))
 	if err != nil {
 		return err
 	}
 
-	return s.deps.EventBus.Publish(ctx, events.DepositRequestedEvent{
+	return s.deps.EventBus.Emit(ctx, events.DepositRequestedEvent{
 		FlowEvent: events.FlowEvent{
 			FlowType:      "deposit",
 			UserID:        cmd.UserID,
@@ -96,7 +97,7 @@ func (s *Service) Deposit(ctx context.Context, cmd commands.DepositCommand) erro
 			CorrelationID: uuid.New(),
 		},
 		ID:        uuid.New(),
-		Amount:    amount,
+		Amount:    amount, // <-- Source currency only!
 		Source:    cmd.MoneySource,
 		Timestamp: time.Now(),
 	})
@@ -128,7 +129,7 @@ func (s *Service) Withdraw(ctx context.Context, cmd commands.WithdrawCommand) er
 		ExternalWalletAddress: externalWalletAddress,
 		Timestamp:             time.Now(),
 	}
-	return s.deps.EventBus.Publish(ctx, evt)
+	return s.deps.EventBus.Emit(ctx, evt)
 }
 
 // Transfer moves funds from one account to another account.
@@ -137,7 +138,7 @@ func (s *Service) Transfer(ctx context.Context, create dto.TransactionCreate, de
 	if err != nil {
 		return err
 	}
-	return s.deps.EventBus.Publish(ctx, events.TransferRequestedEvent{
+	return s.deps.EventBus.Emit(ctx, events.TransferRequestedEvent{
 		FlowEvent: events.FlowEvent{
 			FlowType:      "transfer",
 			UserID:        create.UserID,

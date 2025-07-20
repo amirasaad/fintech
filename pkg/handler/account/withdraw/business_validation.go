@@ -12,20 +12,20 @@ import (
 
 // BusinessValidationHandler performs business validation in account currency after conversion.
 // Emits WithdrawValidatedEvent to trigger payment initiation.
-func BusinessValidationHandler(bus eventbus.EventBus, logger *slog.Logger) func(context.Context, domain.Event) {
-	return func(ctx context.Context, e domain.Event) {
+func BusinessValidationHandler(bus eventbus.Bus, logger *slog.Logger) func(ctx context.Context, e domain.Event) error {
+	return func(ctx context.Context, e domain.Event) error {
 		log := logger.With("handler", "WithdrawBusinessValidationHandler", "event_type", e.Type())
 		log.Info("🟢 [START] Received event", "event", e)
 		wce, ok := e.(events.WithdrawConversionDoneEvent)
 		if !ok {
 			log.Debug("🚫 [SKIP] Skipping: unexpected event type in WithdrawBusinessValidationHandler", "event", e)
-			return
+			return nil
 		}
 		log.Info("[DEBUG] Incoming WithdrawConversionDoneEvent IDs", "user_id", wce.UserID, "account_id", wce.AccountID)
 		correlationID := wce.CorrelationID
 		if wce.FlowType != "withdraw" {
 			log.Debug("🚫 [SKIP] Skipping: not a withdraw flow", "flow_type", wce.FlowType)
-			return
+			return nil
 		}
 		log.Info("✅ [SUCCESS] Business validation passed after conversion, emitting WithdrawValidatedEvent",
 			"user_id", wce.UserID,
@@ -44,8 +44,9 @@ func BusinessValidationHandler(bus eventbus.EventBus, logger *slog.Logger) func(
 			TargetCurrency: wce.ToAmount.Currency().String(),
 		}
 		log.Info("📤 [EMIT] Emitting WithdrawValidatedEvent", "event", withdrawEvent, "correlation_id", correlationID.String())
-		if err := bus.Publish(ctx, withdrawEvent); err != nil {
-			log.Error("failed to publish WithdrawBusinessValidatedEvent", "error", err)
+		if err := bus.Emit(ctx, withdrawEvent); err != nil {
+			return err
 		}
+		return nil
 	}
 }

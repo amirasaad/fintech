@@ -15,14 +15,14 @@ import (
 )
 
 // TransferPersistenceHandler handles TransferDomainOpDoneEvent, persists to DB, and publishes TransferPersistedEvent.
-func TransferPersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork, logger *slog.Logger) func(context.Context, domain.Event) {
-	return func(ctx context.Context, e domain.Event) {
+func TransferPersistenceHandler(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e domain.Event) error {
+	return func(ctx context.Context, e domain.Event) error {
 		log := logger.With("handler", "TransferPersistenceHandler", "event_type", e.Type())
 		log.Info("🟢 [START] Received event", "event", e)
 		evt, ok := e.(events.TransferDomainOpDoneEvent)
 		if !ok {
 			log.Error("❌ [ERROR] Unexpected event type", "event", e)
-			return
+			return nil
 		}
 		log.Info("🔄 [PROCESS] Received TransferDomainOpDoneEvent, persisting transfer",
 			"event", evt,
@@ -56,7 +56,7 @@ func TransferPersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork
 			return nil
 		}); err != nil {
 			log.Error("❌ [ERROR] Failed to create incoming transfer transaction", "error", err)
-			return
+			return nil
 		}
 		log.Info("📤 [EMIT] Emitting TransferPersistedEvent", "dest_account_id", evt.DestAccountID)
 		correlationID := evt.CorrelationID
@@ -65,7 +65,9 @@ func TransferPersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork
 			// Add any additional fields as needed
 		}
 		log.Info("📤 [EMIT] Emitting TransferPersistedEvent", "event", persistedEvent, "correlation_id", correlationID.String())
-		_ = bus.Publish(ctx, persistedEvent)
+		if err := bus.Emit(ctx, persistedEvent); err != nil {
+			return err
+		}
 
 		txID := uuid.New() // Assuming txID is available from the transaction creation
 		ve := evt          // Assuming evt is the validated event
@@ -82,6 +84,6 @@ func TransferPersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork
 		}
 		log.Info("DEBUG: Full ConversionRequestedEvent", "event", conversionEvent)
 		log.Info("📤 [EMIT] About to emit ConversionRequestedEvent", "handler", "TransferPersistenceHandler", "event_type", conversionEvent.Type(), "correlation_id", correlationID.String())
-		_ = bus.Publish(ctx, conversionEvent)
+		return bus.Emit(ctx, conversionEvent)
 	}
 }

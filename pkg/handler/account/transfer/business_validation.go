@@ -11,20 +11,20 @@ import (
 
 // BusinessValidationHandler performs business validation in account currency after conversion.
 // Emits TransferDomainOpDoneEvent to trigger domain operation.
-func BusinessValidationHandler(bus eventbus.EventBus, logger *slog.Logger) func(context.Context, domain.Event) {
-	return func(ctx context.Context, e domain.Event) {
+func BusinessValidationHandler(bus eventbus.Bus, logger *slog.Logger) func(ctx context.Context, e domain.Event) error {
+	return func(ctx context.Context, e domain.Event) error {
 		log := logger.With("handler", "TransferBusinessValidationHandler", "event_type", e.Type())
 		log.Info("🟢 [START] Received event", "event", e)
 		tce, ok := e.(events.TransferConversionDoneEvent)
 		if !ok {
 			log.Debug("🚫 [SKIP] Skipping: unexpected event type in TransferBusinessValidationHandler", "event", e)
-			return
+			return nil
 		}
 		log.Info("[DEBUG] Incoming TransferConversionDoneEvent IDs", "user_id", tce.UserID, "account_id", tce.AccountID)
 		correlationID := tce.CorrelationID
 		if tce.FlowType != "transfer" {
 			log.Debug("🚫 [SKIP] Skipping: not a transfer flow", "flow_type", tce.FlowType)
-			return
+			return nil
 		}
 		// Perform business validation in account currency here...
 		log.Info("✅ [SUCCESS] Business validation passed after conversion, emitting TransferDomainOpDoneEvent",
@@ -36,10 +36,12 @@ func BusinessValidationHandler(bus eventbus.EventBus, logger *slog.Logger) func(
 
 		// Emit TransferDomainOpDoneEvent
 		log.Info("📤 [EMIT] Emitting TransferDomainOpDoneEvent")
-		if err := bus.Publish(ctx, events.TransferDomainOpDoneEvent{
+		if err := bus.Emit(ctx, events.TransferDomainOpDoneEvent{
 			TransferValidatedEvent: events.TransferValidatedEvent{}, // Fill as needed
 		}); err != nil {
 			log.Error("failed to publish TransferDomainOpDoneEvent", "error", err)
+			return err
 		}
+		return nil
 	}
 }

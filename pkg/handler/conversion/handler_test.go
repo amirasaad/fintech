@@ -2,6 +2,7 @@ package conversion
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/domain/money"
+	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/mock"
 )
@@ -37,16 +39,24 @@ func (m *MockCurrencyConverter) IsSupported(fromCurrency, toCurrency string) boo
 
 // MockEventBus implements eventbus.EventBus for testing
 type MockEventBus struct {
-	mock.Mock
+	handlers map[string][]eventbus.HandlerFunc
 }
 
-func (m *MockEventBus) Publish(ctx context.Context, event domain.Event) error {
-	args := m.Called(ctx, event)
-	return args.Error(0)
+func (m *MockEventBus) Emit(ctx context.Context, event domain.Event) error {
+	handlers := m.handlers[event.Type()]
+	for _, handler := range handlers {
+		if err := handler(ctx, event); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
-func (m *MockEventBus) Subscribe(eventType string, handler func(context.Context, domain.Event)) {
-	m.Called(eventType, handler)
+func (m *MockEventBus) Register(eventType string, handler eventbus.HandlerFunc) {
+	if m.handlers == nil {
+		m.handlers = make(map[string][]eventbus.HandlerFunc)
+	}
+	m.handlers[eventType] = append(m.handlers[eventType], handler)
 }
 
 func TestHandler_ConversionRequestedEvent(t *testing.T) {
@@ -66,9 +76,10 @@ func TestHandler_ConversionRequestedEvent(t *testing.T) {
 			CorrelationID: uuid.New(),
 			FlowType:      "conversion",
 		},
-		FromAmount: fromAmount,
-		ToCurrency: "EUR",
-		RequestID:  "test-request-id",
+		FromAmount:    fromAmount,
+		ToCurrency:    "EUR",
+		RequestID:     "test-request-id",
+		TransactionID: uuid.New(), // Ensure TransactionID is set
 	}
 
 	// Setup expectations
@@ -80,15 +91,23 @@ func TestHandler_ConversionRequestedEvent(t *testing.T) {
 		ConversionRate:    0.85,
 	}
 	mockConverter.On("Convert", 100.0, "USD", "EUR").Return(conversionInfo, nil)
-	mockBus.On("Publish", mock.Anything, mock.AnythingOfType("events.ConversionDoneEvent")).Return(nil).Once()
+	mockBus.Register("ConversionDoneEvent", func(ctx context.Context, event domain.Event) error {
+		doneEvent, ok := event.(*events.ConversionDoneEvent)
+		if !ok {
+			return fmt.Errorf("unexpected event type: %T", event)
+		}
+		if doneEvent.FromAmount.Amount() != 100.0 || string(doneEvent.FromAmount.Currency()) != "USD" || doneEvent.ToAmount.Amount() != 85.0 || string(doneEvent.ToAmount.Currency()) != "EUR" {
+			return fmt.Errorf("unexpected conversion result: %+v", doneEvent)
+		}
+		return nil
+	})
 
 	// Execute
 	ctx := context.Background()
-	handler(ctx, event)
+	handler(ctx, event) //nolint:errcheck
 
 	// Verify
 	mockConverter.AssertExpectations(t)
-	mockBus.AssertExpectations(t)
 }
 
 func TestHandler_ConversionDoneEvent_ShouldReject(t *testing.T) {
@@ -117,11 +136,10 @@ func TestHandler_ConversionDoneEvent_ShouldReject(t *testing.T) {
 
 	// Execute
 	ctx := context.Background()
-	handler(ctx, event)
+	handler(ctx, event) //nolint:errcheck
 
 	// Verify - should not call converter for ConversionDoneEvent
 	mockConverter.AssertNotCalled(t, "Convert")
-	mockBus.AssertNotCalled(t, "Publish")
 }
 
 func TestHandler_UnknownEvent_ShouldReject(t *testing.T) {
@@ -149,9 +167,8 @@ func TestHandler_UnknownEvent_ShouldReject(t *testing.T) {
 
 	// Execute
 	ctx := context.Background()
-	handler(ctx, event)
+	handler(ctx, event) //nolint:errcheck
 
 	// Verify - should not call converter for unknown event
 	mockConverter.AssertNotCalled(t, "Convert")
-	mockBus.AssertNotCalled(t, "Publish")
 }

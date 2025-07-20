@@ -11,13 +11,13 @@ import (
 )
 
 // TransferDomainOpHandler handles TransferConversionDoneEvent, performs the domain transfer, and emits TransferDomainOpDoneEvent.
-func TransferDomainOpHandler(bus eventbus.EventBus, operator interface{}) func(context.Context, domain.Event) {
-	return func(ctx context.Context, e domain.Event) {
+func TransferDomainOpHandler(bus eventbus.Bus, operator interface{}) func(ctx context.Context, e domain.Event) error {
+	return func(ctx context.Context, e domain.Event) error {
 		logger := slog.Default().With("handler", "TransferDomainOpHandler", "event_type", e.Type())
 		ce, ok := e.(events.TransferConversionDoneEvent)
 		if !ok {
 			logger.Error("unexpected event type", "event", e)
-			return
+			return nil
 		}
 		// TODO: Load accounts, perform domain transfer, handle errors
 		logger.Info("performing domain transfer operation (stub)", "event", ce)
@@ -38,7 +38,7 @@ func TransferDomainOpHandler(bus eventbus.EventBus, operator interface{}) func(c
 		originalTxID, err := uuid.Parse(ce.RequestID)
 		if err != nil {
 			logger.Error("failed to parse original transaction ID", "error", err, "request_id", ce.RequestID)
-			return
+			return nil
 		}
 
 		// Create the domain operation done event
@@ -54,6 +54,6 @@ func TransferDomainOpHandler(bus eventbus.EventBus, operator interface{}) func(c
 			"event", domainOpEvent,
 			"amount", ce.ToAmount,
 			"currency", ce.ToAmount.Currency().String())
-		_ = bus.Publish(ctx, domainOpEvent)
+		return bus.Emit(ctx, domainOpEvent)
 	}
 }

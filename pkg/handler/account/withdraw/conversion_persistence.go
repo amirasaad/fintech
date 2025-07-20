@@ -14,8 +14,8 @@ import (
 )
 
 // ConversionPersistenceHandler handles WithdrawConversionDoneEvent and updates the transaction with conversion data.
-func ConversionPersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork, logger *slog.Logger) func(context.Context, domain.Event) {
-	return func(ctx context.Context, e domain.Event) {
+func ConversionPersistenceHandler(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e domain.Event) error {
+	return func(ctx context.Context, e domain.Event) error {
 		logger := logger.With("handler", "WithdrawConversionPersistenceHandler")
 		logger.Info("received event", "event", e)
 
@@ -33,14 +33,14 @@ func ConversionPersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWo
 			logger.Info("received WithdrawConversionDoneEvent", "event", evt)
 		default:
 			logger.Error("unexpected event type for withdraw conversion persistence", "event", e)
-			return
+			return nil
 		}
 
 		// Parse the request ID (which is the transaction ID)
 		txID, err := uuid.Parse(requestID)
 		if err != nil {
 			logger.Error("invalid transaction ID in request", "request_id", requestID, "error", err)
-			return
+			return nil
 		}
 
 		// Calculate conversion rate (handle division by zero)
@@ -88,9 +88,10 @@ func ConversionPersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWo
 
 		if err != nil {
 			logger.Error("failed to persist conversion data", "error", err)
-			return
+			return nil
 		}
 
 		logger.Info("conversion data persisted successfully", "transaction_id", txID)
+		return nil
 	}
 }

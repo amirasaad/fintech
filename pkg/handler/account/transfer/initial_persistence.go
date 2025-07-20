@@ -14,15 +14,15 @@ import (
 )
 
 // InitialPersistenceHandler handles TransferValidatedEvent: creates initial transaction record and triggers conversion.
-func InitialPersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork, logger *slog.Logger) func(context.Context, domain.Event) {
-	return func(ctx context.Context, e domain.Event) {
+func InitialPersistenceHandler(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e domain.Event) error {
+	return func(ctx context.Context, e domain.Event) error {
 		log := logger.With("handler", "TransferInitialPersistenceHandler", "event_type", e.Type())
 		log.Info("🟢 [START] Received event", "event", e)
 
 		ve, ok := e.(events.TransferValidatedEvent)
 		if !ok {
 			log.Error("❌ [ERROR] Unexpected event type", "event", e)
-			return
+			return nil
 		}
 		log.Info("🔄 [PROCESS] Received TransferValidatedEvent", "event", ve)
 
@@ -53,7 +53,7 @@ func InitialPersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork,
 			return nil
 		}); err != nil {
 			log.Error("❌ [ERROR] Failed to create transfer transaction", "error", err)
-			return
+			return nil
 		}
 
 		// For transfer, we need to determine the target currency from the destination account
@@ -61,7 +61,7 @@ func InitialPersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork,
 		targetCurrency := ve.Amount.Currency().String()
 
 		log.Info("📤 [EMIT] Emitting ConversionRequestedEvent for transfer", "transaction_id", txID)
-		_ = bus.Publish(ctx, events.ConversionRequestedEvent{
+		return bus.Emit(ctx, events.ConversionRequestedEvent{
 			FromAmount: ve.Amount,
 			ToCurrency: targetCurrency,
 			RequestID:  txID.String(),
