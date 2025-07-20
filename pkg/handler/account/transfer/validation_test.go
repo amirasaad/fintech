@@ -36,7 +36,7 @@ func (m *mockBus) Register(eventType string, handler eventbus.HandlerFunc) {
 	m.handlers[eventType] = append(m.handlers[eventType], handler)
 }
 
-func TestTransferValidationHandler(t *testing.T) {
+func TestTransferValidation(t *testing.T) {
 	senderID := uuid.New()
 	sourceAccountID := uuid.New()
 	destAccountID := uuid.New()
@@ -91,7 +91,7 @@ func TestTransferValidationHandler(t *testing.T) {
 			if tc.expectPub && tc.setupMocks != nil {
 				tc.setupMocks(bus)
 			}
-			handler := TransferValidationHandler(bus, slog.New(slog.NewTextHandler(io.Discard, nil)))
+			handler := Validation(bus, slog.New(slog.NewTextHandler(io.Discard, nil)))
 			handler(context.Background(), tc.input) //nolint:errcheck
 			if tc.expectPub {
 				assert.True(t, bus.handlers["TransferValidatedEvent"] != nil, "should publish TransferValidatedEvent")

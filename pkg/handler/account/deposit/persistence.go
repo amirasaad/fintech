@@ -17,10 +17,10 @@ import (
 	"github.com/google/uuid"
 )
 
-// PersistenceHandler handles DepositValidatedEvent: converts the float64 amount and currency to money.Money, persists the transaction, and emits DepositPersistedEvent.
-func PersistenceHandler(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e domain.Event) error {
+// Persistence handles DepositValidatedEvent: converts the float64 amount and currency to money.Money, persists the transaction, and emits DepositPersistedEvent.
+func Persistence(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e domain.Event) error {
 	return func(ctx context.Context, e domain.Event) error {
-		log := logger.With("handler", "DepositPersistenceHandler", "event_type", e.Type())
+		log := logger.With("handler", "Persistence", "event_type", e.Type())
 		depth, _ := ctx.Value("eventDepth").(int)
 		log.Info("[DEPTH] Event received", "type", e.Type(), "depth", depth, "event", e)
 		log.Info("🟢 [START] Received event", "event", e)
@@ -97,7 +97,7 @@ func PersistenceHandler(bus eventbus.Bus, uow repository.UnitOfWork, logger *slo
 			Timestamp:     time.Now(),
 		}
 		log.Info("DEBUG: Full ConversionRequestedEvent", "event", conversionEvent)
-		log.Info("📤 [EMIT] About to emit ConversionRequestedEvent", "handler", "DepositPersistenceHandler", "event_type", conversionEvent.Type(), "correlation_id", correlationID.String())
+		log.Info("📤 [EMIT] About to emit ConversionRequestedEvent", "handler", "Persistence", "event_type", conversionEvent.Type(), "correlation_id", correlationID.String())
 		return bus.Emit(ctx, conversionEvent)
 	}
 }

@@ -78,6 +78,76 @@ See `docs/service-domain-communication.md` for more on service/domain boundaries
 
 ---
 
+## Event-Driven Architecture
+
+This project uses a robust event-driven architecture for all account flows (deposit, withdraw, transfer). Each business flow is modeled as a chain of domain events, with each handler responsible for a single step and emitting the next event in the chain.
+
+### Event Flow Overview
+
+- **Deposit:**
+  1. DepositRequestedEvent
+  2. DepositValidatedEvent
+  3. DepositPersistedEvent
+  4. DepositConversionDoneEvent
+  5. DepositBusinessValidatedEvent
+  6. PaymentInitiatedEvent
+
+- **Withdraw:**
+  1. WithdrawRequestedEvent
+  2. WithdrawValidatedEvent
+  3. WithdrawPersistedEvent
+  4. WithdrawConversionDoneEvent
+  5. WithdrawBusinessValidatedEvent
+  6. PaymentInitiatedEvent
+
+- **Transfer:**
+  1. TransferRequestedEvent
+  2. TransferValidatedEvent
+  3. TransferPersistedEvent
+  4. TransferConversionDoneEvent
+  5. TransferDomainOpDoneEvent
+  6. TransferCompletedEvent
+
+### Mermaid Diagram
+
+```mermaid
+flowchart TD
+    subgraph Deposit
+        DREQ[DepositRequestedEvent] --> DVAL[DepositValidatedEvent]
+        DVAL --> DPERS[DepositPersistedEvent]
+        DPERS --> DCONV[DepositConversionDoneEvent]
+        DCONV --> DBVAL[DepositBusinessValidatedEvent]
+        DBVAL --> PINIT[PaymentInitiatedEvent]
+    end
+    subgraph Withdraw
+        WREQ[WithdrawRequestedEvent] --> WVAL[WithdrawValidatedEvent]
+        WVAL --> WPERS[WithdrawPersistedEvent]
+        WPERS --> WCONV[WithdrawConversionDoneEvent]
+        WCONV --> WBVAL[WithdrawBusinessValidatedEvent]
+        WBVAL --> PINIT2[PaymentInitiatedEvent]
+    end
+    subgraph Transfer
+        TREQ[TransferRequestedEvent] --> TVAL[TransferValidatedEvent]
+        TVAL --> TPERS[TransferPersistedEvent]
+        TPERS --> TCONV[TransferConversionDoneEvent]
+        TCONV --> TDONE[TransferDomainOpDoneEvent]
+        TDONE --> TCOMP[TransferCompletedEvent]
+    end
+```
+
+### Handler Responsibilities
+- Each handler is responsible for a single event type and emits the next event in the flow.
+- Handlers use structured, emoji-rich logging for traceability.
+- All event structs embed a common `FlowEvent` for shared fields (UserID, AccountID, CorrelationID, FlowType).
+- All IDs and correlation IDs use `uuid.UUID`.
+
+### Testing & Static Analysis
+- E2E event flow tests verify the full event chain for each flow.
+- Static analysis detects event cycles and is integrated into pre-commit hooks.
+- All handlers and event flows are covered by unit and integration tests.
+
+---
+
 ## 🚀 Getting Started
 
 See the full guide: [docs/getting-started.md](docs/getting-started.md)

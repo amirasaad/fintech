@@ -69,7 +69,7 @@ func TestHandler_ConversionRequestedEvent(t *testing.T) {
 
 	// Create test event
 	fromAmount, _ := money.New(100.0, "USD")
-	event := events.ConversionRequestedEvent{
+	event := &events.ConversionRequestedEvent{
 		FlowEvent: events.FlowEvent{
 			AccountID:     uuid.New(),
 			UserID:        uuid.New(),

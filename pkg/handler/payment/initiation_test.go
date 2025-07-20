@@ -54,7 +54,7 @@ func (m *mockBus) Register(eventType string, handler eventbus.HandlerFunc) {
 	m.handlers[eventType] = append(m.handlers[eventType], handler)
 }
 
-func TestPaymentInitiationHandler_BusinessLogic(t *testing.T) {
+func TestPaymentInitiation_BusinessLogic(t *testing.T) {
 	userID := uuid.New()
 	accountID := uuid.New()
 	amount, _ := money.New(100, currency.USD)
@@ -258,7 +258,7 @@ func TestPaymentInitiationHandler_BusinessLogic(t *testing.T) {
 			if tc.setupMocks != nil {
 				tc.setupMocks(bus)
 			}
-			handler := PaymentInitiationHandler(bus, tc.provider, slog.Default())
+			handler := Initiation(bus, tc.provider, slog.Default())
 			ctx := context.Background()
 			handler(ctx, tc.input) //nolint:errcheck
 			if tc.expectPub {

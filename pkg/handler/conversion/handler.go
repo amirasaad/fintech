@@ -20,7 +20,7 @@ func Handler(bus eventbus.Bus, converter money.CurrencyConverter, logger *slog.L
 		log := logger.With("handler", "ConversionHandler", "event_type", e.Type())
 		log.Info("🟢 [START] Received event", "event", e)
 
-		cre, ok := e.(events.ConversionRequestedEvent)
+		cre, ok := e.(*events.ConversionRequestedEvent)
 		if !ok {
 			log.Debug("🚫 [SKIP] Skipping: unexpected event type in ConversionHandler", "event", e)
 			return nil

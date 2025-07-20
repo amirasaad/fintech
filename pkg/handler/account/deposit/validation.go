@@ -14,10 +14,10 @@ import (
 	"github.com/google/uuid"
 )
 
-// ValidationHandler validates the deposit request and emits DepositValidatedEvent on success.
-func ValidationHandler(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e domain.Event) error {
+// Validation validates the deposit request and emits DepositValidatedEvent on success.
+func Validation(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e domain.Event) error {
 	return func(ctx context.Context, e domain.Event) error {
-		log := logger.With("handler", "DepositValidationHandler", "event_type", e.Type())
+		log := logger.With("handler", "Validation", "event_type", e.Type())
 		depth, _ := ctx.Value("eventDepth").(int)
 		log.Info("[DEPTH] Event received", "type", e.Type(), "depth", depth, "event", e)
 		dr, ok := e.(events.DepositRequestedEvent)

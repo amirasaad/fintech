@@ -10,15 +10,15 @@ import (
 	"github.com/google/uuid"
 )
 
-// BusinessValidationHandler performs business validation in account currency after conversion.
+// BusinessValidation performs business validation in account currency after conversion.
 // Emits WithdrawValidatedEvent to trigger payment initiation.
-func BusinessValidationHandler(bus eventbus.Bus, logger *slog.Logger) func(ctx context.Context, e domain.Event) error {
+func BusinessValidation(bus eventbus.Bus, logger *slog.Logger) func(ctx context.Context, e domain.Event) error {
 	return func(ctx context.Context, e domain.Event) error {
-		log := logger.With("handler", "WithdrawBusinessValidationHandler", "event_type", e.Type())
+		log := logger.With("handler", "BusinessValidation", "event_type", e.Type())
 		log.Info("🟢 [START] Received event", "event", e)
 		wce, ok := e.(events.WithdrawConversionDoneEvent)
 		if !ok {
-			log.Debug("🚫 [SKIP] Skipping: unexpected event type in WithdrawBusinessValidationHandler", "event", e)
+			log.Debug("🚫 [SKIP] Skipping: unexpected event type in BusinessValidation", "event", e)
 			return nil
 		}
 		log.Info("[DEBUG] Incoming WithdrawConversionDoneEvent IDs", "user_id", wce.UserID, "account_id", wce.AccountID)

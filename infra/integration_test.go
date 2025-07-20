@@ -61,7 +61,7 @@ func TestDrivenDepositFlow_Integration(t *testing.T) {
 	}
 
 	// Step 2: Validation Handler
-	validationHandler := deposit.ValidationHandler(bus, uow, logger)
+	validationHandler := deposit.Validation(bus, uow, logger)
 	validationHandler(ctx, depositRequested) //nolint:errcheck
 	assert.Len(t, bus.published, 1, "Validation handler should publish DepositValidated")
 
@@ -71,7 +71,7 @@ func TestDrivenDepositFlow_Integration(t *testing.T) {
 	assert.Equal(t, validAccount, depositValidated.AccountID)
 
 	// Step 3: Persistence Handler
-	persistHandler := deposit.PersistenceHandler(bus, uow, logger)
+	persistHandler := deposit.Persistence(bus, uow, logger)
 	persistHandler(ctx, depositValidated) //nolint:errcheck
 	assert.Len(t, bus.published, 3, "Persistence handler should publish DepositPersisted and ConversionRequested")
 

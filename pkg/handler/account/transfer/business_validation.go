@@ -9,15 +9,15 @@ import (
 	"github.com/amirasaad/fintech/pkg/eventbus"
 )
 
-// BusinessValidationHandler performs business validation in account currency after conversion.
+// BusinessValidation performs business validation in account currency after conversion.
 // Emits TransferDomainOpDoneEvent to trigger domain operation.
-func BusinessValidationHandler(bus eventbus.Bus, logger *slog.Logger) func(ctx context.Context, e domain.Event) error {
+func BusinessValidation(bus eventbus.Bus, logger *slog.Logger) func(ctx context.Context, e domain.Event) error {
 	return func(ctx context.Context, e domain.Event) error {
-		log := logger.With("handler", "TransferBusinessValidationHandler", "event_type", e.Type())
+		log := logger.With("handler", "BusinessValidation", "event_type", e.Type())
 		log.Info("🟢 [START] Received event", "event", e)
 		tce, ok := e.(events.TransferConversionDoneEvent)
 		if !ok {
-			log.Debug("🚫 [SKIP] Skipping: unexpected event type in TransferBusinessValidationHandler", "event", e)
+			log.Debug("🚫 [SKIP] Skipping: unexpected event type in BusinessValidation", "event", e)
 			return nil
 		}
 		log.Info("[DEBUG] Incoming TransferConversionDoneEvent IDs", "user_id", tce.UserID, "account_id", tce.AccountID)

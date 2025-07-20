@@ -36,8 +36,16 @@ type TransferPersistedEvent struct {
 	TransferDomainOpDoneEvent
 }
 
+// TransferCompletedEvent is emitted after both tx_out and tx_in are created for an internal transfer.
+type TransferCompletedEvent struct {
+	TransferDomainOpDoneEvent
+	TxOutID uuid.UUID
+	TxInID  uuid.UUID
+}
+
 func (e TransferRequestedEvent) Type() string      { return "TransferRequestedEvent" }
 func (e TransferValidatedEvent) Type() string      { return "TransferValidatedEvent" }
 func (e TransferConversionDoneEvent) Type() string { return "TransferConversionDoneEvent" }
 func (e TransferDomainOpDoneEvent) Type() string   { return "TransferDomainOpDoneEvent" }
 func (e TransferPersistedEvent) Type() string      { return "TransferPersistedEvent" }
+func (e TransferCompletedEvent) Type() string { return "TransferCompletedEvent" }

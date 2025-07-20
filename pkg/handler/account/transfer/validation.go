@@ -12,10 +12,10 @@ import (
 	"github.com/google/uuid"
 )
 
-// TransferValidationHandler handles TransferRequestedEvent, maps DTO to domain, validates, and publishes TransferValidatedEvent.
-func TransferValidationHandler(bus eventbus.Bus, logger *slog.Logger) func(ctx context.Context, e domain.Event) error {
+// Validation handles TransferRequestedEvent, maps DTO to domain, validates, and publishes TransferValidatedEvent.
+func Validation(bus eventbus.Bus, logger *slog.Logger) func(ctx context.Context, e domain.Event) error {
 	return func(ctx context.Context, e domain.Event) error {
-		log := logger.With("handler", "TransferValidationHandler", "event_type", e.Type())
+		log := logger.With("handler", "Validation", "event_type", e.Type())
 		log.Info("🟢 [START] Received event", "event", e)
 		tr, ok := e.(events.TransferRequestedEvent)
 		if !ok {

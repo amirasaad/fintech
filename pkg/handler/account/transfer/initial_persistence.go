@@ -13,10 +13,10 @@ import (
 	"github.com/google/uuid"
 )
 
-// InitialPersistenceHandler handles TransferValidatedEvent: creates initial transaction record and triggers conversion.
-func InitialPersistenceHandler(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e domain.Event) error {
+// InitialPersistence handles TransferValidatedEvent: creates initial transaction record and triggers conversion.
+func InitialPersistence(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e domain.Event) error {
 	return func(ctx context.Context, e domain.Event) error {
-		log := logger.With("handler", "TransferInitialPersistenceHandler", "event_type", e.Type())
+		log := logger.With("handler", "InitialPersistence", "event_type", e.Type())
 		log.Info("🟢 [START] Received event", "event", e)
 
 		ve, ok := e.(events.TransferValidatedEvent)
@@ -60,11 +60,14 @@ func InitialPersistenceHandler(bus eventbus.Bus, uow repository.UnitOfWork, logg
 		// For now, we'll use the same currency as the source (no conversion needed)
 		targetCurrency := ve.Amount.Currency().String()
 
-		log.Info("📤 [EMIT] Emitting ConversionRequestedEvent for transfer", "transaction_id", txID)
-		return bus.Emit(ctx, events.ConversionRequestedEvent{
+		log.Info("[LOG] About to emit ConversionRequestedEvent for transfer", "transaction_id", txID)
+		result := bus.Emit(ctx, events.ConversionRequestedEvent{
 			FromAmount: ve.Amount,
 			ToCurrency: targetCurrency,
 			RequestID:  txID.String(),
+			TransactionID: txID,
 		})
+		log.Info("[LOG] ConversionRequestedEvent emitted for transfer", "transaction_id", txID, "result", result)
+		return result
 	}
 }

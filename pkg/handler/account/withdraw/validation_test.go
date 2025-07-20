@@ -16,7 +16,7 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-func TestWithdrawValidationHandler(t *testing.T) {
+func TestWithdrawValidation(t *testing.T) {
 	validUserID := uuid.New()
 	validAccountID := uuid.New()
 	validEvent := events.WithdrawRequestedEvent{
@@ -121,7 +121,7 @@ func TestWithdrawValidationHandler(t *testing.T) {
 			if tc.setupMocks != nil {
 				tc.setupMocks(bus, uow)
 			}
-			handler := WithdrawValidationHandler(bus, uow, slog.New(slog.NewTextHandler(io.Discard, nil)))
+			handler := Validation(bus, uow, slog.New(slog.NewTextHandler(io.Discard, nil)))
 			ctx := context.Background()
 			handler(ctx, tc.input) //nolint:errcheck
 			if tc.expectPub {

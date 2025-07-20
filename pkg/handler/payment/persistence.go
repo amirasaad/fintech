@@ -16,12 +16,12 @@ import (
 	"github.com/google/uuid"
 )
 
-// PaymentPersistenceHandler handles PaymentInitiatedEvent and updates the transaction with payment ID.
+// Persistence handles PaymentInitiatedEvent and updates the transaction with payment ID.
 // This is a generic handler that can process payment events for all operations (deposit, withdraw, transfer).
-func PaymentPersistenceHandler(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e domain.Event) error {
+func Persistence(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e domain.Event) error {
 	return func(ctx context.Context, e domain.Event) error {
 		logger := logger.With(
-			"handler", "PaymentPersistenceHandler",
+			"handler", "Persistence",
 			"event_type", e.Type(),
 		)
 		logger.Info("received payment initiated event", "event", e)

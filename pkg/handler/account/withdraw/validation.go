@@ -13,10 +13,10 @@ import (
 	"github.com/google/uuid"
 )
 
-// WithdrawValidationHandler handles WithdrawRequestedEvent, performs validation, and publishes WithdrawValidatedEvent.
-func WithdrawValidationHandler(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e domain.Event) error {
+// Validation handles WithdrawRequestedEvent, performs validation, and publishes WithdrawValidatedEvent.
+func Validation(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e domain.Event) error {
 	return func(ctx context.Context, e domain.Event) error {
-		log := logger.With("handler", "WithdrawValidationHandler", "event_type", e.Type())
+		log := logger.With("handler", "Validation", "event_type", e.Type())
 		log.Info("🟢 [START] Received event", "event", e)
 		we, ok := e.(events.WithdrawRequestedEvent)
 		if !ok {

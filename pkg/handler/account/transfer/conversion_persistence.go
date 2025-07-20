@@ -13,10 +13,10 @@ import (
 	"github.com/google/uuid"
 )
 
-// ConversionPersistenceHandler handles TransferConversionDoneEvent and updates the transaction with conversion data.
-func ConversionPersistenceHandler(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e domain.Event) error {
+// ConversionPersistence handles TransferConversionDoneEvent and updates the transaction with conversion data.
+func ConversionPersistence(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e domain.Event) error {
 	return func(ctx context.Context, e domain.Event) error {
-		logger := logger.With("handler", "TransferConversionPersistenceHandler")
+		logger := logger.With("handler", "ConversionPersistence")
 		logger.Info("received event", "event", e)
 
 		var convertedAmount float64

@@ -3,6 +3,7 @@ package deposit
 import (
 	"context"
 	"log/slog"
+	"sync"
 
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/domain/events"
@@ -13,10 +14,12 @@ import (
 	"github.com/google/uuid"
 )
 
-// ConversionPersistenceHandler handles DepositConversionDoneEvent and updates the transaction with conversion data.
-func ConversionPersistenceHandler(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e domain.Event) error {
+var processedConversionPersistence sync.Map // map[string]struct{} for idempotency
+
+// ConversionPersistence handles DepositConversionDoneEvent and updates the transaction with conversion data.
+func ConversionPersistence(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e domain.Event) error {
 	return func(ctx context.Context, e domain.Event) error {
-		logger := logger.With("handler", "DepositConversionPersistenceHandler")
+		logger := logger.With("handler", "ConversionPersistence")
 		logger.Info("received event", "event", e)
 
 		var convertedAmount float64
@@ -39,6 +42,13 @@ func ConversionPersistenceHandler(bus eventbus.Bus, uow repository.UnitOfWork, l
 			evt = v
 		default:
 			logger.Error("unexpected event type for deposit conversion persistence", "event", e)
+			return nil
+		}
+
+		// Idempotency check: skip if already processed
+		idempotencyKey := txID.String()
+		if _, already := processedConversionPersistence.LoadOrStore(idempotencyKey, struct{}{}); already {
+			logger.Info("🔁 [SKIP] Conversion already persisted for this transaction", "transaction_id", txID)
 			return nil
 		}
 
@@ -98,16 +108,7 @@ func ConversionPersistenceHandler(bus eventbus.Bus, uow repository.UnitOfWork, l
 
 		logger.Info("conversion data persisted successfully", "transaction_id", txID, "correlation_id", correlationID)
 
-		// Emit DepositConversionDoneEvent with all relevant fields
-		conversionDoneEvent := events.DepositConversionDoneEvent{
-			DepositValidatedEvent: evt.DepositValidatedEvent,
-			ConversionDoneEvent:   evt.ConversionDoneEvent,
-			TransactionID:         txID,
-		}
-		if err := bus.Emit(ctx, conversionDoneEvent); err != nil {
-			logger.Error("failed to publish DepositConversionDoneEvent", "error", err)
-			return nil
-		}
+		// Do NOT emit DepositConversionDoneEvent here to avoid cycles
 		// End of handler
 		return nil
 	}

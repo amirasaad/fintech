@@ -135,10 +135,10 @@ func TestStripeWebhookHandler_Integration(t *testing.T) {
 	// Set up event bus and register handler
 	bus := eventbus.NewSimpleEventBus()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	bus.Subscribe((events.PaymentCompletedEvent{}).Type(), payment.CompletedHandler(bus, uow, logger))
+	bus.Subscribe((events.PaymentCompletedEvent{}).Type(), payment.Completed(bus, uow, logger))
 	// Remove other handlers that might interfere with the test
 	// bus.Subscribe((events.PaymentInitiationEvent{}).Type(), payment.PaymentInitiationHandler(bus, provider.NewMockPaymentProvider(), logger))
-	// bus.Subscribe((events.PaymentIdPersistedEvent{}).Type(), payment.PersistenceHandler(bus, uow, logger))
+	// bus.Subscribe((events.PaymentIdPersistedEvent{}).Type(), payment.Persistence(bus, uow, logger))
 
 	// Set up Fiber app with webhook handler
 	app := fiber.New()

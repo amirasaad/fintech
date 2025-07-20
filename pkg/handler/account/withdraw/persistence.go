@@ -15,10 +15,10 @@ import (
 	"github.com/google/uuid"
 )
 
-// WithdrawPersistenceHandler handles WithdrawValidatedEvent: persists the withdraw transaction and emits WithdrawPersistedEvent.
-func WithdrawPersistenceHandler(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e domain.Event) error {
+// Persistence handles WithdrawValidatedEvent: persists the withdraw transaction and emits WithdrawPersistedEvent.
+func Persistence(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e domain.Event) error {
 	return func(ctx context.Context, e domain.Event) error {
-		log := logger.With("handler", "WithdrawPersistenceHandler", "event_type", e.Type())
+		log := logger.With("handler", "Persistence", "event_type", e.Type())
 		log.Info("🟢 [START] Received event", "event", e)
 
 		ve, ok := e.(events.WithdrawValidatedEvent)
@@ -76,9 +76,13 @@ func WithdrawPersistenceHandler(bus eventbus.Bus, uow repository.UnitOfWork, log
 			ToCurrency: ve.Amount.Currency().String(),
 			RequestID:  txID.String(),
 			Timestamp:  time.Now(),
+			TransactionID: txID,
 		}
 		log.Info("DEBUG: Full ConversionRequestedEvent", "event", conversionEvent)
-		log.Info("📤 [EMIT] About to emit ConversionRequestedEvent", "handler", "WithdrawPersistenceHandler", "event_type", conversionEvent.Type(), "correlation_id", correlationID.String())
-		return bus.Emit(ctx, conversionEvent)
+		log.Info("📤 [EMIT] About to emit ConversionRequestedEvent", "handler", "Persistence", "event_type", conversionEvent.Type(), "correlation_id", correlationID.String())
+		log.Info("[LOG] About to emit ConversionRequestedEvent for withdraw", "transaction_id", txID, "event", conversionEvent)
+		result := bus.Emit(ctx, conversionEvent)
+		log.Info("[LOG] ConversionRequestedEvent emitted for withdraw", "transaction_id", txID, "result", result)
+		return result
 	}
 }
