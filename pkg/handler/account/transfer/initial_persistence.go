@@ -62,9 +62,9 @@ func InitialPersistence(bus eventbus.Bus, uow repository.UnitOfWork, logger *slo
 
 		log.Info("[LOG] About to emit ConversionRequestedEvent for transfer", "transaction_id", txID)
 		result := bus.Emit(ctx, events.ConversionRequestedEvent{
-			FromAmount: ve.Amount,
-			ToCurrency: targetCurrency,
-			RequestID:  txID.String(),
+			FromAmount:    ve.Amount,
+			ToCurrency:    targetCurrency,
+			RequestID:     txID.String(),
 			TransactionID: txID,
 		})
 		log.Info("[LOG] ConversionRequestedEvent emitted for transfer", "transaction_id", txID, "result", result)

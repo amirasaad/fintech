@@ -7,22 +7,24 @@ import (
 	"testing"
 	"time"
 
+	mocks "github.com/amirasaad/fintech/internal/fixtures/mocks"
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/domain/money"
+	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/eventbus"
 	deposithandler "github.com/amirasaad/fintech/pkg/handler/account/deposit"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
-	mocks "github.com/amirasaad/fintech/internal/fixtures/mocks"
-	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/stretchr/testify/mock"
 )
 
 // TestDepositE2EEventFlow tests the full deposit event-driven flow from DepositRequestedEvent to PaymentInitiatedEvent.
 // It verifies the event chain:
-//   DepositRequestedEvent → DepositValidatedEvent → DepositPersistedEvent → DepositConversionDoneEvent → DepositBusinessValidatedEvent → PaymentInitiatedEvent
+//
+//	DepositRequestedEvent → DepositValidatedEvent → DepositPersistedEvent → DepositConversionDoneEvent → DepositBusinessValidatedEvent → PaymentInitiatedEvent
+//
 // The test uses mocks for repository and unit of work, and tracks the emitted event sequence for correctness.
 func TestDepositE2EEventFlow(t *testing.T) {
 	ctx := context.Background()
@@ -71,7 +73,7 @@ func TestDepositE2EEventFlow(t *testing.T) {
 		// Simulate conversion handler emitting DepositConversionDoneEvent
 		conversionDone := events.DepositConversionDoneEvent{
 			DepositValidatedEvent: e.(events.DepositPersistedEvent).DepositValidatedEvent,
-			TransactionID:        e.(events.DepositPersistedEvent).TransactionID,
+			TransactionID:         e.(events.DepositPersistedEvent).TransactionID,
 		}
 		bus.Emit(ctx, conversionDone) //nolint:errcheck
 		return nil
@@ -79,7 +81,7 @@ func TestDepositE2EEventFlow(t *testing.T) {
 	bus.Register("DepositConversionDoneEvent", func(ctx context.Context, e domain.Event) error {
 		track("DepositConversionDoneEvent")
 		deposithandler.ConversionPersistence(bus, uow, logger)(ctx, e) //nolint:errcheck
-		deposithandler.BusinessValidation(bus, logger)(ctx, e) //nolint:errcheck
+		deposithandler.BusinessValidation(bus, logger)(ctx, e)         //nolint:errcheck
 		return nil
 	})
 	bus.Register("DepositBusinessValidatedEvent", func(ctx context.Context, e domain.Event) error {
@@ -131,7 +133,9 @@ func TestDepositE2EEventFlow(t *testing.T) {
 
 // TestWithdrawE2EEventFlow tests the full withdraw event-driven flow from WithdrawRequestedEvent to PaymentInitiatedEvent.
 // It verifies the event chain:
-//   WithdrawRequestedEvent → WithdrawValidatedEvent → WithdrawPersistedEvent → WithdrawConversionDoneEvent → WithdrawBusinessValidatedEvent → PaymentInitiatedEvent
+//
+//	WithdrawRequestedEvent → WithdrawValidatedEvent → WithdrawPersistedEvent → WithdrawConversionDoneEvent → WithdrawBusinessValidatedEvent → PaymentInitiatedEvent
+//
 // The test simulates each handler and tracks the emitted event sequence for correctness.
 func TestWithdrawE2EEventFlow(t *testing.T) {
 	ctx := context.Background()
@@ -154,8 +158,8 @@ func TestWithdrawE2EEventFlow(t *testing.T) {
 		// Simulate validation handler
 		withdrawValidated := events.WithdrawValidatedEvent{
 			WithdrawRequestedEvent: e.(events.WithdrawRequestedEvent),
-			TargetCurrency:        amount.Currency().String(),
-			Account:               nil,
+			TargetCurrency:         amount.Currency().String(),
+			Account:                nil,
 		}
 		bus.Emit(ctx, withdrawValidated) //nolint:errcheck
 		return nil
@@ -209,7 +213,7 @@ func TestWithdrawE2EEventFlow(t *testing.T) {
 		return nil
 	})
 
-	bus.Emit(ctx, events.WithdrawRequestedEvent{
+	_ = bus.Emit(ctx, events.WithdrawRequestedEvent{
 		FlowEvent: events.FlowEvent{
 			AccountID:     accountID,
 			UserID:        userID,
@@ -219,7 +223,7 @@ func TestWithdrawE2EEventFlow(t *testing.T) {
 		ID:        uuid.New(),
 		Amount:    amount,
 		Timestamp: time.Now(),
-	})
+	}) //nolint:errcheck // Intentionally ignoring error for test clarity
 	time.Sleep(10 * time.Millisecond)
 	assert.Equal(t, []string{
 		"WithdrawRequestedEvent",
@@ -233,7 +237,9 @@ func TestWithdrawE2EEventFlow(t *testing.T) {
 
 // TestTransferE2EEventFlow tests the full transfer event-driven flow from TransferRequestedEvent to TransferCompletedEvent.
 // It verifies the event chain:
-//   TransferRequestedEvent → TransferValidatedEvent → TransferPersistedEvent → TransferConversionDoneEvent → TransferDomainOpDoneEvent → TransferCompletedEvent
+//
+//	TransferRequestedEvent → TransferValidatedEvent → TransferPersistedEvent → TransferConversionDoneEvent → TransferDomainOpDoneEvent → TransferCompletedEvent
+//
 // The test simulates each handler and tracks the emitted event sequence for correctness.
 func TestTransferE2EEventFlow(t *testing.T) {
 	ctx := context.Background()
@@ -292,8 +298,8 @@ func TestTransferE2EEventFlow(t *testing.T) {
 		domainOpDone := e.(events.TransferDomainOpDoneEvent)
 		completed := events.TransferCompletedEvent{
 			TransferDomainOpDoneEvent: domainOpDone,
-			TxOutID: uuid.New(),
-			TxInID:  uuid.New(),
+			TxOutID:                   uuid.New(),
+			TxInID:                    uuid.New(),
 		}
 		bus.Emit(ctx, completed) //nolint:errcheck
 		return nil
@@ -307,19 +313,19 @@ func TestTransferE2EEventFlow(t *testing.T) {
 		return nil
 	})
 
-	bus.Emit(ctx, events.TransferRequestedEvent{
+	_ = bus.Emit(ctx, events.TransferRequestedEvent{
 		FlowEvent: events.FlowEvent{
 			AccountID:     accountID,
 			UserID:        userID,
 			CorrelationID: uuid.New(),
 			FlowType:      "transfer",
 		},
-		ID:        uuid.New(),
-		Amount:    amount,
-		Source:    "transfer",
+		ID:             uuid.New(),
+		Amount:         amount,
+		Source:         "transfer",
 		DestAccountID:  uuid.New(),
 		ReceiverUserID: uuid.New(),
-	})
+	}) //nolint:errcheck // Intentionally ignoring error for test clarity
 	time.Sleep(10 * time.Millisecond)
 	assert.Equal(t, []string{
 		"TransferRequestedEvent",

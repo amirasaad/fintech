@@ -70,12 +70,12 @@ func Persistence(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logge
 		correlationID = uuid.New()
 		log.Info("DEBUG: ve.UserID and ve.AccountID", "user_id", ve.UserID, "account_id", ve.AccountID)
 		conversionEvent := events.ConversionRequestedEvent{
-			FlowEvent:  ve.FlowEvent,
-			ID:         uuid.New(),
-			FromAmount: ve.Amount,
-			ToCurrency: ve.Amount.Currency().String(),
-			RequestID:  txID.String(),
-			Timestamp:  time.Now(),
+			FlowEvent:     ve.FlowEvent,
+			ID:            uuid.New(),
+			FromAmount:    ve.Amount,
+			ToCurrency:    ve.Amount.Currency().String(),
+			RequestID:     txID.String(),
+			Timestamp:     time.Now(),
 			TransactionID: txID,
 		}
 		log.Info("DEBUG: Full ConversionRequestedEvent", "event", conversionEvent)

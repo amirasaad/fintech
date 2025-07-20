@@ -79,8 +79,8 @@ func New(deps config.Deps) *fiber.App {
 	bus.Register("WithdrawConversionDoneEvent", withdrawhandler.ConversionPersistence(bus, deps.Uow, deps.Logger))
 	// d. Business validation after conversion (in account currency)
 	bus.Register("WithdrawConversionDoneEvent", withdrawhandler.BusinessValidation(bus, deps.Logger))
-	// e. Payment initiation (after business validation or directly after conversion if no extra validation step)
-	bus.Register("WithdrawValidatedEvent", paymenthandler.WithdrawInitiation(bus, deps.PaymentProvider, deps.Logger))
+	// e. Payment initiation (after persistence, using correct transaction ID)
+	bus.Register("WithdrawPersistedEvent", paymenthandler.WithdrawInitiation(bus, deps.PaymentProvider, deps.Logger))
 	// f. Payment persistence
 	bus.Register("PaymentInitiatedEvent", paymenthandler.Persistence(bus, deps.Uow, deps.Logger))
 

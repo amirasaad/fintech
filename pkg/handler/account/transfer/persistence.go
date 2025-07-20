@@ -51,24 +51,24 @@ func Persistence(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logge
 			currency := te.Amount.Currency().String()
 			// tx_out: sender, negative amount
 			if err := txRepo.Create(ctx, dto.TransactionCreate{
-				ID:        txOutID,
-				UserID:    te.UserID,
-				AccountID: te.AccountID,
-				Amount:    -amount,
-				Currency:  currency,
-				Status:    "completed",
+				ID:          txOutID,
+				UserID:      te.UserID,
+				AccountID:   te.AccountID,
+				Amount:      -amount,
+				Currency:    currency,
+				Status:      "completed",
 				MoneySource: "transfer",
 			}); err != nil {
 				return err
 			}
 			// tx_in: receiver, positive amount
 			if err := txRepo.Create(ctx, dto.TransactionCreate{
-				ID:        txInID,
-				UserID:    te.ReceiverUserID,
-				AccountID: te.DestAccountID,
-				Amount:    amount,
-				Currency:  currency,
-				Status:    "completed",
+				ID:          txInID,
+				UserID:      te.ReceiverUserID,
+				AccountID:   te.DestAccountID,
+				Amount:      amount,
+				Currency:    currency,
+				Status:      "completed",
 				MoneySource: "transfer",
 			}); err != nil {
 				return err
@@ -78,8 +78,8 @@ func Persistence(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logge
 			// Emit TransferCompletedEvent
 			completedEvent := events.TransferCompletedEvent{
 				TransferDomainOpDoneEvent: te,
-				TxOutID: txOutID,
-				TxInID:  txInID,
+				TxOutID:                   txOutID,
+				TxInID:                    txInID,
 			}
 			if err := bus.Emit(ctx, completedEvent); err != nil {
 				return err

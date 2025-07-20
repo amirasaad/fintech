@@ -48,4 +48,4 @@ func (e TransferValidatedEvent) Type() string      { return "TransferValidatedEv
 func (e TransferConversionDoneEvent) Type() string { return "TransferConversionDoneEvent" }
 func (e TransferDomainOpDoneEvent) Type() string   { return "TransferDomainOpDoneEvent" }
 func (e TransferPersistedEvent) Type() string      { return "TransferPersistedEvent" }
-func (e TransferCompletedEvent) Type() string { return "TransferCompletedEvent" }
+func (e TransferCompletedEvent) Type() string      { return "TransferCompletedEvent" }

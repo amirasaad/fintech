@@ -30,7 +30,7 @@ func BusinessValidation(bus eventbus.Bus, logger *slog.Logger) func(ctx context.
 		log.Info("✅ [SUCCESS] Business validation passed, emitting DepositBusinessValidatedEvent", "transaction_id", dce.TransactionID)
 		return bus.Emit(ctx, events.DepositBusinessValidatedEvent{
 			DepositConversionDoneEvent: dce,
-			TransactionID: dce.TransactionID,
+			TransactionID:              dce.TransactionID,
 		})
 	}
 }
