@@ -72,7 +72,7 @@ func Completed(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger)
 		})
 		if err != nil {
 			logger.Error("Completed: transaction failed", "error", err)
-			return nil
+			return err
 		}
 		// Optionally: publish a UI/account balance update event
 		// return bus.Emit(ctx, events.AccountBalanceUpdatedEvent{UserID: tx.UserID, AccountID: tx.AccountID, NewBalance: ...})
