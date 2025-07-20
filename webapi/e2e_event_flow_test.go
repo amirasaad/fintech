@@ -3,6 +3,7 @@ package webapi_test
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"testing"
 
@@ -24,12 +25,24 @@ func (s *E2EFlowsTestSuite) TestDepositE2E() {
 	s.Require().Equal(http.StatusCreated, resp.StatusCode)
 	var accountResp map[string]interface{}
 	_ = json.NewDecoder(resp.Body).Decode(&accountResp)
-	accountID := accountResp["data"].(map[string]interface{})["id"].(string)
+	data, ok := accountResp["data"].(map[string]interface{})
+	s.Require().True(ok, "Expected accountResp['data'] to be a map, got: %#v", accountResp["data"])
+	accountID, ok := data["ID"].(string)
+	if !ok {
+		// Log the full response for debugging
+		b, _ := json.MarshalIndent(accountResp, "", "  ")
+		s.T().Logf("Full account creation response: %s", string(b))
+	}
+	s.Require().True(ok, "Expected data['ID'] to be a string, got: %#v", data["ID"])
 
 	// Make deposit request
-	depositBody := `{"amount":100,"currency":"USD"}`
+	depositBody := `{"amount":100,"currency":"USD", "money_source": "cash"}`
 	resp = s.MakeRequest("POST", fmt.Sprintf("/account/%s/deposit", accountID), depositBody, token)
-	s.Require().Equal(http.StatusOK, resp.StatusCode)
+	if resp.StatusCode != http.StatusAccepted {
+		b, _ := io.ReadAll(resp.Body)
+		s.T().Logf("Deposit response body: %s", string(b))
+	}
+	s.Require().Equal(http.StatusAccepted, resp.StatusCode)
 	var depositResp map[string]interface{}
 	_ = json.NewDecoder(resp.Body).Decode(&depositResp)
 	s.T().Logf("Deposit response: %+v", depositResp)
@@ -45,17 +58,28 @@ func (s *E2EFlowsTestSuite) TestWithdrawE2E() {
 	s.Require().Equal(http.StatusCreated, resp.StatusCode)
 	var accountResp map[string]interface{}
 	_ = json.NewDecoder(resp.Body).Decode(&accountResp)
-	accountID := accountResp["data"].(map[string]interface{})["id"].(string)
+	data, ok := accountResp["data"].(map[string]interface{})
+	s.Require().True(ok, "Expected accountResp['data'] to be a map, got: %#v", accountResp["data"])
+	accountID, ok := data["ID"].(string)
+	s.Require().True(ok, "Expected data['ID'] to be a string, got: %#v", data["ID"])
 
 	// Deposit first to ensure sufficient balance
-	depositBody := `{"amount":200,"currency":"USD"}`
+	depositBody := `{"amount":200,"currency":"USD", "money_source": "cash"}`
 	resp = s.MakeRequest("POST", fmt.Sprintf("/account/%s/deposit", accountID), depositBody, token)
-	s.Require().Equal(http.StatusOK, resp.StatusCode)
+	if resp.StatusCode != http.StatusAccepted {
+		b, _ := io.ReadAll(resp.Body)
+		s.T().Logf("Deposit response body: %s", string(b))
+	}
+	s.Require().Equal(http.StatusAccepted, resp.StatusCode)
 
 	// Make withdraw request
-	withdrawBody := `{"amount":100,"currency":"USD","external_target":{"bank_account_number":"123456789","routing_number":"987654321"}}`
+	withdrawBody := `{"amount":100,"currency":"USD","external_target":{"bank_account_number":"123456789","routing_number":"987654321"}, "money_source": "cash"}`
 	resp = s.MakeRequest("POST", fmt.Sprintf("/account/%s/withdraw", accountID), withdrawBody, token)
-	s.Require().Equal(http.StatusOK, resp.StatusCode)
+	if resp.StatusCode != http.StatusAccepted {
+		b, _ := io.ReadAll(resp.Body)
+		s.T().Logf("Withdraw response body: %s", string(b))
+	}
+	s.Require().Equal(http.StatusAccepted, resp.StatusCode)
 	var withdrawResp map[string]interface{}
 	_ = json.NewDecoder(resp.Body).Decode(&withdrawResp)
 	s.T().Logf("Withdraw response: %+v", withdrawResp)
@@ -71,23 +95,45 @@ func (s *E2EFlowsTestSuite) TestTransferE2E() {
 	s.Require().Equal(http.StatusCreated, resp.StatusCode)
 	var accountResp1 map[string]interface{}
 	_ = json.NewDecoder(resp.Body).Decode(&accountResp1)
-	accountID1 := accountResp1["data"].(map[string]interface{})["id"].(string)
+	data, ok := accountResp1["data"].(map[string]interface{})
+	s.Require().True(ok, "Expected accountResp1['data'] to be a map, got: %#v", accountResp1["data"])
+	accountID1, ok := data["ID"].(string)
+	if !ok {
+		b, _ := json.MarshalIndent(accountResp1, "", "  ")
+		s.T().Logf("Full account creation response 1: %s", string(b))
+	}
+	s.Require().True(ok, "Expected data1['ID'] to be a string, got: %#v", data["ID"])
 
 	resp = s.MakeRequest("POST", "/account", accountBody, token)
 	s.Require().Equal(http.StatusCreated, resp.StatusCode)
 	var accountResp2 map[string]interface{}
 	_ = json.NewDecoder(resp.Body).Decode(&accountResp2)
-	accountID2 := accountResp2["data"].(map[string]interface{})["id"].(string)
+	data, ok = accountResp2["data"].(map[string]interface{})
+	s.Require().True(ok, "Expected accountResp2['data'] to be a map, got: %#v", accountResp2["data"])
+	accountID2, ok := data["ID"].(string)
+	if !ok {
+		b, _ := json.MarshalIndent(accountResp2, "", "  ")
+		s.T().Logf("Full account creation response 2: %s", string(b))
+	}
+	s.Require().True(ok, "Expected data2['ID'] to be a string, got: %#v", data["ID"])
 
 	// Deposit to first account
-	depositBody := `{"amount":150,"currency":"USD"}`
+	depositBody := `{"amount":150,"currency":"USD", "money_source": "cash"}`
 	resp = s.MakeRequest("POST", fmt.Sprintf("/account/%s/deposit", accountID1), depositBody, token)
-	s.Require().Equal(http.StatusOK, resp.StatusCode)
+	if resp.StatusCode != http.StatusAccepted {
+		b, _ := io.ReadAll(resp.Body)
+		s.T().Logf("Deposit response body: %s", string(b))
+	}
+	s.Require().Equal(http.StatusAccepted, resp.StatusCode)
 
 	// Make transfer request
-	transferBody := fmt.Sprintf(`{"amount":100,"currency":"USD","target_account_id":"%s"}`, accountID2)
+	transferBody := fmt.Sprintf(`{"amount":100,"currency":"USD","destination_account_id":"%s", "money_source": "cash"}`, accountID2)
 	resp = s.MakeRequest("POST", fmt.Sprintf("/account/%s/transfer", accountID1), transferBody, token)
-	s.Require().Equal(http.StatusOK, resp.StatusCode)
+	if resp.StatusCode != http.StatusAccepted {
+		b, _ := io.ReadAll(resp.Body)
+		s.T().Logf("Transfer response body: %s", string(b))
+	}
+	s.Require().Equal(http.StatusAccepted, resp.StatusCode)
 	var transferResp map[string]interface{}
 	_ = json.NewDecoder(resp.Body).Decode(&transferResp)
 	s.T().Logf("Transfer response: %+v", transferResp)

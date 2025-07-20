@@ -54,10 +54,14 @@ func TestStripeWebhookHandler_PublishesEvent(t *testing.T) {
 	app := fiber.New()
 	var called bool
 	mockBus := &mockBus{}
-	mockBus.Register("SomeEventType", func(ctx context.Context, event domain.Event) error {
+	// Register for the correct event type emitted by the handler
+	eventType := (events.PaymentCompletedEvent{}).Type()
+	mockBus.Register(eventType, func(ctx context.Context, event domain.Event) error {
 		called = true
+		t.Logf("Handler called for event type: %s", event.Type())
 		return nil
 	})
+	t.Logf("Registered event type: %s", eventType)
 	app.Post("/webhook/stripe", account.StripeWebhookHandler(mockBus, "test_secret"))
 
 	stripeEvent := map[string]interface{}{
@@ -75,6 +79,8 @@ func TestStripeWebhookHandler_PublishesEvent(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/webhook/stripe", bytes.NewReader(body))
 	resp, _ := app.Test(req)
 
+	// Debug: print response status
+	t.Logf("Stripe webhook response status: %d", resp.StatusCode)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	assert.True(t, called, "EventBus should be called")
 	// Optionally, assert on mockBus.lastEvent fields if needed
