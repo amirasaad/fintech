@@ -59,7 +59,7 @@ func Persistence(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logge
 				logger.Warn("Duplicate PaymentIdPersistedEvent emission detected: transaction already has payment ID", "transaction_id", pie.TransactionID, "existing_payment_id", tx.PaymentID)
 			}
 
-			status := account.TransactionStatusPending
+			status := string(account.TransactionStatusPending)
 			if err := txRepo.Update(ctx, pie.TransactionID, dto.TransactionUpdate{
 				PaymentID: &pie.PaymentID,
 				Status:    &status,

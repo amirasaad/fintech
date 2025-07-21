@@ -33,7 +33,15 @@ func (r *accountRepository) Get(id uuid.UUID) (*account.Account, error) {
 		return nil, result.Error
 	}
 	accBalance := money.NewFromData(a.Balance, a.Currency)
-	return account.NewAccountFromData(a.ID, a.UserID, accBalance, a.CreatedAt, a.UpdatedAt), nil
+
+	return account.New().
+		WithID(a.ID).
+		WithUserID(a.UserID).
+		WithBalance(accBalance.Amount()).
+		WithCurrency(accBalance.Currency()).
+		WithCreatedAt(a.CreatedAt).
+		WithUpdatedAt(a.UpdatedAt).
+		Build()
 }
 
 func (r *accountRepository) Create(acc *account.Account) error {

@@ -29,6 +29,8 @@ type TransferConversionDoneEvent struct {
 // TransferDomainOpDoneEvent is emitted after the transfer domain operation is complete.
 type TransferDomainOpDoneEvent struct {
 	TransferValidatedEvent
+	ConversionDoneEvent
+	TransactionID uuid.UUID
 }
 
 // TransferPersistedEvent is emitted after transfer persistence is complete.
@@ -43,9 +45,16 @@ type TransferCompletedEvent struct {
 	TxInID  uuid.UUID
 }
 
+// TransferFailedEvent is emitted when a transfer fails business validation or persistence.
+type TransferFailedEvent struct {
+	TransferRequestedEvent
+	Reason string
+}
+
 func (e TransferRequestedEvent) Type() string      { return "TransferRequestedEvent" }
 func (e TransferValidatedEvent) Type() string      { return "TransferValidatedEvent" }
 func (e TransferConversionDoneEvent) Type() string { return "TransferConversionDoneEvent" }
 func (e TransferDomainOpDoneEvent) Type() string   { return "TransferDomainOpDoneEvent" }
 func (e TransferPersistedEvent) Type() string      { return "TransferPersistedEvent" }
 func (e TransferCompletedEvent) Type() string      { return "TransferCompletedEvent" }
+func (e TransferFailedEvent) Type() string         { return "TransferFailedEvent" }

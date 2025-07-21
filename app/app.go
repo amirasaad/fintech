@@ -2,7 +2,6 @@ package app
 
 import (
 	"errors"
-	"fmt"
 	"strings"
 
 	"github.com/amirasaad/fintech/pkg/handler/conversion"
@@ -48,9 +47,13 @@ func New(deps config.Deps) *fiber.App {
 	// ============================================================================
 
 	// 1️⃣ GENERIC CONVERSION HANDLER
-	// Handles all ConversionRequestedEvent for any operation (deposit, withdraw, transfer)
-	fmt.Println("Registering handler for event type:", "ConversionRequestedEvent")
-	bus.Register("ConversionRequestedEvent", conversion.Handler(bus, deps.CurrencyConverter, deps.Logger))
+	// Handles all ConversionRequestedEvent by delegating to a flow-specific factory.
+	conversionFactories := map[string]conversion.EventFactory{
+		"deposit":  &conversion.DepositEventFactory{},
+		"withdraw": &conversion.WithdrawEventFactory{},
+		"transfer": &conversion.TransferEventFactory{},
+	}
+	bus.Register("ConversionRequestedEvent", conversion.Handler(bus, deps.CurrencyConverter, deps.Logger, conversionFactories))
 
 	// 2️⃣ DEPOSIT FLOW
 	// User request → Initial Validation → Persistence → Conversion → Business Validation → Payment Initiation → Payment Persistence
@@ -85,22 +88,16 @@ func New(deps config.Deps) *fiber.App {
 	bus.Register("PaymentInitiatedEvent", paymenthandler.Persistence(bus, deps.Uow, deps.Logger))
 
 	// 4️⃣ TRANSFER FLOW
-	// User request → Initial Validation → Initial Persistence → Conversion → Domain Operation → Final Persistence
+	// User request → Initial Validation → Initial Persistence → Conversion → Business Validation → Final Persistence
 
 	// a. Initial validation of transfer request
 	bus.Register("TransferRequestedEvent", transferhandler.Validation(bus, deps.Logger))
 	// b. Initial persistence after validation
 	bus.Register("TransferValidatedEvent", transferhandler.InitialPersistence(bus, deps.Uow, deps.Logger))
-	// c. Conversion done: persist conversion data
-	bus.Register("TransferConversionDoneEvent", transferhandler.ConversionPersistence(bus, deps.Uow, deps.Logger))
-	// d. Domain operation (move funds between accounts)
-	bus.Register("TransferConversionDoneEvent", transferhandler.TransferDomainOpHandler(bus, nil))
-	// e. Final persistence after domain operation
+	// c. Business validation after conversion
+	bus.Register("TransferConversionDoneEvent", transferhandler.BusinessValidation(bus, deps.Uow, deps.Logger))
+	// d. Final persistence after domain operation
 	bus.Register("TransferDomainOpDoneEvent", transferhandler.Persistence(bus, deps.Uow, deps.Logger))
-	// f. Business validation after conversion (in account currency)
-	bus.Register("TransferConversionDoneEvent", transferhandler.BusinessValidation(bus, deps.Logger))
-	// e. Payment initiation (after domain operation for transfer)
-	bus.Register("TransferDomainOpDoneEvent", paymenthandler.TransferInitiation(bus, deps.PaymentProvider, deps.Logger))
 
 	// Conversion done handlers (flow-specific)
 	bus.Register("DepositConversionDoneEvent", deposithandler.ConversionDoneHandler(bus, deps.Uow, deps.Logger))

@@ -2,68 +2,56 @@ package account
 
 import (
 	"errors"
-	"math"
-	"regexp"
-	"sync"
 	"time"
 
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/amirasaad/fintech/pkg/domain/money"
-	"github.com/amirasaad/fintech/pkg/domain/user"
 	"github.com/google/uuid"
 )
 
 var (
-	// ErrDepositAmountExceedsMaxSafeInt is returned when a deposit would overflow the account balance.
-	ErrDepositAmountExceedsMaxSafeInt = errors.New("deposit amount exceeds maximum safe integer value") // Deposit would overflow balance
+	// ErrDepositAmountExceedsMaxSafeInt is returned when a deposit would cause the account balance to overflow.
+	ErrDepositAmountExceedsMaxSafeInt = errors.New("deposit amount exceeds maximum safe integer value")
 
 	// ErrTransactionAmountMustBePositive is returned when a transaction amount is not positive.
-	ErrTransactionAmountMustBePositive = errors.New("transaction amount must be positive") // Amount must be > 0
+	ErrTransactionAmountMustBePositive = errors.New("transaction amount must be positive")
 
-	// ErrWithdrawalAmountMustBePositive is returned when a withdrawal amount is not positive.
-	ErrWithdrawalAmountMustBePositive = errors.New("withdrawal amount must be positive") // Withdrawal must be > 0
-
-	// ErrInsufficientFunds is returned when an account has insufficient funds for a withdrawal.
-	ErrInsufficientFunds = errors.New("insufficient funds") // Not enough balance
+	// ErrInsufficientFunds is returned when an account has insufficient funds for a withdrawal or transfer.
+	ErrInsufficientFunds = errors.New("insufficient funds")
 
 	// ErrAccountNotFound is returned when an account cannot be found.
-	ErrAccountNotFound = errors.New("account not found") // Account does not exist
+	ErrAccountNotFound = errors.New("account not found")
 
-	// ErrCannotTransferToSameAccount is returned when a transfer is attempted to the same account.
+	// ErrCannotTransferToSameAccount is returned when a transfer is attempted from an account to itself.
 	ErrCannotTransferToSameAccount = errors.New("cannot transfer to same account")
-	// ErrNilAccount is returned when a nil account is encountered in a transfer or operation.
+	// ErrNilAccount is returned when a nil account is provided to a transfer or other operation.
 	ErrNilAccount = errors.New("nil account")
-	// ErrNotOwner is returned when an operation is attempted by a non-owner.
+	// ErrNotOwner is returned when a user attempts to perform an action on an account they do not own.
 	ErrNotOwner = errors.New("not owner")
-	// ErrCurrencyMismatch is returned when there is a currency mismatch in an operation.
+	// ErrCurrencyMismatch is returned when there is a currency mismatch between accounts or transactions.
 	ErrCurrencyMismatch = errors.New("currency mismatch")
 )
 
-// Account represents a user's financial account, supporting multi-currency.
+// Account represents a user's financial account, encapsulating its balance and ownership.
+// It acts as an aggregate root, ensuring all state changes are consistent and valid.
+//
 // Invariants:
-//   - Only the account owner can perform actions.
-//   - Currency must be valid and match the account's currency.
-//   - Balance cannot overflow int64.
-//   - Balance cannot be negative.
-//   - All operations are thread-safe.
+// - An account must always have a valid owner (UserID).
+// - The account's balance is represented by a Money value object, ensuring currency consistency.
+// - The balance can never be negative.
+// - All operations are thread-safe, enforced by a mutex.
 type Account struct {
 	ID        uuid.UUID
 	UserID    uuid.UUID
-	Balance   money.Money // Account balance as a value object
+	Balance   money.Money // Account balance as a Money value object.
 	UpdatedAt time.Time
 	CreatedAt time.Time
-	mu        sync.Mutex
-	events    []common.Event // buffer for domain events
 }
 
-// IsValidCurrencyFormat returns true if the code is a well-formed ISO 4217 currency code (3 uppercase letters).
-func IsValidCurrencyFormat(code currency.Code) bool {
-	re := regexp.MustCompile(`^[A-Z]{3}$`)
-	return re.MatchString(string(code))
-}
-
-// Builder is used to build Account instances using a fluent API.
+// Builder provides a fluent API for constructing Account instances.
+// This pattern is particularly useful for setting optional parameters and ensuring
+// that only valid accounts are constructed.
 type Builder struct {
 	id        uuid.UUID
 	userID    uuid.UUID
@@ -73,7 +61,7 @@ type Builder struct {
 	createdAt time.Time
 }
 
-// New creates a new Builder with default values.
+// New creates a new Builder with sensible defaults, such as a new UUID and the default currency.
 func New() *Builder {
 	return &Builder{
 		id:        uuid.New(),
@@ -82,37 +70,48 @@ func New() *Builder {
 	}
 }
 
-// WithUserID sets the user ID for the account.
+// WithID sets the ID for the account being built.
+func (b *Builder) WithID(id uuid.UUID) *Builder {
+	b.id = id
+	return b
+}
+
+// WithUserID sets the user ID for the account being built. This is a mandatory field.
 func (b *Builder) WithUserID(userID uuid.UUID) *Builder {
 	b.userID = userID
 	return b
 }
 
-// WithCurrency sets the currency for the account.
+// WithCurrency sets the currency for the account being built. If not set, it defaults to the system's default currency.
 func (b *Builder) WithCurrency(currencyCode currency.Code) *Builder {
 	b.currency = currencyCode
 	return b
 }
 
-// WithBalance sets the initial balance for the account (for test/data hydration only).
+// WithBalance sets the initial balance for the account. This should only be used
+// for hydrating an existing account from a data store or for test setup.
 func (b *Builder) WithBalance(balance int64) *Builder {
 	b.balance = balance
 	return b
 }
 
-// WithCreatedAt sets the createdAt timestamp (for test/data hydration only).
+// WithCreatedAt sets the creation timestamp. This is primarily for hydrating
+// an existing account from a data store.
 func (b *Builder) WithCreatedAt(t time.Time) *Builder {
 	b.createdAt = t
 	return b
 }
 
-// WithUpdatedAt sets the updatedAt timestamp (for test/data hydration only).
+// WithUpdatedAt sets the last-updated timestamp. This is primarily for hydrating
+// an existing account from a data store.
 func (b *Builder) WithUpdatedAt(t time.Time) *Builder {
 	b.updatedAt = t
 	return b
 }
 
-// Build validates invariants and returns a new Account instance.
+// Build finalizes the construction of the Account. It validates all invariants,
+// such as ensuring a valid currency and a non-nil UserID, before returning the
+// new Account instance.
 func (b *Builder) Build() (*Account, error) {
 	if !currency.IsValidCurrencyFormat(string(b.currency)) {
 		return nil, common.ErrInvalidCurrencyCode
@@ -133,7 +132,6 @@ func (b *Builder) Build() (*Account, error) {
 		Balance:   bal,
 		CreatedAt: b.createdAt,
 		UpdatedAt: b.updatedAt,
-		mu:        sync.Mutex{},
 	}, nil
 }
 
@@ -141,76 +139,13 @@ func (a *Account) Currency() currency.Code {
 	return a.Balance.Currency()
 }
 
-// NewAccount creates a new Account for the given user ID.
-// Deprecated: Use New().WithUserID(...).WithCurrency(...).Build() instead.
-func NewAccount(userID uuid.UUID) (acc *Account) {
-	acc, _ = New().WithUserID(userID).Build()
-	return
-}
-
-// NewAccountWithCurrency creates a new Account for the given user ID and currency.
-// Deprecated: Use New().WithUserID(...).WithCurrency(...).Build() instead.
-func NewAccountWithCurrency(userID uuid.UUID, currencyCode currency.Code) (acc *Account, err error) {
-	return New().WithUserID(userID).WithCurrency(currencyCode).Build()
-}
-
-// NewAccountFromData creates an Account from raw data (used for DB hydration).
-// This bypasses invariants and should only be used for repository hydration or tests.
-func NewAccountFromData(
-	id, userID uuid.UUID,
-	balance money.Money,
-	created, updated time.Time,
-) *Account {
-	return &Account{
-		ID:        id,
-		UserID:    userID,
-		Balance:   balance,
-		CreatedAt: created,
-		UpdatedAt: updated,
-		mu:        sync.Mutex{},
-	}
-}
-
-// GetBalance returns the current balance of the account in the main currency unit (e.g., dollars for USD).
-// Invariants enforced:
-//   - Only the account owner can view the balance.
-//   - Currency metadata must be valid.
-//
-// Returns the balance as float64 or an error if any invariant is violated.
-func (a *Account) GetBalance(userID uuid.UUID) (balance float64, err error) {
-	if a.UserID != userID {
-		err = user.ErrUserUnauthorized
-		return
-	}
-	meta, err := currency.Get(string(a.Balance.Currency()))
+func (a *Account) SetCurrency(c currency.Code) error {
+	newBalance, err := money.NewMoneyFromSmallestUnit(a.Balance.Amount(), c)
 	if err != nil {
-		return 0, err
+		return err
 	}
-	divisor := math.Pow10(meta.Decimals)
-	balance = float64(a.Balance.Amount()) / divisor
-	return
-}
-
-// GetBalanceAsMoney returns the current balance as a Money value object.
-// Invariants enforced:
-//   - Only the account owner can view the balance.
-//   - Currency must be valid.
-//
-// Returns Money or an error if any invariant is violated.
-func (a *Account) GetBalanceAsMoney(userID uuid.UUID) (m money.Money, err error) {
-	if a.UserID != userID {
-		err = user.ErrUserUnauthorized
-		return
-	}
-	m = a.Balance
-	return
-}
-
-// PullEvents returns and clears the buffered domain events.
-func (a *Account) PullEvents() []common.Event {
-	events := a.events
-	a.events = nil
-	return events
+	a.Balance = newBalance
+	return nil
 }
 
 // validate checks all business invariants for an operation (common validation logic).
@@ -240,25 +175,6 @@ func (a *Account) ValidateDeposit(userID uuid.UUID, amount money.Money) (err err
 
 }
 
-// Deposit adds funds to the account if all business invariants are satisfied.
-// Invariants enforced:
-//   - Only the account owner can deposit.
-//   - Deposit amount must be positive.
-//   - Deposit currency must match account currency.
-//   - Deposit must not cause integer overflow.
-//
-// Returns a Transaction or an error if any invariant is violated.
-func (a *Account) Deposit(userID uuid.UUID, amount money.Money, moneySource MoneySource, paymentID string) error {
-
-	if err := a.validate(userID); err != nil {
-		return err
-	}
-
-	// No longer emit DepositRequestedEvent here; emit only domain events representing state changes if needed.
-	// Example: a.events = append(a.events, events.DepositValidatedEvent{...})
-	return a.validateAmount(amount)
-}
-
 // ValidateWithdraw removes funds from the account if all business invariants are satisfied.
 // Invariants enforced:
 //   - Only the account owner can withdraw.
@@ -275,18 +191,18 @@ func (a *Account) ValidateWithdraw(userID uuid.UUID, amount money.Money) error {
 		return err
 	}
 	// Sufficient funds check: do not allow negative balance
-	// hasEnough, err := a.Balance.GreaterThan(amount)
-	// if err != nil {
-	// 	return err
-	// }
-	// if !hasEnough && !a.Balance.Equals(amount) {
-	// 	return ErrInsufficientFunds
-	// }
+	hasEnough, err := a.Balance.GreaterThan(amount)
+	if err != nil {
+		return err
+	}
+	if !hasEnough && !a.Balance.Equals(amount) {
+		return ErrInsufficientFunds
+	}
 	return nil
 }
 
-// Transfer moves funds from this account to another account.
-func (a *Account) Transfer(senderUserID, receiverUserID uuid.UUID, dest *Account, amount money.Money, moneySource MoneySource) error {
+// ValidateTransfer ensures that a funds transfer from this account to another is valid.
+func (a *Account) ValidateTransfer(senderUserID, receiverUserID uuid.UUID, dest *Account, amount money.Money) error {
 	if a == nil || dest == nil {
 		return ErrNilAccount
 	}
@@ -310,16 +226,5 @@ func (a *Account) Transfer(senderUserID, receiverUserID uuid.UUID, dest *Account
 		return ErrInsufficientFunds
 	}
 
-	// a.events = append(a.events, events.TransferRequestedEvent{
-	// 	EventID:         uuid.New(),
-	// 	SenderUserID:    senderUserID,
-	// 	ReceiverUserID:  receiverUserID,
-	// 	SourceAccountID: a.ID,
-	// 	DestAccountID:   dest.ID,
-	// 	Amount:          amount.AmountFloat(), // float64
-	// 	Currency:        amount.Currency().String(),
-	// 	Source:          string(moneySource),
-	// 	Timestamp:       time.Now().Unix(),
-	// })
 	return nil
 }

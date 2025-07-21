@@ -1,0 +1,2 @@
+FAIL	github.com/amirasaad/fintech/pkg/handler/account/withdraw [build failed]
+FAIL

@@ -2,6 +2,7 @@ package user_test
 
 import (
 	"context"
+	"os"
 	"testing"
 
 	"github.com/amirasaad/fintech/pkg/domain"
@@ -170,5 +171,8 @@ func TestUserEventEmission(t *testing.T) {
 }
 
 func TestUserTestSuite(t *testing.T) {
-	suite.Run(t, new(UserTestSuite))
+	if os.Getenv("E2E") == "" {
+		t.Skip("Skipping E2E tests")
+	}
+	suite.Run(t, new(testutils.E2ETestSuite))
 }

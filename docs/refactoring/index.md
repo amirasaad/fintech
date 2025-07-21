@@ -186,7 +186,7 @@ Implemented proper dependency injection across all layers of the application.
 
 ### Before Refactoring
 
-```
+```text
 Simple Layered Architecture
 ├── Controllers
 ├── Services

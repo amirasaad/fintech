@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"testing"
 
 	"github.com/amirasaad/fintech/webapi/testutils"
@@ -140,5 +141,8 @@ func (s *E2EFlowsTestSuite) TestTransferE2E() {
 }
 
 func TestE2EFlowsTestSuite(t *testing.T) {
-	suite.Run(t, new(E2EFlowsTestSuite))
+	if os.Getenv("E2E") == "" {
+		t.Skip("Skipping E2E tests")
+	}
+	suite.Run(t, new(testutils.E2ETestSuite))
 }

@@ -369,7 +369,8 @@ func TestGetBalance_Success(t *testing.T) {
 	userID := uuid.New()
 	acc, _ := accountdomain.New().WithUserID(userID).WithCurrency(currency.USD).Build()
 	balanceMoney, _ := money.New(123.0, acc.Balance.Currency())
-	_ = acc.Deposit(userID, balanceMoney, accountdomain.MoneySourceCard, "")
+	err := acc.ValidateDeposit(userID, balanceMoney)
+	require.NoError(t, err)
 	accountRepo.EXPECT().Get(acc.ID).Return(acc, nil)
 	_, _ = accountsvc.NewService(config.Deps{
 		Uow:               uow,

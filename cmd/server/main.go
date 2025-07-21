@@ -87,11 +87,11 @@ func main() {
 	logger.Info("Starting fintech server", "port", ":3000")
 	log.Fatal(app.New(config.Deps{
 		Uow:               uow,
+		EventBus:          eventbus.NewMemoryRegistryEventBus(),
 		CurrencyConverter: currencyConverter,
 		CurrencyRegistry:  currencyRegistry,
 		Logger:            logger,
 		PaymentProvider:   provider.NewStripePaymentProvider(cfg.PaymentProviders.Stripe.ApiKey, logger),
-		EventBus:          eventbus.NewMemoryRegistryEventBus(),
 		Config:            cfg,
 	}).Listen(fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)))
 }

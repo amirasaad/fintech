@@ -71,9 +71,22 @@ func TestDepositE2EEventFlow(t *testing.T) {
 	bus.Register("DepositPersistedEvent", func(ctx context.Context, e domain.Event) error {
 		track("DepositPersistedEvent")
 		// Simulate conversion handler emitting DepositConversionDoneEvent
+		persistedEvent := e.(events.DepositPersistedEvent)
 		conversionDone := events.DepositConversionDoneEvent{
-			DepositValidatedEvent: e.(events.DepositPersistedEvent).DepositValidatedEvent,
-			TransactionID:         e.(events.DepositPersistedEvent).TransactionID,
+			DepositValidatedEvent: persistedEvent.DepositValidatedEvent,
+			ConversionDoneEvent: events.ConversionDoneEvent{
+				FlowEvent:        persistedEvent.FlowEvent,
+				ID:               uuid.New(),
+				FromAmount:       persistedEvent.Amount,
+				ToAmount:         persistedEvent.Amount, // Assuming no conversion for simplicity
+				RequestID:        persistedEvent.TransactionID.String(),
+				TransactionID:    persistedEvent.TransactionID,
+				Timestamp:        time.Now(),
+				ConversionRate:   1.0,
+				OriginalCurrency: persistedEvent.Amount.Currency().String(),
+				ConvertedAmount:  persistedEvent.Amount.AmountFloat(),
+			},
+			TransactionID: persistedEvent.TransactionID,
 		}
 		bus.Emit(ctx, conversionDone) //nolint:errcheck
 		return nil
@@ -177,8 +190,21 @@ func TestWithdrawE2EEventFlow(t *testing.T) {
 	bus.Register("WithdrawPersistedEvent", func(ctx context.Context, e domain.Event) error {
 		track("WithdrawPersistedEvent")
 		// Simulate conversion handler
+		persistedEvent := e.(events.WithdrawPersistedEvent)
 		conversionDone := events.WithdrawConversionDoneEvent{
-			WithdrawValidatedEvent: e.(events.WithdrawPersistedEvent).WithdrawValidatedEvent,
+			WithdrawValidatedEvent: persistedEvent.WithdrawValidatedEvent,
+			ConversionDoneEvent: events.ConversionDoneEvent{
+				FlowEvent:        persistedEvent.FlowEvent,
+				ID:               uuid.New(),
+				FromAmount:       persistedEvent.Amount,
+				ToAmount:         persistedEvent.Amount, // Assuming no conversion for simplicity
+				RequestID:        persistedEvent.TransactionID.String(),
+				TransactionID:    persistedEvent.TransactionID,
+				Timestamp:        time.Now(),
+				ConversionRate:   1.0,
+				OriginalCurrency: persistedEvent.Amount.Currency().String(),
+				ConvertedAmount:  persistedEvent.Amount.AmountFloat(),
+			},
 		}
 		bus.Emit(ctx, conversionDone) //nolint:errcheck
 		return nil
@@ -238,7 +264,7 @@ func TestWithdrawE2EEventFlow(t *testing.T) {
 // TestTransferE2EEventFlow tests the full transfer event-driven flow from TransferRequestedEvent to TransferCompletedEvent.
 // It verifies the event chain:
 //
-//	TransferRequestedEvent → TransferValidatedEvent → TransferPersistedEvent → TransferConversionDoneEvent → TransferDomainOpDoneEvent → TransferCompletedEvent
+//	TransferRequestedEvent → TransferValidatedEvent → TransferDomainOpDoneEvent → TransferConversionDoneEvent → TransferCompletedEvent
 //
 // The test simulates each handler and tracks the emitted event sequence for correctness.
 func TestTransferE2EEventFlow(t *testing.T) {
@@ -267,39 +293,46 @@ func TestTransferE2EEventFlow(t *testing.T) {
 	})
 	bus.Register("TransferValidatedEvent", func(ctx context.Context, e domain.Event) error {
 		track("TransferValidatedEvent")
-		transferPersisted := events.TransferPersistedEvent{
-			TransferDomainOpDoneEvent: events.TransferDomainOpDoneEvent{
-				TransferValidatedEvent: e.(events.TransferValidatedEvent),
-			},
-		}
-		bus.Emit(ctx, transferPersisted) //nolint:errcheck
-		return nil
-	})
-	bus.Register("TransferPersistedEvent", func(ctx context.Context, e domain.Event) error {
-		track("TransferPersistedEvent")
-		conversionDone := events.TransferConversionDoneEvent{
-			TransferValidatedEvent: e.(events.TransferPersistedEvent).TransferValidatedEvent,
-		}
-		bus.Emit(ctx, conversionDone) //nolint:errcheck
-		return nil
-	})
-	bus.Register("TransferConversionDoneEvent", func(ctx context.Context, e domain.Event) error {
-		track("TransferConversionDoneEvent")
-		// Simulate conversion persistence and business validation
 		transferDomainOpDone := events.TransferDomainOpDoneEvent{
-			TransferValidatedEvent: e.(events.TransferConversionDoneEvent).TransferValidatedEvent,
+			TransferValidatedEvent: e.(events.TransferValidatedEvent),
+			TransactionID:          uuid.New(),
 		}
 		bus.Emit(ctx, transferDomainOpDone) //nolint:errcheck
 		return nil
 	})
 	bus.Register("TransferDomainOpDoneEvent", func(ctx context.Context, e domain.Event) error {
 		track("TransferDomainOpDoneEvent")
+		// Simulate conversion handler
+		domainOpDoneEvent := e.(events.TransferDomainOpDoneEvent)
+		conversionDone := events.TransferConversionDoneEvent{
+			TransferValidatedEvent: domainOpDoneEvent.TransferValidatedEvent,
+			ConversionDoneEvent: events.ConversionDoneEvent{
+				FlowEvent:        domainOpDoneEvent.FlowEvent,
+				ID:               uuid.New(),
+				FromAmount:       domainOpDoneEvent.Amount,
+				ToAmount:         domainOpDoneEvent.Amount, // Assuming no conversion for simplicity
+				RequestID:        domainOpDoneEvent.TransactionID.String(),
+				TransactionID:    domainOpDoneEvent.TransactionID,
+				Timestamp:        time.Now(),
+				ConversionRate:   1.0,
+				OriginalCurrency: domainOpDoneEvent.Amount.Currency().String(),
+				ConvertedAmount:  domainOpDoneEvent.Amount.AmountFloat(),
+			},
+		}
+		bus.Emit(ctx, conversionDone) //nolint:errcheck
+		return nil
+	})
+	bus.Register("TransferConversionDoneEvent", func(ctx context.Context, e domain.Event) error {
+		track("TransferConversionDoneEvent")
 		// Simulate internal transfer completion
-		domainOpDone := e.(events.TransferDomainOpDoneEvent)
+		conversionDoneEvent := e.(events.TransferConversionDoneEvent)
 		completed := events.TransferCompletedEvent{
-			TransferDomainOpDoneEvent: domainOpDone,
-			TxOutID:                   uuid.New(),
-			TxInID:                    uuid.New(),
+			TransferDomainOpDoneEvent: events.TransferDomainOpDoneEvent{
+				TransferValidatedEvent: conversionDoneEvent.TransferValidatedEvent,
+				TransactionID:          conversionDoneEvent.TransactionID,
+			},
+			TxOutID: uuid.New(),
+			TxInID:  uuid.New(),
 		}
 		bus.Emit(ctx, completed) //nolint:errcheck
 		return nil
@@ -330,9 +363,8 @@ func TestTransferE2EEventFlow(t *testing.T) {
 	assert.Equal(t, []string{
 		"TransferRequestedEvent",
 		"TransferValidatedEvent",
-		"TransferPersistedEvent",
-		"TransferConversionDoneEvent",
 		"TransferDomainOpDoneEvent",
+		"TransferConversionDoneEvent",
 		"TransferCompletedEvent",
 	}, emitted, "event chain should match full transfer flow")
 }

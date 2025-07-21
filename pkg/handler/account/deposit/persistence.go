@@ -98,6 +98,6 @@ func Persistence(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logge
 		}
 		log.Info("DEBUG: Full ConversionRequestedEvent", "event", conversionEvent)
 		log.Info("📤 [EMIT] About to emit ConversionRequestedEvent", "handler", "Persistence", "event_type", conversionEvent.Type(), "correlation_id", correlationID.String())
-		return bus.Emit(ctx, conversionEvent)
+		return bus.Emit(ctx, &conversionEvent)
 	}
 }

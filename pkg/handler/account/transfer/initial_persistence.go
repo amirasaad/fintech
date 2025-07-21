@@ -2,7 +2,9 @@ package transfer
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/domain/events"
@@ -13,61 +15,67 @@ import (
 	"github.com/google/uuid"
 )
 
-// InitialPersistence handles TransferValidatedEvent: creates initial transaction record and triggers conversion.
+// InitialPersistence handles TransferValidatedEvent, creates an initial 'pending' transaction, and triggers conversion.
 func InitialPersistence(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e domain.Event) error {
 	return func(ctx context.Context, e domain.Event) error {
 		log := logger.With("handler", "InitialPersistence", "event_type", e.Type())
-		log.Info("🟢 [START] Received event", "event", e)
 
+		// 1. Defensive: Check event type and structure
 		ve, ok := e.(events.TransferValidatedEvent)
 		if !ok {
-			log.Error("❌ [ERROR] Unexpected event type", "event", e)
+			log.Error("❌ [DISCARD] Unexpected event type", "event", e)
 			return nil
 		}
-		log.Info("🔄 [PROCESS] Received TransferValidatedEvent", "event", ve)
+		log = log.With("correlation_id", ve.CorrelationID)
+		log.Info("🟢 [START] Received event", "event", ve)
 
-		txID := uuid.New()
-		if err := uow.Do(ctx, func(uow repository.UnitOfWork) error {
-			txRepoAny, err := uow.GetRepository((*transaction.Repository)(nil))
+		if ve.AccountID == uuid.Nil || ve.UserID == uuid.Nil || ve.Amount.IsZero() || ve.Amount.IsNegative() {
+			log.Error("❌ [DISCARD] Malformed validated event", "event", ve)
+			return nil
+		}
+
+		// 2. Persist initial transaction (tx_out) atomically
+		txID := ve.ID
+		err := uow.Do(ctx, func(uow repository.UnitOfWork) error {
+			repoAny, err := uow.GetRepository((*transaction.Repository)(nil))
 			if err != nil {
-				log.Error("❌ [ERROR] Failed to get repo", "err", err)
-				return err
+				return fmt.Errorf("failed to get repo: %w", err)
 			}
-			txRepo, ok := txRepoAny.(transaction.Repository)
+
+			txRepo, ok := repoAny.(transaction.Repository)
 			if !ok {
-				log.Error("❌ [ERROR] Failed to retrieve repo type")
-				return err
+				return fmt.Errorf("unexpected repo type")
 			}
-			if err := txRepo.Create(ctx, dto.TransactionCreate{
+
+			return txRepo.Create(ctx, dto.TransactionCreate{
 				ID:          txID,
 				UserID:      ve.UserID,
 				AccountID:   ve.AccountID,
-				Amount:      -ve.Amount.Amount(), // Negative amount for outgoing transaction
+				Amount:      ve.Amount.Negate().Amount(),
 				Currency:    ve.Amount.Currency().String(),
-				Status:      "created",
+				Status:      "pending",
 				MoneySource: "transfer",
-			}); err != nil {
-				return err
-			}
-			log.Info("✅ [SUCCESS] Outgoing transfer transaction created", "transaction_id", txID, "amount", -ve.Amount.Amount())
-			return nil
-		}); err != nil {
-			log.Error("❌ [ERROR] Failed to create transfer transaction", "error", err)
-			return nil
+			})
+		})
+
+		if err != nil {
+			log.Error("❌ [ERROR] Failed to create initial transaction", "error", err)
+			return err
 		}
+		log.Info("✅ [SUCCESS] Initial 'pending' transaction created", "transaction_id", txID)
 
-		// For transfer, we need to determine the target currency from the destination account
-		// For now, we'll use the same currency as the source (no conversion needed)
-		targetCurrency := ve.Amount.Currency().String()
-
-		log.Info("[LOG] About to emit ConversionRequestedEvent for transfer", "transaction_id", txID)
-		result := bus.Emit(ctx, events.ConversionRequestedEvent{
+		// 3. Emit event to trigger currency conversion
+		targetCurrency := ve.Amount.Currency().String() // Placeholder
+		conversionEvent := events.ConversionRequestedEvent{
+			FlowEvent:     ve.FlowEvent,
 			FromAmount:    ve.Amount,
 			ToCurrency:    targetCurrency,
 			RequestID:     txID.String(),
+			Timestamp:     time.Now(),
 			TransactionID: txID,
-		})
-		log.Info("[LOG] ConversionRequestedEvent emitted for transfer", "transaction_id", txID, "result", result)
-		return result
+		}
+
+		log.Info("📤 [EMIT] Emitting ConversionRequestedEvent", "event", conversionEvent)
+		return bus.Emit(ctx, conversionEvent)
 	}
 }

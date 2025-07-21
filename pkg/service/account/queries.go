@@ -79,14 +79,16 @@ func (s *Service) GetBalance(
 		if err != nil {
 			return err
 		}
-		account, err := repo.Get(accountID)
+		acc, err := repo.Get(accountID)
 		if err != nil {
 			return err
 		}
-		balance, err = account.GetBalance(userID)
-		if err != nil {
-			return err
+
+		if acc.UserID != userID {
+			return account.ErrNotOwner
 		}
+
+		balance = float64(acc.Balance.Amount())
 		return nil
 	})
 	if err != nil {
