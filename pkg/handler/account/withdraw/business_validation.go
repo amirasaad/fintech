@@ -7,7 +7,6 @@ import (
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/eventbus"
-	"github.com/google/uuid"
 )
 
 // BusinessValidation performs business validation in account currency after conversion.
@@ -35,13 +34,9 @@ func BusinessValidation(bus eventbus.Bus, logger *slog.Logger) func(ctx context.
 			"correlation_id", correlationID)
 
 		// Emit WithdrawValidatedEvent
-		withdrawEvent := events.WithdrawValidatedEvent{
-			WithdrawRequestedEvent: events.WithdrawRequestedEvent{
-				FlowEvent: wce.FlowEvent,
-				ID:        uuid.New(),
-				// Amount:    wce.ToAmount, // TODO: This field is no longer available in the new event struct.
-			},
-			TargetCurrency: wce.ToAmount.Currency().String(),
+		withdrawEvent := events.WithdrawBusinessValidatedEvent{
+			WithdrawConversionDoneEvent: wce,
+			TransactionID:               wce.TransactionID,
 		}
 		log.Info("📤 [EMIT] Emitting WithdrawValidatedEvent", "event", withdrawEvent, "correlation_id", correlationID.String())
 		if err := bus.Emit(ctx, withdrawEvent); err != nil {

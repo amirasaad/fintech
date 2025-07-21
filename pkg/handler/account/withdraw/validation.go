@@ -2,16 +2,19 @@ package withdraw
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/eventbus"
+	"github.com/amirasaad/fintech/pkg/repository"
+	"github.com/amirasaad/fintech/pkg/repository/account"
 	"github.com/google/uuid"
 )
 
 // Validation handles WithdrawRequestedEvent, performs initial stateless validation, and publishes WithdrawValidatedEvent.
-func Validation(bus eventbus.Bus, logger *slog.Logger) func(ctx context.Context, e domain.Event) error {
+func Validation(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e domain.Event) error {
 	return func(ctx context.Context, e domain.Event) error {
 		log := logger.With("handler", "Validation", "event_type", e.Type())
 		log.Info("🟢 [START] Received event", "event", e)
@@ -28,10 +31,27 @@ func Validation(bus eventbus.Bus, logger *slog.Logger) func(ctx context.Context,
 			return nil
 		}
 
+		accRepoAny, err := uow.GetRepository((*account.Repository)(nil))
+
+		if err != nil {
+			return err
+		}
+		accRepo, ok := accRepoAny.(account.Repository)
+		if !ok {
+			return errors.New("failed to get repo")
+		}
+
+		acc, err := accRepo.Get(ctx, we.AccountID)
+		if err != nil {
+			log.Error("❌ [ERROR] Failed to get account", "error", err)
+			bus.Emit(ctx, events.WithdrawFailedEvent{WithdrawRequestedEvent: we, Reason: "Account not found"})
+			return nil
+		}
+
 		correlationID := uuid.New()
 		validatedEvent := events.WithdrawValidatedEvent{
 			WithdrawRequestedEvent: we,
-			TargetCurrency:         we.Amount.Currency().String(),
+			TargetCurrency:         acc.Currency,
 		}
 
 		log.Info("✅ [SUCCESS] Withdraw request validated, emitting WithdrawValidatedEvent", "account_id", we.AccountID, "user_id", we.UserID, "correlation_id", correlationID.String())

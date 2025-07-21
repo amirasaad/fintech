@@ -62,8 +62,6 @@ func New(deps config.Deps) *fiber.App {
 	bus.Register("DepositRequestedEvent", deposithandler.Validation(bus, deps.Uow, deps.Logger))
 	// b. Persist transaction after validation
 	bus.Register("DepositValidatedEvent", deposithandler.Persistence(bus, deps.Uow, deps.Logger))
-	// c. Conversion done: persist conversion data
-	bus.Register("DepositConversionDoneEvent", deposithandler.ConversionPersistence(bus, deps.Uow, deps.Logger))
 	// d. Business validation after conversion (in account currency)
 	bus.Register("DepositConversionDoneEvent", deposithandler.BusinessValidation(bus, deps.Logger))
 	// e. Payment initiation (only after business validation)
@@ -78,15 +76,12 @@ func New(deps config.Deps) *fiber.App {
 	bus.Register("WithdrawRequestedEvent", withdrawhandler.Validation(bus, deps.Uow, deps.Logger))
 	// b. Persist transaction after validation
 	bus.Register("WithdrawValidatedEvent", withdrawhandler.Persistence(bus, deps.Uow, deps.Logger))
-	// c. Conversion done: persist conversion data
-	bus.Register("WithdrawConversionDoneEvent", withdrawhandler.ConversionPersistence(bus, deps.Uow, deps.Logger))
+	// c. Business validation after conversion (in account currency)
+	bus.Register("WithdrawConversionDoneEvent", withdrawhandler.ConversionDoneHandler(bus, deps.Logger))
 	// d. Business validation after conversion (in account currency)
 	bus.Register("WithdrawConversionDoneEvent", withdrawhandler.BusinessValidation(bus, deps.Logger))
-	// e. Payment initiation (after persistence, using correct transaction ID)
-	bus.Register("WithdrawPersistedEvent", paymenthandler.WithdrawInitiation(bus, deps.PaymentProvider, deps.Logger))
-	// f. Payment persistence
-	bus.Register("PaymentInitiatedEvent", paymenthandler.Persistence(bus, deps.Uow, deps.Logger))
-
+	// e. Payment initiation (only after business validation)
+	bus.Register("WithdrawBusinessValidatedEvent", paymenthandler.Initiation(bus, deps.PaymentProvider, deps.Logger))
 	// 4️⃣ TRANSFER FLOW
 	// User request → Initial Validation → Initial Persistence → Conversion → Business Validation → Final Persistence
 
@@ -100,9 +95,9 @@ func New(deps config.Deps) *fiber.App {
 	bus.Register("TransferDomainOpDoneEvent", transferhandler.Persistence(bus, deps.Uow, deps.Logger))
 
 	// Conversion done handlers (flow-specific)
-	bus.Register("DepositConversionDoneEvent", deposithandler.ConversionDoneHandler(bus, deps.Uow, deps.Logger))
-	bus.Register("WithdrawConversionDoneEvent", withdrawhandler.ConversionDoneHandler(bus, deps.Uow, deps.Logger))
-	bus.Register("TransferConversionDoneEvent", transferhandler.ConversionDoneHandler(bus, deps.Uow, deps.Logger))
+	bus.Register("DepositConversionDoneEvent", conversion.Handler(bus, deps.CurrencyConverter, deps.Logger, conversionFactories))
+	bus.Register("WithdrawConversionDoneEvent", conversion.Handler(bus, deps.CurrencyConverter, deps.Logger, conversionFactories))
+	bus.Register("TransferConversionDoneEvent", conversion.Handler(bus, deps.CurrencyConverter, deps.Logger, conversionFactories))
 
 	// ============================================================================
 	// 📝 DOCUMENTATION

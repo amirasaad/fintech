@@ -7,11 +7,11 @@ import (
 
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/domain/events"
-	"github.comcom/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/amirasaad/fintech/pkg/repository/transaction"
 	"github.com/google/uuid"
+	"github.comcom/amirasaad/fintech/pkg/dto"
 )
 
 // ConversionPersistence handles persisting conversion details for any transaction.
@@ -49,11 +49,11 @@ func ConversionPersistence(uow repository.UnitOfWork, logger *slog.Logger) func(
 			targetCurrency := cde.ToAmount.Currency().String()
 
 			update := dto.TransactionUpdate{
-				OriginalAmount:      &originalAmount,
-				OriginalCurrency:    &cde.OriginalCurrency,
-				ConvertedAmount:     &convertedAmount,
-				ConversionRate:      &cde.ConversionRate,
-				TargetCurrency:      &targetCurrency,
+				OriginalAmount:   &originalAmount,
+				OriginalCurrency: &cde.OriginalCurrency,
+				ConvertedAmount:  &convertedAmount,
+				ConversionRate:   &cde.ConversionRate,
+				TargetCurrency:   &targetCurrency,
 			}
 
 			log.Info("🔄 [PROCESS] Updating transaction with conversion data", "transaction_id", transactionID)

@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/amirasaad/fintech/infra/provider"
 	mocks "github.com/amirasaad/fintech/internal/fixtures/mocks"
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain"
@@ -15,6 +16,7 @@ import (
 	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/eventbus"
 	deposithandler "github.com/amirasaad/fintech/pkg/handler/account/deposit"
+	"github.com/amirasaad/fintech/pkg/handler/conversion"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -93,8 +95,8 @@ func TestDepositE2EEventFlow(t *testing.T) {
 	})
 	bus.Register("DepositConversionDoneEvent", func(ctx context.Context, e domain.Event) error {
 		track("DepositConversionDoneEvent")
-		deposithandler.ConversionPersistence(bus, uow, logger)(ctx, e) //nolint:errcheck
-		deposithandler.BusinessValidation(bus, logger)(ctx, e)         //nolint:errcheck
+		conversion.Handler(bus, provider.NewStubCurrencyConverter(), logger, map[string]conversion.EventFactory{})(ctx, e) //nolint:errcheck
+		deposithandler.BusinessValidation(bus, logger)(ctx, e)                                                             //nolint:errcheck
 		return nil
 	})
 	bus.Register("DepositBusinessValidatedEvent", func(ctx context.Context, e domain.Event) error {

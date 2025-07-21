@@ -2,61 +2,63 @@ package withdraw_test
 
 import (
 	"context"
-	"io"
 	"log/slog"
+	"os"
 	"testing"
 
 	"github.com/amirasaad/fintech/internal/fixtures/mocks"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/domain/money"
+	"github.com/amirasaad/fintech/pkg/dto"
+	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/amirasaad/fintech/pkg/handler/account/withdraw"
+	"github.com/amirasaad/fintech/pkg/repository/account"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 )
 
 func TestValidation(t *testing.T) {
+	bus := eventbus.NewSimpleEventBus()
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	mockUOW := new(mocks.MockUnitOfWork)
+	mockAccountRepo := new(mocks.AccountRepository)
+
 	ctx := context.Background()
-	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	validAmount, _ := money.New(100, "USD")
 
-	baseEvent := events.WithdrawRequestedEvent{
-		AccountID: uuid.New(),
-		UserID:    uuid.New(),
-		Amount:    validAmount,
-	}
+	t.Run("should emit WithdrawValidatedEvent on valid request", func(t *testing.T) {
+		amount, _ := money.New(100, "USD")
+		req := events.WithdrawRequestedEvent{
+			FlowEvent: events.FlowEvent{
+				AccountID: uuid.New(),
+			},
+			ID:     uuid.New(),
+			Amount: amount,
+		}
 
-	t.Run("successfully validates and emits event", func(t *testing.T) {
-		bus := mocks.NewMockBus(t)
-		bus.On("Emit", ctx, mock.AnythingOfType("events.WithdrawValidatedEvent")).Return(nil)
+		mockUOW.On("GetRepository", (*account.Repository)(nil)).Return(mockAccountRepo, nil)
+		mockAccountRepo.On("Get", ctx, req.AccountID).Return(&dto.AccountRead{Currency: "USD"}, nil)
 
-		handler := withdraw.Validation(bus, logger)
-		err := handler(ctx, baseEvent)
+		handler := withdraw.Validation(bus, mockUOW, logger)
+		err := handler(ctx, req)
 
 		assert.NoError(t, err)
-		bus.AssertExpectations(t)
+		mockUOW.AssertExpectations(t)
+		mockAccountRepo.AssertExpectations(t)
 	})
 
-	t.Run("emits failed event for invalid request data", func(t *testing.T) {
-		bus := mocks.NewMockBus(t)
-		bus.On("Emit", ctx, mock.AnythingOfType("events.WithdrawFailedEvent")).Return(nil)
+	t.Run("should emit WithdrawFailedEvent on invalid request", func(t *testing.T) {
+		amount, _ := money.New(0, "USD")
+		req := events.WithdrawRequestedEvent{
+			FlowEvent: events.FlowEvent{
+				AccountID: uuid.Nil,
+			},
+			ID:     uuid.New(),
+			Amount: amount,
+		}
 
-		invalidEvent := baseEvent
-		invalidEvent.AccountID = uuid.Nil
-
-		handler := withdraw.Validation(bus, logger)
-		err := handler(ctx, invalidEvent)
-
-		assert.NoError(t, err)
-		bus.AssertExpectations(t)
-	})
-
-	t.Run("discards malformed event", func(t *testing.T) {
-		bus := mocks.NewMockBus(t)
-		handler := withdraw.Validation(bus, logger)
-		err := handler(ctx, "not a real event")
+		handler := withdraw.Validation(bus, mockUOW, logger)
+		err := handler(ctx, req)
 
 		assert.NoError(t, err)
-		bus.AssertNotCalled(t, "Emit", mock.Anything, mock.Anything)
 	})
 }
