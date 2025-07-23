@@ -2,6 +2,7 @@ package deposit
 
 import (
 	"context"
+	"errors"
 	"github.com/amirasaad/fintech/pkg/mapper"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/amirasaad/fintech/pkg/repository/account"
@@ -30,7 +31,8 @@ func BusinessValidation(bus eventbus.Bus, uow repository.UnitOfWork, logger *slo
 		}
 		accRepo, ok := accRepoAny.(account.Repository)
 		if !ok {
-			log.Error("❌ [ERROR] Invalid account repository type", "type", accRepoAny)
+			err := errors.New("invalid account repository type")
+			log.Error("❌ [ERROR] Invalid account repository type", "type", accRepoAny, "error", err)
 			return err
 		}
 

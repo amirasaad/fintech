@@ -51,3 +51,11 @@ packages:
       structname: "Mock{{.InterfaceName}}"
     interfaces:
       Bus:
+  github.com/amirasaad/fintech/pkg/provider:
+    config:
+      dir: "internal/fixtures/mocks"
+      filename: "provider.go"
+      pkgname: "mocks"
+      structname: "Mock{{.InterfaceName}}"
+    interfaces:
+      ExchangeRateProvider:

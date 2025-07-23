@@ -11,83 +11,122 @@ import (
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
 func TestValidation(t *testing.T) {
 	ctx := context.Background()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	validAmount, _ := money.New(100, currency.USD)
 
-	baseEvent := events.TransferRequestedEvent{
-		FlowEvent: events.FlowEvent{
-			FlowType:      "transfer",
-			UserID:        uuid.New(),
-			AccountID:     uuid.New(),
-			CorrelationID: uuid.New(),
-		},
-		ID:             uuid.New(),
-		Amount:         validAmount,
-		Source:         "transfer",
-		DestAccountID:  uuid.New(),
-		ReceiverUserID: uuid.New(),
-	}
+	t.Run("successfully validates transfer and emits validated event", func(t *testing.T) {
+		// Setup
+		bus := mocks.NewMockBus(t)
 
-	testCases := []struct {
-		name           string
-		event          events.TransferRequestedEvent
-		expectEmit     bool
-		malleableEvent func(event *events.TransferRequestedEvent)
-	}{
-		{
-			name:       "valid event",
-			event:      baseEvent,
-			expectEmit: true,
-		},
-		{
-			name:       "invalid event - nil ID",
-			event:      baseEvent,
-			expectEmit: false,
-			malleableEvent: func(e *events.TransferRequestedEvent) {
-				e.ID = uuid.Nil
+		userID := uuid.New()
+		accountID := uuid.New()
+		destAccountID := uuid.New()
+		receiverUserID := uuid.New()
+		amount, _ := money.New(100, currency.USD)
+
+		event := events.TransferRequestedEvent{
+			FlowEvent: events.FlowEvent{
+				FlowType:      "transfer",
+				UserID:        userID,
+				AccountID:     accountID,
+				CorrelationID: uuid.New(),
 			},
-		},
-		{
-			name:       "invalid event - nil AccountID",
-			event:      baseEvent,
-			expectEmit: false,
-			malleableEvent: func(e *events.TransferRequestedEvent) {
-				e.AccountID = uuid.Nil
+			ID:             uuid.New(),
+			Amount:         amount,
+			DestAccountID:  destAccountID,
+			ReceiverUserID: receiverUserID,
+		}
+
+		bus.On("Emit", mock.Anything, mock.MatchedBy(func(e interface{}) bool {
+			validatedEvent, ok := e.(events.TransferValidatedEvent)
+			if !ok {
+				return false
+			}
+			return validatedEvent.TransferRequestedEvent.UserID == userID &&
+				validatedEvent.TransferRequestedEvent.AccountID == accountID &&
+				validatedEvent.TransferRequestedEvent.DestAccountID == destAccountID
+		})).Return(nil).Once()
+
+		// Execute
+		handler := Validation(bus, logger)
+		err := handler(ctx, event)
+
+		// Assert
+		assert.NoError(t, err)
+	})
+
+	t.Run("handles malformed event gracefully", func(t *testing.T) {
+		// Setup
+		bus := mocks.NewMockBus(t)
+
+		// Event with missing required fields
+		event := events.TransferRequestedEvent{
+			FlowEvent: events.FlowEvent{
+				FlowType: "transfer",
+				// Missing UserID, AccountID, etc.
 			},
-		},
-		{
-			name:       "invalid event - zero amount",
-			event:      baseEvent,
-			expectEmit: false,
-			malleableEvent: func(e *events.TransferRequestedEvent) {
-				e.Amount, _ = money.New(0, currency.USD)
+			// Missing ID, Amount, etc.
+		}
+
+		// Execute
+		handler := Validation(bus, logger)
+		err := handler(ctx, event)
+
+		// Assert
+		assert.NoError(t, err) // Handler should not return error, just log and discard
+		bus.AssertNotCalled(t, "Emit", mock.Anything, mock.Anything)
+	})
+
+	t.Run("handles unexpected event type gracefully", func(t *testing.T) {
+		// Setup
+		bus := mocks.NewMockBus(t)
+
+		// Use a different event type
+		event := events.DepositRequestedEvent{}
+
+		// Execute
+		handler := Validation(bus, logger)
+		err := handler(ctx, event)
+
+		// Assert
+		assert.NoError(t, err)
+		bus.AssertNotCalled(t, "Emit", mock.Anything, mock.Anything)
+	})
+
+	t.Run("handles negative amount", func(t *testing.T) {
+		// Setup
+		bus := mocks.NewMockBus(t)
+
+		userID := uuid.New()
+		accountID := uuid.New()
+		destAccountID := uuid.New()
+		receiverUserID := uuid.New()
+		amount, _ := money.New(-100, currency.USD) // Negative amount
+
+		event := events.TransferRequestedEvent{
+			FlowEvent: events.FlowEvent{
+				FlowType:      "transfer",
+				UserID:        userID,
+				AccountID:     accountID,
+				CorrelationID: uuid.New(),
 			},
-		},
-	}
+			ID:             uuid.New(),
+			Amount:         amount,
+			DestAccountID:  destAccountID,
+			ReceiverUserID: receiverUserID,
+		}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			bus := mocks.NewMockBus(t)
-			event := tc.event
-			if tc.malleableEvent != nil {
-				tc.malleableEvent(&event)
-			}
+		// Execute
+		handler := Validation(bus, logger)
+		err := handler(ctx, event)
 
-			if tc.expectEmit {
-				bus.On("Emit", ctx, mock.AnythingOfType("events.TransferValidatedEvent")).Return(nil).Once()
-			}
-
-			handler := Validation(bus, logger)
-			err := handler(ctx, event)
-
-			if err == nil {
-				bus.AssertExpectations(t)
-			}
-		})
-	}
+		// Assert
+		assert.NoError(t, err) // Handler should not return error, just log and discard
+		bus.AssertNotCalled(t, "Emit", mock.Anything, mock.Anything)
+	})
 }
