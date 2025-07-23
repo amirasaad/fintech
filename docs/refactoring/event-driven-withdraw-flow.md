@@ -3,7 +3,7 @@ icon: octicons/sync-24
 ---
 # ⚡ Event-Driven Withdraw Flow
 
-This document describes the event-driven architecture for the withdraw workflow in the fintech system.
+This document describes the current event-driven architecture for the withdraw workflow in the fintech system.
 
 ---
 
@@ -13,7 +13,7 @@ The withdraw process is fully event-driven, with each business step handled by a
 
 ---
 
-## 🖼️ Sequence Diagram
+## 🖼️ Current Event Flow
 
 ```mermaid
 sequenceDiagram
@@ -38,176 +38,278 @@ sequenceDiagram
     P->>EB: WithdrawPersistedEvent
 ```
 
-> **Note:** Payment initiation only happens after WithdrawConversionDone. This avoids coupling conversion with payment for other flows (e.g., transfer).
-
 ---
 
-## 🔄 Workflow Clarification: Event-Driven Withdraw Flow
+## 🔄 Current Workflow: Event Chain
 
-The withdraw workflow is orchestrated through a series of events and handlers:
+The withdraw workflow follows this event chain:
 
-1. **User submits withdraw request** (amount as `float64`, main unit). API emits `WithdrawRequestedEvent`.
-2. **Validation Handler** loads the account, checks balance and domain validation (`ValidateWithdraw`), emits `WithdrawValidatedEvent`.
-3. **Persistence Handler** converts the amount to a `money.Money` value object and persists the transaction, emits `WithdrawPersistedEvent`.
-4. **Payment Initiation Handler** initiates payment, emits `PaymentInitiatedEvent`.
-5. **PaymentId Persistence Handler** updates transaction with paymentId, emits `PaymentIdPersistedEvent`.
-6. **Webhook Handler** (optional) updates transaction status and account balance on payment confirmation.
+1. **`WithdrawRequestedEvent`** → ValidationHandler
+2. **`WithdrawValidatedEvent`** → PersistenceHandler
+3. **`WithdrawPersistedEvent`** → ConversionHandler
+4. **`WithdrawBusinessValidationEvent`** → BusinessValidationHandler
+5. **`WithdrawBusinessValidatedEvent`** → PaymentInitiationHandler
+6. **`PaymentInitiatedEvent`** → PaymentPersistenceHandler
+7. **`PaymentIdPersistedEvent`** → (End of flow)
 
-### 🖼️ Withdraw Workflow Diagram
+### 🖼️ Event Flow Diagram
 
 ```mermaid
 flowchart TD
-    A["WithdrawRequestedEvent"] --> B["Validation Handler (domain validation)"]
-    B --> C["WithdrawValidatedEvent"]
-    C --> D["Persistence Handler (creates money object, persists)"]
-    D --> E["WithdrawPersistedEvent"]
-    E --> F["Payment Initiation Handler"]
-    F --> G["PaymentInitiatedEvent"]
-    G --> H["PaymentId Persistence Handler"]
-    H --> I["PaymentIdPersistedEvent"]
-    I --> J["Webhook Handler (optional)"]
+    A[WithdrawRequestedEvent] --> B[ValidationHandler]
+    B --> C[WithdrawValidatedEvent]
+    C --> D[PersistenceHandler]
+    D --> E[WithdrawPersistedEvent]
+    E --> F[ConversionRequestedEvent]
+    F --> G[ConversionHandler]
+    G --> H[WithdrawBusinessValidationEvent]
+    H --> I[BusinessValidationHandler]
+    I --> J[WithdrawBusinessValidatedEvent]
+    J --> K[PaymentInitiationHandler]
+    K --> L[PaymentInitiatedEvent]
+    L --> M[PaymentPersistenceHandler]
+    M --> N[PaymentIdPersistedEvent]
 ```
 
 ---
 
-## 🧩 Event-Driven Components
+## 🧩 Handler Responsibilities
 
-### 1. Validation Handler
+### 1. Validation Handler (`pkg/handler/account/withdraw/validation.go`)
 
-- **Purpose:** Performs business validation on the account and balance
+- **Purpose:** Validates withdraw request and account ownership
 - **Events Consumed:** `WithdrawRequestedEvent`
 - **Events Emitted:**
-  - `WithdrawValidatedEvent` - When validation passes
-  - (TODO: `WithdrawValidationFailedEvent` - When validation fails)
+  - `WithdrawValidatedEvent` (success)
+  - `WithdrawFailedEvent` (failure)
 - **Validation Rules:**
   - Account exists and belongs to user
-  - Account has valid ID
-  - Account is in valid state for operations
-  - Sufficient balance for withdrawal
+  - Withdraw amount is positive
+  - Account has sufficient balance
+  - Account is in valid state for withdrawals
 
-### 2. Persistence Handler
+### 2. Persistence Handler (`pkg/handler/account/withdraw/persistence.go`)
 
-- **Purpose:** Converts the amount to a `money.Money` value object and persists the withdraw transaction to the database
+- **Purpose:** Persists withdraw transaction to database
 - **Events Consumed:** `WithdrawValidatedEvent`
-- **Events Emitted:** `WithdrawPersistedEvent`
+- **Events Emitted:**
+  - `WithdrawPersistedEvent`
+  - `ConversionRequestedEvent` (always emitted for withdraw)
+- **Operations:**
+  - Creates transaction record with "created" status
+  - Always emits conversion request for withdraw flow
 
-### 3. Payment Initiation Handler
+### 3. Business Validation Handler (`pkg/handler/account/withdraw/business_validation.go`)
+
+- **Purpose:** Performs final business validation after currency conversion
+- **Events Consumed:** `WithdrawBusinessValidationEvent`
+- **Events Emitted:** `WithdrawBusinessValidatedEvent`
+- **Validation Rules:**
+  - Re-validates account ownership
+  - Checks sufficient balance with converted amount
+  - Ensures business rules are met in account currency
+
+### 4. Payment Initiation Handler (`pkg/handler/payment/initiation.go`)
 
 - **Purpose:** Initiates payment with external providers
-- **Events Consumed:** `WithdrawPersistedEvent`
+- **Events Consumed:** `PaymentInitiationEvent` (from withdraw business validated)
 - **Events Emitted:** `PaymentInitiatedEvent`
+- **Operations:**
+  - Integrates with payment providers (e.g., Stripe)
+  - Creates payment intent for withdrawal
+
+### 5. Payment Persistence Handler (`pkg/handler/payment/persistence.go`)
+
+- **Purpose:** Persists payment ID to transaction record
+- **Events Consumed:** `PaymentInitiatedEvent`
+- **Events Emitted:** `PaymentIdPersistedEvent`
+- **Operations:**
+  - Updates transaction with payment provider ID
+  - Prevents duplicate payment ID persistence
 
 ---
 
-## 🛠️ Key Benefits
+## 🛠️ Key Implementation Details
 
-### 1. **Modularity**
+### Event Structure
 
-Each handler has a single responsibility and can be developed, tested, and deployed independently.
-
-### 2. **Testability**
-
-- Unit tests for each handler
-- Integration tests for event flows
-- Easy mocking of dependencies
-
-### 3. **Scalability**
-
-- Handlers can be scaled independently
-- Event-driven architecture supports async processing
-- Easy to add new handlers without modifying existing code
-
-### 4. **Maintainability**
-
-- Clear separation of concerns
-- Easy to understand and modify individual components
-- Consistent patterns across all handlers
-
-### 5. **Event Sourcing Ready**
-
-- All business events are captured
-- Easy to implement event sourcing patterns
-- Audit trail of all operations
-
----
-
-## 🛠️ Implementation Details
-
-### Validation Handler Pattern
+All withdraw events embed the common `FlowEvent`:
 
 ```go
-// Validation handler listens to withdraw request events
-func WithdrawValidationHandler(bus eventbus.EventBus, logger *slog.Logger) func(context.Context, domain.Event) {
-    return func(ctx context.Context, e domain.Event) {
-        event, ok := e.(accountdomain.WithdrawRequestedEvent)
-        if !ok {
-            return
-        }
-
-        // Perform business validation
-        if validationFails {
-            // TODO: Emit WithdrawValidationFailedEvent
-            return
-        }
-
-        // Emit validation success
-        _ = bus.Publish(ctx, accountdomain.WithdrawValidatedEvent{...})
-    }
+type FlowEvent struct {
+    FlowType      string    // "withdraw"
+    UserID        uuid.UUID
+    AccountID     uuid.UUID
+    CorrelationID uuid.UUID
 }
 ```
 
-### Persistence Handler Pattern
+### Withdraw-Specific Events
 
 ```go
-// Persistence handler listens to validated withdraw events
-func WithdrawPersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork, logger *slog.Logger) func(context.Context, domain.Event) {
-    return func(ctx context.Context, e domain.Event) {
-        event, ok := e.(accountdomain.WithdrawValidatedEvent)
-        if !ok {
-            return
-        }
-        // Convert amount to money.Money and persist transaction
-        // ...
-        _ = bus.Publish(ctx, accountdomain.WithdrawPersistedEvent{...})
-    }
+type WithdrawRequestedEvent struct {
+    FlowEvent
+    ID                    uuid.UUID
+    Amount                money.Money
+    BankAccountNumber     string
+    RoutingNumber         string
+    ExternalWalletAddress string
+    Timestamp             time.Time
+    PaymentID             string
 }
+
+type WithdrawValidatedEvent struct {
+    WithdrawRequestedEvent
+    TargetCurrency string
+    Account        *account.Account
+}
+
+type WithdrawPersistedEvent struct {
+    WithdrawValidatedEvent
+    TransactionID uuid.UUID
+}
+```
+
+### Validation Logic
+
+The validation handler performs comprehensive checks:
+
+```go
+func (a *Account) ValidateWithdraw(userID uuid.UUID, amount money.Money) error {
+    if a.UserID != userID {
+        return ErrNotOwner
+    }
+    if err := a.validateAmount(amount); err != nil {
+        return err
+    }
+    // Check sufficient funds
+    hasEnough, err := a.Balance.GreaterThan(amount)
+    if err != nil {
+        return err
+    }
+    if !hasEnough && !a.Balance.Equals(amount) {
+        return ErrInsufficientFunds
+    }
+    return nil
+}
+```
+
+### Persistence with Conversion
+
+The persistence handler always emits conversion events for withdrawals:
+
+```go
+// Always emit ConversionRequested for withdraw flow
+conversionEvent := events.ConversionRequestedEvent{
+    FlowEvent:     ve.FlowEvent,
+    Amount:        ve.Amount,
+    To:            ve.Account.Currency(),
+    TransactionID: txID,
+}
+return bus.Emit(ctx, &conversionEvent)
 ```
 
 ---
 
-## 🛠️ Error Handling
+## 🛠️ Benefits
 
-### Validation Failures
+### 1. **Consistent Pattern with Deposit**
+Follows the same event-driven pattern as deposit flow for consistency.
 
-- Account inactive
-- Insufficient balance
-- Business rule violations
-- Invalid account state
+### 2. **Balance Validation**
+Ensures sufficient funds before processing withdrawal.
 
-### Event Flow on Errors
+### 3. **Currency Conversion**
+Handles multi-currency withdrawals through conversion events.
 
-1. Validation handler emits `WithdrawValidationFailedEvent` (TODO)
-2. Persistence handler is not triggered
-3. Error is returned to the caller
-4. Audit trail is maintained through events
+### 4. **Payment Integration**
+Seamlessly integrates with external payment providers.
+
+### 5. **Audit Trail**
+Complete event history for compliance and debugging.
 
 ---
 
 ## 🧪 Testing Strategy
 
 ### Unit Tests
+```go
+func TestWithdrawValidation(t *testing.T) {
+    // Test validation with insufficient funds
+    bus := mocks.NewMockBus(t)
 
-- Test each handler independently
-- Mock event bus and dependencies
-- Test success and failure scenarios
+    handler := Validation(bus, uow, logger)
+    err := handler(ctx, withdrawRequestedEvent)
 
-### Integration Tests
+    // Should emit WithdrawFailedEvent for insufficient funds
+    bus.AssertCalled(t, "Emit", mock.MatchedBy(func(e interface{}) bool {
+        _, ok := e.(events.WithdrawFailedEvent)
+        return ok
+    }))
+}
+```
 
-- Test complete event flows
-- Use real event bus
-- Verify event sequences
+### E2E Tests
+```go
+func TestWithdrawE2EEventFlow(t *testing.T) {
+    emitted := trackEventEmissions()
 
-### End-to-End Tests
+    bus.Emit(ctx, events.WithdrawRequestedEvent{...})
 
-- Test full API endpoints
-- Verify business outcomes
+    assert.Equal(t, []string{
+        "WithdrawRequestedEvent",
+        "WithdrawValidatedEvent",
+        "WithdrawPersistedEvent",
+        "WithdrawBusinessValidationEvent",
+        "WithdrawBusinessValidatedEvent",
+        "PaymentInitiatedEvent",
+    }, emitted)
+}
+```
+
+---
+
+## 🔧 Error Scenarios
+
+### Validation Failures
+- **Insufficient Balance:** Handler emits `WithdrawFailedEvent`
+- **Account Not Found:** Handler logs error, returns nil
+- **Wrong User:** Handler logs error, returns validation error
+- **Invalid Amount:** Handler logs error, returns validation error
+
+### Persistence Failures
+- **Database Error:** Handler logs error, returns error (stops flow)
+- **Transaction Creation Fails:** Handler logs error, returns error
+
+### Business Validation Failures
+- **Post-Conversion Balance Check:** Handler returns error
+- **Account State Changed:** Handler returns error
+
+### Payment Failures
+- **Provider Error:** Handler logs error, may emit PaymentFailedEvent
+- **Network Issues:** Handler logs error, may retry or fail
+
+---
+
+## 🔄 Differences from Deposit Flow
+
+### 1. **Balance Validation**
+Withdraw requires checking sufficient funds, deposit does not.
+
+### 2. **Always Convert**
+Withdraw always emits conversion events, deposit only when needed.
+
+### 3. **Payment Direction**
+Withdraw sends money out, deposit brings money in.
+
+### 4. **Failure Handling**
+Withdraw has more failure scenarios due to balance constraints.
+
+---
+
+## 📚 Related Documentation
+
+- [Event-Driven Architecture](../architecture.md)
+- [Domain Events](../domain-events.md)
+- [Event-Driven Deposit Flow](event-driven-deposit-flow.md)
+- [Event-Driven Transfer Flow](event-driven-transfer-flow.md)

@@ -3,90 +3,109 @@ icon: material/chess-knight
 ---
 # 🏗️ Architecture Overview
 
-This document outlines the event-driven architecture of the Fintech application, detailing the current implementation and a proposal for future refinement.
+This document outlines the event-driven architecture of the Fintech application, detailing the current implementation and design principles.
 
-## 🧬 1. Current Event-Driven Architecture
+## 🧬 Current Event-Driven Architecture
 
 The system is built on a robust, event-driven model to handle core financial flows like deposits, withdrawals, and transfers. This approach ensures that business logic is decoupled, scalable, and easy to maintain.
 
 ### 🧩 Core Concepts
 
-- **Domain Events:** Plain Go structs that represent significant business occurrences (e.g., `DepositRequestedEvent`, `ConversionCompletedEvent`).
+- **Domain Events:** Plain Go structs that represent significant business occurrences (e.g., `DepositRequestedEvent`, `ConversionDoneEvent`).
 - **Event Bus:** A central component responsible for routing events to the appropriate handlers.
 - **Handlers:** Functions that subscribe to specific events, execute a single piece of business logic, and may emit new events to continue the flow.
 
-### ♟️ Conversion Handler: Strategy Pattern Refactor
+### ♟️ Conversion Handler: Strategy Pattern Implementation
 
-A key part of the current architecture is the generic `ConversionHandler`. Previously, this handler contained a `switch` statement to determine which event to emit after a currency conversion. This was refactored to use the **Strategy Pattern**, providing greater flexibility and adhering to the Open/Closed Principle.
+A key part of the current architecture is the generic `ConversionHandler`. This handler uses the **Strategy Pattern** to determine which event to emit after a currency conversion, providing flexibility and adhering to the Open/Closed Principle.
 
 - **`EventFactory` Interface:** An interface that defines a single method, `CreateNextEvent`.
 - **Concrete Factories:** Each business flow (`deposit`, `withdraw`, `transfer`) has its own factory that implements this interface (e.g., `DepositEventFactory`).
-- **Handler Logic:** The `ConversionHandler` now takes a map of factories. Instead of a `switch`, it looks up the appropriate factory based on the event's `FlowType` and delegates the creation of the next event to it.
+- **Handler Logic:** The `ConversionHandler` takes a map of factories. Instead of a `switch`, it looks up the appropriate factory based on the event's `FlowType` and delegates the creation of the next event to it.
 
 This design allows new flows to be added to the conversion process without modifying the core handler logic—only a new factory and its registration are needed.
 
-### 🌊 Current Event Flow
+### 🌊 Current Event Flows
 
-The current flow generally follows a "Persist Early" model. A transaction record is created early in the process, and subsequent steps (like business validation) may update its status.
+The system implements three main business flows:
 
+#### Deposit Flow
 ```mermaid
 graph TD
-    subgraph Current Workflow
-        A[Request] --> B(Initial Validation);
-        B --> C(Persistence);
-        C --> D(Conversion);
-        D --> E(Business Validation);
-        E --> F{Success?};
-        F -- Yes --> G[Complete];
-        F -- No --> H[Update Tx as Failed];
-    end
+    A[DepositRequestedEvent] --> B[DepositValidatedEvent]
+    B --> C[DepositPersistedEvent]
+    C --> D[DepositBusinessValidationEvent]
+    D --> E[DepositBusinessValidatedEvent]
+    E --> F[PaymentInitiatedEvent]
 ```
 
-## 💡 2. Proposed Architectural Refinement: "Validate, Then Persist"
-
-To further improve the system's robustness and simplify its logic, a future refactoring is proposed. The goal is to move from the "Persist Early" model to a "Validate, Then Persist" model.
-
-### 🤔 Rationale
-
-This model ensures that the system's state (the database) is only modified after all business rules have been successfully validated. This makes the entire flow more atomic and transactional from a business perspective. It eliminates the need for "failed" transaction records, as a transaction is only created when it is guaranteed to succeed.
-
-### 🚀 Proposed Event Flow
-
-In this model, all validation and conversion logic is completed *before* any persistence occurs.
-
-1.  **Request → Initial Validation:** Basic, non-DB checks.
-2.  **Validation → Conversion:** Currency conversion is performed.
-3.  **Conversion → Comprehensive Business Validation:** A single, powerful handler checks all business rules (e.g., limits, fraud, account status) using the final, converted amount.
-4.  **Validation Passed → Atomic Persistence:** A final handler performs a single database transaction to create the transaction record and update account balances.
-
-### 📊 Visual Comparison
-
+#### Withdraw Flow
 ```mermaid
 graph TD
-    subgraph Current Workflow
-        A[Request] --> B(Initial Validation);
-        B --> C(Persistence);
-        C --> D(Conversion);
-        D --> E(Business Validation);
-        E --> F{Success?};
-        F -- Yes --> G[Complete];
-        F -- No --> H[Update Tx as Failed];
-    end
-
-    subgraph Proposed Ideal Workflow
-        P1[Request] --> P2(Initial Validation);
-        P2 --> P3(Conversion);
-        P3 --> P4(Comprehensive Business Validation);
-        P4 --> P5{Success?};
-        P5 -- Yes --> P6(Atomic Persistence);
-        P6 --> P7[Complete];
-        P5 -- No --> P8[Stop/Fail Event];
-    end
+    A[WithdrawRequestedEvent] --> B[WithdrawValidatedEvent]
+    B --> C[WithdrawPersistedEvent]
+    C --> D[WithdrawBusinessValidationEvent]
+    D --> E[WithdrawBusinessValidatedEvent]
+    E --> F[PaymentInitiatedEvent]
 ```
 
-### ✅ Benefits of the Proposed Model
+#### Transfer Flow
+```mermaid
+graph TD
+    A[TransferRequestedEvent] --> B[TransferValidatedEvent]
+    B --> C[TransferDomainOpDoneEvent]
+    C --> D[TransferConversionDoneEvent]
+    D --> E[TransferCompletedEvent]
+```
 
--   **Transactional Integrity:** Eliminates "failed" records. The database only stores the state of successful operations.
--   **Clearer Separation of Concerns:** Business logic is centralized in one handler, making it easier to manage and reason about.
--   **Reduced Complexity:** Removes the need for compensatory logic to handle late-stage failures. The flow is a linear path to either success or failure.
--   **Enhanced Idempotency:** It is easier to design idempotent handlers when the state-changing database write occurs in one final, predictable step.
+### 🏛️ Handler Responsibilities
+
+Each handler in the system follows the Single Responsibility Principle:
+
+1. **Validation Handlers:** Perform input validation and business rule checks
+2. **Persistence Handlers:** Handle database operations and transaction creation
+3. **Business Validation Handlers:** Perform complex business logic validation
+4. **Conversion Handlers:** Handle currency conversion operations
+5. **Payment Handlers:** Integrate with external payment providers
+
+### 🔄 Event Bus Pattern
+
+The event bus implementation provides:
+
+- **Type-safe event registration:** Handlers register for specific event types
+- **Synchronous processing:** Events are processed immediately for consistency
+- **Error handling:** Failed handlers can emit failure events or return errors
+- **Logging integration:** All events are logged with correlation IDs for tracing
+
+### 🧪 Testing Strategy
+
+The architecture supports comprehensive testing:
+
+- **Unit Tests:** Individual handlers tested in isolation with mocks
+- **Integration Tests:** Full event chains tested end-to-end
+- **E2E Tests:** Complete business flows verified with real event sequences
+- **Static Analysis:** Automated cycle detection prevents infinite event loops
+
+### 📊 Benefits of Current Architecture
+
+- **Modularity:** Each handler is independent and can be developed/tested separately
+- **Scalability:** New business flows can be added without modifying existing code
+- **Maintainability:** Clear separation of concerns makes the codebase easy to understand
+- **Testability:** Event-driven design enables comprehensive testing strategies
+- **Traceability:** Correlation IDs and structured logging provide full audit trails
+
+### 🔮 Future Considerations
+
+While the current architecture is robust, potential improvements include:
+
+- **Asynchronous Processing:** For high-throughput scenarios
+- **Event Sourcing:** For complete audit trails and replay capabilities
+- **CQRS Integration:** For read/write separation in complex scenarios
+- **Distributed Events:** For microservice architectures
+
+## 📚 Related Documentation
+
+- [Domain Events](domain-events.md)
+- [Event-Driven Payments](payments/event-driven-payments.md)
+- [Service Domain Communication](service-domain-communication.md)
+- [Testing Guide](testing.md)
