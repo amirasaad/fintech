@@ -3,17 +3,17 @@ icon: octicons/sync-24
 ---
 # ⚡ Event-Driven Deposit Flow
 
-This document describes the event-driven architecture for the deposit workflow in the fintech system.
+This document describes the current event-driven architecture for the deposit workflow in the fintech system.
 
 ---
 
 ## 🏁 Overview
 
-The deposit process is now fully event-driven, with each business step handled by a dedicated event handler. This enables modularity, testability, and clear separation of concerns.
+The deposit process is fully event-driven, with each business step handled by a dedicated event handler. This enables modularity, testability, and clear separation of concerns.
 
 ---
 
-## 🖼️ Sequence Diagram
+## 🖼️ Current Event Flow
 
 ```mermaid
 sequenceDiagram
@@ -38,177 +38,241 @@ sequenceDiagram
     P->>EB: DepositPersistedEvent
 ```
 
-> **Note:** Payment initiation only happens after DepositConversionDone. This avoids coupling conversion with payment for other flows (e.g., transfer).
-
 ---
 
-## 🔄 Workflow Clarification: Event-Driven Deposit Flow
+## 🔄 Current Workflow: Event Chain
 
-The deposit workflow is orchestrated through a series of events and handlers:
+The deposit workflow follows this event chain:
 
-1. **User submits deposit request** (amount as `float64`, main unit). API emits `DepositRequestedEvent`.
-2. **Validation Handler** loads the account, calls domain validation (`ValidateDeposit`), emits `DepositValidatedEvent`.
-3. **Persistence Handler** converts the amount to a `money.Money` value object and persists the transaction, emits `DepositPersistedEvent`.
-4. **Payment Initiation Handler** initiates payment, emits `PaymentInitiatedEvent`.
-5. **PaymentId Persistence Handler** updates transaction with paymentId, emits `PaymentIdPersistedEvent`.
-6. **Webhook Handler** (optional) updates transaction status and account balance on payment confirmation.
+1. **`DepositRequestedEvent`** → ValidationHandler
+2. **`DepositValidatedEvent`** → PersistenceHandler
+3. **`DepositPersistedEvent`** → ConversionHandler (if currency conversion needed)
+4. **`DepositBusinessValidationEvent`** → BusinessValidationHandler
+5. **`DepositBusinessValidatedEvent`** → PaymentInitiationHandler
+6. **`PaymentInitiatedEvent`** → PaymentPersistenceHandler
+7. **`PaymentIdPersistedEvent`** → (End of flow)
 
 ### 🖼️ Updated Deposit Workflow Diagram
 
 ```mermaid
 flowchart TD
-    A["DepositRequestedEvent"] --> B["Validation Handler (domain validation)"]
-    B --> C["DepositValidatedEvent"]
-    C --> D["Persistence Handler (creates money object, persists)"]
-    D --> E["DepositPersistedEvent"]
-    E --> F["Payment Initiation Handler"]
-    F --> G["PaymentInitiatedEvent"]
-    G --> H["PaymentId Persistence Handler"]
-    H --> I["PaymentIdPersistedEvent"]
-    I --> J["Webhook Handler (optional)"]
+    A[DepositRequestedEvent] --> B[ValidationHandler]
+    B --> C[DepositValidatedEvent]
+    C --> D[PersistenceHandler]
+    D --> E[DepositPersistedEvent]
+    E --> F{Currency Conversion Needed?}
+    F -->|Yes| G[ConversionRequestedEvent]
+    F -->|No| H[DepositBusinessValidationEvent]
+    G --> I[ConversionHandler]
+    I --> H
+    H --> J[BusinessValidationHandler]
+    J --> K[DepositBusinessValidatedEvent]
+    K --> L[PaymentInitiationHandler]
+    L --> M[PaymentInitiatedEvent]
+    M --> N[PaymentPersistenceHandler]
+    N --> O[PaymentIdPersistedEvent]
 ```
 
 ---
 
-## 🧩 Event-Driven Components
+## 🧩 Handler Responsibilities
 
-### 1. Validation Handler
+### 1. Validation Handler (`pkg/handler/account/deposit/validation.go`)
 
-- **Purpose:** Performs business validation on the account
+- **Purpose:** Validates deposit request and account ownership
 - **Events Consumed:** `DepositRequestedEvent`
-- **Events Emitted:**
-  - `DepositValidatedEvent` - When validation passes
-  - (TODO: `DepositValidationFailedEvent` - When validation fails)
+- **Events Emitted:** `DepositValidatedEvent`
 - **Validation Rules:**
   - Account exists and belongs to user
-  - Account has valid ID
-  - Account is in valid state for operations
+  - Deposit amount is positive
+  - Account is in valid state for deposits
 
-### 2. Persistence Handler
+### 2. Persistence Handler (`pkg/handler/account/deposit/persistence.go`)
 
-- **Purpose:** Converts the amount to a `money.Money` value object and persists the deposit transaction to the database
+- **Purpose:** Persists deposit transaction to database
 - **Events Consumed:** `DepositValidatedEvent`
-- **Events Emitted:** `DepositPersistedEvent`
+- **Events Emitted:**
+  - `DepositPersistedEvent`
+  - `ConversionRequestedEvent` (if currency conversion needed)
+- **Operations:**
+  - Creates transaction record with "created" status
+  - Emits conversion request if deposit currency differs from account currency
 
-### 3. Payment Initiation Handler
+### 3. Business Validation Handler (`pkg/handler/account/deposit/business_validation.go`)
+
+- **Purpose:** Performs final business validation after currency conversion
+- **Events Consumed:** `DepositBusinessValidationEvent`
+- **Events Emitted:** `PaymentInitiationEvent`
+- **Validation Rules:**
+  - Re-validates account ownership with converted amount
+  - Ensures business rules are met in account currency
+
+### 4. Payment Initiation Handler (`pkg/handler/payment/initiation.go`)
 
 - **Purpose:** Initiates payment with external providers
-- **Events Consumed:** `DepositPersistedEvent`
+- **Events Consumed:** `PaymentInitiationEvent`
 - **Events Emitted:** `PaymentInitiatedEvent`
+- **Operations:**
+  - Integrates with payment providers (e.g., Stripe)
+  - Creates payment intent/session
+
+### 5. Payment Persistence Handler (`pkg/handler/payment/persistence.go`)
+
+- **Purpose:** Persists payment ID to transaction record
+- **Events Consumed:** `PaymentInitiatedEvent`
+- **Events Emitted:** `PaymentIdPersistedEvent`
+- **Operations:**
+  - Updates transaction with payment provider ID
+  - Prevents duplicate payment ID persistence
 
 ---
 
-## 🛠️ Key Benefits
+## 🛠️ Key Implementation Details
 
-### 1. **Modularity**
+### Event Structure
 
-Each handler has a single responsibility and can be developed, tested, and deployed independently.
+All deposit events embed the common `FlowEvent`:
 
-### 2. **Testability**
+```go
+type FlowEvent struct {
+    FlowType      string    // "deposit"
+    UserID        uuid.UUID
+    AccountID     uuid.UUID
+    CorrelationID uuid.UUID
+}
+```
 
-- Unit tests for each handler
-- Integration tests for event flows
+### Handler Pattern
+
+Each handler follows a consistent pattern:
+
+```go
+func HandlerName(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e domain.Event) error {
+    return func(ctx context.Context, e domain.Event) error {
+        log := logger.With("handler", "HandlerName", "event_type", e.Type())
+
+        // Type assertion
+        event, ok := e.(events.SpecificEvent)
+        if !ok {
+            log.Debug("Skipping unexpected event type")
+            return nil
+        }
+
+        // Business logic
+        // ...
+
+        // Emit next event
+        return bus.Emit(ctx, nextEvent)
+    }
+}
+```
+
+### Currency Conversion Logic
+
+The persistence handler conditionally emits conversion events:
+
+```go
+// Only emit ConversionRequestedEvent if conversion is needed
+if ve.Account != nil &&
+   ve.Amount.Currency().String() != "" &&
+   ve.Account.Currency().String() != "" &&
+   ve.Amount.Currency().String() != ve.Account.Currency().String() {
+
+    conversionEvent := events.ConversionRequestedEvent{
+        FlowEvent:     ve.FlowEvent,
+        Amount:        ve.Amount,
+        To:            ve.Account.Currency(),
+        TransactionID: txID,
+    }
+    return bus.Emit(ctx, &conversionEvent)
+}
+```
+
+---
+
+## 🛠️ Benefits
+
+### 1. **Single Responsibility Principle**
+Each handler has one clear responsibility and can be developed/tested independently.
+
+### 2. **Extensibility**
+New handlers can be added without modifying existing code.
+
+### 3. **Testability**
+- Unit tests for individual handlers
+- E2E tests for complete event chains
 - Easy mocking of dependencies
 
-### 3. **Scalability**
+### 4. **Traceability**
+- Correlation IDs track requests across the entire flow
+- Structured logging with emojis for clarity
+- Complete audit trail through events
 
-- Handlers can be scaled independently
-- Event-driven architecture supports async processing
-- Easy to add new handlers without modifying existing code
-
-### 4. **Maintainability**
-
-- Clear separation of concerns
-- Easy to understand and modify individual components
-- Consistent patterns across all handlers
-
-### 5. **Event Sourcing Ready**
-
-- All business events are captured
-- Easy to implement event sourcing patterns
-- Audit trail of all operations
-
----
-
-## 🛠️ Implementation Details
-
-### Validation Handler Pattern
-
-```go
-// Validation handler listens to deposit request events
-func DepositValidationHandler(bus eventbus.EventBus, logger *slog.Logger) func(context.Context, domain.Event) {
-    return func(ctx context.Context, e domain.Event) {
-        event, ok := e.(accountdomain.DepositRequestedEvent)
-        if !ok {
-            return
-        }
-
-        // Perform business validation
-        if validationFails {
-            // TODO: Emit DepositValidationFailedEvent
-            return
-        }
-
-        // Emit validation success
-        _ = bus.Publish(ctx, accountdomain.DepositValidatedEvent{...})
-    }
-}
-```
-
-### Persistence Handler Pattern
-
-```go
-// Persistence handler listens to validated deposit events
-func DepositPersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork, logger *slog.Logger) func(context.Context, domain.Event) {
-    return func(ctx context.Context, e domain.Event) {
-        event, ok := e.(accountdomain.DepositValidatedEvent)
-        if !ok {
-            return
-        }
-        // Convert amount to money.Money and persist transaction
-        // ...
-        _ = bus.Publish(ctx, accountdomain.DepositPersistedEvent{...})
-    }
-}
-```
-
----
-
-## 🛠️ Error Handling
-
-### Validation Failures
-- Account inactive
-- Insufficient balance
-- Business rule violations
-- Invalid account state
-
-### Event Flow on Errors
-1. Validation handler emits `DepositValidationFailedEvent` (TODO)
-2. Persistence handler is not triggered
-3. Error is returned to the caller
-4. Audit trail is maintained through events
+### 5. **Error Handling**
+- Handlers can return errors to stop the flow
+- Failed transactions are logged but don't create invalid state
+- Clear error propagation through the event chain
 
 ---
 
 ## 🧪 Testing Strategy
 
 ### Unit Tests
-- Test each handler independently
-- Mock event bus and dependencies
-- Test success and failure scenarios
+```go
+func TestValidation(t *testing.T) {
+    // Test individual handler with mocks
+    bus := mocks.NewMockBus(t)
+    uow := mocks.NewMockUnitOfWork(t)
 
-### Integration Tests
-- Test complete event flows
-- Use real event bus
-- Verify event sequences
+    handler := Validation(bus, uow, logger)
+    err := handler(ctx, depositRequestedEvent)
 
-### End-to-End Tests
-- Test full API endpoints
-- Verify business outcomes
-- Test error scenarios
+    assert.NoError(t, err)
+    bus.AssertExpectations(t)
+}
+```
+
+### E2E Tests
+```go
+func TestDepositE2EEventFlow(t *testing.T) {
+    // Test complete event chain
+    emitted := trackEventEmissions()
+
+    bus.Emit(ctx, events.DepositRequestedEvent{...})
+
+    assert.Equal(t, []string{
+        "DepositRequestedEvent",
+        "DepositValidatedEvent",
+        "DepositPersistedEvent",
+        "DepositBusinessValidationEvent",
+        "DepositBusinessValidatedEvent",
+        "PaymentInitiatedEvent",
+    }, emitted)
+}
+```
+
+---
+
+## 🔧 Error Scenarios
+
+### Validation Failures
+- Account not found → Handler logs error, returns nil (stops flow)
+- Invalid user ID → Handler logs error, returns validation error
+- Negative amount → Handler logs error, returns validation error
+
+### Persistence Failures
+- Database error → Handler logs error, returns error (stops flow)
+- Transaction creation fails → Handler logs error, returns error
+
+### Payment Failures
+- Provider error → Handler logs error, may emit PaymentFailedEvent
+- Network timeout → Handler logs error, may retry or fail
 
 ---
 
 ## 📚 Related Documentation
 
-- [Event-Driven Architecture Overview](https://github.com/amirasaad/fintech/architecture.md)
+- [Event-Driven Architecture](../architecture.md)
+- [Domain Events](../domain-events.md)
+- [Event-Driven Withdraw Flow](event-driven-withdraw-flow.md)
+- [Event-Driven Transfer Flow](event-driven-transfer-flow.md)

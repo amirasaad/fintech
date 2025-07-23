@@ -34,7 +34,6 @@ type User = user.User
 var (
 	ErrDepositAmountExceedsMaxSafeInt  = account.ErrDepositAmountExceedsMaxSafeInt
 	ErrTransactionAmountMustBePositive = account.ErrTransactionAmountMustBePositive
-	ErrWithdrawalAmountMustBePositive  = account.ErrWithdrawalAmountMustBePositive
 	ErrInsufficientFunds               = account.ErrInsufficientFunds
 	ErrAccountNotFound                 = account.ErrAccountNotFound
 	ErrInvalidCurrencyCode             = common.ErrInvalidCurrencyCode
@@ -48,5 +47,5 @@ var (
 
 // Event represents a domain event in the system.
 type Event interface {
-	EventType() string
+	Type() string
 }

@@ -118,8 +118,6 @@ func errorToStatusCode(err error) int {
 		return fiber.StatusBadRequest
 	case errors.Is(err, domain.ErrTransactionAmountMustBePositive):
 		return fiber.StatusBadRequest
-	case errors.Is(err, domain.ErrWithdrawalAmountMustBePositive):
-		return fiber.StatusBadRequest
 	case errors.Is(err, domain.ErrInsufficientFunds):
 		return fiber.StatusUnprocessableEntity
 	// Common errors

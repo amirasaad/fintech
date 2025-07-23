@@ -2,6 +2,7 @@ package withdraw
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 
 	"github.com/amirasaad/fintech/pkg/domain"
@@ -10,38 +11,54 @@ import (
 	"github.com/amirasaad/fintech/pkg/mapper"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/amirasaad/fintech/pkg/repository/account"
+	"github.com/google/uuid"
 )
 
-// WithdrawValidationHandler handles WithdrawRequestedEvent, performs validation, and publishes WithdrawValidatedEvent.
-func WithdrawValidationHandler(bus eventbus.EventBus, uow repository.UnitOfWork, logger *slog.Logger) func(context.Context, domain.Event) {
-	return func(ctx context.Context, e domain.Event) {
-		log := logger.With("handler", "WithdrawValidationHandler", "event_type", e.EventType())
+// Validation handles WithdrawRequestedEvent, performs initial stateless validation, and publishes WithdrawValidatedEvent.
+func Validation(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e domain.Event) error {
+	return func(ctx context.Context, e domain.Event) error {
+		log := logger.With("handler", "Validation", "event_type", e.Type())
+		log.Info("🟢 [START] Received event", "event", e)
+
 		we, ok := e.(events.WithdrawRequestedEvent)
 		if !ok {
-			log.Error("unexpected event type", "event", e)
-			return
+			log.Error("❌ [ERROR] Unexpected event type", "event", e)
+			return nil
 		}
-		repoAny, err := uow.GetRepository((*account.Repository)(nil))
+
+		if we.AccountID == uuid.Nil || !we.Amount.IsPositive() {
+			log.Error("❌ [ERROR] Invalid withdrawal request", "event", we)
+			if err := bus.Emit(ctx, events.WithdrawFailedEvent{WithdrawRequestedEvent: we, Reason: "Invalid withdrawal request data"}); err != nil {
+				log.Error("failed to emit WithdrawFailedEvent", "error", err)
+			}
+			return nil
+		}
+
+		accRepoAny, err := uow.GetRepository((*account.Repository)(nil))
+
 		if err != nil {
-			log.Error("failed to get AccountRepository", "error", err)
-			return
+			return err
 		}
-		repo := repoAny.(account.Repository)
-		accDto, err := repo.Get(ctx, we.AccountID)
+		accRepo, ok := accRepoAny.(account.Repository)
+		if !ok {
+			return errors.New("failed to get repo")
+		}
+
+		accDto, err := accRepo.Get(ctx, we.AccountID)
 		if err != nil {
-			log.Error("account not found", "account_id", we.AccountID, "error", err)
-			return
+			log.Error("❌ [ERROR] Failed to get account", "error", err)
+			return bus.Emit(ctx, events.WithdrawFailedEvent{WithdrawRequestedEvent: we, Reason: "Account not found"})
 		}
+
 		acc := mapper.MapAccountReadToDomain(accDto)
-		if err := acc.ValidateWithdraw(we.UserID, we.Amount); err != nil {
-			log.Error("account validation failed", "error", err)
-			return
-		}
-		log.Info("account validated, emitting WithdrawValidatedEvent", "account_id", accDto.ID, "user_id", accDto.UserID)
-		_ = bus.Publish(ctx, events.WithdrawValidatedEvent{
+
+		validatedEvent := events.WithdrawValidatedEvent{
 			WithdrawRequestedEvent: we,
-			TargetCurrency:         accDto.Currency,
 			Account:                acc,
-		})
+			TargetCurrency:         accDto.Currency,
+		}
+
+		log.Info("✅ [SUCCESS] Withdraw request validated, emitting WithdrawValidatedEvent", "account_id", we.AccountID, "user_id", we.UserID)
+		return bus.Emit(ctx, validatedEvent)
 	}
 }

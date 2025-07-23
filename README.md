@@ -1,4 +1,3 @@
-
 <p align="center">
   <img src="docs/assets/fintech-banner.svg" alt="Fintech Platform Banner"/>
 </p>
@@ -33,7 +32,7 @@
 > **A modern, event-driven fintech platform for learning, prototyping, and experimentation.**
 
 This project demonstrates best practices in Go for building scalable, secure, and modular financial systems.
-It’s designed for educational use—explore event-driven architecture, clean code, and real-world fintech patterns in a safe, open-source environment.
+It's designed for educational use—explore event-driven architecture, clean code, and real-world fintech patterns in a safe, open-source environment.
 
 ---
 
@@ -53,6 +52,96 @@ It’s designed for educational use—explore event-driven architecture, clean c
 - 🔒 JWT authentication
 - 🧰 Unit of Work & Repository patterns
 - 🏗️ Clean architecture & DDD
+
+---
+
+## 🧩 Event-Driven Architecture & Handler Design
+
+This project uses a clean, DRY, and SRP-compliant event-driven architecture for all core flows (deposit, withdraw, transfer):
+
+- **Event Bus Pattern:** Handlers are registered for specific event types. The bus dispatches events to the correct handler, avoiding central switch/if logic.
+- **SRP & DRY:** Each handler is responsible for a single event type and business concern. Shared logic is factored into helpers or interfaces.
+- **Flow-Agnostic Payment Initiation:** Payment initiation is triggered by both deposit and withdraw validated events, without caring about the flow type. This is achieved by accepting both event types in the handler, with no flow-specific logic.
+- **Cycle Detection:** A static analysis tool (`scripts/event_cycle_check.go`) detects event cycles and is integrated into pre-commit hooks to prevent infinite event loops.
+- **Consistent Logging:** All handlers use structured, emoji-rich logging for clarity and traceability.
+- **Legacy Cleanup:** All legacy event types and handlers have been removed for clarity and maintainability.
+- **Extensibility:** New flows can be added by defining new event types and handlers, or by extending interfaces if logic is shared.
+
+**Design Lessons:**
+- Prefer explicit handler registration over central switch/if statements for extensibility and SRP.
+- Use interfaces for shared event contracts when multiple event types trigger the same logic.
+- Only refactor to interfaces when you have multiple stable use cases (YAGNI principle).
+- Document handler design decisions to avoid "refactor ping-pong" between switch/if and abstraction.
+
+See `docs/service-domain-communication.md` for more on service/domain boundaries.
+
+---
+
+## 🌊 Event Flow Overview
+
+This project uses a robust event-driven architecture for all account flows (deposit, withdraw, transfer). Each business flow is modeled as a chain of domain events, with each handler responsible for a single step and emitting the next event in the chain.
+
+### Current Event Flows
+
+- **Deposit:**
+  1. `DepositRequestedEvent`
+  2. `DepositValidatedEvent`
+  3. `DepositPersistedEvent`
+  4. `DepositBusinessValidationEvent`
+  5. `DepositBusinessValidatedEvent`
+  6. `PaymentInitiatedEvent`
+
+- **Withdraw:**
+  1. `WithdrawRequestedEvent`
+  2. `WithdrawValidatedEvent`
+  3. `WithdrawPersistedEvent`
+  4. `WithdrawBusinessValidationEvent`
+  5. `WithdrawBusinessValidatedEvent`
+  6. `PaymentInitiatedEvent`
+
+- **Transfer:**
+  1. `TransferRequestedEvent`
+  2. `TransferValidatedEvent`
+  3. `TransferDomainOpDoneEvent`
+  4. `TransferConversionDoneEvent` (via `TransferBusinessValidatedEvent`)
+  5. `TransferCompletedEvent`
+
+### Mermaid Diagram
+
+```mermaid
+flowchart TD
+    subgraph Deposit
+        DREQ[DepositRequestedEvent] --> DVAL[DepositValidatedEvent]
+        DVAL --> DPERS[DepositPersistedEvent]
+        DPERS --> DBUSVAL[DepositBusinessValidationEvent]
+        DBUSVAL --> DBVAL[DepositBusinessValidatedEvent]
+        DBVAL --> PINIT[PaymentInitiatedEvent]
+    end
+    subgraph Withdraw
+        WREQ[WithdrawRequestedEvent] --> WVAL[WithdrawValidatedEvent]
+        WVAL --> WPERS[WithdrawPersistedEvent]
+        WPERS --> WBUSVAL[WithdrawBusinessValidationEvent]
+        WBUSVAL --> WBVAL[WithdrawBusinessValidatedEvent]
+        WBVAL --> PINIT2[PaymentInitiatedEvent]
+    end
+    subgraph Transfer
+        TREQ[TransferRequestedEvent] --> TVAL[TransferValidatedEvent]
+        TVAL --> TDONE[TransferDomainOpDoneEvent]
+        TDONE --> TCONV[TransferConversionDoneEvent]
+        TCONV --> TCOMP[TransferCompletedEvent]
+    end
+```
+
+### Handler Responsibilities
+- Each handler is responsible for a single event type and emits the next event in the flow.
+- Handlers use structured, emoji-rich logging for traceability.
+- All event structs embed a common `FlowEvent` for shared fields (UserID, AccountID, CorrelationID, FlowType).
+- All IDs and correlation IDs use `uuid.UUID`.
+
+### Testing & Static Analysis
+- E2E event flow tests verify the full event chain for each flow.
+- Static analysis detects event cycles and is integrated into pre-commit hooks.
+- All handlers and event flows are covered by unit and integration tests.
 
 ---
 

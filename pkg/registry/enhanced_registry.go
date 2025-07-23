@@ -132,7 +132,7 @@ func (r *EnhancedRegistry) Register(ctx context.Context, entity Entity) error {
 			Entity:    entity,
 			Timestamp: time.Now(),
 		}
-		r.eventBus.Publish(ctx, event) //nolint:errcheck
+		r.eventBus.Emit(ctx, event) //nolint:errcheck
 	}
 
 	// Notify observers
@@ -230,7 +230,7 @@ func (r *EnhancedRegistry) Unregister(ctx context.Context, id string) error {
 			EntityID:  id,
 			Timestamp: time.Now(),
 		}
-		r.eventBus.Publish(ctx, event) //nolint:errcheck
+		r.eventBus.Emit(ctx, event) //nolint:errcheck
 	}
 
 	// Notify observers

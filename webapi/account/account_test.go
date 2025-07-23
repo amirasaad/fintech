@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"testing"
 
 	"github.com/amirasaad/fintech/pkg/domain"
@@ -27,7 +28,10 @@ func (s *AccountTestSuite) SetupTest() {
 }
 
 func TestAccountTestSuite(t *testing.T) {
-	suite.Run(t, new(AccountTestSuite))
+	if os.Getenv("E2E") == "" {
+		t.Skip("Skipping E2E tests")
+	}
+	suite.Run(t, new(testutils.E2ETestSuite))
 }
 
 func (s *AccountTestSuite) TestCreateAccount() {

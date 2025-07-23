@@ -31,97 +31,92 @@ func TestNewAccount(t *testing.T) {
 	assert.NotEmpty(t, acc.ID, "Account ID should not be empty")
 }
 
-func TestDepositNegativeAmount(t *testing.T) {
+func TestValidateWithdraw(t *testing.T) {
 	t.Parallel()
-	require := require.New(t)
 	userID := uuid.New()
-	acc, _ := domainaccount.New().WithUserID(userID).WithCurrency(currency.USD).Build() //nolint:errcheck
-	money, err := money.New(-50.0, "USD")
-	require.NoError(err)
-	err = acc.Deposit(userID, money, domainaccount.MoneySourceInternal, "")
-	require.Error(err, "deposit amount must be positive")
-	events := acc.PullEvents()
-	require.Empty(events)
+	acc, err := domainaccount.New().
+		WithUserID(userID).
+		WithCurrency(currency.USD).
+		WithBalance(10000). // 100.00 USD
+		Build()
+	require.NoError(t, err)
+
+	amount, err := money.New(50.0, "USD")
+	require.NoError(t, err)
+
+	// Test case 1: Successful withdrawal
+	t.Run("successful withdrawal", func(t *testing.T) {
+		err := acc.ValidateWithdraw(userID, amount)
+		assert.NoError(t, err)
+	})
+
+	// Test case 2: Unauthorized withdrawal
+	t.Run("unauthorized withdrawal", func(t *testing.T) {
+		err := acc.ValidateWithdraw(uuid.New(), amount)
+		assert.ErrorIs(t, err, domainaccount.ErrNotOwner)
+	})
+
+	// Test case 3: Insufficient funds
+	t.Run("insufficient funds", func(t *testing.T) {
+		amount, err := money.New(200.0, "USD")
+		require.NoError(t, err)
+		err = acc.ValidateWithdraw(userID, amount)
+		assert.ErrorIs(t, err, domainaccount.ErrInsufficientFunds)
+	})
 }
 
-func TestDepositZeroAmount(t *testing.T) {
+func TestValidateTransfer(t *testing.T) {
 	t.Parallel()
-	require := require.New(t)
-	userID := uuid.New()
-	acc, _ := domainaccount.New().WithUserID(userID).WithCurrency(currency.USD).Build() //nolint:errcheck
-	money, err := money.New(0.0, "USD")
-	require.NoError(err)
-	err = acc.Deposit(userID, money, domainaccount.MoneySourceInternal, "")
-	require.Error(err, "Deposit with zero amount should return an error")
-	events := acc.PullEvents()
-	require.Empty(events)
-}
+	senderID := uuid.New()
+	receiverID := uuid.New()
 
-func TestAccount_DepositUnauthorized(t *testing.T) {
-	require := require.New(t)
-	userID := uuid.New()
-	acc, _ := domainaccount.New().WithUserID(userID).WithCurrency(currency.USD).Build() //nolint:errcheck
-	money, err := money.New(1000.0, "USD")
-	require.NoError(err)
-	err = acc.Deposit(uuid.New(), money, domainaccount.MoneySourceCash, "")
-	require.Error(err, "Deposit with different user id should return error")
-	events := acc.PullEvents()
-	require.Empty(events)
-}
+	sourceAcc, err := domainaccount.New().
+		WithUserID(senderID).
+		WithCurrency(currency.USD).
+		WithBalance(10000). // 100.00 USD
+		Build()
+	require.NoError(t, err)
 
-func TestAccount_WithdrawUnauthorized(t *testing.T) {
-	require := require.New(t)
-	userID := uuid.New()
-	acc, _ := domainaccount.New().WithUserID(userID).WithCurrency(currency.USD).Build() //nolint:errcheck
-	amount, err := money.New(1000.0, "USD")
-	require.NoError(err)
-	err = acc.ValidateWithdraw(uuid.New(), amount)
+	destAcc, err := domainaccount.New().
+		WithUserID(receiverID).
+		WithCurrency(currency.USD).
+		Build()
+	require.NoError(t, err)
 
-	require.Error(err, "Withdraw with different user id should return error")
-	events := acc.PullEvents()
-	require.Empty(events)
-}
+	amount, err := money.New(50.0, "USD")
+	require.NoError(t, err)
 
-func TestAccount_GetBalanceUnauthorized(t *testing.T) {
-	require := require.New(t)
-	userID := uuid.New()
-	acc, _ := domainaccount.New().WithUserID(userID).WithCurrency(currency.USD).Build() //nolint:errcheck
-	_, err := acc.GetBalance(uuid.New())
-	require.Error(err, "GetBalance with different user id should return error")
-}
+	// Test case 1: Successful transfer
+	t.Run("successful transfer", func(t *testing.T) {
+		err := sourceAcc.ValidateTransfer(senderID, receiverID, destAcc, amount)
+		assert.NoError(t, err)
+	})
 
-func TestDeposit_EmitsEvent(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
-	userID := uuid.New()
-	acc, err := domainaccount.New().WithUserID(userID).Build()
-	require.NoError(err)
-	m, err := money.New(100.0, "USD")
-	require.NoError(err)
-	err = acc.Deposit(userID, m, domainaccount.MoneySourceCash, "")
-	require.NoError(err)
-}
+	// Test case 2: Unauthorized transfer
+	t.Run("unauthorized transfer", func(t *testing.T) {
+		err := sourceAcc.ValidateTransfer(uuid.New(), receiverID, destAcc, amount)
+		assert.ErrorIs(t, err, domainaccount.ErrNotOwner)
+	})
 
-func TestWithdraw_EmitsEvent(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
-	userID := uuid.New()
-	// Build account with sufficient initial balance
-	acc, err := domainaccount.New().WithUserID(userID).WithBalance(10000).Build() // 100.00 USD in cents
-	require.NoError(err)
-	m, err := money.New(50.0, "USD")
-	require.NoError(err)
-	err = acc.ValidateWithdraw(userID, m)
-	require.NoError(err)
-}
+	// Test case 3: Insufficient funds
+	t.Run("insufficient funds", func(t *testing.T) {
+		amount, err := money.New(200.0, "USD")
+		require.NoError(t, err)
+		err = sourceAcc.ValidateTransfer(senderID, receiverID, destAcc, amount)
+		assert.ErrorIs(t, err, domainaccount.ErrInsufficientFunds)
+	})
 
-func TestTransfer_EmitsEvent(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
-	userID := uuid.New()
-	source, _ := domainaccount.New().WithUserID(userID).WithBalance(25.0).WithCurrency(currency.USD).Build()
-	dest, _ := domainaccount.New().WithUserID(uuid.New()).WithCurrency(currency.USD).Build()
-	m := money.NewFromData(25.0, "USD")
-	err := source.Transfer(userID, uuid.New(), dest, m, domainaccount.MoneySourceInternal)
-	require.NoError(err)
+	// Test case 4: Transfer to same account
+	t.Run("transfer to same account", func(t *testing.T) {
+		err := sourceAcc.ValidateTransfer(senderID, senderID, sourceAcc, amount)
+		assert.ErrorIs(t, err, domainaccount.ErrCannotTransferToSameAccount)
+	})
+
+	// Test case 5: Currency mismatch
+	t.Run("currency mismatch", func(t *testing.T) {
+		amountEUR, err := money.New(50.0, "EUR")
+		require.NoError(t, err)
+		err = sourceAcc.ValidateTransfer(senderID, receiverID, destAcc, amountEUR)
+		assert.ErrorIs(t, err, domainaccount.ErrCurrencyMismatch)
+	})
 }

@@ -1,0 +1,1501 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>deposit: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+
+				<option value="file0">github.com/amirasaad/fintech/pkg/handler/account/deposit/business_validation.go (0.0%)</option>
+
+				<option value="file1">github.com/amirasaad/fintech/pkg/handler/account/deposit/persistence.go (0.0%)</option>
+
+				<option value="file2">github.com/amirasaad/fintech/pkg/handler/account/deposit/validation.go (0.0%)</option>
+
+				<option value="file3">github.com/amirasaad/fintech/pkg/handler/account/transfer/business_validation.go (78.8%)</option>
+
+				<option value="file4">github.com/amirasaad/fintech/pkg/handler/account/transfer/initial_persistence.go (81.6%)</option>
+
+				<option value="file5">github.com/amirasaad/fintech/pkg/handler/account/transfer/persistence.go (33.3%)</option>
+
+				<option value="file6">github.com/amirasaad/fintech/pkg/handler/account/transfer/validation.go (85.7%)</option>
+
+				<option value="file7">github.com/amirasaad/fintech/pkg/handler/account/withdraw/business_validation.go (81.2%)</option>
+
+				<option value="file8">github.com/amirasaad/fintech/pkg/handler/account/withdraw/persistence.go (0.0%)</option>
+
+				<option value="file9">github.com/amirasaad/fintech/pkg/handler/account/withdraw/validation.go (53.8%)</option>
+
+				<option value="file10">github.com/amirasaad/fintech/pkg/handler/conversion/factories.go (100.0%)</option>
+
+				<option value="file11">github.com/amirasaad/fintech/pkg/handler/conversion/handler.go (90.2%)</option>
+
+				<option value="file12">github.com/amirasaad/fintech/pkg/handler/conversion/persistence.go (0.0%)</option>
+
+				<option value="file13">github.com/amirasaad/fintech/pkg/handler/payment/completed.go (23.9%)</option>
+
+				<option value="file14">github.com/amirasaad/fintech/pkg/handler/payment/initiation.go (30.0%)</option>
+
+				<option value="file15">github.com/amirasaad/fintech/pkg/handler/payment/persistence.go (69.4%)</option>
+
+				<option value="file16">github.com/amirasaad/fintech/pkg/handler/transaction/conversion_persistence.go (0.0%)</option>
+
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+
+			</div>
+		</div>
+		<div id="content">
+
+		<pre class="file" id="file0" style="display: none">package deposit
+
+import (
+        "context"
+        "github.com/amirasaad/fintech/pkg/mapper"
+        "github.com/amirasaad/fintech/pkg/repository"
+        "github.com/amirasaad/fintech/pkg/repository/account"
+        "github.com/google/uuid"
+        "log/slog"
+
+        "github.com/amirasaad/fintech/pkg/domain"
+        "github.com/amirasaad/fintech/pkg/domain/events"
+        "github.com/amirasaad/fintech/pkg/eventbus"
+)
+
+// BusinessValidation performs business validation in account currency after conversion.
+// Emits DepositBusinessValidatedEvent to trigger payment initiation.
+func BusinessValidation(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e domain.Event) error <span class="cov0" title="0">{
+        return func(ctx context.Context, e domain.Event) error </span><span class="cov0" title="0">{
+                log := logger.With("handler", "DepositBusinessValidationEvent")
+                dce, ok := e.(events.DepositBusinessValidationEvent)
+                if !ok </span><span class="cov0" title="0">{
+                        log.Debug("🚫 [SKIP] Skipping: unexpected event type in BusinessValidation", "event", e)
+                        return nil
+                }</span>
+                <span class="cov0" title="0">accRepoAny, err := uow.GetRepository((*account.Repository)(nil))
+                if err != nil </span><span class="cov0" title="0">{
+                        log.Error("❌ [ERROR] Failed to get account repository", "error", err)
+                        return err
+                }</span>
+                <span class="cov0" title="0">accRepo, ok := accRepoAny.(account.Repository)
+                if !ok </span><span class="cov0" title="0">{
+                        log.Error("❌ [ERROR] Invalid account repository type", "type", accRepoAny)
+                        return err
+                }</span>
+
+                <span class="cov0" title="0">accRead, err := accRepo.Get(ctx, dce.AccountID)
+                if err != nil </span><span class="cov0" title="0">{
+                        log.Error("❌ [ERROR] Failed to get account", "error", err, "account_id", dce.AccountID)
+                        return err
+                }</span>
+                <span class="cov0" title="0">acc := mapper.MapAccountReadToDomain(accRead)
+                if err := acc.ValidateDeposit(dce.UserID, dce.Amount); err != nil </span><span class="cov0" title="0">{
+                        // TODO: notify user
+                        log.Error("❌ [ERROR] Business validation failed", "transaction_id", dce.TransactionID, "err", err)
+                        return err
+                }</span>
+                <span class="cov0" title="0">log.Info("✅ [SUCCESS] Business validation passed, emitting DepositBusinessValidatedEvent", "transaction_id", dce.TransactionID)
+                return bus.Emit(ctx, events.PaymentInitiationEvent{
+                        FlowEvent:     dce.FlowEvent,
+                        ID:            uuid.New(),
+                        Account:       acc,
+                        Amount:        dce.Amount,
+                        TransactionID: dce.TransactionID,
+                })</span>
+        }
+}
+</pre>
+
+		<pre class="file" id="file1" style="display: none">// Package deposit previously contained DepositPersistenceHandler, now moved to pkg/handler/payment/persistence_handler.go
+package deposit
+
+import (
+        "context"
+        "errors"
+        "log/slog"
+        "time"
+
+        "github.com/amirasaad/fintech/pkg/domain"
+        "github.com/amirasaad/fintech/pkg/domain/events"
+
+        "github.com/amirasaad/fintech/pkg/dto"
+        "github.com/amirasaad/fintech/pkg/eventbus"
+        "github.com/amirasaad/fintech/pkg/repository"
+        "github.com/amirasaad/fintech/pkg/repository/transaction"
+        "github.com/google/uuid"
+)
+
+// Persistence handles DepositValidatedEvent: converts the float64 amount and currency to money.Money, persists the transaction, and emits DepositPersistedEvent.
+func Persistence(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e domain.Event) error <span class="cov0" title="0">{
+        return func(ctx context.Context, e domain.Event) error </span><span class="cov0" title="0">{
+                log := logger.With("handler", "Persistence", "event_type", e.Type())
+                depth, _ := ctx.Value("eventDepth").(int)
+                log.Info("[DEPTH] Event received", "type", e.Type(), "depth", depth, "event", e)
+                log.Info("🟢 [START] Received event", "event", e)
+
+                // Expect DepositValidatedEvent from validation handler
+                ve, ok := e.(events.DepositValidatedEvent)
+                if !ok </span><span class="cov0" title="0">{
+                        log.Error("❌ [ERROR] Unexpected event", "event", e)
+                        return nil
+                }</span>
+                <span class="cov0" title="0">correlationID := ve.CorrelationID
+                if correlationID == uuid.Nil </span><span class="cov0" title="0">{
+                        correlationID = uuid.New()
+                }</span>
+                <span class="cov0" title="0">log = log.With("correlation_id", correlationID)
+                log.Info("🔄 [PROCESS] Received DepositValidatedEvent", "event", ve)
+
+                // Log the currency of the validated deposit before persisting
+                log.Info("[CHECK] DepositValidatedEvent amount currency before persist", "currency", ve.Amount.Currency().String())
+                // ve.Amount should always be the source currency at this stage
+
+                // Create a new transaction and persist it
+                txID := uuid.New()
+                if err := uow.Do(ctx, func(uow repository.UnitOfWork) error </span><span class="cov0" title="0">{
+                        txRepoAny, err := uow.GetRepository((*transaction.Repository)(nil))
+                        if err != nil </span><span class="cov0" title="0">{
+                                log.Error("❌ [ERROR] Failed to get repo", "err", err)
+                                return err
+                        }</span>
+                        <span class="cov0" title="0">txRepo, ok := txRepoAny.(transaction.Repository)
+                        if !ok </span><span class="cov0" title="0">{
+                                log.Error("❌ [ERROR] Failed to retrieve repo type")
+                                return errors.New("failed to retrieve repo type")
+                        }</span>
+                        <span class="cov0" title="0">if err := txRepo.Create(ctx, dto.TransactionCreate{
+                                ID:          txID,
+                                UserID:      ve.UserID,
+                                AccountID:   ve.AccountID,
+                                Amount:      ve.Amount.Amount(),
+                                Currency:    ve.Amount.Currency().String(),
+                                Status:      "created",
+                                MoneySource: ve.Source,
+                        }); err != nil </span><span class="cov0" title="0">{
+                                return err
+                        }</span>
+                        <span class="cov0" title="0">log.Info("✅ [SUCCESS] Transaction persisted", "transaction_id", txID, "correlation_id", correlationID)
+                        return nil</span>
+                }); err != nil <span class="cov0" title="0">{
+                        log.Error("❌ [ERROR] Failed to persist transaction", "error", err)
+                        return err
+                }</span>
+
+                // Emit DepositPersistedEvent
+                <span class="cov0" title="0">persistedEvent := events.DepositPersistedEvent{
+                        DepositValidatedEvent: ve,
+                        TransactionID:         txID,
+                        Amount:                ve.Amount,
+                }
+                log.Info("📤 [EMIT] Emitting DepositPersistedEvent", "event", persistedEvent, "correlation_id", correlationID.String())
+                if err := bus.Emit(ctx, persistedEvent); err != nil </span><span class="cov0" title="0">{
+                        return err
+                }</span>
+
+                // Emit ConversionRequested to trigger currency conversion for deposit (decoupled from payment)
+                <span class="cov0" title="0">log.Info("📤 [EMIT] Emitting ConversionRequestedEvent for deposit", "transaction_id", txID, "correlation_id", correlationID)
+                log.Info("DEBUG: ve.UserID and ve.AccountID", "user_id", ve.UserID, "account_id", ve.AccountID)
+                // Only emit ConversionRequestedEvent if a conversion is needed and account currency is valid
+                if ve.Account != nil &amp;&amp; ve.Amount.Currency().String() != "" &amp;&amp; ve.Account.Currency().String() != "" &amp;&amp; ve.Amount.Currency().String() != ve.Account.Currency().String() </span><span class="cov0" title="0">{
+                        conversionEvent := events.ConversionRequestedEvent{
+                                FlowEvent:     ve.FlowEvent,
+                                ID:            uuid.New(),
+                                Amount:        ve.Amount,
+                                To:            ve.Account.Currency(),
+                                RequestID:     txID.String(),
+                                TransactionID: txID, // Always propagate!
+                                Timestamp:     time.Now(),
+                        }
+                        log.Info("DEBUG: Full ConversionRequestedEvent", "event", conversionEvent)
+                        log.Info("📤 [EMIT] About to emit ConversionRequestedEvent", "handler", "Persistence", "event_type", conversionEvent.Type(), "correlation_id", correlationID.String())
+                        return bus.Emit(ctx, &amp;conversionEvent)
+                }</span>
+                <span class="cov0" title="0">return nil</span>
+        }
+}
+</pre>
+
+		<pre class="file" id="file2" style="display: none">package deposit
+
+import (
+        "context"
+        "log/slog"
+
+        "github.com/amirasaad/fintech/pkg/domain/events"
+        "github.com/amirasaad/fintech/pkg/mapper"
+
+        "github.com/amirasaad/fintech/pkg/domain"
+        "github.com/amirasaad/fintech/pkg/eventbus"
+        "github.com/amirasaad/fintech/pkg/repository"
+        "github.com/amirasaad/fintech/pkg/repository/account"
+        "github.com/google/uuid"
+)
+
+// Validation validates the deposit request and emits DepositValidatedEvent on success.
+func Validation(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e domain.Event) error <span class="cov0" title="0">{
+        return func(ctx context.Context, e domain.Event) error </span><span class="cov0" title="0">{
+                log := logger.With("handler", "Validation", "event_type", e.Type())
+                depth, _ := ctx.Value("eventDepth").(int)
+                log.Info("[DEPTH] Event received", "type", e.Type(), "depth", depth, "event", e)
+                dr, ok := e.(events.DepositRequestedEvent)
+                if !ok </span><span class="cov0" title="0">{
+                        log.Error("❌ [ERROR] Unexpected event type", "event", e)
+                        return nil
+                }</span>
+                // Log the currency of the incoming deposit
+                <span class="cov0" title="0">log.Info("[CHECK] DepositRequestedEvent amount currency", "currency", dr.Amount.Currency().String())
+                // If the deposit currency does not match the account's currency, log a warning
+                // (This is not an error, but helps catch misrouted events)
+                correlationID := uuid.New()
+                log = log.With("correlation_id", correlationID)
+                log.Info("🟢 [START] Received event", "event", e)
+                repoAny, err := uow.GetRepository((*account.Repository)(nil))
+                if err != nil </span><span class="cov0" title="0">{
+                        log.Error("❌ [ERROR] Failed to get AccountRepository", "error", err)
+                        return nil
+                }</span>
+                <span class="cov0" title="0">repo := repoAny.(account.Repository)
+                accDto, err := repo.Get(ctx, dr.AccountID)
+                if err != nil || accDto == nil </span><span class="cov0" title="0">{
+                        log.Error("❌ [ERROR] Account not found", "account_id", dr.AccountID, "error", err)
+                        return nil
+                }</span>
+                <span class="cov0" title="0">acc := mapper.MapAccountReadToDomain(accDto)
+                if err := acc.ValidateDeposit(dr.UserID, dr.Amount); err != nil </span><span class="cov0" title="0">{
+                        log.Error("❌ [ERROR] Account validation failed", "error", err)
+                        return err
+                }</span>
+                <span class="cov0" title="0">validatedEvent := events.DepositValidatedEvent{
+                        DepositRequestedEvent: dr,
+                        Account:               acc,
+                }
+                log.Info("✅ [SUCCESS] Account validated, emitting DepositValidatedEvent", "account_id", accDto.ID, "user_id", accDto.UserID, "correlation_id", correlationID.String())
+                return bus.Emit(ctx, validatedEvent)</span>
+        }
+}
+</pre>
+
+		<pre class="file" id="file3" style="display: none">package transfer
+
+import (
+        "context"
+        "fmt"
+        "log/slog"
+
+        "github.com/amirasaad/fintech/pkg/domain"
+        "github.com/amirasaad/fintech/pkg/domain/events"
+        "github.com/amirasaad/fintech/pkg/eventbus"
+        "github.com/amirasaad/fintech/pkg/mapper"
+        "github.com/amirasaad/fintech/pkg/repository"
+        "github.com/amirasaad/fintech/pkg/repository/account"
+        "github.com/google/uuid"
+)
+
+// BusinessValidation performs checks like sufficient funds after currency conversion.
+func BusinessValidation(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e domain.Event) error <span class="cov8" title="1">{
+        return func(ctx context.Context, e domain.Event) error </span><span class="cov8" title="1">{
+                log := logger.With("handler", "BusinessValidation", "event_type", e.Type())
+
+                // 1. Defensive: Check event type and structure
+                cde, ok := e.(events.TransferBusinessValidatedEvent)
+                if !ok </span><span class="cov0" title="0">{
+                        log.Error("❌ [DISCARD] Unexpected event type", "event", e)
+                        return nil
+                }</span>
+                <span class="cov8" title="1">log = log.With("correlation_id", cde.CorrelationID)
+                log.Info("🟢 [START] Received event", "event", cde)
+
+                if cde.FlowType != "transfer" || cde.AccountID == uuid.Nil || cde.ConvertedAmount.IsZero() || cde.ConvertedAmount.IsNegative() </span><span class="cov0" title="0">{
+                        log.Error("❌ [DISCARD] Invalid or non-transfer event", "event", cde)
+                        return nil
+                }</span>
+
+                // 2. Perform Business Validation
+                <span class="cov8" title="1">repoAny, err := uow.GetRepository((*account.Repository)(nil))
+                if err != nil </span><span class="cov8" title="1">{
+                        log.Error("❌ [ERROR] Failed to get repository", "error", err)
+                        return err // Return repository/DB errors directly
+                }</span>
+                <span class="cov8" title="1">accRepo, ok := repoAny.(account.Repository)
+                if !ok </span><span class="cov0" title="0">{
+                        err = fmt.Errorf("unexpected repository type")
+                        log.Error("❌ [ERROR]", "error", err)
+                        return err
+                }</span>
+
+                <span class="cov8" title="1">sourceAccDto, err := accRepo.Get(ctx, cde.AccountID)
+                if err != nil </span><span class="cov8" title="1">{
+                        log.Warn("❌ [BUSINESS] Business validation failed", "reason", "source account not found")
+                        failureEvent := events.TransferFailedEvent{
+                                TransferRequestedEvent: cde.TransferRequestedEvent,
+                                Reason:                 "source account not found",
+                        }
+                        return bus.Emit(ctx, failureEvent) // Emit business failure
+                }</span>
+
+                <span class="cov8" title="1">sourceAcc := mapper.MapAccountReadToDomain(sourceAccDto)
+                if err := sourceAcc.ValidateWithdraw(cde.UserID, cde.ConvertedAmount); err != nil </span><span class="cov8" title="1">{
+                        log.Warn("❌ [BUSINESS] Business validation failed", "reason", err)
+                        failureEvent := events.TransferFailedEvent{
+                                TransferRequestedEvent: cde.TransferRequestedEvent,
+                                Reason:                 err.Error(),
+                        }
+                        return bus.Emit(ctx, failureEvent) // Emit business failure
+                }</span>
+
+                // 3. Emit success event
+                <span class="cov8" title="1">log.Info("✅ [SUCCESS] Business validation passed, emitting TransferDomainOpDoneEvent")
+                domainOpEvent := events.TransferDomainOpDoneEvent{
+                        TransferValidatedEvent: cde.TransferValidatedEvent,
+                        ConversionDoneEvent:    cde.ConversionDoneEvent,
+                        TransactionID:          cde.TransactionID,
+                }
+
+                return bus.Emit(ctx, domainOpEvent)</span>
+        }
+}
+</pre>
+
+		<pre class="file" id="file4" style="display: none">package transfer
+
+import (
+        "context"
+        "fmt"
+        "log/slog"
+        "time"
+
+        "github.com/amirasaad/fintech/pkg/mapper"
+
+        "github.com/amirasaad/fintech/pkg/domain"
+        "github.com/amirasaad/fintech/pkg/domain/events"
+        "github.com/amirasaad/fintech/pkg/dto"
+        "github.com/amirasaad/fintech/pkg/eventbus"
+        "github.com/amirasaad/fintech/pkg/repository"
+        "github.com/amirasaad/fintech/pkg/repository/account"
+        "github.com/amirasaad/fintech/pkg/repository/transaction"
+        "github.com/google/uuid"
+)
+
+// InitialPersistence handles TransferValidatedEvent, creates an initial 'pending' transaction, and triggers conversion.
+func InitialPersistence(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e domain.Event) error <span class="cov8" title="1">{
+        return func(ctx context.Context, e domain.Event) error </span><span class="cov8" title="1">{
+                log := logger.With("handler", "InitialPersistence", "event_type", e.Type())
+
+                // 1. Defensive: Check event type and structure
+                ve, ok := e.(events.TransferValidatedEvent)
+                if !ok </span><span class="cov0" title="0">{
+                        log.Error("❌ [DISCARD] Unexpected event type", "event", e)
+                        return nil
+                }</span>
+                <span class="cov8" title="1">log = log.With("correlation_id", ve.CorrelationID)
+                log.Info("🟢 [START] Received event", "event", ve)
+
+                if ve.AccountID == uuid.Nil || ve.UserID == uuid.Nil || ve.Amount.IsZero() || ve.Amount.IsNegative() </span><span class="cov8" title="1">{
+                        log.Error("❌ [DISCARD] Malformed validated event", "event", ve)
+                        return nil
+                }</span>
+
+                // 2. Persist initial transaction (tx_out) atomically
+                <span class="cov8" title="1">txID := ve.ID
+                var destAccount *domain.Account
+                err := uow.Do(ctx, func(uow repository.UnitOfWork) error </span><span class="cov8" title="1">{
+                        repoAny, err := uow.GetRepository((*transaction.Repository)(nil))
+                        if err != nil </span><span class="cov0" title="0">{
+                                return fmt.Errorf("failed to get repo: %w", err)
+                        }</span>
+
+                        <span class="cov8" title="1">txRepo, ok := repoAny.(transaction.Repository)
+                        if !ok </span><span class="cov0" title="0">{
+                                return fmt.Errorf("unexpected repo type")
+                        }</span>
+                        <span class="cov8" title="1">accountRepoAny, err := uow.GetRepository((*account.Repository)(nil))
+                        if err != nil </span><span class="cov0" title="0">{
+                                return fmt.Errorf("failed to get account repo: %w", err)
+                        }</span>
+                        <span class="cov8" title="1">accountRepo, ok := accountRepoAny.(account.Repository)
+                        if !ok </span><span class="cov0" title="0">{
+                                return fmt.Errorf("unexpected account repo type")
+                        }</span>
+                        <span class="cov8" title="1">destAccountRead, err := accountRepo.Get(ctx, ve.DestAccountID)
+                        if err != nil </span><span class="cov0" title="0">{
+                                return fmt.Errorf("failed to get destination account: %w", err)
+                        }</span>
+                        <span class="cov8" title="1">destAccount = mapper.MapAccountReadToDomain(destAccountRead)
+                        return txRepo.Create(ctx, dto.TransactionCreate{
+                                ID:          txID,
+                                UserID:      ve.UserID,
+                                AccountID:   ve.AccountID,
+                                Amount:      ve.Amount.Negate().Amount(),
+                                Currency:    ve.Amount.Currency().String(),
+                                Status:      "pending",
+                                MoneySource: "transfer",
+                        })</span>
+                })
+
+                <span class="cov8" title="1">if err != nil </span><span class="cov8" title="1">{
+                        log.Error("❌ [ERROR] Failed to create initial transaction", "error", err)
+                        return err
+                }</span>
+                <span class="cov8" title="1">log.Info("✅ [SUCCESS] Initial 'pending' transaction created", "transaction_id", txID)
+
+                // 3. Emit event to trigger currency conversion
+                conversionEvent := events.ConversionRequestedEvent{
+                        FlowEvent:     ve.FlowEvent,
+                        Amount:        ve.Amount,
+                        To:            destAccount.Currency(),
+                        RequestID:     txID.String(),
+                        Timestamp:     time.Now(),
+                        TransactionID: txID,
+                }
+
+                log.Info("📤 [EMIT] Emitting ConversionRequestedEvent", "event", conversionEvent)
+                return bus.Emit(ctx, conversionEvent)</span>
+        }
+}
+</pre>
+
+		<pre class="file" id="file5" style="display: none">package transfer
+
+import (
+        "context"
+        "fmt"
+        "log/slog"
+
+        "github.com/amirasaad/fintech/pkg/domain"
+        "github.com/amirasaad/fintech/pkg/domain/events"
+        "github.com/amirasaad/fintech/pkg/domain/money"
+        "github.com/amirasaad/fintech/pkg/dto"
+        "github.com/amirasaad/fintech/pkg/eventbus"
+        "github.com/amirasaad/fintech/pkg/repository"
+        "github.com/amirasaad/fintech/pkg/repository/account"
+        "github.com/amirasaad/fintech/pkg/repository/transaction"
+        "github.com/google/uuid"
+)
+
+// Persistence handles the final, atomic persistence of a transfer.
+func Persistence(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e domain.Event) error <span class="cov8" title="1">{
+        return func(ctx context.Context, e domain.Event) error </span><span class="cov8" title="1">{
+                log := logger.With("handler", "FinalPersistence", "event_type", e.Type())
+
+                // 1. Defensive: Check event type and structure
+                te, ok := e.(events.TransferDomainOpDoneEvent)
+                if !ok </span><span class="cov0" title="0">{
+                        log.Error("❌ [DISCARD] Unexpected event type", "event", e)
+                        return nil
+                }</span>
+                <span class="cov8" title="1">log = log.With("correlation_id", te.CorrelationID)
+                log.Info("🟢 [START] Received event", "event", te)
+
+                if te.AccountID == uuid.Nil || te.DestAccountID == uuid.Nil || te.Amount.IsZero() </span><span class="cov8" title="1">{
+                        log.Error("❌ [DISCARD] Malformed final persistence event", "event", te)
+                        return nil
+                }</span>
+
+                // 2. Atomic Final Persistence
+                <span class="cov8" title="1">txInID := uuid.New()
+                txOutID := te.ID
+
+                err := uow.Do(ctx, func(uow repository.UnitOfWork) error </span><span class="cov0" title="0">{
+                        txRepoAny, err := uow.GetRepository((*transaction.Repository)(nil))
+                        if err != nil </span><span class="cov0" title="0">{
+                                return fmt.Errorf("failed to get transaction repo: %w", err)
+                        }</span>
+                        <span class="cov0" title="0">txRepo := txRepoAny.(transaction.Repository)
+
+                        accRepoAny, err := uow.GetRepository((*account.Repository)(nil))
+                        if err != nil </span><span class="cov0" title="0">{
+                                return fmt.Errorf("failed to get account repo: %w", err)
+                        }</span>
+                        <span class="cov0" title="0">accRepo := accRepoAny.(account.Repository)
+
+                        // a. Create tx_in for the receiver
+                        if err = txRepo.Create(ctx, dto.TransactionCreate{
+                                ID:          txInID,
+                                UserID:      te.ReceiverUserID,
+                                AccountID:   te.DestAccountID,
+                                Amount:      te.Amount.Amount(),
+                                Currency:    te.Amount.Currency().String(),
+                                Status:      "completed",
+                                MoneySource: "transfer",
+                        }); err != nil </span><span class="cov0" title="0">{
+                                return fmt.Errorf("failed to create tx_in: %w", err)
+                        }</span>
+
+                        // b. Update tx_out status to 'completed'
+                        <span class="cov0" title="0">completedStatus := "completed"
+                        if err = txRepo.Update(ctx, txOutID, dto.TransactionUpdate{Status: &amp;completedStatus}); err != nil </span><span class="cov0" title="0">{
+                                return fmt.Errorf("failed to update tx_out: %w", err)
+                        }</span>
+
+                        // c. Atomically update account balances using money value object
+                        <span class="cov0" title="0">sourceAcc, err := accRepo.Get(ctx, te.AccountID)
+                        if err != nil </span><span class="cov0" title="0">{
+                                return fmt.Errorf("could not find source account: %w", err)
+                        }</span>
+                        <span class="cov0" title="0">destAcc, err := accRepo.Get(ctx, te.DestAccountID)
+                        if err != nil </span><span class="cov0" title="0">{
+                                return fmt.Errorf("could not find destination account: %w", err)
+                        }</span>
+
+                        <span class="cov0" title="0">sourceBalance, err := money.New(sourceAcc.Balance, te.Amount.Currency())
+                        if err != nil </span><span class="cov0" title="0">{
+                                return fmt.Errorf("could not create money for source balance: %w", err)
+                        }</span>
+                        <span class="cov0" title="0">destBalance, err := money.New(destAcc.Balance, te.Amount.Currency())
+                        if err != nil </span><span class="cov0" title="0">{
+                                return fmt.Errorf("could not create money for dest balance: %w", err)
+                        }</span>
+
+                        <span class="cov0" title="0">newSourceMoney, err := sourceBalance.Subtract(te.Amount)
+                        if err != nil </span><span class="cov0" title="0">{
+                                return fmt.Errorf("could not subtract from source balance: %w", err)
+                        }</span>
+                        <span class="cov0" title="0">newDestMoney, err := destBalance.Add(te.Amount)
+                        if err != nil </span><span class="cov0" title="0">{
+                                return fmt.Errorf("could not add to dest balance: %w", err)
+                        }</span>
+
+                        <span class="cov0" title="0">newSourceBalance := newSourceMoney.AmountFloat()
+                        newDestBalance := newDestMoney.AmountFloat()
+
+                        if err := accRepo.Update(ctx, te.AccountID, dto.AccountUpdate{Balance: &amp;newSourceBalance}); err != nil </span><span class="cov0" title="0">{
+                                return fmt.Errorf("failed to debit source account: %w", err)
+                        }</span>
+                        <span class="cov0" title="0">if err := accRepo.Update(ctx, te.DestAccountID, dto.AccountUpdate{Balance: &amp;newDestBalance}); err != nil </span><span class="cov0" title="0">{
+                                return fmt.Errorf("failed to credit destination account: %w", err)
+                        }</span>
+
+                        <span class="cov0" title="0">return nil</span>
+                })
+
+                <span class="cov8" title="1">if err != nil </span><span class="cov8" title="1">{
+                        log.Error("❌ [ERROR] Final persistence transaction failed", "error", err)
+                        failureEvent := events.TransferFailedEvent{
+                                TransferRequestedEvent: te.TransferRequestedEvent,
+                                Reason:                 "PersistenceFailed: " + err.Error(),
+                        }
+                        return bus.Emit(ctx, failureEvent)
+                }</span>
+                <span class="cov8" title="1">log.Info("✅ [SUCCESS] Final transfer persistence complete", "tx_out_id", txOutID, "tx_in_id", txInID)
+
+                // 3. Emit final success event
+                completedEvent := events.TransferCompletedEvent{
+                        TransferDomainOpDoneEvent: te,
+                        TxOutID:                   txOutID,
+                        TxInID:                    txInID,
+                }
+                log.Info("📤 [EMIT] Emitting TransferCompletedEvent")
+                return bus.Emit(ctx, completedEvent)</span>
+        }
+}
+</pre>
+
+		<pre class="file" id="file6" style="display: none">package transfer
+
+import (
+        "context"
+        "log/slog"
+
+        "github.com/amirasaad/fintech/pkg/domain"
+        "github.com/amirasaad/fintech/pkg/domain/events"
+        "github.com/amirasaad/fintech/pkg/eventbus"
+        "github.com/google/uuid"
+)
+
+// Validation handles TransferRequestedEvent, performs structural validation, and publishes TransferValidatedEvent.
+func Validation(bus eventbus.Bus, logger *slog.Logger) func(ctx context.Context, e domain.Event) error <span class="cov8" title="1">{
+        return func(ctx context.Context, e domain.Event) error </span><span class="cov8" title="1">{
+                log := logger.With("handler", "Validation", "event_type", e.Type())
+
+                // 1. Defensive: Check event type
+                tr, ok := e.(events.TransferRequestedEvent)
+                if !ok </span><span class="cov0" title="0">{
+                        log.Error("❌ [DISCARD] Unexpected event type", "event", e)
+                        return nil
+                }</span>
+                <span class="cov8" title="1">log = log.With("correlation_id", tr.CorrelationID)
+                log.Info("🟢 [START] Received event", "event", tr)
+
+                // 2. Defensive: Structural validation of all required event data
+                if tr.ID == uuid.Nil || tr.AccountID == uuid.Nil || tr.DestAccountID == uuid.Nil || tr.UserID == uuid.Nil || tr.Amount.IsZero() || tr.Amount.IsNegative() || tr.Amount.Currency() == "" </span><span class="cov8" title="1">{
+                        log.Error("❌ [DISCARD] Malformed event data: missing or invalid required fields", "event", tr)
+                        return nil
+                }</span>
+
+                // 3. Emit validated event if all checks pass
+                <span class="cov8" title="1">validatedEvent := events.TransferValidatedEvent{
+                        TransferRequestedEvent: tr,
+                }
+
+                log.Info("✅ [SUCCESS] Transfer structurally validated, emitting TransferValidatedEvent")
+                return bus.Emit(ctx, validatedEvent)</span>
+        }
+}
+</pre>
+
+		<pre class="file" id="file7" style="display: none">package withdraw
+
+import (
+        "context"
+        "github.com/amirasaad/fintech/pkg/mapper"
+        "github.com/amirasaad/fintech/pkg/repository"
+        "github.com/amirasaad/fintech/pkg/repository/account"
+        "github.com/google/uuid"
+        "log/slog"
+        "time"
+
+        "github.com/amirasaad/fintech/pkg/domain"
+        "github.com/amirasaad/fintech/pkg/domain/events"
+        "github.com/amirasaad/fintech/pkg/eventbus"
+)
+
+// BusinessValidation performs business validation in account currency after conversion.
+// Emits WithdrawValidatedEvent to trigger payment initiation.
+func BusinessValidation(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e domain.Event) error <span class="cov8" title="1">{
+        return func(ctx context.Context, e domain.Event) error </span><span class="cov8" title="1">{
+                log := logger.With("handler", "BusinessValidation", "event_type", e.Type())
+                log.Info("🟢 [START] Received event", "event", e)
+                wce, ok := e.(events.WithdrawBusinessValidationEvent)
+                if !ok </span><span class="cov0" title="0">{
+                        log.Debug("🚫 [SKIP] Skipping: unexpected event type in BusinessValidation", "event", e)
+                        return nil
+                }</span>
+                <span class="cov8" title="1">log.Info("[DEBUG] Incoming WithdrawBusinessValidationEvent IDs", "user_id", wce.UserID, "account_id", wce.AccountID)
+                correlationID := wce.CorrelationID
+                if wce.FlowType != "withdraw" </span><span class="cov0" title="0">{
+                        log.Debug("🚫 [SKIP] Skipping: not a withdraw flow", "flow_type", wce.FlowType)
+                        return nil
+                }</span>
+                <span class="cov8" title="1">accRepoAny, err := uow.GetRepository((*account.Repository)(nil))
+                if err != nil </span><span class="cov8" title="1">{
+                        log.Error("❌ [ERROR] Failed to get account repository", "error", err)
+                        return err
+                }</span>
+                <span class="cov8" title="1">accRepo, ok := accRepoAny.(account.Repository)
+                if !ok </span><span class="cov0" title="0">{
+                        log.Error("❌ [ERROR] Invalid account repository type", "type", accRepoAny)
+                        return err
+                }</span>
+
+                <span class="cov8" title="1">accRead, err := accRepo.Get(ctx, wce.AccountID)
+                if err != nil </span><span class="cov8" title="1">{
+                        log.Error("❌ [ERROR] Failed to get account", "error", err, "account_id", wce.AccountID)
+                        return err
+                }</span>
+                <span class="cov8" title="1">acc := mapper.MapAccountReadToDomain(accRead)
+                // Validate the withdrawal (check sufficient funds, account status, etc.)
+                if err := acc.ValidateWithdraw(wce.UserID, wce.Amount); err != nil </span><span class="cov8" title="1">{
+                        log.Error("❌ [ERROR] Business validation failed",
+                                "transaction_id", wce.TransactionID,
+                                "error", err,
+                                "user_id", wce.UserID,
+                                "account_id", wce.AccountID,
+                                "amount", wce.Amount.String())
+                        return err
+                }</span>
+                <span class="cov8" title="1">log.Info("✅ [SUCCESS] Business validation passed after conversion, emitting WithdrawValidatedEvent",
+                        "user_id", wce.UserID,
+                        "account_id", wce.AccountID,
+                        "amount", wce.Amount.Amount(),
+                        "currency", wce.Amount.Currency().String(),
+                        "correlation_id", correlationID)
+
+                // Emit PaymentInitiationEvent
+                paymentInitiationEvent := events.PaymentInitiationEvent{
+                        FlowEvent:     wce.FlowEvent,
+                        ID:            uuid.New(),
+                        TransactionID: wce.TransactionID,
+                        Account:       acc,
+                        Amount:        wce.Amount,
+                        Timestamp:     time.Now(),
+                }
+                log.Info("📤 [EMIT] Emitting PaymentInitiationEvent", "event", paymentInitiationEvent, "correlation_id", correlationID.String())
+                return bus.Emit(ctx, paymentInitiationEvent)</span>
+        }
+}
+</pre>
+
+		<pre class="file" id="file8" style="display: none">package withdraw
+
+import (
+        "context"
+        "errors"
+        "log/slog"
+        "time"
+
+        "github.com/amirasaad/fintech/pkg/domain"
+        "github.com/amirasaad/fintech/pkg/domain/events"
+        "github.com/amirasaad/fintech/pkg/dto"
+        "github.com/amirasaad/fintech/pkg/eventbus"
+        "github.com/amirasaad/fintech/pkg/repository"
+        "github.com/amirasaad/fintech/pkg/repository/transaction"
+        "github.com/google/uuid"
+)
+
+// Persistence handles WithdrawValidatedEvent: persists the withdraw transaction and emits WithdrawPersistedEvent.
+func Persistence(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e domain.Event) error <span class="cov0" title="0">{
+        return func(ctx context.Context, e domain.Event) error </span><span class="cov0" title="0">{
+                log := logger.With("handler", "Persistence", "event_type", e.Type())
+                log.Info("🟢 [START] Received event", "event", e)
+
+                ve, ok := e.(events.WithdrawValidatedEvent)
+                if !ok </span><span class="cov0" title="0">{
+                        log.Error("❌ [ERROR] Unexpected event", "event", e)
+                        return nil
+                }</span>
+                <span class="cov0" title="0">correlationID := ve.CorrelationID
+                if correlationID == uuid.Nil </span><span class="cov0" title="0">{
+                        correlationID = uuid.New()
+                }</span>
+                <span class="cov0" title="0">log = log.With("correlation_id", correlationID)
+                log.Info("🔄 [PROCESS] Received WithdrawValidatedEvent", "event", ve)
+
+                txID := uuid.New()
+                if err := uow.Do(ctx, func(uow repository.UnitOfWork) error </span><span class="cov0" title="0">{
+                        txRepoAny, err := uow.GetRepository((*transaction.Repository)(nil))
+                        if err != nil </span><span class="cov0" title="0">{
+                                log.Error("❌ [ERROR] Failed to get repo", "err", err)
+                                return err
+                        }</span>
+                        <span class="cov0" title="0">txRepo, ok := txRepoAny.(transaction.Repository)
+                        if !ok </span><span class="cov0" title="0">{
+                                log.Error("❌ [ERROR] Failed to retrieve repo type")
+                                return errors.New("failed to retrieve repo type")
+                        }</span>
+                        <span class="cov0" title="0">log.Debug("[DEBUG] About to persist transaction", "amount", ve.Amount.Amount(), "currency", ve.Amount.Currency().String())
+                        if err := txRepo.Create(ctx, dto.TransactionCreate{
+                                ID:                   txID,
+                                UserID:               ve.UserID,
+                                AccountID:            ve.AccountID,
+                                Amount:               ve.Amount.Amount(),
+                                Currency:             ve.Amount.Currency().String(),
+                                Status:               "created",
+                                ExternalTargetMasked: "", // TODO: Persist masked bank account number
+                        }); err != nil </span><span class="cov0" title="0">{
+                                return err
+                        }</span>
+                        <span class="cov0" title="0">log.Info("✅ [SUCCESS] Withdraw transaction persisted", "transaction_id", txID)
+                        return nil</span>
+                }); err != nil <span class="cov0" title="0">{
+                        log.Error("❌ [ERROR] Failed to persist withdraw transaction", "error", err)
+                        return nil
+                }</span>
+                <span class="cov0" title="0">persistedEvent := events.WithdrawPersistedEvent{
+                        WithdrawValidatedEvent: ve,
+                        TransactionID:          txID,
+                }
+                log.Info("📤 [EMIT] Emitting WithdrawPersistedEvent", "event", persistedEvent, "correlation_id", correlationID.String())
+                if err := bus.Emit(ctx, persistedEvent); err != nil </span><span class="cov0" title="0">{
+                        return err
+                }</span>
+
+                // Emit ConversionRequested to trigger currency conversion for withdraw (decoupled from payment)
+                <span class="cov0" title="0">log.Info("DEBUG: ve.UserID and ve.AccountID", "user_id", ve.UserID, "account_id", ve.AccountID)
+
+                conversionEvent := events.ConversionRequestedEvent{
+                        FlowEvent:     ve.FlowEvent,
+                        ID:            uuid.New(),
+                        Amount:        ve.Amount,
+                        To:            ve.Account.Currency(),
+                        RequestID:     txID.String(),
+                        TransactionID: txID,
+                        Timestamp:     time.Now(),
+                }
+                log.Info("DEBUG: Full ConversionRequestedEvent", "event", conversionEvent)
+                log.Info("📤 [EMIT] About to emit ConversionRequestedEvent", "handler", "Persistence", "event_type", conversionEvent.Type(), "correlation_id", correlationID.String())
+                return bus.Emit(ctx, &amp;conversionEvent)</span>
+        }
+}
+</pre>
+
+		<pre class="file" id="file9" style="display: none">package withdraw
+
+import (
+        "context"
+        "errors"
+        "log/slog"
+
+        "github.com/amirasaad/fintech/pkg/domain"
+        "github.com/amirasaad/fintech/pkg/domain/events"
+        "github.com/amirasaad/fintech/pkg/eventbus"
+        "github.com/amirasaad/fintech/pkg/mapper"
+        "github.com/amirasaad/fintech/pkg/repository"
+        "github.com/amirasaad/fintech/pkg/repository/account"
+        "github.com/google/uuid"
+)
+
+// Validation handles WithdrawRequestedEvent, performs initial stateless validation, and publishes WithdrawValidatedEvent.
+func Validation(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e domain.Event) error <span class="cov8" title="1">{
+        return func(ctx context.Context, e domain.Event) error </span><span class="cov8" title="1">{
+                log := logger.With("handler", "Validation", "event_type", e.Type())
+                log.Info("🟢 [START] Received event", "event", e)
+
+                we, ok := e.(events.WithdrawRequestedEvent)
+                if !ok </span><span class="cov0" title="0">{
+                        log.Error("❌ [ERROR] Unexpected event type", "event", e)
+                        return nil
+                }</span>
+
+                <span class="cov8" title="1">if we.AccountID == uuid.Nil || !we.Amount.IsPositive() </span><span class="cov8" title="1">{
+                        log.Error("❌ [ERROR] Invalid withdrawal request", "event", we)
+                        if err := bus.Emit(ctx, events.WithdrawFailedEvent{WithdrawRequestedEvent: we, Reason: "Invalid withdrawal request data"}); err != nil </span><span class="cov0" title="0">{
+                                log.Error("failed to emit WithdrawFailedEvent", "error", err)
+                        }</span>
+                        <span class="cov8" title="1">return nil</span>
+                }
+
+                <span class="cov8" title="1">accRepoAny, err := uow.GetRepository((*account.Repository)(nil))
+
+                if err != nil </span><span class="cov0" title="0">{
+                        return err
+                }</span>
+                <span class="cov8" title="1">accRepo, ok := accRepoAny.(account.Repository)
+                if !ok </span><span class="cov8" title="1">{
+                        return errors.New("failed to get repo")
+                }</span>
+
+                <span class="cov0" title="0">accDto, err := accRepo.Get(ctx, we.AccountID)
+                if err != nil </span><span class="cov0" title="0">{
+                        log.Error("❌ [ERROR] Failed to get account", "error", err)
+                        return bus.Emit(ctx, events.WithdrawFailedEvent{WithdrawRequestedEvent: we, Reason: "Account not found"})
+                }</span>
+
+                <span class="cov0" title="0">acc := mapper.MapAccountReadToDomain(accDto)
+
+                validatedEvent := events.WithdrawValidatedEvent{
+                        WithdrawRequestedEvent: we,
+                        Account:                acc,
+                        TargetCurrency:         accDto.Currency,
+                }
+
+                log.Info("✅ [SUCCESS] Withdraw request validated, emitting WithdrawValidatedEvent", "account_id", we.AccountID, "user_id", we.UserID)
+                return bus.Emit(ctx, validatedEvent)</span>
+        }
+}
+</pre>
+
+		<pre class="file" id="file10" style="display: none">package conversion
+
+import (
+        "github.com/amirasaad/fintech/pkg/domain"
+        "github.com/amirasaad/fintech/pkg/domain/common"
+        "github.com/amirasaad/fintech/pkg/domain/events"
+        "github.com/amirasaad/fintech/pkg/domain/money"
+)
+
+// DepositEventFactory creates a DepositBusinessValidationEvent.
+type DepositEventFactory struct{}
+
+func (f *DepositEventFactory) CreateNextEvent(
+        cre *events.ConversionRequestedEvent,
+        convInfo *common.ConversionInfo,
+        convertedMoney money.Money,
+) (domain.Event, error) <span class="cov8" title="1">{
+        return events.DepositBusinessValidationEvent{
+                DepositValidatedEvent: events.DepositValidatedEvent{
+                        DepositRequestedEvent: events.DepositRequestedEvent{
+                                FlowEvent: cre.FlowEvent,
+                                ID:        cre.ID,
+                                Amount:    cre.Amount,
+                                Timestamp: cre.Timestamp,
+                        },
+                },
+                ConversionDoneEvent: events.ConversionDoneEvent{
+                        FlowEvent:      cre.FlowEvent,
+                        ID:             cre.ID,
+                        RequestID:      cre.RequestID,
+                        TransactionID:  cre.TransactionID,
+                        Timestamp:      cre.Timestamp,
+                        ConversionInfo: convInfo,
+                },
+                Amount: convertedMoney,
+        }, nil
+
+}</span>
+
+// WithdrawEventFactory creates a WithdrawBusinessValidationEvent.
+type WithdrawEventFactory struct{}
+
+func (f *WithdrawEventFactory) CreateNextEvent(
+        cre *events.ConversionRequestedEvent,
+        convInfo *common.ConversionInfo,
+        convertedMoney money.Money,
+) (domain.Event, error) <span class="cov8" title="1">{
+        return events.WithdrawBusinessValidationEvent{
+                WithdrawValidatedEvent: events.WithdrawValidatedEvent{
+                        WithdrawRequestedEvent: events.WithdrawRequestedEvent{
+                                FlowEvent: cre.FlowEvent,
+                                ID:        cre.ID,
+                                Amount:    cre.Amount,
+                                Timestamp: cre.Timestamp,
+                        },
+                },
+                ConversionDoneEvent: events.ConversionDoneEvent{
+                        FlowEvent:      cre.FlowEvent,
+                        ID:             cre.ID,
+                        RequestID:      cre.RequestID,
+                        TransactionID:  cre.TransactionID,
+                        Timestamp:      cre.Timestamp,
+                        ConversionInfo: convInfo,
+                },
+                Amount: convertedMoney,
+        }, nil
+}</span>
+
+// TransferEventFactory creates a TransferConversionDoneEvent.
+type TransferEventFactory struct{}
+
+func (f *TransferEventFactory) CreateNextEvent(
+        cre *events.ConversionRequestedEvent,
+        convInfo *common.ConversionInfo,
+        convertedMoney money.Money,
+) (domain.Event, error) <span class="cov8" title="1">{
+        return events.TransferBusinessValidatedEvent{
+                TransferValidatedEvent: events.TransferValidatedEvent{
+                        TransferRequestedEvent: events.TransferRequestedEvent{
+                                FlowEvent: cre.FlowEvent,
+                                ID:        cre.ID,
+                                Amount:    cre.Amount,
+                                Timestamp: cre.Timestamp,
+                        },
+                },
+                ConversionDoneEvent: events.ConversionDoneEvent{
+                        FlowEvent:      cre.FlowEvent,
+                        ID:             cre.ID,
+                        RequestID:      cre.RequestID,
+                        TransactionID:  cre.TransactionID,
+                        Timestamp:      cre.Timestamp,
+                        ConversionInfo: convInfo,
+                },
+                Amount: convertedMoney,
+        }, nil
+}</span>
+</pre>
+
+		<pre class="file" id="file11" style="display: none">// Package conversion handles currency conversion events and logic.
+package conversion
+
+import (
+        "context"
+        "errors"
+        "fmt"
+        "log/slog"
+        "time"
+
+        "github.com/amirasaad/fintech/pkg/currency"
+        "github.com/amirasaad/fintech/pkg/domain"
+        "github.com/amirasaad/fintech/pkg/domain/events"
+        "github.com/amirasaad/fintech/pkg/domain/money"
+        "github.com/amirasaad/fintech/pkg/eventbus"
+        "github.com/google/uuid"
+)
+
+// Handler processes ConversionRequestedEvent and delegates to a flow-specific factory to create the next event.
+func Handler(
+        bus eventbus.Bus,
+        converter money.CurrencyConverter,
+        logger *slog.Logger,
+        factories map[string]EventFactory,
+) func(ctx context.Context, e domain.Event) error <span class="cov8" title="1">{
+        return func(ctx context.Context, e domain.Event) error </span><span class="cov8" title="1">{
+                log := logger.With("handler", "ConversionHandler", "event_type", e.Type())
+                log.Info("🟢 [START] Received event", "event", e)
+
+                log.Debug("[DEBUG] Event type received", "type", fmt.Sprintf("%T", e))
+                cre, ok := e.(*events.ConversionRequestedEvent)
+                if !ok </span><span class="cov8" title="1">{
+                        log.Debug("🚫 [SKIP] Skipping: unexpected event type", "event", e)
+                        return nil
+                }</span>
+
+                <span class="cov8" title="1">log.Debug("[DEBUG] ConversionRequestedEvent details", "event", cre)
+
+                if cre.TransactionID == uuid.Nil </span><span class="cov8" title="1">{
+                        log.Error("Transaction ID is nil, discarding event", "event", cre)
+                        return errors.New("invalid transaction ID")
+                }</span>
+
+                <span class="cov8" title="1">convInfo, err := converter.Convert(
+                        cre.Amount.AmountFloat(),
+                        cre.Amount.Currency().String(),
+                        cre.To.String())
+                if err != nil </span><span class="cov8" title="1">{
+                        log.Error("❌ [ERROR] Currency conversion failed", "error", err, "amount", cre.Amount, "to_currency", cre.To)
+                        return err
+                }</span>
+
+                <span class="cov8" title="1">log.Debug("[DEBUG] ConversionInfo", "convInfo", convInfo)
+
+                convertedMoney, err := money.New(convInfo.ConvertedAmount, currency.Code(convInfo.ConvertedCurrency))
+                if err != nil </span><span class="cov8" title="1">{
+                        log.Error("❌ [ERROR] Failed to create converted money object", "error", err, "convInfo", convInfo)
+                        return err
+                }</span>
+                <span class="cov8" title="1">conversionDone := events.ConversionDoneEvent{
+                        ID:              uuid.New(),
+                        FlowEvent:       cre.FlowEvent,
+                        TransactionID:   cre.TransactionID,
+                        ConversionInfo:  convInfo,
+                        ConvertedAmount: convertedMoney,
+                        Timestamp:       time.Now(),
+                }
+                log.Info("🔄 [PROCESS] Conversion completed successfully", "amount", cre.Amount, "to", convertedMoney)
+                log.Info("📤 [EMIT] Emitting conversion done ", "event_type", conversionDone)
+                if err = bus.Emit(ctx, conversionDone); err != nil </span><span class="cov0" title="0">{
+                        log.Error("[ERROR] Failed to emit conversion done", "error", err, "event", conversionDone)
+                        return err
+                }</span>
+
+                // Use the factory map to get the correct event factory for the flow type.
+                <span class="cov8" title="1">factory, found := factories[cre.FlowType]
+                if !found </span><span class="cov8" title="1">{
+                        log.Warn("Unknown flow type in ConversionRequestedEvent, discarding", "flow_type", cre.FlowType)
+                        return nil // Or return an error if this should be a hard failure
+                }</span>
+
+                // Delegate the creation of the next event to the factory.
+                <span class="cov8" title="1">nextEvent, err := factory.CreateNextEvent(cre, convInfo, convertedMoney)
+                if err != nil </span><span class="cov8" title="1">{
+                        log.Error("❌ [ERROR] Failed to create next event", "error", err, "flow_type", cre.FlowType, "cre", cre, "convInfo", convInfo, "convertedMoney", convertedMoney)
+                        return err
+                }</span>
+
+                <span class="cov8" title="1">if nextEvent == nil </span><span class="cov0" title="0">{
+                        log.Error("[ERROR] Factory returned nil nextEvent", "cre", cre, "convInfo", convInfo, "convertedMoney", convertedMoney)
+                        return errors.New("factory returned nil event")
+                }</span>
+
+                <span class="cov8" title="1">log.Debug("[DEBUG] Next event to emit", "event", nextEvent)
+                log.Info("📤 [EMIT] Emitting next event in flow", "event_type", nextEvent.Type(), "correlation_id", cre.CorrelationID.String())
+                return bus.Emit(ctx, nextEvent)</span>
+        }
+}
+</pre>
+
+		<pre class="file" id="file12" style="display: none">// Package conversion handles currency conversion events and persistence logic.
+package conversion
+
+import (
+        "context"
+        "errors"
+        "github.com/amirasaad/fintech/pkg/dto"
+        "github.com/amirasaad/fintech/pkg/repository/transaction"
+        "log/slog"
+
+        "github.com/amirasaad/fintech/pkg/domain/events"
+
+        "github.com/amirasaad/fintech/pkg/domain"
+        "github.com/amirasaad/fintech/pkg/repository"
+)
+
+// Persistence persists ConversionDoneEvent events.
+func Persistence(uow repository.UnitOfWork, logger *slog.Logger) func(context.Context, domain.Event) error <span class="cov0" title="0">{
+        return func(ctx context.Context, e domain.Event) error </span><span class="cov0" title="0">{
+                log := logger.With(
+                        "handler", "Persistence",
+                        "event_type", e.Type(),
+                )
+                log.Info("🟢 [START] Received event", "event", e)
+
+                ce, ok := e.(events.ConversionDoneEvent)
+                if !ok </span><span class="cov0" title="0">{
+                        log.Error("unexpected event", "event", e)
+                        return errors.New("unexpected event")
+                }</span>
+                <span class="cov0" title="0">log.Info("💾 [PROGRESS] persisting conversion data", "transaction_id", ce.TransactionID)
+                // Persist conversion result (stubbed for now)
+                if err := uow.Do(ctx, func(uow repository.UnitOfWork) error </span><span class="cov0" title="0">{
+                        transactionRepoAny, err := uow.GetRepository((*transaction.Repository)(nil))
+                        if err != nil </span><span class="cov0" title="0">{
+                                return err
+                        }</span>
+                        <span class="cov0" title="0">transactionRepo := transactionRepoAny.(transaction.Repository)
+                        return transactionRepo.Update(ctx, ce.TransactionID, dto.TransactionUpdate{
+                                OriginalAmount:   &amp;ce.ConversionInfo.OriginalAmount,
+                                ConvertedAmount:  &amp;ce.ConversionInfo.ConvertedAmount,
+                                OriginalCurrency: &amp;ce.ConversionInfo.OriginalCurrency,
+                                TargetCurrency:   &amp;ce.ConversionInfo.ConvertedCurrency,
+                                ConversionRate:   &amp;ce.ConversionInfo.ConversionRate,
+                        })</span>
+                }); err != nil <span class="cov0" title="0">{
+                        log.Error("❌ [ERROR] Failed to persist conversion data", "error", err)
+                        return err
+                }</span>
+
+                <span class="cov0" title="0">log.Info("✅ [SUCCESS] conversion persisted", "transaction_id", ce.TransactionID)
+                return nil</span>
+        }
+}
+</pre>
+
+		<pre class="file" id="file13" style="display: none">package payment
+
+import (
+        "context"
+        "log/slog"
+
+        "github.com/amirasaad/fintech/pkg/domain/events"
+
+        "github.com/amirasaad/fintech/pkg/domain"
+        accountdomain "github.com/amirasaad/fintech/pkg/domain/account"
+        dto "github.com/amirasaad/fintech/pkg/dto"
+        "github.com/amirasaad/fintech/pkg/eventbus"
+        "github.com/amirasaad/fintech/pkg/mapper"
+        "github.com/amirasaad/fintech/pkg/repository"
+        repoaccount "github.com/amirasaad/fintech/pkg/repository/account"
+)
+
+// Completed handles PaymentCompletedEvent, updates the transaction status in the DB, and publishes a follow-up event if needed.
+func Completed(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e domain.Event) error <span class="cov8" title="1">{
+        return func(ctx context.Context, e domain.Event) error </span><span class="cov8" title="1">{
+                logger.Info("Completed: received event", "event", e)
+                pe, ok := e.(*events.PaymentCompletedEvent)
+                if !ok </span><span class="cov8" title="1">{
+                        logger.Error("event is not PaymentCompletedEvent", "event", e)
+                        return nil
+                }</span>
+                // Access all fields directly: pe.TransactionID, pe.PaymentID, pe.Status, pe.UserID, pe.AccountID, pe.CorrelationID
+                <span class="cov8" title="1">err := uow.Do(ctx, func(uow repository.UnitOfWork) error </span><span class="cov0" title="0">{
+                        repo, err := uow.TransactionRepository()
+                        if err != nil </span><span class="cov0" title="0">{
+                                logger.Error("Completed: failed to get transaction repo", "error", err)
+                                return err
+                        }</span>
+                        <span class="cov0" title="0">tx, err := repo.GetByPaymentID(pe.PaymentID)
+                        if err != nil </span><span class="cov0" title="0">{
+                                logger.Error("Completed: failed to get transaction by payment ID", "error", err, "payment_id", pe.PaymentID)
+                                return err
+                        }</span>
+                        <span class="cov0" title="0">logger = logger.With("transaction_id", tx.ID, "user_id", tx.UserID, "payment_id", pe.PaymentID)
+                        oldStatus := tx.Status
+                        tx.Status = accountdomain.TransactionStatusCompleted
+                        if err = repo.Update(tx); err != nil </span><span class="cov0" title="0">{
+                                logger.Error("Completed: failed to update transaction status", "error", err)
+                                return err
+                        }</span>
+                        <span class="cov0" title="0">logger.Info("Completed: transaction status updated", "old_status", oldStatus, "new_status", tx.Status)
+                        // Update account balance after payment completion
+                        repoAny, err := uow.GetRepository((*repoaccount.Repository)(nil))
+                        if err != nil </span><span class="cov0" title="0">{
+                                logger.Error("Completed: failed to get account repo", "error", err)
+                                return err
+                        }</span>
+                        <span class="cov0" title="0">accRepo := repoAny.(repoaccount.Repository)
+                        acc, err := accRepo.Get(ctx, tx.AccountID)
+                        if err != nil </span><span class="cov0" title="0">{
+                                logger.Error("Completed: failed to get account", "error", err)
+                                return err
+                        }</span>
+                        <span class="cov0" title="0">domainAcc := mapper.MapAccountReadToDomain(acc)
+                        newBalance, err := domainAcc.Balance.Add(tx.Amount)
+                        if err != nil </span><span class="cov0" title="0">{
+                                logger.Error("Completed: failed to add transaction amount to balance", "error", err)
+                                return err
+                        }</span>
+                        <span class="cov0" title="0">f64Balance := newBalance.AmountFloat()
+                        if err := accRepo.Update(ctx, tx.AccountID, dto.AccountUpdate{Balance: &amp;f64Balance}); err != nil </span><span class="cov0" title="0">{
+                                logger.Error("Completed: failed to update account balance", "error", err)
+                                return err
+                        }</span>
+                        <span class="cov0" title="0">logger.Info("Completed: account balance updated", "account_id", acc.ID, "new_balance", f64Balance)
+                        return nil</span>
+                })
+                <span class="cov8" title="1">if err != nil </span><span class="cov8" title="1">{
+                        logger.Error("Completed: transaction failed", "error", err)
+                        return err
+                }</span>
+                // Optionally: publish a UI/account balance update event
+                // return bus.Emit(ctx, events.AccountBalanceUpdatedEvent{UserID: tx.UserID, AccountID: tx.AccountID, NewBalance: ...})
+                <span class="cov8" title="1">return nil</span>
+        }
+}
+</pre>
+
+		<pre class="file" id="file14" style="display: none">package payment
+
+import (
+        "context"
+        "log/slog"
+        "sync"
+
+        "github.com/amirasaad/fintech/pkg/domain/events"
+
+        "github.com/amirasaad/fintech/pkg/domain"
+        "github.com/amirasaad/fintech/pkg/eventbus"
+        "github.com/amirasaad/fintech/pkg/provider"
+        "github.com/google/uuid"
+)
+
+var processedPaymentInitiation sync.Map // map[string]struct{} for idempotency
+
+// Initiation handles DepositBusinessValidatedEvent and initiates payment for deposits.
+func Initiation(bus eventbus.Bus, paymentProvider provider.PaymentProvider, logger *slog.Logger) func(ctx context.Context, e domain.Event) error <span class="cov8" title="1">{
+        return func(ctx context.Context, e domain.Event) error </span><span class="cov8" title="1">{
+                log := logger.With("handler", "Initiation")
+                evt, ok := e.(events.PaymentInitiationEvent)
+                if !ok </span><span class="cov8" title="1">{
+                        log.Debug("🚫 [SKIP] Skipping: unexpected event type in Initiation", "event", e)
+                        return nil
+                }</span>
+                <span class="cov0" title="0">transactionID := evt.TransactionID
+                idempotencyKey := transactionID.String()
+                if _, already := processedPaymentInitiation.LoadOrStore(idempotencyKey, struct{}{}); already </span><span class="cov0" title="0">{
+                        log.Info("🔁 [SKIP] PaymentInitiatedEvent already emitted for this transaction", "transaction_id", transactionID)
+                        return nil
+                }</span>
+                <span class="cov0" title="0">log.Info("✅ [SUCCESS] Initiating payment", "transaction_id", transactionID)
+                // Call payment provider
+                amount := evt.Amount.Amount()
+                currency := evt.Amount.Currency().String()
+                paymentID, err := paymentProvider.InitiatePayment(ctx, evt.UserID, evt.AccountID, amount, currency)
+                if err != nil </span><span class="cov0" title="0">{
+                        log.Error("❌ [ERROR] Payment initiation failed", "error", err)
+                        return err
+                }</span>
+                <span class="cov0" title="0">log.Info("📤 [EMIT] Emitting PaymentInitiatedEvent", "transaction_id", transactionID, "payment_id", paymentID)
+                return bus.Emit(ctx, events.PaymentInitiatedEvent{
+                        ID:            uuid.New().String(),
+                        TransactionID: transactionID,
+                        PaymentID:     paymentID,
+                        UserID:        evt.UserID,
+                        AccountID:     evt.AccountID,
+                        CorrelationID: evt.CorrelationID,
+                })</span>
+        }
+}
+</pre>
+
+		<pre class="file" id="file15" style="display: none">package payment
+
+import (
+        "context"
+        "errors"
+        "log/slog"
+
+        "github.com/amirasaad/fintech/pkg/domain/account"
+        "github.com/amirasaad/fintech/pkg/domain/events"
+
+        "github.com/amirasaad/fintech/pkg/domain"
+        "github.com/amirasaad/fintech/pkg/dto"
+        "github.com/amirasaad/fintech/pkg/eventbus"
+        "github.com/amirasaad/fintech/pkg/repository"
+        "github.com/amirasaad/fintech/pkg/repository/transaction"
+        "github.com/google/uuid"
+)
+
+// Persistence handles PaymentInitiatedEvent and updates the transaction with payment ID.
+// This is a generic handler that can process payment events for all operations (deposit, withdraw, transfer).
+func Persistence(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e domain.Event) error <span class="cov8" title="1">{
+        return func(ctx context.Context, e domain.Event) error </span><span class="cov8" title="1">{
+                log := logger.With(
+                        "handler", "Persistence",
+                        "event_type", e.Type(),
+                )
+                log.Info("🟢 [START] Received event", "event", e)
+
+                pie, ok := e.(events.PaymentInitiatedEvent)
+                if !ok </span><span class="cov0" title="0">{
+                        log.Error("❌ [ERROR] Unexpected event type for payment persistence", "event", e)
+                        return nil
+                }</span>
+
+                <span class="cov8" title="1">log.Info("🔄 [PROCESS] Updating transaction with payment ID",
+                        "transaction_id", pie.TransactionID,
+                        "payment_id", pie.PaymentID)
+
+                // Update the transaction with payment ID
+                if err := uow.Do(ctx, func(uow repository.UnitOfWork) error </span><span class="cov8" title="1">{
+                        txRepoAny, err := uow.GetRepository((*transaction.Repository)(nil))
+                        if err != nil </span><span class="cov0" title="0">{
+                                log.Error("❌ [ERROR] Failed to get transaction repo", "error", err)
+                                return err
+                        }</span>
+                        <span class="cov8" title="1">txRepo, ok := txRepoAny.(transaction.Repository)
+                        if !ok </span><span class="cov0" title="0">{
+                                log.Error("❌ [ERROR] Failed to retrieve repo type")
+                                return errors.New("failed to retrieve repo type")
+                        }</span>
+
+                        // Check if the transaction already has a payment ID before updating
+                        <span class="cov8" title="1">tx, err := txRepo.Get(ctx, pie.TransactionID)
+                        if err != nil </span><span class="cov8" title="1">{
+                                log.Error("❌ [ERROR] Failed to get transaction before update", "error", err)
+                                return err
+                        }</span>
+                        <span class="cov8" title="1">if tx.PaymentID != "" </span><span class="cov8" title="1">{
+                                log.Warn("🚫 [SKIP] Duplicate PaymentIdPersistedEvent emission detected: transaction already has payment ID", "transaction_id", pie.TransactionID, "existing_payment_id", tx.PaymentID)
+                                return errors.New("transaction already has payment ID")
+                        }</span>
+
+                        <span class="cov8" title="1">status := string(account.TransactionStatusPending)
+                        if err = txRepo.Update(ctx, pie.TransactionID, dto.TransactionUpdate{
+                                PaymentID: &amp;pie.PaymentID,
+                                Status:    &amp;status,
+                        }); err != nil </span><span class="cov8" title="1">{
+                                log.Error("❌ [ERROR] Failed to update transaction with payment ID", "error", err)
+                                return err
+                        }</span>
+
+                        <span class="cov0" title="0">log.Info("✅ [SUCCESS] Transaction updated with payment ID",
+                                "transaction_id", pie.TransactionID,
+                                "payment_id", pie.PaymentID)
+
+                        // Guard: Only emit if TransactionID is valid and no cycle will occur
+                        if pie.TransactionID == uuid.Nil </span><span class="cov0" title="0">{
+                                log.Error("❌ [ERROR] Transaction ID is nil, aborting PaymentIdPersistedEvent emission", "event", pie)
+                                return errors.New("invalid transaction ID")
+                        }</span>
+
+                        <span class="cov0" title="0">return nil</span>
+                }); err != nil <span class="cov8" title="1">{
+                        log.Error("❌ [ERROR] Payment persistence failed", "error", err)
+                        return err
+                }</span>
+                <span class="cov8" title="1">return nil</span>
+        }
+}
+</pre>
+
+		<pre class="file" id="file16" style="display: none">package transaction
+
+import (
+        "context"
+        "fmt"
+        "log/slog"
+
+        "github.com/amirasaad/fintech/pkg/domain"
+        "github.com/amirasaad/fintech/pkg/domain/events"
+        "github.com/amirasaad/fintech/pkg/dto"
+        "github.com/amirasaad/fintech/pkg/repository"
+        "github.com/amirasaad/fintech/pkg/repository/transaction"
+)
+
+// ConversionPersistence handles persisting conversion details for any transaction.
+func ConversionPersistence(uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e domain.Event) error <span class="cov0" title="0">{
+        return func(ctx context.Context, e domain.Event) error </span><span class="cov0" title="0">{
+                log := logger.With("handler", "ConversionPersistence", "event_type", e.Type())
+                log.Info("🟢 [START] Received event", "event", e)
+
+                cde, ok := e.(events.ConversionDoneEvent)
+                if !ok </span><span class="cov0" title="0">{
+                        log.Error("❌ [ERROR] Unexpected event type for conversion persistence", "event", e)
+                        return nil
+                }</span>
+                <span class="cov0" title="0">err := uow.Do(ctx, func(uow repository.UnitOfWork) error </span><span class="cov0" title="0">{
+                        repo, err := uow.GetRepository((*transaction.Repository)(nil))
+                        if err != nil </span><span class="cov0" title="0">{
+                                return fmt.Errorf("failed to get transaction repository: %w", err)
+                        }</span>
+                        <span class="cov0" title="0">txRepo := repo.(transaction.Repository)
+
+                        update := dto.TransactionUpdate{
+                                OriginalAmount:   &amp;cde.ConversionInfo.OriginalAmount,
+                                OriginalCurrency: &amp;cde.ConversionInfo.OriginalCurrency,
+                                ConvertedAmount:  &amp;cde.ConversionInfo.ConvertedAmount,
+                                ConversionRate:   &amp;cde.ConversionInfo.ConversionRate,
+                                TargetCurrency:   &amp;cde.ConversionInfo.ConvertedCurrency,
+                        }
+
+                        log.Debug("🔄 [PROCESS] Attempting to update transaction with conversion data", "transaction_id", cde.TransactionID, "update_data", update)
+                        if err := txRepo.Update(ctx, cde.TransactionID, update); err != nil </span><span class="cov0" title="0">{
+                                return fmt.Errorf("failed to persist conversion data for transaction %s: %w", cde.TransactionID, err)
+                        }</span>
+                        <span class="cov0" title="0">return nil</span>
+                })
+
+                <span class="cov0" title="0">if err != nil </span><span class="cov0" title="0">{
+                        log.Error("❌ [ERROR] Failed to execute conversion persistence unit of work", "error", err)
+                        // Note: Not emitting a failure event here to avoid event loops on infra errors.
+                        return err
+                }</span>
+
+                <span class="cov0" title="0">log.Info("✅ [SUCCESS] Conversion data persisted successfully", "transaction_id", cde.TransactionID)
+                return nil</span>
+        }
+}
+</pre>
+
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>

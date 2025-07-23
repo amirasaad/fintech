@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"time"
 
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/domain/events"
@@ -14,61 +15,77 @@ import (
 	"github.com/google/uuid"
 )
 
-// WithdrawPersistenceHandler handles WithdrawValidatedEvent: persists the withdraw transaction and emits WithdrawPersistedEvent.
-func WithdrawPersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork, logger *slog.Logger) func(context.Context, domain.Event) {
-	return func(ctx context.Context, e domain.Event) {
-		log := logger.With("handler", "WithdrawPersistenceHandler", "event_type", e.EventType())
-		log.Info("received event", "event", e)
+// Persistence handles WithdrawValidatedEvent: persists the withdraw transaction and emits WithdrawPersistedEvent.
+func Persistence(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e domain.Event) error {
+	return func(ctx context.Context, e domain.Event) error {
+		log := logger.With("handler", "Persistence", "event_type", e.Type())
+		log.Info("🟢 [START] Received event", "event", e)
 
 		ve, ok := e.(events.WithdrawValidatedEvent)
 		if !ok {
-			log.Error("unexpected event", "event", e)
-			return
+			log.Error("❌ [ERROR] Unexpected event", "event", e)
+			return nil
 		}
-		log.Info("received WithdrawValidatedEvent", "event", ve)
+		correlationID := ve.CorrelationID
+		if correlationID == uuid.Nil {
+			correlationID = uuid.New()
+		}
+		log = log.With("correlation_id", correlationID)
+		log.Info("🔄 [PROCESS] Received WithdrawValidatedEvent", "event", ve)
 
 		txID := uuid.New()
 		if err := uow.Do(ctx, func(uow repository.UnitOfWork) error {
 			txRepoAny, err := uow.GetRepository((*transaction.Repository)(nil))
 			if err != nil {
-				log.Error("failed to get repo", "err", err)
+				log.Error("❌ [ERROR] Failed to get repo", "err", err)
 				return err
 			}
 			txRepo, ok := txRepoAny.(transaction.Repository)
 			if !ok {
-				return errors.New("failed to retrieve repo")
+				log.Error("❌ [ERROR] Failed to retrieve repo type")
+				return errors.New("failed to retrieve repo type")
 			}
+			log.Debug("[DEBUG] About to persist transaction", "amount", ve.Amount.Amount(), "currency", ve.Amount.Currency().String())
 			if err := txRepo.Create(ctx, dto.TransactionCreate{
-				ID:        txID,
-				UserID:    ve.UserID,
-				AccountID: ve.AccountID,
-				Amount:    ve.Amount.Amount(),
-				Currency:  ve.Amount.Currency().String(),
-				Status:    "created",
+				ID:                   txID,
+				UserID:               ve.UserID,
+				AccountID:            ve.AccountID,
+				Amount:               ve.Amount.Amount(),
+				Currency:             ve.Amount.Currency().String(),
+				Status:               "created",
+				ExternalTargetMasked: "", // TODO: Persist masked bank account number
 			}); err != nil {
 				return err
 			}
-			log.Info("withdraw transaction persisted", "transaction_id", txID)
+			log.Info("✅ [SUCCESS] Withdraw transaction persisted", "transaction_id", txID)
 			return nil
 		}); err != nil {
-			log.Error("failed to persist withdraw transaction", "error", err)
-			return
+			log.Error("❌ [ERROR] Failed to persist withdraw transaction", "error", err)
+			return nil
 		}
-		log.Info("emitting WithdrawPersistedEvent", "transaction_id", txID)
-		_ = bus.Publish(ctx, events.WithdrawPersistedEvent{
+		persistedEvent := events.WithdrawPersistedEvent{
 			WithdrawValidatedEvent: ve,
 			TransactionID:          txID,
-		})
+		}
+		log.Info("📤 [EMIT] Emitting WithdrawPersistedEvent", "event", persistedEvent, "correlation_id", correlationID.String())
+		if err := bus.Emit(ctx, persistedEvent); err != nil {
+			return err
+		}
 
 		// Emit ConversionRequested to trigger currency conversion for withdraw (decoupled from payment)
-		logger.Info("emitting ConversionRequested for withdraw", "transaction_id", txID)
-		_ = bus.Publish(ctx, events.ConversionRequested{
-			CorrelationID:  txID.String(),
-			FlowType:       "withdraw",
-			OriginalEvent:  ve,
-			Amount:         ve.Amount,
-			SourceCurrency: ve.Amount.Currency().String(),
-			TargetCurrency: ve.TargetCurrency,
-		})
+		log.Info("DEBUG: ve.UserID and ve.AccountID", "user_id", ve.UserID, "account_id", ve.AccountID)
+
+		conversionEvent := events.ConversionRequestedEvent{
+			FlowEvent:     ve.FlowEvent,
+			ID:            uuid.New(),
+			Amount:        ve.Amount,
+			To:            ve.Account.Currency(),
+			RequestID:     txID.String(),
+			TransactionID: txID,
+			Timestamp:     time.Now(),
+		}
+		log.Info("DEBUG: Full ConversionRequestedEvent", "event", conversionEvent)
+		log.Info("📤 [EMIT] About to emit ConversionRequestedEvent", "handler", "Persistence", "event_type", conversionEvent.Type(), "correlation_id", correlationID.String())
+		return bus.Emit(ctx, &conversionEvent)
 	}
 }

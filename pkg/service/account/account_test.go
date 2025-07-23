@@ -114,9 +114,10 @@ func TestDeposit_PublishesEvent(t *testing.T) {
 
 	// Register the handler before publishing
 	var called bool
-	memBus.Subscribe("DepositRequestedEvent", func(c context.Context, e domain.Event) {
+	memBus.Register("DepositRequestedEvent", func(c context.Context, e domain.Event) error {
 		called = true
 		// Optionally, assert on event fields here
+		return nil
 	})
 
 	err := svc.Deposit(context.Background(), commands.DepositCommand{Amount: 100})
@@ -136,8 +137,9 @@ func TestWithdraw_PublishesEvent(t *testing.T) {
 	userID := uuid.New()
 	accountID := uuid.New()
 	var publishedEvents []domain.Event
-	memBus.Subscribe("WithdrawRequestedEvent", func(c context.Context, e domain.Event) {
+	memBus.Register("WithdrawRequestedEvent", func(c context.Context, e domain.Event) error {
 		publishedEvents = append(publishedEvents, e)
+		return nil
 	})
 	err := svc.Withdraw(context.Background(), commands.WithdrawCommand{
 		UserID:    userID,
@@ -172,8 +174,9 @@ func TestTransfer_PublishesEvent(t *testing.T) {
 		EventBus: memBus,
 	})
 	var publishedEvents []domain.Event
-	memBus.Subscribe("TransferRequestedEvent", func(c context.Context, e domain.Event) {
+	memBus.Register("TransferRequestedEvent", func(c context.Context, e domain.Event) error {
 		publishedEvents = append(publishedEvents, e)
+		return nil
 	})
 	transferDTO := dto.TransactionCreate{
 		UserID:      userID,
@@ -187,9 +190,10 @@ func TestTransfer_PublishesEvent(t *testing.T) {
 	require.Len(t, publishedEvents, 1)
 	evt, ok := publishedEvents[0].(events2.TransferRequestedEvent)
 	require.True(t, ok)
-	assert.Equal(t, userID, evt.SenderUserID)
-	assert.Equal(t, sourceAccountID, evt.SourceAccountID)
+	assert.Equal(t, userID, evt.UserID)
+	assert.Equal(t, sourceAccountID, evt.AccountID)
 	assert.Equal(t, destAccountID, evt.DestAccountID)
+	assert.Equal(t, userID, evt.ReceiverUserID)
 	// assert.InEpsilon(t, amount, evt.Amount, 0.01)
 	assert.Equal(t, currency, evt.Amount.Currency().String())
 	assert.Equal(t, moneySource, evt.Source)
@@ -365,7 +369,8 @@ func TestGetBalance_Success(t *testing.T) {
 	userID := uuid.New()
 	acc, _ := accountdomain.New().WithUserID(userID).WithCurrency(currency.USD).Build()
 	balanceMoney, _ := money.New(123.0, acc.Balance.Currency())
-	_ = acc.Deposit(userID, balanceMoney, accountdomain.MoneySourceCard, "")
+	err := acc.ValidateDeposit(userID, balanceMoney)
+	require.NoError(t, err)
 	accountRepo.EXPECT().Get(acc.ID).Return(acc, nil)
 	_, _ = accountsvc.NewService(config.Deps{
 		Uow:               uow,

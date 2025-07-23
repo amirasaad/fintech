@@ -5,10 +5,11 @@ import (
 	"context"
 	"errors"
 	"log/slog"
-
-	"github.com/amirasaad/fintech/pkg/domain/events"
+	"time"
 
 	"github.com/amirasaad/fintech/pkg/domain"
+	"github.com/amirasaad/fintech/pkg/domain/events"
+
 	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/amirasaad/fintech/pkg/repository"
@@ -16,34 +17,43 @@ import (
 	"github.com/google/uuid"
 )
 
-// PersistenceHandler handles DepositValidatedEvent: converts the float64 amount and currency to money.Money, persists the transaction, and emits DepositPersistedEvent.
-func PersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork, logger *slog.Logger) func(context.Context, domain.Event) {
-	return func(ctx context.Context, e domain.Event) {
-		logger := logger.With(
-			"handler", "PersistenceHandler",
-			"event_type", e.EventType(),
-		)
-		logger.Info("received event", "event", e)
+// Persistence handles DepositValidatedEvent: converts the float64 amount and currency to money.Money, persists the transaction, and emits DepositPersistedEvent.
+func Persistence(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e domain.Event) error {
+	return func(ctx context.Context, e domain.Event) error {
+		log := logger.With("handler", "Persistence", "event_type", e.Type())
+		depth, _ := ctx.Value("eventDepth").(int)
+		log.Info("[DEPTH] Event received", "type", e.Type(), "depth", depth, "event", e)
+		log.Info("🟢 [START] Received event", "event", e)
 
 		// Expect DepositValidatedEvent from validation handler
 		ve, ok := e.(events.DepositValidatedEvent)
 		if !ok {
-			logger.Error("unexpected event", "event", e)
-			return
+			log.Error("❌ [ERROR] Unexpected event", "event", e)
+			return nil
 		}
-		logger.Info("received DepositValidatedEvent", "event", ve)
+		correlationID := ve.CorrelationID
+		if correlationID == uuid.Nil {
+			correlationID = uuid.New()
+		}
+		log = log.With("correlation_id", correlationID)
+		log.Info("🔄 [PROCESS] Received DepositValidatedEvent", "event", ve)
+
+		// Log the currency of the validated deposit before persisting
+		log.Info("[CHECK] DepositValidatedEvent amount currency before persist", "currency", ve.Amount.Currency().String())
+		// ve.Amount should always be the source currency at this stage
 
 		// Create a new transaction and persist it
 		txID := uuid.New()
 		if err := uow.Do(ctx, func(uow repository.UnitOfWork) error {
 			txRepoAny, err := uow.GetRepository((*transaction.Repository)(nil))
 			if err != nil {
-				logger.Error("failed to get repo", "err", err)
+				log.Error("❌ [ERROR] Failed to get repo", "err", err)
 				return err
 			}
 			txRepo, ok := txRepoAny.(transaction.Repository)
 			if !ok {
-				return errors.New("failed to retrieve repo")
+				log.Error("❌ [ERROR] Failed to retrieve repo type")
+				return errors.New("failed to retrieve repo type")
 			}
 			if err := txRepo.Create(ctx, dto.TransactionCreate{
 				ID:          txID,
@@ -56,30 +66,42 @@ func PersistenceHandler(bus eventbus.EventBus, uow repository.UnitOfWork, logger
 			}); err != nil {
 				return err
 			}
-			logger.Info("transaction persisted", "transaction_id", txID)
+			log.Info("✅ [SUCCESS] Transaction persisted", "transaction_id", txID, "correlation_id", correlationID)
 			return nil
 		}); err != nil {
-			logger.Error("failed to persist transaction", "error", err)
-			return
+			log.Error("❌ [ERROR] Failed to persist transaction", "error", err)
+			return err
 		}
 
 		// Emit DepositPersistedEvent
-		_ = bus.Publish(ctx, events.DepositPersistedEvent{
+		persistedEvent := events.DepositPersistedEvent{
 			DepositValidatedEvent: ve,
 			TransactionID:         txID,
-			UserID:                ve.UserID,
 			Amount:                ve.Amount,
-		})
+		}
+		log.Info("📤 [EMIT] Emitting DepositPersistedEvent", "event", persistedEvent, "correlation_id", correlationID.String())
+		if err := bus.Emit(ctx, persistedEvent); err != nil {
+			return err
+		}
 
 		// Emit ConversionRequested to trigger currency conversion for deposit (decoupled from payment)
-		logger.Info("emitting ConversionRequested for deposit", "transaction_id", txID)
-		_ = bus.Publish(ctx, events.ConversionRequested{
-			CorrelationID:  txID.String(),
-			FlowType:       "deposit",
-			OriginalEvent:  ve,
-			Amount:         ve.Amount,
-			SourceCurrency: ve.Amount.Currency().String(),
-			TargetCurrency: ve.Account.Balance.Currency().String(),
-		})
+		log.Info("📤 [EMIT] Emitting ConversionRequestedEvent for deposit", "transaction_id", txID, "correlation_id", correlationID)
+		log.Info("DEBUG: ve.UserID and ve.AccountID", "user_id", ve.UserID, "account_id", ve.AccountID)
+		// Only emit ConversionRequestedEvent if a conversion is needed and account currency is valid
+		if ve.Account != nil && ve.Amount.Currency().String() != "" && ve.Account.Currency().String() != "" && ve.Amount.Currency().String() != ve.Account.Currency().String() {
+			conversionEvent := events.ConversionRequestedEvent{
+				FlowEvent:     ve.FlowEvent,
+				ID:            uuid.New(),
+				Amount:        ve.Amount,
+				To:            ve.Account.Currency(),
+				RequestID:     txID.String(),
+				TransactionID: txID, // Always propagate!
+				Timestamp:     time.Now(),
+			}
+			log.Info("DEBUG: Full ConversionRequestedEvent", "event", conversionEvent)
+			log.Info("📤 [EMIT] About to emit ConversionRequestedEvent", "handler", "Persistence", "event_type", conversionEvent.Type(), "correlation_id", correlationID.String())
+			return bus.Emit(ctx, &conversionEvent)
+		}
+		return nil
 	}
 }

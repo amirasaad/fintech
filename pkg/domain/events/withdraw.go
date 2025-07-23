@@ -10,9 +10,8 @@ import (
 
 // WithdrawRequestedEvent is emitted when a withdrawal is requested (pure event-driven domain).
 type WithdrawRequestedEvent struct {
-	EventID               uuid.UUID
-	AccountID             uuid.UUID
-	UserID                uuid.UUID
+	FlowEvent
+	ID                    uuid.UUID
 	Amount                money.Money
 	BankAccountNumber     string
 	RoutingNumber         string
@@ -26,15 +25,13 @@ type WithdrawValidatedEvent struct {
 	WithdrawRequestedEvent
 	TargetCurrency string
 	Account        *account.Account
-	// Add any fields produced by validation (e.g., loaded Account)
 }
 
-// WithdrawConversionDoneEvent is emitted after withdraw currency conversion is completed.
-type WithdrawConversionDoneEvent struct {
+// WithdrawBusinessValidationEvent is emitted after withdraw currency conversion is completed.
+type WithdrawBusinessValidationEvent struct {
+	WithdrawValidatedEvent
 	ConversionDoneEvent
-	UserID    string
-	AccountID string
-	Source    string
+	Amount money.Money
 }
 
 // WithdrawPersistedEvent is emitted after withdraw persistence is complete.
@@ -43,27 +40,21 @@ type WithdrawPersistedEvent struct {
 	TransactionID uuid.UUID
 }
 
-// Legacy events for backward compatibility
-type WithdrawConversionRequested struct {
-	WithdrawValidatedEvent
-	EventID        uuid.UUID
-	TransactionID  uuid.UUID
-	AccountID      uuid.UUID
-	UserID         uuid.UUID
-	Amount         money.Money
-	SourceCurrency string
-	TargetCurrency string
-	Timestamp      int64
+// WithdrawBusinessValidatedEvent is emitted after business validation in account currency for withdraw.
+type WithdrawBusinessValidatedEvent struct {
+	WithdrawBusinessValidationEvent
+	TransactionID uuid.UUID
 }
 
-type WithdrawConversionDone struct {
-	WithdrawConversionRequested
-	ConvertedAmount money.Money
+// WithdrawFailedEvent is emitted when any part of the withdrawal flow fails.
+type WithdrawFailedEvent struct {
+	WithdrawRequestedEvent
+	Reason string
 }
 
-func (e WithdrawRequestedEvent) EventType() string      { return "WithdrawRequestedEvent" }
-func (e WithdrawValidatedEvent) EventType() string      { return "WithdrawValidatedEvent" }
-func (e WithdrawConversionDoneEvent) EventType() string { return "WithdrawConversionDoneEvent" }
-func (e WithdrawPersistedEvent) EventType() string      { return "WithdrawPersistedEvent" }
-func (e WithdrawConversionRequested) EventType() string { return "WithdrawConversionRequested" }
-func (e WithdrawConversionDone) EventType() string      { return "WithdrawConversionDone" }
+func (e WithdrawRequestedEvent) Type() string          { return "WithdrawRequestedEvent" }
+func (e WithdrawValidatedEvent) Type() string          { return "WithdrawValidatedEvent" }
+func (e WithdrawBusinessValidationEvent) Type() string { return "WithdrawBusinessValidationEvent" }
+func (e WithdrawPersistedEvent) Type() string          { return "WithdrawPersistedEvent" }
+func (e WithdrawBusinessValidatedEvent) Type() string  { return "WithdrawBusinessValidatedEvent" }
+func (e WithdrawFailedEvent) Type() string             { return "WithdrawFailedEvent" }

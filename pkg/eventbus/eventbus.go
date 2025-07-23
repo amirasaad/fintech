@@ -6,10 +6,11 @@ import (
 	"github.com/amirasaad/fintech/pkg/domain"
 )
 
-// DomainEvent is a marker interface for all domain events.
-
-// EventBus defines the contract for publishing and subscribing to domain events.
-type EventBus interface {
-	Publish(ctx context.Context, event domain.Event) error
-	Subscribe(eventType string, handler func(context.Context, domain.Event))
+// Bus defines a registry-based event bus for flexible event-driven flows.
+type Bus interface {
+	Register(eventType string, handler HandlerFunc)
+	Emit(ctx context.Context, event domain.Event) error
 }
+
+// HandlerFunc is a generic event handler function for registry-based event buses.
+type HandlerFunc func(ctx context.Context, event domain.Event) error

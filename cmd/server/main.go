@@ -11,10 +11,10 @@ import (
 
 	"github.com/amirasaad/fintech/config"
 	"github.com/amirasaad/fintech/infra"
+	"github.com/amirasaad/fintech/infra/eventbus"
 	"github.com/amirasaad/fintech/infra/provider"
 	infra_repository "github.com/amirasaad/fintech/infra/repository"
 	"github.com/amirasaad/fintech/pkg/currency"
-	"github.com/amirasaad/fintech/pkg/eventbus"
 
 	"github.com/charmbracelet/log"
 )
@@ -87,11 +87,11 @@ func main() {
 	logger.Info("Starting fintech server", "port", ":3000")
 	log.Fatal(app.New(config.Deps{
 		Uow:               uow,
+		EventBus:          eventbus.NewMemoryRegistryEventBus(),
 		CurrencyConverter: currencyConverter,
 		CurrencyRegistry:  currencyRegistry,
 		Logger:            logger,
 		PaymentProvider:   provider.NewStripePaymentProvider(cfg.PaymentProviders.Stripe.ApiKey, logger),
-		EventBus:          eventbus.NewSimpleEventBus(),
 		Config:            cfg,
 	}).Listen(fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)))
 }

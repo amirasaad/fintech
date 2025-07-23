@@ -106,8 +106,8 @@ func TestAccountRepository_Get(t *testing.T) {
 	userID := uuid.New()
 	accountID := uuid.New()
 
-	rows := sqlmock.NewRows([]string{"id", "user_id", "created_at", "updated_at", "balance"}).
-		AddRow(accountID, userID, time.Now().UTC(), time.Now().UTC(), 100)
+	rows := sqlmock.NewRows([]string{"id", "user_id", "created_at", "updated_at", "balance", "currency"}).
+		AddRow(accountID, userID, time.Now().UTC(), time.Now().UTC(), 100, "USD")
 	mock.ExpectQuery(`SELECT \* FROM "accounts" WHERE "accounts"\."id" = \$1 AND "accounts"\."deleted_at" IS NULL ORDER BY "accounts"\."id" LIMIT \$2`).
 		WithArgs(accountID, 1).WillReturnRows(rows)
 

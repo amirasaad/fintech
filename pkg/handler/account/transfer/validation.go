@@ -2,45 +2,40 @@ package transfer
 
 import (
 	"context"
-
-	"github.com/amirasaad/fintech/pkg/domain/events"
-
 	"log/slog"
 
 	"github.com/amirasaad/fintech/pkg/domain"
+	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/google/uuid"
 )
 
-// TransferValidationHandler handles TransferRequestedEvent, maps DTO to domain, validates, and publishes TransferValidatedEvent.
-func TransferValidationHandler(bus eventbus.EventBus, logger *slog.Logger) func(context.Context, domain.Event) {
-	return func(ctx context.Context, e domain.Event) {
-		te, ok := e.(events.TransferRequestedEvent)
-		if !ok {
-			logger.Error("TransferValidationHandler: unexpected event type", "event", e)
-			return
-		}
-		if te.SenderUserID == uuid.Nil ||
-			te.SourceAccountID == uuid.Nil ||
-			te.DestAccountID == uuid.Nil {
-			logger.Error("TransferValidationHandler: missing or invalid fields", "event", te)
-			return
-		}
-		if te.Amount.AmountFloat() <= 0 {
-			logger.Error("TransferValidationHandler: amount must be positive", "event", te)
-			return
-		}
-		// TODO; transfer validation logic
-		_ = bus.Publish(ctx, events.TransferValidatedEvent{TransferRequestedEvent: te})
+// Validation handles TransferRequestedEvent, performs structural validation, and publishes TransferValidatedEvent.
+func Validation(bus eventbus.Bus, logger *slog.Logger) func(ctx context.Context, e domain.Event) error {
+	return func(ctx context.Context, e domain.Event) error {
+		log := logger.With("handler", "Validation", "event_type", e.Type())
 
-		// Emit ConversionRequested to trigger currency conversion for transfer (decoupled from payment)
-		_ = bus.Publish(ctx, events.ConversionRequested{
-			CorrelationID:  uuid.New().String(),
-			FlowType:       "transfer",
-			OriginalEvent:  events.TransferValidatedEvent{TransferRequestedEvent: te},
-			Amount:         te.Amount,
-			SourceCurrency: te.Amount.Currency().String(),
-			TargetCurrency: te.Amount.Currency().String(), // TODO: set to dest account currency if different
-		})
+		// 1. Defensive: Check event type
+		tr, ok := e.(events.TransferRequestedEvent)
+		if !ok {
+			log.Error("❌ [DISCARD] Unexpected event type", "event", e)
+			return nil
+		}
+		log = log.With("correlation_id", tr.CorrelationID)
+		log.Info("🟢 [START] Received event", "event", tr)
+
+		// 2. Defensive: Structural validation of all required event data
+		if tr.ID == uuid.Nil || tr.AccountID == uuid.Nil || tr.DestAccountID == uuid.Nil || tr.UserID == uuid.Nil || tr.Amount.IsZero() || tr.Amount.IsNegative() || tr.Amount.Currency() == "" {
+			log.Error("❌ [DISCARD] Malformed event data: missing or invalid required fields", "event", tr)
+			return nil
+		}
+
+		// 3. Emit validated event if all checks pass
+		validatedEvent := events.TransferValidatedEvent{
+			TransferRequestedEvent: tr,
+		}
+
+		log.Info("✅ [SUCCESS] Transfer structurally validated, emitting TransferValidatedEvent")
+		return bus.Emit(ctx, validatedEvent)
 	}
 }

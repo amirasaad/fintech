@@ -29,22 +29,39 @@ import (
 )
 
 // --- Mock EventBus for unit test ---
-type mockEventBus struct {
-	called    bool
-	lastEvent domain.Event
-	returnErr error
+type mockBus struct {
+	handlers map[string][]eventbus.HandlerFunc
 }
 
-func (m *mockEventBus) Publish(_ context.Context, event domain.Event) error {
-	m.called = true
-	m.lastEvent = event
-	return m.returnErr
+func (m *mockBus) Emit(ctx context.Context, event domain.Event) error {
+	handlers := m.handlers[event.Type()]
+	for _, handler := range handlers {
+		if err := handler(ctx, event); err != nil {
+			return err
+		}
+	}
+	return nil
 }
-func (m *mockEventBus) Subscribe(_ string, _ func(context.Context, domain.Event)) {}
+
+func (m *mockBus) Register(eventType string, handler eventbus.HandlerFunc) {
+	if m.handlers == nil {
+		m.handlers = make(map[string][]eventbus.HandlerFunc)
+	}
+	m.handlers[eventType] = append(m.handlers[eventType], handler)
+}
 
 func TestStripeWebhookHandler_PublishesEvent(t *testing.T) {
 	app := fiber.New()
-	mockBus := &mockEventBus{}
+	var called bool
+	mockBus := &mockBus{}
+	// Register for the correct event type emitted by the handler
+	eventType := (events.PaymentCompletedEvent{}).Type()
+	mockBus.Register(eventType, func(ctx context.Context, event domain.Event) error {
+		called = true
+		t.Logf("Handler called for event type: %s", event.Type())
+		return nil
+	})
+	t.Logf("Registered event type: %s", eventType)
 	app.Post("/webhook/stripe", account.StripeWebhookHandler(mockBus, "test_secret"))
 
 	stripeEvent := map[string]interface{}{
@@ -62,8 +79,10 @@ func TestStripeWebhookHandler_PublishesEvent(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/webhook/stripe", bytes.NewReader(body))
 	resp, _ := app.Test(req)
 
+	// Debug: print response status
+	t.Logf("Stripe webhook response status: %d", resp.StatusCode)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	assert.True(t, mockBus.called, "EventBus should be called")
+	assert.True(t, called, "EventBus should be called")
 	// Optionally, assert on mockBus.lastEvent fields if needed
 }
 
@@ -122,10 +141,10 @@ func TestStripeWebhookHandler_Integration(t *testing.T) {
 	// Set up event bus and register handler
 	bus := eventbus.NewSimpleEventBus()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	bus.Subscribe((events.PaymentCompletedEvent{}).EventType(), payment.CompletedHandler(bus, uow, logger))
+	bus.Subscribe((events.PaymentCompletedEvent{}).Type(), payment.Completed(bus, uow, logger))
 	// Remove other handlers that might interfere with the test
-	// bus.Subscribe((events.PaymentInitiationEvent{}).EventType(), payment.PaymentInitiationHandler(bus, provider.NewMockPaymentProvider(), logger))
-	// bus.Subscribe((events.PaymentIdPersistedEvent{}).EventType(), payment.PersistenceHandler(bus, uow, logger))
+	// bus.Subscribe((events.PaymentInitiationEvent{}).Type(), payment.PaymentInitiationHandler(bus, provider.NewMockPaymentProvider(), logger))
+	// bus.Subscribe((events.PaymentIdPersistedEvent{}).Type(), payment.Persistence(bus, uow, logger))
 
 	// Set up Fiber app with webhook handler
 	app := fiber.New()

@@ -77,7 +77,7 @@ const (
 type RegistryEventBus interface {
 	Subscribe(observer RegistryObserver) error
 	Unsubscribe(observer RegistryObserver) error
-	Publish(ctx context.Context, event RegistryEvent) error
+	Emit(ctx context.Context, event RegistryEvent) error
 }
 
 // RegistryConfig holds configuration for registry implementations

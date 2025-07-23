@@ -1,50 +1,66 @@
 package events
 
-import "github.com/google/uuid"
+import (
+	"time"
+
+	"github.com/amirasaad/fintech/pkg/domain/account"
+	"github.com/amirasaad/fintech/pkg/domain/money"
+	"github.com/google/uuid"
+)
 
 // PaymentInitiationEvent is emitted after payment initiation with a provider.
 type PaymentInitiationEvent struct {
-	PaymentID     string
-	Status        string    // "pending"
-	TransactionID uuid.UUID // propagate TransactionID
-	UserID        string    // propagate UserID
+	FlowEvent
+	ID            uuid.UUID
+	TransactionID uuid.UUID
+	Account       *account.Account
+	Amount        money.Money
+	Timestamp     time.Time
 }
 
 // PaymentCompletedEvent is emitted when payment is confirmed by the provider.
 type PaymentCompletedEvent struct {
-	PaymentInitiationEvent
-	// Optionally: add provider response, timestamp, etc.
-	TransactionID uuid.UUID // propagate TransactionID
-	UserID        uuid.UUID // propagate UserID
+	ID            uuid.UUID
+	PaymentID     string
+	CorrelationID uuid.UUID
 }
 
 // PaymentFailedEvent is emitted when payment fails.
 type PaymentFailedEvent struct {
-	PaymentInitiationEvent
-	Reason        string
+	ID            string
 	TransactionID uuid.UUID // propagate TransactionID
-	UserID        uuid.UUID // propagate UserID
+	PaymentID     string
+	Status        string
+	Reason        string
+	UserID        uuid.UUID
+	AccountID     uuid.UUID
+	CorrelationID uuid.UUID
 }
 
 // PaymentInitiatedEvent is emitted after payment initiation with a provider (event-driven workflow).
 type PaymentInitiatedEvent struct {
-	DepositPersistedEvent
+	ID            string
+	TransactionID uuid.UUID
 	PaymentID     string
-	Status        string    // e.g., "initiated"
-	TransactionID uuid.UUID // propagate TransactionID
-	UserID        uuid.UUID // propagate UserID
+	Status        string
+	UserID        uuid.UUID
+	AccountID     uuid.UUID
+	CorrelationID uuid.UUID
 }
 
 // PaymentIdPersistedEvent is emitted after the paymentId is persisted to the transaction.
 type PaymentIdPersistedEvent struct {
-	PaymentInitiatedEvent
+	ID            string
 	TransactionID uuid.UUID // propagate TransactionID
-	UserID        uuid.UUID // propagate UserID
-	// Add DB transaction info if needed
+	PaymentID     string
+	Status        string
+	UserID        uuid.UUID
+	AccountID     uuid.UUID
+	CorrelationID uuid.UUID
 }
 
-func (e PaymentInitiationEvent) EventType() string  { return "PaymentInitiationEvent" }
-func (e PaymentCompletedEvent) EventType() string   { return "PaymentCompletedEvent" }
-func (e PaymentFailedEvent) EventType() string      { return "PaymentFailedEvent" }
-func (e PaymentInitiatedEvent) EventType() string   { return "PaymentInitiatedEvent" }
-func (e PaymentIdPersistedEvent) EventType() string { return "PaymentIdPersistedEvent" }
+func (e PaymentInitiationEvent) Type() string  { return "PaymentInitiationEvent" }
+func (e PaymentCompletedEvent) Type() string   { return "PaymentCompletedEvent" }
+func (e PaymentFailedEvent) Type() string      { return "PaymentFailedEvent" }
+func (e PaymentInitiatedEvent) Type() string   { return "PaymentInitiatedEvent" }
+func (e PaymentIdPersistedEvent) Type() string { return "PaymentIdPersistedEvent" }

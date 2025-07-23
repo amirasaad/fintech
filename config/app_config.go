@@ -32,7 +32,7 @@ type RateLimitConfig struct {
 
 type Stripe struct {
 	ApiKey        string `envconfig:"API_KEY"`
-	SigningSecret string `envconfig:"SIGNING_SECRET" required:"true"`
+	SigningSecret string `envconfig:"SIGNING_SECRET"`
 }
 
 type PaymentProviders struct {

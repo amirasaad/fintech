@@ -8,6 +8,7 @@ package account
 
 import (
 	"context"
+	"time"
 
 	"github.com/amirasaad/fintech/pkg/commands"
 	"github.com/amirasaad/fintech/pkg/domain/events"
@@ -82,17 +83,23 @@ func (s *Service) CreateAccount(ctx context.Context, create dto.AccountCreate) (
 
 // Deposit adds funds to the specified account and creates a transaction record.
 func (s *Service) Deposit(ctx context.Context, cmd commands.DepositCommand) error {
+	// Always use the source currency for the initial deposit event
 	amount, err := money.New(cmd.Amount, currency.Code(cmd.Currency))
 	if err != nil {
 		return err
 	}
 
-	return s.deps.EventBus.Publish(ctx, events.DepositRequestedEvent{
-		EventID:   uuid.New(),
-		AccountID: cmd.AccountID, // pass uuid.UUID directly
-		UserID:    cmd.UserID,    // pass uuid.UUID directly
-		Amount:    amount,
+	return s.deps.EventBus.Emit(ctx, events.DepositRequestedEvent{
+		FlowEvent: events.FlowEvent{
+			FlowType:      "deposit",
+			UserID:        cmd.UserID,
+			AccountID:     cmd.AccountID,
+			CorrelationID: uuid.New(),
+		},
+		ID:        uuid.New(),
+		Amount:    amount, // <-- Source currency only!
 		Source:    cmd.MoneySource,
+		Timestamp: time.Now(),
 	})
 }
 
@@ -108,17 +115,21 @@ func (s *Service) Withdraw(ctx context.Context, cmd commands.WithdrawCommand) er
 		routingNumber = cmd.ExternalTarget.RoutingNumber
 		externalWalletAddress = cmd.ExternalTarget.ExternalWalletAddress
 	}
-	// Publish event with paymentID
 	evt := events.WithdrawRequestedEvent{
-		EventID:               uuid.New(),
-		AccountID:             cmd.AccountID,
-		UserID:                cmd.UserID,
+		FlowEvent: events.FlowEvent{
+			FlowType:      "withdraw",
+			UserID:        cmd.UserID,
+			AccountID:     cmd.AccountID,
+			CorrelationID: uuid.New(),
+		},
+		ID:                    uuid.New(),
 		Amount:                amount,
 		BankAccountNumber:     bankAccountNumber,
 		RoutingNumber:         routingNumber,
 		ExternalWalletAddress: externalWalletAddress,
+		Timestamp:             time.Now(),
 	}
-	return s.deps.EventBus.Publish(ctx, evt)
+	return s.deps.EventBus.Emit(ctx, evt)
 }
 
 // Transfer moves funds from one account to another account.
@@ -127,15 +138,18 @@ func (s *Service) Transfer(ctx context.Context, create dto.TransactionCreate, de
 	if err != nil {
 		return err
 	}
-	// Only emit and publish event
-	return s.deps.EventBus.Publish(ctx, events.TransferRequestedEvent{
-		EventID:         uuid.New(),
-		SourceAccountID: create.AccountID,
-		DestAccountID:   destAccountID,
-		SenderUserID:    create.UserID,
-		ReceiverUserID:  create.UserID, // TODO: Look up destination account to get receiver user ID
-		Amount:          amount,
-		Source:          "transfer", // Use consistent source for transfers
+	return s.deps.EventBus.Emit(ctx, events.TransferRequestedEvent{
+		FlowEvent: events.FlowEvent{
+			FlowType:      "transfer",
+			UserID:        create.UserID,
+			AccountID:     create.AccountID,
+			CorrelationID: uuid.New(),
+		},
+		ID:             uuid.New(),
+		Amount:         amount,
+		Source:         create.MoneySource,
+		DestAccountID:  destAccountID,
+		ReceiverUserID: create.UserID, // TODO: Look up destination account to get receiver user ID
 	})
 }
 

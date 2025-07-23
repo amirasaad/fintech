@@ -1,73 +1,64 @@
 package events
 
 import (
+	"time"
+
 	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/google/uuid"
 )
 
 // TransferRequestedEvent is emitted when a transfer is requested (pure event-driven domain).
 type TransferRequestedEvent struct {
-	EventID         uuid.UUID
-	SourceAccountID uuid.UUID
-	DestAccountID   uuid.UUID
-	SenderUserID    uuid.UUID
-	ReceiverUserID  uuid.UUID
-	Amount          money.Money
-	Source          string // MoneySource as string
+	FlowEvent
+	ID             uuid.UUID
+	Amount         money.Money
+	Source         string // MoneySource as string
+	DestAccountID  uuid.UUID
+	ReceiverUserID uuid.UUID
+	Timestamp      time.Time
 }
 
 // TransferValidatedEvent is emitted after transfer validation succeeds.
 type TransferValidatedEvent struct {
 	TransferRequestedEvent
-	// Add any fields produced by validation (e.g., loaded Account)
 }
 
-// TransferConversionDoneEvent is emitted after transfer currency conversion is completed.
-type TransferConversionDoneEvent struct {
+// TransferBusinessValidatedEvent is emitted after transfer currency conversion is completed.
+type TransferBusinessValidatedEvent struct {
+	TransferValidatedEvent
 	ConversionDoneEvent
-	SenderUserID    string
-	SourceAccountID string
-	TargetAccountID string
+	Amount money.Money
 }
 
 // TransferDomainOpDoneEvent is emitted after the transfer domain operation is complete.
 type TransferDomainOpDoneEvent struct {
 	TransferValidatedEvent
-	SenderUserID    uuid.UUID
-	SourceAccountID uuid.UUID
-	Amount          money.Money
-	Source          string
+	ConversionDoneEvent
+	TransactionID uuid.UUID
 }
 
 // TransferPersistedEvent is emitted after transfer persistence is complete.
 type TransferPersistedEvent struct {
 	TransferDomainOpDoneEvent
-	// Add fields for DB transaction, etc.
 }
 
-// Legacy events for backward compatibility
-type TransferConversionRequested struct {
-	TransferValidatedEvent
-	EventID         uuid.UUID
-	TransactionID   uuid.UUID
-	SourceAccountID uuid.UUID
-	DestAccountID   uuid.UUID
-	UserID          uuid.UUID
-	Amount          money.Money
-	SourceCurrency  string
-	TargetCurrency  string
-	Timestamp       int64
+// TransferCompletedEvent is emitted after both tx_out and tx_in are created for an internal transfer.
+type TransferCompletedEvent struct {
+	TransferDomainOpDoneEvent
+	TxOutID uuid.UUID
+	TxInID  uuid.UUID
 }
 
-type TransferConversionDone struct {
-	TransferConversionRequested
-	ConvertedAmount money.Money
+// TransferFailedEvent is emitted when a transfer fails business validation or persistence.
+type TransferFailedEvent struct {
+	TransferRequestedEvent
+	Reason string
 }
 
-func (e TransferRequestedEvent) EventType() string      { return "TransferRequestedEvent" }
-func (e TransferValidatedEvent) EventType() string      { return "TransferValidatedEvent" }
-func (e TransferConversionDoneEvent) EventType() string { return "TransferConversionDoneEvent" }
-func (e TransferDomainOpDoneEvent) EventType() string   { return "TransferDomainOpDoneEvent" }
-func (e TransferPersistedEvent) EventType() string      { return "TransferPersistedEvent" }
-func (e TransferConversionRequested) EventType() string { return "TransferConversionRequested" }
-func (e TransferConversionDone) EventType() string      { return "TransferConversionDone" }
+func (e TransferRequestedEvent) Type() string         { return "TransferRequestedEvent" }
+func (e TransferValidatedEvent) Type() string         { return "TransferValidatedEvent" }
+func (e TransferBusinessValidatedEvent) Type() string { return "TransferConversionDoneEvent" }
+func (e TransferDomainOpDoneEvent) Type() string      { return "TransferDomainOpDoneEvent" }
+func (e TransferPersistedEvent) Type() string         { return "TransferPersistedEvent" }
+func (e TransferCompletedEvent) Type() string         { return "TransferCompletedEvent" }
+func (e TransferFailedEvent) Type() string            { return "TransferFailedEvent" }

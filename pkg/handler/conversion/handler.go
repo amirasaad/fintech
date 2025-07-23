@@ -3,6 +3,8 @@ package conversion
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -14,134 +16,83 @@ import (
 	"github.com/google/uuid"
 )
 
-// Handler processes ConversionRequestedEvent, performs conversion, and emits ConversionDoneEvent.
-// This handler should only be subscribed to ConversionRequestedEvent, not ConversionDoneEvent.
-func Handler(bus eventbus.EventBus, converter money.CurrencyConverter, logger *slog.Logger) func(context.Context, domain.Event) {
-	return func(ctx context.Context, e domain.Event) {
-		logger := logger.With(
-			"handler", "ConversionHandler",
-			"event_type", e.EventType(),
-		)
-		logger.Info("received conversion request", "event", e)
+// Handler processes ConversionRequestedEvent and delegates to a flow-specific factory to create the next event.
+func Handler(
+	bus eventbus.Bus,
+	converter money.CurrencyConverter,
+	logger *slog.Logger,
+	factories map[string]EventFactory,
+) func(ctx context.Context, e domain.Event) error {
+	return func(ctx context.Context, e domain.Event) error {
+		log := logger.With("handler", "ConversionHandler", "event_type", e.Type())
+		log.Info("🟢 [START] Received event", "event", e)
 
-		// Handle both old and new event types for backward compatibility
-		var fromAmount money.Money
-		var toCurrency string
-		var requestID string
-		var flowType string
-		var originalEvent interface{}
-
-		switch evt := e.(type) {
-		case events.ConversionRequestedEvent:
-			fromAmount = evt.FromAmount
-			toCurrency = evt.ToCurrency
-			requestID = evt.RequestID
-			flowType = "unknown" // New events don't have flow type
-		case events.ConversionRequested:
-			fromAmount = evt.Amount
-			toCurrency = evt.TargetCurrency
-			requestID = evt.CorrelationID
-			flowType = evt.FlowType
-			originalEvent = evt.OriginalEvent
-		default:
-			logger.Error("unexpected event type for conversion handler - should only receive ConversionRequestedEvent", "event", e)
-			return
+		log.Debug("[DEBUG] Event type received", "type", fmt.Sprintf("%T", e))
+		cre, ok := e.(*events.ConversionRequestedEvent)
+		if !ok {
+			log.Debug("🚫 [SKIP] Skipping: unexpected event type", "event", e)
+			return nil
 		}
 
-		// Perform currency conversion
-		convInfo, err := converter.Convert(fromAmount.AmountFloat(), fromAmount.Currency().String(), toCurrency)
+		log.Debug("[DEBUG] ConversionRequestedEvent details", "event", cre)
+
+		if cre.TransactionID == uuid.Nil {
+			log.Error("Transaction ID is nil, discarding event", "event", cre)
+			return errors.New("invalid transaction ID")
+		}
+
+		convInfo, err := converter.Convert(
+			cre.Amount.AmountFloat(),
+			cre.Amount.Currency().String(),
+			cre.To.String())
 		if err != nil {
-			logger.Error("currency conversion failed", "error", err, "from", fromAmount.Currency().String(), "to", toCurrency)
-			return
+			log.Error("❌ [ERROR] Currency conversion failed", "error", err, "amount", cre.Amount, "to_currency", cre.To)
+			return err
 		}
 
-		// Create converted amount
-		converted, err := money.New(convInfo.ConvertedAmount, currency.Code(toCurrency))
+		log.Debug("[DEBUG] ConversionInfo", "convInfo", convInfo)
+
+		convertedMoney, err := money.New(convInfo.ConvertedAmount, currency.Code(convInfo.ConvertedCurrency))
 		if err != nil {
-			logger.Error("failed to create converted money", "error", err)
-			return
+			log.Error("❌ [ERROR] Failed to create converted money object", "error", err, "convInfo", convInfo)
+			return err
+		}
+		conversionDone := events.ConversionDoneEvent{
+			ID:              uuid.New(),
+			FlowEvent:       cre.FlowEvent,
+			TransactionID:   cre.TransactionID,
+			ConversionInfo:  convInfo,
+			ConvertedAmount: convertedMoney,
+			Timestamp:       time.Now(),
+		}
+		log.Info("🔄 [PROCESS] Conversion completed successfully", "amount", cre.Amount, "to", convertedMoney)
+		log.Info("📤 [EMIT] Emitting conversion done ", "event_type", conversionDone)
+		if err = bus.Emit(ctx, conversionDone); err != nil {
+			log.Error("[ERROR] Failed to emit conversion done", "error", err, "event", conversionDone)
+			return err
 		}
 
-		logger.Info("conversion completed successfully",
-			"from", fromAmount,
-			"to", converted,
-			"request_id", requestID,
-			"flow_type", flowType)
-
-		// Publish specific business events based on flow type
-		switch flowType {
-		case "deposit":
-			if orig, ok := originalEvent.(events.DepositValidatedEvent); ok {
-				doneEvent := events.DepositConversionDoneEvent{
-					ConversionDoneEvent: events.ConversionDoneEvent{
-						EventID:    uuid.New().String(),
-						FromAmount: fromAmount,
-						ToAmount:   converted,
-						RequestID:  requestID,
-						Timestamp:  time.Now(),
-					},
-					UserID:    orig.UserID.String(),
-					AccountID: orig.AccountID.String(),
-				}
-				if err := bus.Publish(ctx, doneEvent); err != nil {
-					logger.Error("failed to publish DepositConversionDoneEvent", "error", err)
-					return
-				}
-				logger.Info("DepositConversionDoneEvent published", "event", doneEvent)
-			}
-		case "withdraw":
-			if orig, ok := originalEvent.(events.WithdrawValidatedEvent); ok {
-				doneEvent := events.WithdrawConversionDoneEvent{
-					ConversionDoneEvent: events.ConversionDoneEvent{
-						EventID:    uuid.New().String(),
-						FromAmount: fromAmount,
-						ToAmount:   converted,
-						RequestID:  requestID,
-						Timestamp:  time.Now(),
-					},
-					UserID:    orig.UserID.String(),
-					AccountID: orig.AccountID.String(),
-				}
-				if err := bus.Publish(ctx, doneEvent); err != nil {
-					logger.Error("failed to publish WithdrawConversionDoneEvent", "error", err)
-					return
-				}
-				logger.Info("WithdrawConversionDoneEvent published", "event", doneEvent)
-			}
-		case "transfer":
-			if orig, ok := originalEvent.(events.TransferValidatedEvent); ok {
-				doneEvent := events.TransferConversionDoneEvent{
-					ConversionDoneEvent: events.ConversionDoneEvent{
-						EventID:    uuid.New().String(),
-						FromAmount: fromAmount,
-						ToAmount:   converted,
-						RequestID:  requestID,
-						Timestamp:  time.Now(),
-					},
-					SenderUserID:    orig.SenderUserID.String(),
-					SourceAccountID: orig.SourceAccountID.String(),
-					TargetAccountID: orig.DestAccountID.String(),
-				}
-				if err := bus.Publish(ctx, doneEvent); err != nil {
-					logger.Error("failed to publish TransferConversionDoneEvent", "error", err)
-					return
-				}
-				logger.Info("TransferConversionDoneEvent published", "event", doneEvent)
-			}
-		default:
-			// Fallback to generic event for unknown flow types
-			doneEvent := events.ConversionDoneEvent{
-				EventID:    uuid.New().String(),
-				FromAmount: fromAmount,
-				ToAmount:   converted,
-				RequestID:  requestID,
-				Timestamp:  time.Now(),
-			}
-			if err := bus.Publish(ctx, doneEvent); err != nil {
-				logger.Error("failed to publish ConversionDoneEvent", "error", err)
-				return
-			}
-			logger.Info("ConversionDoneEvent published (fallback)", "event", doneEvent)
+		// Use the factory map to get the correct event factory for the flow type.
+		factory, found := factories[cre.FlowType]
+		if !found {
+			log.Warn("Unknown flow type in ConversionRequestedEvent, discarding", "flow_type", cre.FlowType)
+			return nil // Or return an error if this should be a hard failure
 		}
+
+		// Delegate the creation of the next event to the factory.
+		nextEvent, err := factory.CreateNextEvent(cre, convInfo, convertedMoney)
+		if err != nil {
+			log.Error("❌ [ERROR] Failed to create next event", "error", err, "flow_type", cre.FlowType, "cre", cre, "convInfo", convInfo, "convertedMoney", convertedMoney)
+			return err
+		}
+
+		if nextEvent == nil {
+			log.Error("[ERROR] Factory returned nil nextEvent", "cre", cre, "convInfo", convInfo, "convertedMoney", convertedMoney)
+			return errors.New("factory returned nil event")
+		}
+
+		log.Debug("[DEBUG] Next event to emit", "event", nextEvent)
+		log.Info("📤 [EMIT] Emitting next event in flow", "event_type", nextEvent.Type(), "correlation_id", cre.CorrelationID.String())
+		return bus.Emit(ctx, nextEvent)
 	}
 }

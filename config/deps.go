@@ -16,7 +16,7 @@ type Deps struct {
 	CurrencyConverter money.CurrencyConverter
 	CurrencyRegistry  *currency.CurrencyRegistry
 	PaymentProvider   provider.PaymentProvider
-	EventBus          eventbus.EventBus
+	EventBus          eventbus.Bus
 	Logger            *slog.Logger
 	Config            *AppConfig
 }

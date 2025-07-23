@@ -1,18 +1,17 @@
 package events
 
 import (
+	"github.com/amirasaad/fintech/pkg/domain/account"
 	"time"
 
-	"github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/google/uuid"
 )
 
 // DepositRequestedEvent is emitted when a deposit is requested (pure event-driven domain).
 type DepositRequestedEvent struct {
-	EventID   uuid.UUID
-	AccountID uuid.UUID
-	UserID    uuid.UUID
+	FlowEvent
+	ID        uuid.UUID
 	Amount    money.Money
 	Source    string // MoneySource as string
 	Timestamp time.Time
@@ -20,47 +19,37 @@ type DepositRequestedEvent struct {
 
 // DepositValidatedEvent is emitted after deposit validation succeeds.
 type DepositValidatedEvent struct {
+	ID uuid.UUID
 	DepositRequestedEvent
-	AccountID uuid.UUID
-	Account   *account.Account
+	Account *account.Account
 }
 
-// DepositConversionDoneEvent is emitted after deposit currency conversion is completed.
-type DepositConversionDoneEvent struct {
+// DepositBusinessValidationEvent is emitted after deposit currency conversion is completed.
+type DepositBusinessValidationEvent struct {
+	DepositValidatedEvent
 	ConversionDoneEvent
-	UserID    string
-	AccountID string
+	Account *account.Account
+	Amount  money.Money
 }
 
 // DepositPersistedEvent is emitted after persistence is complete.
 type DepositPersistedEvent struct {
+	ID uuid.UUID
 	DepositValidatedEvent
 	TransactionID uuid.UUID   // propagate TransactionID
-	UserID        uuid.UUID   // propagate UserID
 	Amount        money.Money // Amount to deposit
 }
 
-// Legacy events for backward compatibility
-type DepositConversionRequested struct {
-	DepositValidatedEvent
-	EventID        uuid.UUID
-	TransactionID  uuid.UUID
-	AccountID      uuid.UUID
-	UserID         uuid.UUID
-	Amount         money.Money
-	SourceCurrency string
-	TargetCurrency string
-	Timestamp      int64
+// DepositBusinessValidatedEvent is emitted after business validation in account currency.
+type DepositBusinessValidatedEvent struct {
+	FlowEvent
+	ID uuid.UUID
+	DepositBusinessValidationEvent
+	TransactionID uuid.UUID
 }
 
-type DepositConversionDone struct {
-	DepositConversionRequested
-	ConvertedAmount money.Money
-}
-
-func (e DepositRequestedEvent) EventType() string      { return "DepositRequestedEvent" }
-func (e DepositValidatedEvent) EventType() string      { return "DepositValidatedEvent" }
-func (e DepositConversionDoneEvent) EventType() string { return "DepositConversionDoneEvent" }
-func (e DepositPersistedEvent) EventType() string      { return "DepositPersistedEvent" }
-func (e DepositConversionRequested) EventType() string { return "DepositConversionRequested" }
-func (e DepositConversionDone) EventType() string      { return "DepositConversionDone" }
+func (e DepositRequestedEvent) Type() string          { return "DepositRequestedEvent" }
+func (e DepositValidatedEvent) Type() string          { return "DepositValidatedEvent" }
+func (e DepositBusinessValidationEvent) Type() string { return "DepositBusinessValidationEvent" }
+func (e DepositPersistedEvent) Type() string          { return "DepositPersistedEvent" }
+func (e DepositBusinessValidatedEvent) Type() string  { return "DepositBusinessValidatedEvent" }

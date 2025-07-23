@@ -61,7 +61,7 @@ func handler() http.HandlerFunc {
 
 	a := app.New(config.Deps{
 		Uow:               uow,
-		EventBus:          eventbus.NewMemoryEventBus(),
+		EventBus:          eventbus.NewMemoryRegistryEventBus(),
 		CurrencyConverter: currencyConverter,
 		CurrencyRegistry:  currencyRegistry,
 		PaymentProvider:   provider.NewMockPaymentProvider(),
