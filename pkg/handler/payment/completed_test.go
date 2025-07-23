@@ -24,12 +24,8 @@ func TestCompletedHandler(t *testing.T) {
 	mUow := mocks.NewMockUnitOfWork(t)
 
 	validEvent := &events.PaymentCompletedEvent{
-		ID:            uuid.New().String(),
-		TransactionID: uuid.New(),
+		ID:            uuid.New(),
 		PaymentID:     "pay_123",
-		Status:        "completed",
-		UserID:        uuid.New(),
-		AccountID:     uuid.New(),
 		CorrelationID: uuid.New(),
 	}
 

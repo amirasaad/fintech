@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain"
@@ -40,9 +41,12 @@ func Handler(
 			return errors.New("invalid transaction ID")
 		}
 
-		convInfo, err := converter.Convert(cre.FromAmount.AmountFloat(), cre.FromAmount.Currency().String(), cre.ToCurrency)
+		convInfo, err := converter.Convert(
+			cre.Amount.AmountFloat(),
+			cre.Amount.Currency().String(),
+			cre.To.String())
 		if err != nil {
-			log.Error("❌ [ERROR] Currency conversion failed", "error", err, "from_amount", cre.FromAmount, "to_currency", cre.ToCurrency)
+			log.Error("❌ [ERROR] Currency conversion failed", "error", err, "amount", cre.Amount, "to_currency", cre.To)
 			return err
 		}
 
@@ -53,8 +57,20 @@ func Handler(
 			log.Error("❌ [ERROR] Failed to create converted money object", "error", err, "convInfo", convInfo)
 			return err
 		}
-
-		log.Info("🔄 [PROCESS] Conversion completed successfully", "from", cre.FromAmount, "to", convertedMoney)
+		conversionDone := events.ConversionDoneEvent{
+			ID:              uuid.New(),
+			FlowEvent:       cre.FlowEvent,
+			TransactionID:   cre.TransactionID,
+			ConversionInfo:  convInfo,
+			ConvertedAmount: convertedMoney,
+			Timestamp:       time.Now(),
+		}
+		log.Info("🔄 [PROCESS] Conversion completed successfully", "amount", cre.Amount, "to", convertedMoney)
+		log.Info("📤 [EMIT] Emitting conversion done ", "event_type", conversionDone)
+		if err = bus.Emit(ctx, conversionDone); err != nil {
+			log.Error("[ERROR] Failed to emit conversion done", "error", err, "event", conversionDone)
+			return err
+		}
 
 		// Use the factory map to get the correct event factory for the flow type.
 		factory, found := factories[cre.FlowType]
@@ -77,12 +93,6 @@ func Handler(
 
 		log.Debug("[DEBUG] Next event to emit", "event", nextEvent)
 		log.Info("📤 [EMIT] Emitting next event in flow", "event_type", nextEvent.Type(), "correlation_id", cre.CorrelationID.String())
-		err = bus.Emit(ctx, nextEvent)
-		if err != nil {
-			log.Error("[ERROR] Failed to emit next event", "error", err, "event", nextEvent)
-			return err
-		}
-		log.Debug("[DEBUG] Successfully emitted next event", "event_type", nextEvent.Type())
-		return nil
+		return bus.Emit(ctx, nextEvent)
 	}
 }

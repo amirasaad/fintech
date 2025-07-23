@@ -8,6 +8,7 @@ import (
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/eventbus"
+	"github.com/amirasaad/fintech/pkg/mapper"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/amirasaad/fintech/pkg/repository/account"
 	"github.com/google/uuid"
@@ -27,7 +28,9 @@ func Validation(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger
 
 		if we.AccountID == uuid.Nil || !we.Amount.IsPositive() {
 			log.Error("❌ [ERROR] Invalid withdrawal request", "event", we)
-			bus.Emit(ctx, events.WithdrawFailedEvent{WithdrawRequestedEvent: we, Reason: "Invalid withdrawal request data"})
+			if err := bus.Emit(ctx, events.WithdrawFailedEvent{WithdrawRequestedEvent: we, Reason: "Invalid withdrawal request data"}); err != nil {
+				log.Error("failed to emit WithdrawFailedEvent", "error", err)
+			}
 			return nil
 		}
 
@@ -41,20 +44,21 @@ func Validation(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger
 			return errors.New("failed to get repo")
 		}
 
-		acc, err := accRepo.Get(ctx, we.AccountID)
+		accDto, err := accRepo.Get(ctx, we.AccountID)
 		if err != nil {
 			log.Error("❌ [ERROR] Failed to get account", "error", err)
-			bus.Emit(ctx, events.WithdrawFailedEvent{WithdrawRequestedEvent: we, Reason: "Account not found"})
-			return nil
+			return bus.Emit(ctx, events.WithdrawFailedEvent{WithdrawRequestedEvent: we, Reason: "Account not found"})
 		}
 
-		correlationID := uuid.New()
+		acc := mapper.MapAccountReadToDomain(accDto)
+
 		validatedEvent := events.WithdrawValidatedEvent{
 			WithdrawRequestedEvent: we,
-			TargetCurrency:         acc.Currency,
+			Account:                acc,
+			TargetCurrency:         accDto.Currency,
 		}
 
-		log.Info("✅ [SUCCESS] Withdraw request validated, emitting WithdrawValidatedEvent", "account_id", we.AccountID, "user_id", we.UserID, "correlation_id", correlationID.String())
+		log.Info("✅ [SUCCESS] Withdraw request validated, emitting WithdrawValidatedEvent", "account_id", we.AccountID, "user_id", we.UserID)
 		return bus.Emit(ctx, validatedEvent)
 	}
 }

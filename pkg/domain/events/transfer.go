@@ -1,6 +1,8 @@
 package events
 
 import (
+	"time"
+
 	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/google/uuid"
 )
@@ -13,6 +15,7 @@ type TransferRequestedEvent struct {
 	Source         string // MoneySource as string
 	DestAccountID  uuid.UUID
 	ReceiverUserID uuid.UUID
+	Timestamp      time.Time
 }
 
 // TransferValidatedEvent is emitted after transfer validation succeeds.
@@ -20,10 +23,11 @@ type TransferValidatedEvent struct {
 	TransferRequestedEvent
 }
 
-// TransferConversionDoneEvent is emitted after transfer currency conversion is completed.
-type TransferConversionDoneEvent struct {
+// TransferBusinessValidatedEvent is emitted after transfer currency conversion is completed.
+type TransferBusinessValidatedEvent struct {
 	TransferValidatedEvent
 	ConversionDoneEvent
+	Amount money.Money
 }
 
 // TransferDomainOpDoneEvent is emitted after the transfer domain operation is complete.
@@ -51,10 +55,10 @@ type TransferFailedEvent struct {
 	Reason string
 }
 
-func (e TransferRequestedEvent) Type() string      { return "TransferRequestedEvent" }
-func (e TransferValidatedEvent) Type() string      { return "TransferValidatedEvent" }
-func (e TransferConversionDoneEvent) Type() string { return "TransferConversionDoneEvent" }
-func (e TransferDomainOpDoneEvent) Type() string   { return "TransferDomainOpDoneEvent" }
-func (e TransferPersistedEvent) Type() string      { return "TransferPersistedEvent" }
-func (e TransferCompletedEvent) Type() string      { return "TransferCompletedEvent" }
-func (e TransferFailedEvent) Type() string         { return "TransferFailedEvent" }
+func (e TransferRequestedEvent) Type() string         { return "TransferRequestedEvent" }
+func (e TransferValidatedEvent) Type() string         { return "TransferValidatedEvent" }
+func (e TransferBusinessValidatedEvent) Type() string { return "TransferConversionDoneEvent" }
+func (e TransferDomainOpDoneEvent) Type() string      { return "TransferDomainOpDoneEvent" }
+func (e TransferPersistedEvent) Type() string         { return "TransferPersistedEvent" }
+func (e TransferCompletedEvent) Type() string         { return "TransferCompletedEvent" }
+func (e TransferFailedEvent) Type() string            { return "TransferFailedEvent" }

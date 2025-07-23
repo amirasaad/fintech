@@ -20,19 +20,19 @@ import (
 // This is a generic handler that can process payment events for all operations (deposit, withdraw, transfer).
 func Persistence(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e domain.Event) error {
 	return func(ctx context.Context, e domain.Event) error {
-		logger := logger.With(
+		log := logger.With(
 			"handler", "Persistence",
 			"event_type", e.Type(),
 		)
-		logger.Info("received payment initiated event", "event", e)
+		log.Info("🟢 [START] Received event", "event", e)
 
 		pie, ok := e.(events.PaymentInitiatedEvent)
 		if !ok {
-			logger.Error("unexpected event type for payment persistence", "event", e)
+			log.Error("❌ [ERROR] Unexpected event type for payment persistence", "event", e)
 			return nil
 		}
 
-		logger.Info("updating transaction with payment ID",
+		log.Info("🔄 [PROCESS] Updating transaction with payment ID",
 			"transaction_id", pie.TransactionID,
 			"payment_id", pie.PaymentID)
 
@@ -40,48 +40,49 @@ func Persistence(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logge
 		if err := uow.Do(ctx, func(uow repository.UnitOfWork) error {
 			txRepoAny, err := uow.GetRepository((*transaction.Repository)(nil))
 			if err != nil {
-				logger.Error("failed to get transaction repo", "error", err)
+				log.Error("❌ [ERROR] Failed to get transaction repo", "error", err)
 				return err
 			}
 			txRepo, ok := txRepoAny.(transaction.Repository)
 			if !ok {
-				logger.Error("failed to retrieve repo type")
+				log.Error("❌ [ERROR] Failed to retrieve repo type")
 				return errors.New("failed to retrieve repo type")
 			}
 
 			// Check if the transaction already has a payment ID before updating
 			tx, err := txRepo.Get(ctx, pie.TransactionID)
 			if err != nil {
-				logger.Error("failed to get transaction before update", "error", err)
+				log.Error("❌ [ERROR] Failed to get transaction before update", "error", err)
 				return err
 			}
 			if tx.PaymentID != "" {
-				logger.Warn("Duplicate PaymentIdPersistedEvent emission detected: transaction already has payment ID", "transaction_id", pie.TransactionID, "existing_payment_id", tx.PaymentID)
+				log.Warn("🚫 [SKIP] Duplicate PaymentIdPersistedEvent emission detected: transaction already has payment ID", "transaction_id", pie.TransactionID, "existing_payment_id", tx.PaymentID)
+				return errors.New("transaction already has payment ID")
 			}
 
 			status := string(account.TransactionStatusPending)
-			if err := txRepo.Update(ctx, pie.TransactionID, dto.TransactionUpdate{
+			if err = txRepo.Update(ctx, pie.TransactionID, dto.TransactionUpdate{
 				PaymentID: &pie.PaymentID,
 				Status:    &status,
 			}); err != nil {
-				logger.Error("failed to update transaction with payment ID", "error", err)
+				log.Error("❌ [ERROR] Failed to update transaction with payment ID", "error", err)
 				return err
 			}
 
-			logger.Info("transaction updated with payment ID",
+			log.Info("✅ [SUCCESS] Transaction updated with payment ID",
 				"transaction_id", pie.TransactionID,
 				"payment_id", pie.PaymentID)
 
 			// Guard: Only emit if TransactionID is valid and no cycle will occur
 			if pie.TransactionID == uuid.Nil {
-				logger.Error("Transaction ID is nil, aborting PaymentIdPersistedEvent emission", "event", pie)
+				log.Error("❌ [ERROR] Transaction ID is nil, aborting PaymentIdPersistedEvent emission", "event", pie)
 				return errors.New("invalid transaction ID")
 			}
 
 			return nil
 		}); err != nil {
-			logger.Error("payment persistence failed", "error", err)
-			return nil
+			log.Error("❌ [ERROR] Payment persistence failed", "error", err)
+			return err
 		}
 		return nil
 	}

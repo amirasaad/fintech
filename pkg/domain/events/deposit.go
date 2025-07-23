@@ -1,9 +1,9 @@
 package events
 
 import (
+	"github.com/amirasaad/fintech/pkg/domain/account"
 	"time"
 
-	"github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/google/uuid"
 )
@@ -19,19 +19,22 @@ type DepositRequestedEvent struct {
 
 // DepositValidatedEvent is emitted after deposit validation succeeds.
 type DepositValidatedEvent struct {
+	ID uuid.UUID
 	DepositRequestedEvent
 	Account *account.Account
 }
 
-// DepositConversionDoneEvent is emitted after deposit currency conversion is completed.
-type DepositConversionDoneEvent struct {
+// DepositBusinessValidationEvent is emitted after deposit currency conversion is completed.
+type DepositBusinessValidationEvent struct {
 	DepositValidatedEvent
 	ConversionDoneEvent
-	TransactionID uuid.UUID
+	Account *account.Account
+	Amount  money.Money
 }
 
 // DepositPersistedEvent is emitted after persistence is complete.
 type DepositPersistedEvent struct {
+	ID uuid.UUID
 	DepositValidatedEvent
 	TransactionID uuid.UUID   // propagate TransactionID
 	Amount        money.Money // Amount to deposit
@@ -39,12 +42,14 @@ type DepositPersistedEvent struct {
 
 // DepositBusinessValidatedEvent is emitted after business validation in account currency.
 type DepositBusinessValidatedEvent struct {
-	DepositConversionDoneEvent
+	FlowEvent
+	ID uuid.UUID
+	DepositBusinessValidationEvent
 	TransactionID uuid.UUID
 }
 
-func (e DepositRequestedEvent) Type() string         { return "DepositRequestedEvent" }
-func (e DepositValidatedEvent) Type() string         { return "DepositValidatedEvent" }
-func (e DepositConversionDoneEvent) Type() string    { return "DepositConversionDoneEvent" }
-func (e DepositPersistedEvent) Type() string         { return "DepositPersistedEvent" }
-func (e DepositBusinessValidatedEvent) Type() string { return "DepositBusinessValidatedEvent" }
+func (e DepositRequestedEvent) Type() string          { return "DepositRequestedEvent" }
+func (e DepositValidatedEvent) Type() string          { return "DepositValidatedEvent" }
+func (e DepositBusinessValidationEvent) Type() string { return "DepositBusinessValidationEvent" }
+func (e DepositPersistedEvent) Type() string          { return "DepositPersistedEvent" }
+func (e DepositBusinessValidatedEvent) Type() string  { return "DepositBusinessValidatedEvent" }

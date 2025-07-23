@@ -38,8 +38,8 @@ func Completed(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger)
 			}
 			logger = logger.With("transaction_id", tx.ID, "user_id", tx.UserID, "payment_id", pe.PaymentID)
 			oldStatus := tx.Status
-			tx.Status = accountdomain.TransactionStatus(pe.Status)
-			if err := repo.Update(tx); err != nil {
+			tx.Status = accountdomain.TransactionStatusCompleted
+			if err = repo.Update(tx); err != nil {
 				logger.Error("Completed: failed to update transaction status", "error", err)
 				return err
 			}

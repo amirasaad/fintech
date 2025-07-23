@@ -18,29 +18,41 @@ import (
 )
 
 // Helper to create a valid event for tests
-func newValidConversionDoneEvent(t *testing.T) events.TransferConversionDoneEvent {
+func newValidConversionDoneEvent(t *testing.T) events.TransferBusinessValidatedEvent {
 	t.Helper()
+	userID := uuid.New()
+	accountID := uuid.New()
+	correlationID := uuid.New()
 	amount, err := money.New(100, currency.USD)
 	assert.NoError(t, err)
 
-	return events.TransferConversionDoneEvent{
+	transferEvent := events.TransferRequestedEvent{
+		FlowEvent: events.FlowEvent{
+			FlowType:      "transfer",
+			UserID:        userID,
+			AccountID:     accountID,
+			CorrelationID: correlationID,
+		},
+		ID:             uuid.New(),
+		Amount:         amount,
+		DestAccountID:  uuid.New(),
+		ReceiverUserID: uuid.New(),
+	}
+
+	return events.TransferBusinessValidatedEvent{
 		TransferValidatedEvent: events.TransferValidatedEvent{
-			TransferRequestedEvent: events.TransferRequestedEvent{
-				FlowEvent: events.FlowEvent{
-					FlowType:  "transfer",
-					UserID:    uuid.New(),
-					AccountID: uuid.New(),
-				},
-				Amount: amount,
-			},
+			TransferRequestedEvent: transferEvent,
 		},
 		ConversionDoneEvent: events.ConversionDoneEvent{
 			FlowEvent: events.FlowEvent{
-				FlowType:  "transfer",
-				UserID:    uuid.New(),
-				AccountID: uuid.New(),
+				FlowType:      "transfer",
+				UserID:        userID,
+				AccountID:     accountID,
+				CorrelationID: correlationID,
 			},
-			ToAmount: amount,
+			RequestID:       "test-request-id",
+			TransactionID:   uuid.New(),
+			ConvertedAmount: amount,
 		},
 	}
 }
@@ -55,14 +67,28 @@ func TestBusinessValidation(t *testing.T) {
 		accRepo := mocks.NewAccountRepository(t)
 		event := newValidConversionDoneEvent(t)
 
+		// Create a sufficient balance for the test
+		sufficientBalance, err := money.New(20000, currency.USD)
+		if !assert.NoError(t, err) {
+			return
+		}
+
 		uow.On("GetRepository", mock.Anything).Return(accRepo, nil).Once()
-		accRepo.On("Get", ctx, event.AccountID).Return(&dto.AccountRead{Balance: 20000, UserID: event.UserID}, nil).Once()
-		bus.On("Emit", ctx, mock.AnythingOfType("events.TransferDomainOpDoneEvent")).Return(nil).Once()
+		accRepo.On("Get", mock.Anything, event.AccountID).Return(&dto.AccountRead{
+			ID:       event.AccountID,
+			UserID:   event.UserID,
+			Balance:  sufficientBalance.AmountFloat(),
+			Currency: sufficientBalance.Currency().String(),
+		}, nil).Once()
+		bus.On("Emit", mock.Anything, mock.MatchedBy(func(e interface{}) bool {
+			_, ok := e.(events.TransferDomainOpDoneEvent)
+			return ok
+		})).Return(nil).Once()
 
 		handler := BusinessValidation(bus, uow, logger)
-		err := handler(ctx, event)
+		handleErr := handler(ctx, event)
 
-		assert.NoError(t, err)
+		assert.NoError(t, handleErr)
 	})
 
 	t.Run("emits failed event for insufficient funds", func(t *testing.T) {
@@ -71,13 +97,31 @@ func TestBusinessValidation(t *testing.T) {
 		accRepo := mocks.NewAccountRepository(t)
 		event := newValidConversionDoneEvent(t)
 
+		// Create a balance that's twice the converted amount
+		// Create a zero balance for insufficient funds test
+		zeroAmount, err := money.New(0, event.ConvertedAmount.Currency())
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		// Set up the mock to return the account repository
 		uow.On("GetRepository", mock.Anything).Return(accRepo, nil).Once()
-		accRepo.On("Get", ctx, event.AccountID).Return(&dto.AccountRead{Balance: 50, UserID: event.UserID}, nil).Once()
-		bus.On("Emit", ctx, mock.AnythingOfType("events.TransferFailedEvent")).Return(nil).Once()
+
+		// Set up the mock repository to return an account with insufficient funds
+		accRepo.On("Get", mock.Anything, mock.Anything).Return(&dto.AccountRead{
+			ID:       event.AccountID,
+			UserID:   event.UserID,
+			Balance:  zeroAmount.AmountFloat(),
+			Currency: zeroAmount.Currency().String(),
+		}, nil).Once()
+
+		bus.On("Emit", mock.Anything, mock.MatchedBy(func(e interface{}) bool {
+			_, ok := e.(events.TransferFailedEvent)
+			return ok
+		})).Return(nil).Once()
 
 		handler := BusinessValidation(bus, uow, logger)
-		err := handler(ctx, event)
-
+		err = handler(ctx, event)
 		assert.NoError(t, err)
 	})
 
@@ -88,8 +132,13 @@ func TestBusinessValidation(t *testing.T) {
 		event := newValidConversionDoneEvent(t)
 
 		uow.On("GetRepository", mock.Anything).Return(accRepo, nil).Once()
-		accRepo.On("Get", ctx, event.AccountID).Return(nil, errors.New("not found")).Once()
-		bus.On("Emit", ctx, mock.AnythingOfType("events.TransferFailedEvent")).Return(nil).Once()
+
+		accRepo.On("Get", mock.Anything, mock.Anything).Return(nil, errors.New("not found")).Once()
+
+		bus.On("Emit", mock.Anything, mock.MatchedBy(func(e interface{}) bool {
+			_, ok := e.(events.TransferFailedEvent)
+			return ok
+		})).Return(nil).Once()
 
 		handler := BusinessValidation(bus, uow, logger)
 		err := handler(ctx, event)
@@ -102,11 +151,12 @@ func TestBusinessValidation(t *testing.T) {
 		event := newValidConversionDoneEvent(t)
 		dbError := errors.New("database error")
 
+		// Set up the mock to return an error when getting the repository
 		uow.On("GetRepository", mock.Anything).Return(nil, dbError).Once()
 
 		handler := BusinessValidation(mocks.NewMockBus(t), uow, logger)
-		err := handler(ctx, event)
+		handleErr := handler(ctx, event)
 
-		assert.ErrorIs(t, err, dbError)
+		assert.ErrorIs(t, handleErr, dbError)
 	})
 }

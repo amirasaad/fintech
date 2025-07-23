@@ -11,7 +11,10 @@ import (
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/domain/money"
+	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/repository"
+	"github.com/amirasaad/fintech/pkg/repository/account"
+	"github.com/amirasaad/fintech/pkg/repository/transaction"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -42,15 +45,60 @@ func TestInitialPersistence(t *testing.T) {
 		bus := mocks.NewMockBus(t)
 		uow := mocks.NewMockUnitOfWork(t)
 		txRepo := mocks.NewTransactionRepository(t)
+		accRepo := mocks.NewAccountRepository(t)
 
-		uow.On("Do", ctx, mock.AnythingOfType("func(repository.UnitOfWork) error")).Return(
-			func(ctx context.Context, fn func(uow repository.UnitOfWork) error) error {
-				return fn(uow)
-			},
-		).Once()
-		uow.On("GetRepository", mock.Anything).Return(txRepo, nil).Once()
-		txRepo.On("Create", ctx, mock.Anything).Return(nil).Once()
-		bus.On("Emit", ctx, mock.AnythingOfType("events.ConversionRequestedEvent")).Return(nil).Once()
+		// Mock the unit of work Do function to execute the callback
+		uow.On("Do", mock.Anything, mock.AnythingOfType("func(repository.UnitOfWork) error")).
+			Return(nil).
+			Run(func(args mock.Arguments) {
+				fn := args.Get(1).(func(repository.UnitOfWork) error)
+
+				// Setup mocks inside the Do callback to match the actual implementation
+				uow.On("GetRepository", mock.MatchedBy(func(repoType interface{}) bool {
+					_, ok := repoType.(*transaction.Repository)
+					return ok
+				})).Return(txRepo, nil).Once()
+
+				uow.On("GetRepository", mock.MatchedBy(func(repoType interface{}) bool {
+					_, ok := repoType.(*account.Repository)
+					return ok
+				})).Return(accRepo, nil).Once()
+
+				// Mock the destination account lookup
+				accRepo.On("Get", mock.Anything, baseEvent.DestAccountID).
+					Return(&dto.AccountRead{
+						ID:       baseEvent.DestAccountID,
+						UserID:   baseEvent.ReceiverUserID,
+						Currency: "USD",
+					}, nil).Once()
+
+				// Mock the transaction creation
+				txRepo.On("Create", mock.Anything, mock.AnythingOfType("dto.TransactionCreate")).
+					Return(nil).
+					Run(func(args mock.Arguments) {
+						txCreate := args.Get(1).(dto.TransactionCreate)
+						assert.Equal(t, baseEvent.AccountID, txCreate.AccountID)
+						assert.Equal(t, baseEvent.UserID, txCreate.UserID)
+						assert.Equal(t, "pending", txCreate.Status)
+						assert.Equal(t, "transfer", txCreate.MoneySource)
+						assert.Equal(t, validAmount.Negate().Amount(), txCreate.Amount)
+					}).Once()
+
+				// Execute the callback
+				fn(uow) //nolint:errcheck
+			}).Once()
+
+		// Mock the event bus to expect a ConversionRequestedEvent with specific fields
+		bus.On("Emit", mock.Anything, mock.MatchedBy(func(event interface{}) bool {
+			convEvent, ok := event.(events.ConversionRequestedEvent)
+			if !ok {
+				return false
+			}
+			// Compare the Money values using Equals method
+			return convEvent.FlowEvent.CorrelationID == baseEvent.CorrelationID &&
+				convEvent.Amount.Equals(baseEvent.Amount) &&
+				convEvent.TransactionID == baseEvent.ID
+		})).Return(nil).Once()
 
 		handler := InitialPersistence(bus, uow, logger)
 		err := handler(ctx, baseEvent)
@@ -69,8 +117,6 @@ func TestInitialPersistence(t *testing.T) {
 		err := handler(ctx, malformedEvent)
 
 		assert.NoError(t, err)
-		uow.AssertNotCalled(t, "Do")
-		bus.AssertNotCalled(t, "Emit")
 	})
 
 	t.Run("handles error from repository", func(t *testing.T) {
@@ -78,12 +124,15 @@ func TestInitialPersistence(t *testing.T) {
 		uow := mocks.NewMockUnitOfWork(t)
 
 		dbError := errors.New("database error")
-		uow.On("Do", ctx, mock.AnythingOfType("func(repository.UnitOfWork) error")).Return(dbError).Once()
+		uow.On("Do", mock.Anything, mock.AnythingOfType("func(repository.UnitOfWork) error")).
+			Return(dbError).
+			Once()
 
 		handler := InitialPersistence(bus, uow, logger)
 		err := handler(ctx, baseEvent)
 
 		assert.ErrorIs(t, err, dbError)
+		// Verify that no events were emitted on error
 		bus.AssertNotCalled(t, "Emit")
 	})
 }

@@ -5,10 +5,9 @@ import (
 	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/domain/money"
-	"github.com/google/uuid"
 )
 
-// DepositEventFactory creates a DepositConversionDoneEvent.
+// DepositEventFactory creates a DepositBusinessValidationEvent.
 type DepositEventFactory struct{}
 
 func (f *DepositEventFactory) CreateNextEvent(
@@ -16,52 +15,54 @@ func (f *DepositEventFactory) CreateNextEvent(
 	convInfo *common.ConversionInfo,
 	convertedMoney money.Money,
 ) (domain.Event, error) {
-	return events.DepositConversionDoneEvent{
+	return events.DepositBusinessValidationEvent{
 		DepositValidatedEvent: events.DepositValidatedEvent{
 			DepositRequestedEvent: events.DepositRequestedEvent{
 				FlowEvent: cre.FlowEvent,
 				ID:        cre.ID,
-				Amount:    cre.FromAmount,
-				Source:    "deposit",
+				Amount:    cre.Amount,
 				Timestamp: cre.Timestamp,
 			},
 		},
 		ConversionDoneEvent: events.ConversionDoneEvent{
-			FlowEvent:        cre.FlowEvent,
-			ID:               uuid.New(),
-			FromAmount:       cre.FromAmount,
-			ToAmount:         convertedMoney,
-			RequestID:        cre.RequestID,
-			TransactionID:    cre.TransactionID,
-			Timestamp:        cre.Timestamp,
-			ConversionRate:   convInfo.ConversionRate,
-			OriginalCurrency: cre.FromAmount.Currency().String(),
-			ConvertedAmount:  convInfo.ConvertedAmount,
+			FlowEvent:      cre.FlowEvent,
+			ID:             cre.ID,
+			RequestID:      cre.RequestID,
+			TransactionID:  cre.TransactionID,
+			Timestamp:      cre.Timestamp,
+			ConversionInfo: convInfo,
 		},
-		TransactionID: cre.TransactionID,
+		Amount: convertedMoney,
 	}, nil
+
 }
 
-// WithdrawEventFactory creates a WithdrawConversionDoneEvent.
+// WithdrawEventFactory creates a WithdrawBusinessValidationEvent.
 type WithdrawEventFactory struct{}
 
 func (f *WithdrawEventFactory) CreateNextEvent(
 	cre *events.ConversionRequestedEvent,
-	_ *common.ConversionInfo,
+	convInfo *common.ConversionInfo,
 	convertedMoney money.Money,
 ) (domain.Event, error) {
-	return events.WithdrawConversionDoneEvent{
+	return events.WithdrawBusinessValidationEvent{
 		WithdrawValidatedEvent: events.WithdrawValidatedEvent{
 			WithdrawRequestedEvent: events.WithdrawRequestedEvent{
 				FlowEvent: cre.FlowEvent,
 				ID:        cre.ID,
-				Amount:    cre.FromAmount,
+				Amount:    cre.Amount,
 				Timestamp: cre.Timestamp,
 			},
 		},
 		ConversionDoneEvent: events.ConversionDoneEvent{
-			// Populate fields as needed for Withdraw
+			FlowEvent:      cre.FlowEvent,
+			ID:             cre.ID,
+			RequestID:      cre.RequestID,
+			TransactionID:  cre.TransactionID,
+			Timestamp:      cre.Timestamp,
+			ConversionInfo: convInfo,
 		},
+		Amount: convertedMoney,
 	}, nil
 }
 
@@ -70,22 +71,26 @@ type TransferEventFactory struct{}
 
 func (f *TransferEventFactory) CreateNextEvent(
 	cre *events.ConversionRequestedEvent,
-	_ *common.ConversionInfo,
+	convInfo *common.ConversionInfo,
 	convertedMoney money.Money,
 ) (domain.Event, error) {
-	return events.TransferConversionDoneEvent{
+	return events.TransferBusinessValidatedEvent{
 		TransferValidatedEvent: events.TransferValidatedEvent{
 			TransferRequestedEvent: events.TransferRequestedEvent{
-				FlowEvent:      cre.FlowEvent,
-				ID:             cre.ID,
-				Amount:         cre.FromAmount,
-				Source:         "transfer",
-				DestAccountID:  cre.AccountID,
-				ReceiverUserID: cre.UserID,
+				FlowEvent: cre.FlowEvent,
+				ID:        cre.ID,
+				Amount:    cre.Amount,
+				Timestamp: cre.Timestamp,
 			},
 		},
 		ConversionDoneEvent: events.ConversionDoneEvent{
-			// Populate fields as needed for Transfer
+			FlowEvent:      cre.FlowEvent,
+			ID:             cre.ID,
+			RequestID:      cre.RequestID,
+			TransactionID:  cre.TransactionID,
+			Timestamp:      cre.Timestamp,
+			ConversionInfo: convInfo,
 		},
+		Amount: convertedMoney,
 	}, nil
 }

@@ -6,11 +6,14 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/amirasaad/fintech/pkg/mapper"
+
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/amirasaad/fintech/pkg/repository"
+	"github.com/amirasaad/fintech/pkg/repository/account"
 	"github.com/amirasaad/fintech/pkg/repository/transaction"
 	"github.com/google/uuid"
 )
@@ -36,6 +39,7 @@ func InitialPersistence(bus eventbus.Bus, uow repository.UnitOfWork, logger *slo
 
 		// 2. Persist initial transaction (tx_out) atomically
 		txID := ve.ID
+		var destAccount *domain.Account
 		err := uow.Do(ctx, func(uow repository.UnitOfWork) error {
 			repoAny, err := uow.GetRepository((*transaction.Repository)(nil))
 			if err != nil {
@@ -46,7 +50,19 @@ func InitialPersistence(bus eventbus.Bus, uow repository.UnitOfWork, logger *slo
 			if !ok {
 				return fmt.Errorf("unexpected repo type")
 			}
-
+			accountRepoAny, err := uow.GetRepository((*account.Repository)(nil))
+			if err != nil {
+				return fmt.Errorf("failed to get account repo: %w", err)
+			}
+			accountRepo, ok := accountRepoAny.(account.Repository)
+			if !ok {
+				return fmt.Errorf("unexpected account repo type")
+			}
+			destAccountRead, err := accountRepo.Get(ctx, ve.DestAccountID)
+			if err != nil {
+				return fmt.Errorf("failed to get destination account: %w", err)
+			}
+			destAccount = mapper.MapAccountReadToDomain(destAccountRead)
 			return txRepo.Create(ctx, dto.TransactionCreate{
 				ID:          txID,
 				UserID:      ve.UserID,
@@ -65,11 +81,10 @@ func InitialPersistence(bus eventbus.Bus, uow repository.UnitOfWork, logger *slo
 		log.Info("✅ [SUCCESS] Initial 'pending' transaction created", "transaction_id", txID)
 
 		// 3. Emit event to trigger currency conversion
-		targetCurrency := ve.Amount.Currency().String() // Placeholder
 		conversionEvent := events.ConversionRequestedEvent{
 			FlowEvent:     ve.FlowEvent,
-			FromAmount:    ve.Amount,
-			ToCurrency:    targetCurrency,
+			Amount:        ve.Amount,
+			To:            destAccount.Currency(),
 			RequestID:     txID.String(),
 			Timestamp:     time.Now(),
 			TransactionID: txID,

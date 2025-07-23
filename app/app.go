@@ -1,3 +1,7 @@
+// Package app initializes and configures the FinTech application's core components.
+// It sets up the Fiber web framework, registers all event handlers, and configures
+// the application's routing and middleware. The package follows a clean architecture
+// with clear separation of concerns between different business domains.
 package app
 
 import (
@@ -44,6 +48,13 @@ func New(deps config.Deps) *fiber.App {
 
 	// ============================================================================
 	// 🧩 EVENT HANDLER REGISTRATION – CLEAN, SINGLE-PASS EVENT-DRIVEN ARCHITECTURE
+	//
+	// The application uses a single-pass event-driven architecture where:
+	// - Each event represents a discrete step in a business process
+	// - Handlers are responsible for exactly one task
+	// - Events flow in one direction through the system
+	// - No handler emits an event that would trigger itself (prevents cycles)
+	// - Business validation happens after conversion to account currency
 	// ============================================================================
 
 	// 1️⃣ GENERIC CONVERSION HANDLER
@@ -53,8 +64,9 @@ func New(deps config.Deps) *fiber.App {
 		"withdraw": &conversion.WithdrawEventFactory{},
 		"transfer": &conversion.TransferEventFactory{},
 	}
-	bus.Register("ConversionRequestedEvent", conversion.Handler(bus, deps.CurrencyConverter, deps.Logger, conversionFactories))
 
+	bus.Register("ConversionRequestedEvent", conversion.Handler(bus, deps.CurrencyConverter, deps.Logger, conversionFactories))
+	bus.Register("ConversionDoneEvent", conversion.Persistence(deps.Uow, deps.Logger))
 	// 2️⃣ DEPOSIT FLOW
 	// User request → Initial Validation → Persistence → Conversion → Business Validation → Payment Initiation → Payment Persistence
 
@@ -62,12 +74,10 @@ func New(deps config.Deps) *fiber.App {
 	bus.Register("DepositRequestedEvent", deposithandler.Validation(bus, deps.Uow, deps.Logger))
 	// b. Persist transaction after validation
 	bus.Register("DepositValidatedEvent", deposithandler.Persistence(bus, deps.Uow, deps.Logger))
-	// d. Business validation after conversion (in account currency)
-	bus.Register("DepositConversionDoneEvent", deposithandler.BusinessValidation(bus, deps.Logger))
-	// e. Payment initiation (only after business validation)
+	// c. Business validation after conversion (in account currency)
+	bus.Register("DepositBusinessValidationEvent", deposithandler.BusinessValidation(bus, deps.Uow, deps.Logger))
+	// d. Deposit Business Validated Event
 	bus.Register("DepositBusinessValidatedEvent", paymenthandler.Initiation(bus, deps.PaymentProvider, deps.Logger))
-	// f. Payment persistence (store payment ID, etc.)
-	bus.Register("PaymentInitiatedEvent", paymenthandler.Persistence(bus, deps.Uow, deps.Logger))
 
 	// 3️⃣ WITHDRAW FLOW
 	// User request → Initial Validation → Persistence → Conversion → Business Validation → Payment Initiation → Payment Persistence
@@ -77,11 +87,17 @@ func New(deps config.Deps) *fiber.App {
 	// b. Persist transaction after validation
 	bus.Register("WithdrawValidatedEvent", withdrawhandler.Persistence(bus, deps.Uow, deps.Logger))
 	// c. Business validation after conversion (in account currency)
-	bus.Register("WithdrawConversionDoneEvent", withdrawhandler.ConversionDoneHandler(bus, deps.Logger))
-	// d. Business validation after conversion (in account currency)
-	bus.Register("WithdrawConversionDoneEvent", withdrawhandler.BusinessValidation(bus, deps.Logger))
-	// e. Payment initiation (only after business validation)
+	bus.Register("WithdrawBusinessValidationEvent", withdrawhandler.BusinessValidation(bus, deps.Uow, deps.Logger))
+	// d. Withdraw Business Validated Event
 	bus.Register("WithdrawBusinessValidatedEvent", paymenthandler.Initiation(bus, deps.PaymentProvider, deps.Logger))
+
+	// Payment workflow
+	// Payment Initiation → Payment Persistence
+	// (External via Webhook) Payment Completion -> Payment Completed
+	bus.Register("PaymentInitiationEvent", paymenthandler.Initiation(bus, deps.PaymentProvider, deps.Logger))
+	bus.Register("PaymentInitiatedEvent", paymenthandler.Persistence(bus, deps.Uow, deps.Logger))
+	bus.Register("PaymentCompletedEvent", paymenthandler.Completed(bus, deps.Uow, deps.Logger))
+
 	// 4️⃣ TRANSFER FLOW
 	// User request → Initial Validation → Initial Persistence → Conversion → Business Validation → Final Persistence
 
@@ -94,20 +110,27 @@ func New(deps config.Deps) *fiber.App {
 	// d. Final persistence after domain operation
 	bus.Register("TransferDomainOpDoneEvent", transferhandler.Persistence(bus, deps.Uow, deps.Logger))
 
-	// Conversion done handlers (flow-specific)
-	bus.Register("DepositConversionDoneEvent", conversion.Handler(bus, deps.CurrencyConverter, deps.Logger, conversionFactories))
-	bus.Register("WithdrawConversionDoneEvent", conversion.Handler(bus, deps.CurrencyConverter, deps.Logger, conversionFactories))
-	bus.Register("TransferConversionDoneEvent", conversion.Handler(bus, deps.CurrencyConverter, deps.Logger, conversionFactories))
-
 	// ============================================================================
-	// 📝 DOCUMENTATION
-	// - Each handler is responsible for a single step in the workflow (SRP).
-	// - Payment initiation is only triggered after business validation (not for internal transfers).
-	// - Conversion handlers are generic and reusable across flows.
-	// - No handler emits an event that would trigger itself or create a cycle (prevents infinite loops).
-	// - Add/extend business validation handlers for withdraw/transfer as needed for your domain.
+	// 📝 ARCHITECTURE NOTES
+	//
+	// Key Design Principles:
+	// - Single Responsibility: Each handler does exactly one thing
+	// - Event Sourcing: Business processes are modeled as a series of events
+	// - CQRS: Commands (write operations) are separated from queries (reads)
+	// - Domain-Driven Design: Core business logic is encapsulated in domain models
+	//
+	// Event Flow Patterns:
+	// 1. Validation → Persistence → Business Logic → External Integration
+	// 2. Fail Fast: Validation happens before any state changes
+	// 3. Idempotency: Handlers are designed to be safely retryable
+	//
+	// Security:
+	// - Rate limiting is applied globally
+	// - Authentication is required for all endpoints (except public ones)
+	// - Input validation happens at the API boundary
 	// ============================================================================
 
+	// Initialize Fiber with custom configuration
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			return common.ProblemDetailsJSON(c, "Internal Server Error", err)
@@ -120,6 +143,9 @@ func New(deps config.Deps) *fiber.App {
 		OAuth2RedirectUrl:    "/auth/login",
 	}))
 
+	// Configure rate limiting middleware
+	// Uses X-Forwarded-For header when behind a proxy
+	// Falls back to X-Real-IP or direct IP if needed
 	app.Use(limiter.New(limiter.Config{
 		Max:        deps.Config.RateLimit.MaxRequests,
 		Expiration: deps.Config.RateLimit.Window,
@@ -144,8 +170,9 @@ func New(deps config.Deps) *fiber.App {
 	}))
 	app.Use(recover.New())
 
+	// Health check endpoint
 	app.Get("/", func(c *fiber.Ctx) error {
-		return c.SendString("App is working! 🚀")
+		return c.SendString("FinTech API is running! 🚀")
 	})
 
 	// Payment event processor for Stripe webhooks

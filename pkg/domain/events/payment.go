@@ -1,22 +1,27 @@
 package events
 
-import "github.com/google/uuid"
+import (
+	"time"
+
+	"github.com/amirasaad/fintech/pkg/domain/account"
+	"github.com/amirasaad/fintech/pkg/domain/money"
+	"github.com/google/uuid"
+)
 
 // PaymentInitiationEvent is emitted after payment initiation with a provider.
 type PaymentInitiationEvent struct {
-	ID            string
-	Status        string    // "pending"
-	TransactionID uuid.UUID // propagate TransactionID
+	FlowEvent
+	ID            uuid.UUID
+	TransactionID uuid.UUID
+	Account       *account.Account
+	Amount        money.Money
+	Timestamp     time.Time
 }
 
 // PaymentCompletedEvent is emitted when payment is confirmed by the provider.
 type PaymentCompletedEvent struct {
-	ID            string
-	TransactionID uuid.UUID // propagate TransactionID
+	ID            uuid.UUID
 	PaymentID     string
-	Status        string
-	UserID        uuid.UUID
-	AccountID     uuid.UUID
 	CorrelationID uuid.UUID
 }
 

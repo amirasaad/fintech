@@ -82,7 +82,7 @@ func TestPaymentInitiation_BusinessLogic(t *testing.T) {
 		{
 			name: "deposit validation success",
 			input: events.DepositBusinessValidatedEvent{
-				DepositConversionDoneEvent: events.DepositConversionDoneEvent{
+				DepositBusinessValidationEvent: events.DepositBusinessValidationEvent{
 					DepositValidatedEvent: events.DepositValidatedEvent{
 						DepositRequestedEvent: events.DepositRequestedEvent{
 							FlowEvent: events.FlowEvent{
@@ -105,15 +105,11 @@ func TestPaymentInitiation_BusinessLogic(t *testing.T) {
 							CorrelationID: uuid.New(),
 							FlowType:      "deposit",
 						},
-						ID:         uuid.New(),
-						FromAmount: amount,
-						ToAmount:   amount,
-						RequestID:  uuid.New().String(),
-						Timestamp:  time.Now(),
+						ID:        uuid.New(),
+						RequestID: uuid.New().String(),
+						Timestamp: time.Now(),
 					},
-					TransactionID: uuid.New(),
 				},
-				TransactionID: uuid.New(),
 			},
 			provider: &mockPaymentProvider{
 				initiateFn: func(ctx context.Context, u, a uuid.UUID, amt int64, cur string) (string, error) {
@@ -185,7 +181,7 @@ func TestPaymentInitiation_BusinessLogic(t *testing.T) {
 		{
 			name: "provider error",
 			input: events.DepositBusinessValidatedEvent{
-				DepositConversionDoneEvent: events.DepositConversionDoneEvent{
+				DepositBusinessValidationEvent: events.DepositBusinessValidationEvent{
 					DepositValidatedEvent: events.DepositValidatedEvent{
 						DepositRequestedEvent: events.DepositRequestedEvent{
 							FlowEvent: events.FlowEvent{
@@ -208,15 +204,11 @@ func TestPaymentInitiation_BusinessLogic(t *testing.T) {
 							CorrelationID: uuid.New(),
 							FlowType:      "deposit",
 						},
-						ID:         uuid.New(),
-						FromAmount: amount,
-						ToAmount:   amount,
-						RequestID:  uuid.New().String(),
-						Timestamp:  time.Now(),
+						ID:        uuid.New(),
+						RequestID: uuid.New().String(),
+						Timestamp: time.Now(),
 					},
-					TransactionID: uuid.New(),
 				},
-				TransactionID: uuid.New(),
 			},
 			provider: &mockPaymentProvider{
 				initiateFn: func(ctx context.Context, u, a uuid.UUID, amt int64, cur string) (string, error) {
@@ -236,11 +228,9 @@ func TestPaymentInitiation_BusinessLogic(t *testing.T) {
 					CorrelationID: uuid.New(),
 					FlowType:      "conversion",
 				},
-				ID:         uuid.New(),
-				FromAmount: amount,
-				ToAmount:   amount,
-				RequestID:  uuid.New().String(),
-				Timestamp:  time.Now(),
+				ID:        uuid.New(),
+				RequestID: uuid.New().String(),
+				Timestamp: time.Now(),
 			},
 			provider: &mockPaymentProvider{
 				initiateFn: func(ctx context.Context, u, a uuid.UUID, amt int64, cur string) (string, error) {

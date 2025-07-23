@@ -53,7 +53,7 @@ func Persistence(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logge
 			accRepo := accRepoAny.(account.Repository)
 
 			// a. Create tx_in for the receiver
-			if err := txRepo.Create(ctx, dto.TransactionCreate{
+			if err = txRepo.Create(ctx, dto.TransactionCreate{
 				ID:          txInID,
 				UserID:      te.ReceiverUserID,
 				AccountID:   te.DestAccountID,
@@ -67,7 +67,7 @@ func Persistence(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logge
 
 			// b. Update tx_out status to 'completed'
 			completedStatus := "completed"
-			if err := txRepo.Update(ctx, txOutID, dto.TransactionUpdate{Status: &completedStatus}); err != nil {
+			if err = txRepo.Update(ctx, txOutID, dto.TransactionUpdate{Status: &completedStatus}); err != nil {
 				return fmt.Errorf("failed to update tx_out: %w", err)
 			}
 

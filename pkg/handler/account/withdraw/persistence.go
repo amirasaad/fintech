@@ -45,6 +45,7 @@ func Persistence(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logge
 				log.Error("❌ [ERROR] Failed to retrieve repo type")
 				return errors.New("failed to retrieve repo type")
 			}
+			log.Debug("[DEBUG] About to persist transaction", "amount", ve.Amount.Amount(), "currency", ve.Amount.Currency().String())
 			if err := txRepo.Create(ctx, dto.TransactionCreate{
 				ID:                   txID,
 				UserID:               ve.UserID,
@@ -73,11 +74,12 @@ func Persistence(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logge
 
 		// Emit ConversionRequested to trigger currency conversion for withdraw (decoupled from payment)
 		log.Info("DEBUG: ve.UserID and ve.AccountID", "user_id", ve.UserID, "account_id", ve.AccountID)
+
 		conversionEvent := events.ConversionRequestedEvent{
 			FlowEvent:     ve.FlowEvent,
 			ID:            uuid.New(),
-			FromAmount:    ve.Amount,
-			ToCurrency:    ve.Account.Currency().String(),
+			Amount:        ve.Amount,
+			To:            ve.Account.Currency(),
 			RequestID:     txID.String(),
 			TransactionID: txID,
 			Timestamp:     time.Now(),

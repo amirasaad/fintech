@@ -39,6 +39,8 @@ type TransactionUpdate struct {
 	// Conversion fields (nullable when no conversion occurs)
 	OriginalAmount   *float64
 	OriginalCurrency *string
+	ConvertedAmount  *float64
 	ConversionRate   *float64
+	TargetCurrency   *string
 	// Add more fields as needed for partial updates
 }

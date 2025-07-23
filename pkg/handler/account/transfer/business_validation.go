@@ -20,7 +20,7 @@ func BusinessValidation(bus eventbus.Bus, uow repository.UnitOfWork, logger *slo
 		log := logger.With("handler", "BusinessValidation", "event_type", e.Type())
 
 		// 1. Defensive: Check event type and structure
-		cde, ok := e.(events.TransferConversionDoneEvent)
+		cde, ok := e.(events.TransferBusinessValidatedEvent)
 		if !ok {
 			log.Error("❌ [DISCARD] Unexpected event type", "event", e)
 			return nil
@@ -28,7 +28,7 @@ func BusinessValidation(bus eventbus.Bus, uow repository.UnitOfWork, logger *slo
 		log = log.With("correlation_id", cde.CorrelationID)
 		log.Info("🟢 [START] Received event", "event", cde)
 
-		if cde.FlowType != "transfer" || cde.AccountID == uuid.Nil || cde.ToAmount.IsZero() || cde.ToAmount.IsNegative() {
+		if cde.FlowType != "transfer" || cde.AccountID == uuid.Nil || cde.ConvertedAmount.IsZero() || cde.ConvertedAmount.IsNegative() {
 			log.Error("❌ [DISCARD] Invalid or non-transfer event", "event", cde)
 			return nil
 		}
@@ -41,7 +41,7 @@ func BusinessValidation(bus eventbus.Bus, uow repository.UnitOfWork, logger *slo
 		}
 		accRepo, ok := repoAny.(account.Repository)
 		if !ok {
-			err := fmt.Errorf("unexpected repository type")
+			err = fmt.Errorf("unexpected repository type")
 			log.Error("❌ [ERROR]", "error", err)
 			return err
 		}
@@ -57,7 +57,7 @@ func BusinessValidation(bus eventbus.Bus, uow repository.UnitOfWork, logger *slo
 		}
 
 		sourceAcc := mapper.MapAccountReadToDomain(sourceAccDto)
-		if err := sourceAcc.ValidateWithdraw(cde.UserID, cde.ToAmount); err != nil {
+		if err := sourceAcc.ValidateWithdraw(cde.UserID, cde.ConvertedAmount); err != nil {
 			log.Warn("❌ [BUSINESS] Business validation failed", "reason", err)
 			failureEvent := events.TransferFailedEvent{
 				TransferRequestedEvent: cde.TransferRequestedEvent,
@@ -70,6 +70,8 @@ func BusinessValidation(bus eventbus.Bus, uow repository.UnitOfWork, logger *slo
 		log.Info("✅ [SUCCESS] Business validation passed, emitting TransferDomainOpDoneEvent")
 		domainOpEvent := events.TransferDomainOpDoneEvent{
 			TransferValidatedEvent: cde.TransferValidatedEvent,
+			ConversionDoneEvent:    cde.ConversionDoneEvent,
+			TransactionID:          cde.TransactionID,
 		}
 
 		return bus.Emit(ctx, domainOpEvent)

@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/amirasaad/fintech/infra/provider"
 	mocks "github.com/amirasaad/fintech/internal/fixtures/mocks"
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain"
@@ -16,7 +15,6 @@ import (
 	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/eventbus"
 	deposithandler "github.com/amirasaad/fintech/pkg/handler/account/deposit"
-	"github.com/amirasaad/fintech/pkg/handler/conversion"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -25,7 +23,7 @@ import (
 // TestDepositE2EEventFlow tests the full deposit event-driven flow from DepositRequestedEvent to PaymentInitiatedEvent.
 // It verifies the event chain:
 //
-//	DepositRequestedEvent → DepositValidatedEvent → DepositPersistedEvent → DepositConversionDoneEvent → DepositBusinessValidatedEvent → PaymentInitiatedEvent
+//	DepositRequestedEvent → DepositValidatedEvent → DepositPersistedEvent → DepositBusinessValidationEvent → DepositBusinessValidatedEvent → PaymentInitiatedEvent
 //
 // The test uses mocks for repository and unit of work, and tracks the emitted event sequence for correctness.
 func TestDepositE2EEventFlow(t *testing.T) {
@@ -72,31 +70,33 @@ func TestDepositE2EEventFlow(t *testing.T) {
 	})
 	bus.Register("DepositPersistedEvent", func(ctx context.Context, e domain.Event) error {
 		track("DepositPersistedEvent")
-		// Simulate conversion handler emitting DepositConversionDoneEvent
+		// Simulate conversion handler emitting DepositBusinessValidationEvent
 		persistedEvent := e.(events.DepositPersistedEvent)
-		conversionDone := events.DepositConversionDoneEvent{
+		conversionDone := events.DepositBusinessValidationEvent{
 			DepositValidatedEvent: persistedEvent.DepositValidatedEvent,
 			ConversionDoneEvent: events.ConversionDoneEvent{
-				FlowEvent:        persistedEvent.FlowEvent,
-				ID:               uuid.New(),
-				FromAmount:       persistedEvent.Amount,
-				ToAmount:         persistedEvent.Amount, // Assuming no conversion for simplicity
-				RequestID:        persistedEvent.TransactionID.String(),
-				TransactionID:    persistedEvent.TransactionID,
-				Timestamp:        time.Now(),
-				ConversionRate:   1.0,
-				OriginalCurrency: persistedEvent.Amount.Currency().String(),
-				ConvertedAmount:  persistedEvent.Amount.AmountFloat(),
+				FlowEvent:     persistedEvent.FlowEvent,
+				ID:            uuid.New(),
+				RequestID:     persistedEvent.TransactionID.String(),
+				TransactionID: persistedEvent.TransactionID,
+				Timestamp:     time.Now(),
 			},
-			TransactionID: persistedEvent.TransactionID,
+			Amount: persistedEvent.Amount,
 		}
 		bus.Emit(ctx, conversionDone) //nolint:errcheck
 		return nil
 	})
-	bus.Register("DepositConversionDoneEvent", func(ctx context.Context, e domain.Event) error {
-		track("DepositConversionDoneEvent")
-		conversion.Handler(bus, provider.NewStubCurrencyConverter(), logger, map[string]conversion.EventFactory{})(ctx, e) //nolint:errcheck
-		deposithandler.BusinessValidation(bus, logger)(ctx, e)                                                             //nolint:errcheck
+	bus.Register("DepositBusinessValidationEvent", func(ctx context.Context, e domain.Event) error {
+		track("DepositBusinessValidationEvent")
+		// Simulate business validation handler emitting DepositBusinessValidatedEvent
+		businessValidationEvent := e.(events.DepositBusinessValidationEvent)
+		businessValidated := events.DepositBusinessValidatedEvent{
+			FlowEvent:                      businessValidationEvent.FlowEvent,
+			ID:                             uuid.New(),
+			DepositBusinessValidationEvent: businessValidationEvent,
+			TransactionID:                  businessValidationEvent.TransactionID,
+		}
+		bus.Emit(ctx, businessValidated) //nolint:errcheck
 		return nil
 	})
 	bus.Register("DepositBusinessValidatedEvent", func(ctx context.Context, e domain.Event) error {
@@ -140,7 +140,7 @@ func TestDepositE2EEventFlow(t *testing.T) {
 		"DepositRequestedEvent",
 		"DepositValidatedEvent",
 		"DepositPersistedEvent",
-		"DepositConversionDoneEvent",
+		"DepositBusinessValidationEvent",
 		"DepositBusinessValidatedEvent",
 		"PaymentInitiatedEvent",
 	}, emitted, "event chain should match full deposit flow")
@@ -149,7 +149,7 @@ func TestDepositE2EEventFlow(t *testing.T) {
 // TestWithdrawE2EEventFlow tests the full withdraw event-driven flow from WithdrawRequestedEvent to PaymentInitiatedEvent.
 // It verifies the event chain:
 //
-//	WithdrawRequestedEvent → WithdrawValidatedEvent → WithdrawPersistedEvent → WithdrawConversionDoneEvent → WithdrawBusinessValidatedEvent → PaymentInitiatedEvent
+//	WithdrawRequestedEvent → WithdrawValidatedEvent → WithdrawPersistedEvent → WithdrawBusinessValidationEvent → WithdrawBusinessValidatedEvent → PaymentInitiatedEvent
 //
 // The test simulates each handler and tracks the emitted event sequence for correctness.
 func TestWithdrawE2EEventFlow(t *testing.T) {
@@ -193,29 +193,24 @@ func TestWithdrawE2EEventFlow(t *testing.T) {
 		track("WithdrawPersistedEvent")
 		// Simulate conversion handler
 		persistedEvent := e.(events.WithdrawPersistedEvent)
-		conversionDone := events.WithdrawConversionDoneEvent{
+		conversionDone := events.WithdrawBusinessValidationEvent{
 			WithdrawValidatedEvent: persistedEvent.WithdrawValidatedEvent,
 			ConversionDoneEvent: events.ConversionDoneEvent{
-				FlowEvent:        persistedEvent.FlowEvent,
-				ID:               uuid.New(),
-				FromAmount:       persistedEvent.Amount,
-				ToAmount:         persistedEvent.Amount, // Assuming no conversion for simplicity
-				RequestID:        persistedEvent.TransactionID.String(),
-				TransactionID:    persistedEvent.TransactionID,
-				Timestamp:        time.Now(),
-				ConversionRate:   1.0,
-				OriginalCurrency: persistedEvent.Amount.Currency().String(),
-				ConvertedAmount:  persistedEvent.Amount.AmountFloat(),
+				FlowEvent:     persistedEvent.FlowEvent,
+				ID:            uuid.New(),
+				RequestID:     persistedEvent.TransactionID.String(),
+				TransactionID: persistedEvent.TransactionID,
+				Timestamp:     time.Now(),
 			},
 		}
 		bus.Emit(ctx, conversionDone) //nolint:errcheck
 		return nil
 	})
-	bus.Register("WithdrawConversionDoneEvent", func(ctx context.Context, e domain.Event) error {
-		track("WithdrawConversionDoneEvent")
+	bus.Register("WithdrawBusinessValidationEvent", func(ctx context.Context, e domain.Event) error {
+		track("WithdrawBusinessValidationEvent")
 		// Simulate business validation
 		businessValidated := events.WithdrawBusinessValidatedEvent{
-			WithdrawConversionDoneEvent: e.(events.WithdrawConversionDoneEvent),
+			WithdrawBusinessValidationEvent: e.(events.WithdrawBusinessValidationEvent),
 		}
 		bus.Emit(ctx, businessValidated) //nolint:errcheck
 		return nil
@@ -257,7 +252,7 @@ func TestWithdrawE2EEventFlow(t *testing.T) {
 		"WithdrawRequestedEvent",
 		"WithdrawValidatedEvent",
 		"WithdrawPersistedEvent",
-		"WithdrawConversionDoneEvent",
+		"WithdrawBusinessValidationEvent",
 		"WithdrawBusinessValidatedEvent",
 		"PaymentInitiatedEvent",
 	}, emitted, "event chain should match full withdraw flow")
@@ -306,19 +301,14 @@ func TestTransferE2EEventFlow(t *testing.T) {
 		track("TransferDomainOpDoneEvent")
 		// Simulate conversion handler
 		domainOpDoneEvent := e.(events.TransferDomainOpDoneEvent)
-		conversionDone := events.TransferConversionDoneEvent{
+		conversionDone := events.TransferBusinessValidatedEvent{
 			TransferValidatedEvent: domainOpDoneEvent.TransferValidatedEvent,
 			ConversionDoneEvent: events.ConversionDoneEvent{
-				FlowEvent:        domainOpDoneEvent.FlowEvent,
-				ID:               uuid.New(),
-				FromAmount:       domainOpDoneEvent.Amount,
-				ToAmount:         domainOpDoneEvent.Amount, // Assuming no conversion for simplicity
-				RequestID:        domainOpDoneEvent.TransactionID.String(),
-				TransactionID:    domainOpDoneEvent.TransactionID,
-				Timestamp:        time.Now(),
-				ConversionRate:   1.0,
-				OriginalCurrency: domainOpDoneEvent.Amount.Currency().String(),
-				ConvertedAmount:  domainOpDoneEvent.Amount.AmountFloat(),
+				FlowEvent:     domainOpDoneEvent.FlowEvent,
+				ID:            uuid.New(),
+				RequestID:     domainOpDoneEvent.TransactionID.String(),
+				TransactionID: domainOpDoneEvent.TransactionID,
+				Timestamp:     time.Now(),
 			},
 		}
 		bus.Emit(ctx, conversionDone) //nolint:errcheck
@@ -327,7 +317,7 @@ func TestTransferE2EEventFlow(t *testing.T) {
 	bus.Register("TransferConversionDoneEvent", func(ctx context.Context, e domain.Event) error {
 		track("TransferConversionDoneEvent")
 		// Simulate internal transfer completion
-		conversionDoneEvent := e.(events.TransferConversionDoneEvent)
+		conversionDoneEvent := e.(events.TransferBusinessValidatedEvent)
 		completed := events.TransferCompletedEvent{
 			TransferDomainOpDoneEvent: events.TransferDomainOpDoneEvent{
 				TransferValidatedEvent: conversionDoneEvent.TransferValidatedEvent,

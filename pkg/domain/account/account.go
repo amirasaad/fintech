@@ -184,8 +184,8 @@ func (a *Account) ValidateDeposit(userID uuid.UUID, amount money.Money) (err err
 //
 // Returns a Transaction or an error if any invariant is violated.
 func (a *Account) ValidateWithdraw(userID uuid.UUID, amount money.Money) error {
-	if err := a.validate(userID); err != nil {
-		return err
+	if a.UserID != userID {
+		return ErrNotOwner
 	}
 	if err := a.validateAmount(amount); err != nil {
 		return err

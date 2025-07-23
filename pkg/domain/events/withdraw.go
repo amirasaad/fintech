@@ -27,10 +27,11 @@ type WithdrawValidatedEvent struct {
 	Account        *account.Account
 }
 
-// WithdrawConversionDoneEvent is emitted after withdraw currency conversion is completed.
-type WithdrawConversionDoneEvent struct {
+// WithdrawBusinessValidationEvent is emitted after withdraw currency conversion is completed.
+type WithdrawBusinessValidationEvent struct {
 	WithdrawValidatedEvent
 	ConversionDoneEvent
+	Amount money.Money
 }
 
 // WithdrawPersistedEvent is emitted after withdraw persistence is complete.
@@ -41,7 +42,7 @@ type WithdrawPersistedEvent struct {
 
 // WithdrawBusinessValidatedEvent is emitted after business validation in account currency for withdraw.
 type WithdrawBusinessValidatedEvent struct {
-	WithdrawConversionDoneEvent
+	WithdrawBusinessValidationEvent
 	TransactionID uuid.UUID
 }
 
@@ -51,9 +52,9 @@ type WithdrawFailedEvent struct {
 	Reason string
 }
 
-func (e WithdrawRequestedEvent) Type() string         { return "WithdrawRequestedEvent" }
-func (e WithdrawValidatedEvent) Type() string         { return "WithdrawValidatedEvent" }
-func (e WithdrawConversionDoneEvent) Type() string    { return "WithdrawConversionDoneEvent" }
-func (e WithdrawPersistedEvent) Type() string         { return "WithdrawPersistedEvent" }
-func (e WithdrawBusinessValidatedEvent) Type() string { return "WithdrawBusinessValidatedEvent" }
-func (e WithdrawFailedEvent) Type() string            { return "WithdrawFailedEvent" }
+func (e WithdrawRequestedEvent) Type() string          { return "WithdrawRequestedEvent" }
+func (e WithdrawValidatedEvent) Type() string          { return "WithdrawValidatedEvent" }
+func (e WithdrawBusinessValidationEvent) Type() string { return "WithdrawBusinessValidationEvent" }
+func (e WithdrawPersistedEvent) Type() string          { return "WithdrawPersistedEvent" }
+func (e WithdrawBusinessValidatedEvent) Type() string  { return "WithdrawBusinessValidatedEvent" }
+func (e WithdrawFailedEvent) Type() string             { return "WithdrawFailedEvent" }

@@ -87,17 +87,21 @@ func Persistence(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logge
 		// Emit ConversionRequested to trigger currency conversion for deposit (decoupled from payment)
 		log.Info("📤 [EMIT] Emitting ConversionRequestedEvent for deposit", "transaction_id", txID, "correlation_id", correlationID)
 		log.Info("DEBUG: ve.UserID and ve.AccountID", "user_id", ve.UserID, "account_id", ve.AccountID)
-		conversionEvent := events.ConversionRequestedEvent{
-			FlowEvent:     ve.FlowEvent,
-			ID:            uuid.New(),
-			FromAmount:    ve.Amount,
-			ToCurrency:    ve.Account.Currency().String(),
-			RequestID:     txID.String(),
-			TransactionID: txID, // Always propagate!
-			Timestamp:     time.Now(),
+		// Only emit ConversionRequestedEvent if a conversion is needed and account currency is valid
+		if ve.Account != nil && ve.Amount.Currency().String() != "" && ve.Account.Currency().String() != "" && ve.Amount.Currency().String() != ve.Account.Currency().String() {
+			conversionEvent := events.ConversionRequestedEvent{
+				FlowEvent:     ve.FlowEvent,
+				ID:            uuid.New(),
+				Amount:        ve.Amount,
+				To:            ve.Account.Currency(),
+				RequestID:     txID.String(),
+				TransactionID: txID, // Always propagate!
+				Timestamp:     time.Now(),
+			}
+			log.Info("DEBUG: Full ConversionRequestedEvent", "event", conversionEvent)
+			log.Info("📤 [EMIT] About to emit ConversionRequestedEvent", "handler", "Persistence", "event_type", conversionEvent.Type(), "correlation_id", correlationID.String())
+			return bus.Emit(ctx, &conversionEvent)
 		}
-		log.Info("DEBUG: Full ConversionRequestedEvent", "event", conversionEvent)
-		log.Info("📤 [EMIT] About to emit ConversionRequestedEvent", "handler", "Persistence", "event_type", conversionEvent.Type(), "correlation_id", correlationID.String())
-		return bus.Emit(ctx, &conversionEvent)
+		return nil
 	}
 }
