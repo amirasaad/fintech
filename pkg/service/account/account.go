@@ -8,12 +8,13 @@ package account
 
 import (
 	"context"
+	"github.com/amirasaad/fintech/pkg/eventbus"
+	"log/slog"
 	"time"
 
 	"github.com/amirasaad/fintech/pkg/commands"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 
-	"github.com/amirasaad/fintech/config"
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/domain/money"
@@ -25,18 +26,22 @@ import (
 
 // Service provides business logic for account operations including creation, deposits, withdrawals, and balance inquiries.
 type Service struct {
-	deps config.Deps
+	bus    eventbus.Bus
+	uow    repository.UnitOfWork
+	logger *slog.Logger
 }
 
 // NewService creates a new Service with the provided dependencies.
-func NewService(deps config.Deps) *Service {
+func NewService(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) *Service {
 	return &Service{
-		deps: deps,
+		bus:    bus,
+		uow:    uow,
+		logger: logger,
 	}
 }
 
 func (s *Service) CreateAccount(ctx context.Context, create dto.AccountCreate) (dto.AccountRead, error) {
-	uow := s.deps.Uow
+	uow := s.uow
 	var result *dto.AccountRead
 	err := uow.Do(ctx, func(uow repository.UnitOfWork) error {
 		repoAny, err := uow.GetRepository((*repoaccount.Repository)(nil))
@@ -89,7 +94,7 @@ func (s *Service) Deposit(ctx context.Context, cmd commands.DepositCommand) erro
 		return err
 	}
 
-	return s.deps.EventBus.Emit(ctx, events.DepositRequestedEvent{
+	return s.bus.Emit(ctx, events.DepositRequestedEvent{
 		FlowEvent: events.FlowEvent{
 			FlowType:      "deposit",
 			UserID:        cmd.UserID,
@@ -129,7 +134,7 @@ func (s *Service) Withdraw(ctx context.Context, cmd commands.WithdrawCommand) er
 		ExternalWalletAddress: externalWalletAddress,
 		Timestamp:             time.Now(),
 	}
-	return s.deps.EventBus.Emit(ctx, evt)
+	return s.bus.Emit(ctx, evt)
 }
 
 // Transfer moves funds from one account to another account.
@@ -138,7 +143,7 @@ func (s *Service) Transfer(ctx context.Context, create dto.TransactionCreate, de
 	if err != nil {
 		return err
 	}
-	return s.deps.EventBus.Emit(ctx, events.TransferRequestedEvent{
+	return s.bus.Emit(ctx, events.TransferRequestedEvent{
 		FlowEvent: events.FlowEvent{
 			FlowType:      "transfer",
 			UserID:        create.UserID,
@@ -157,9 +162,9 @@ func (s *Service) Transfer(ctx context.Context, create dto.TransactionCreate, de
 // If the status is "completed", it also updates the account balance accordingly.
 func (s *Service) UpdateTransactionStatusByPaymentID(paymentID, status string) error {
 	// Use a unit of work for atomicity
-	logger := s.deps.Logger.With("paymentID", paymentID)
+	logger := s.logger.With("paymentID", paymentID)
 	logger.Info("Updating transaction with payment Id", "status", status)
-	return s.deps.Uow.Do(context.Background(), func(uow repository.UnitOfWork) error {
+	return s.uow.Do(context.Background(), func(uow repository.UnitOfWork) error {
 		txRepo, err := uow.TransactionRepository()
 		if err != nil {
 			return err

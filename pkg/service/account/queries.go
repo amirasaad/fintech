@@ -15,7 +15,7 @@ func (s *Service) GetAccount(
 	account *account.Account,
 	err error,
 ) {
-	err = s.deps.Uow.Do(context.Background(), func(uow repository.UnitOfWork) error {
+	err = s.uow.Do(context.Background(), func(uow repository.UnitOfWork) error {
 		repo, err := uow.AccountRepository()
 		if err != nil {
 			return err
@@ -39,7 +39,7 @@ func (s *Service) GetTransactions(
 	transactions []*account.Transaction,
 	err error,
 ) {
-	err = s.deps.Uow.Do(context.Background(), func(uow repository.UnitOfWork) error {
+	err = s.uow.Do(context.Background(), func(uow repository.UnitOfWork) error {
 		// First, validate that the account exists and belongs to the user
 		accountRepo, err := uow.AccountRepository()
 		if err != nil {
@@ -74,7 +74,7 @@ func (s *Service) GetBalance(
 	balance float64,
 	err error,
 ) {
-	err = s.deps.Uow.Do(context.Background(), func(uow repository.UnitOfWork) error {
+	err = s.uow.Do(context.Background(), func(uow repository.UnitOfWork) error {
 		repo, err := uow.AccountRepository()
 		if err != nil {
 			return err
