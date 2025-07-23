@@ -67,7 +67,7 @@ func main() {
 	// Create UOW factory using the shared db
 	uow := infra_repository.NewUoW(db)
 	bus := app.SetupBus(config.Deps{
-		EventBus: eventbus.NewMemoryRegistryEventBus(),
+		EventBus: eventbus.NewMemoryRegistryEventBus(logger),
 		Uow:      uow,
 		Logger:   logger,
 	})

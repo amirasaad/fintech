@@ -87,7 +87,7 @@ func main() {
 	logger.Info("Starting fintech server", "port", ":3000")
 	log.Fatal(app.New(config.Deps{
 		Uow:               uow,
-		EventBus:          eventbus.NewMemoryRegistryEventBus(),
+		EventBus:          eventbus.NewMemoryRegistryEventBus(logger),
 		CurrencyConverter: currencyConverter,
 		CurrencyRegistry:  currencyRegistry,
 		Logger:            logger,

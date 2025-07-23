@@ -2,6 +2,7 @@ package eventbus
 
 import (
 	"context"
+	"log/slog"
 	"reflect"
 	"sync"
 
@@ -32,7 +33,7 @@ func (b *MemoryEventBus) Register(eventType string, handler eventbus.HandlerFunc
 	b.handlers[eventType] = append(b.handlers[eventType], handler)
 }
 
-// Publish dispatches the event to all registered handlers for its type.
+// Emit dispatches the event to all registered handlers for its type.
 func (b *MemoryEventBus) Emit(ctx context.Context, event domain.Event) error {
 	eventType := reflect.TypeOf(event).Name()
 	b.mu.RLock()
@@ -50,27 +51,59 @@ var _ eventbus.Bus = (*MemoryEventBus)(nil)
 // MemoryRegistryEventBus is a registry-based in-memory event bus implementation.
 type MemoryRegistryEventBus struct {
 	handlers map[string][]eventbus.HandlerFunc
+	mu       sync.RWMutex
+	eventCh  chan struct {
+		ctx   context.Context
+		event domain.Event
+	}
+	log *slog.Logger
 }
 
 // NewMemoryRegistryEventBus creates a new registry-based in-memory event bus.
-func NewMemoryRegistryEventBus() *MemoryRegistryEventBus {
-	return &MemoryRegistryEventBus{
+func NewMemoryRegistryEventBus(logger *slog.Logger) *MemoryRegistryEventBus {
+	b := &MemoryRegistryEventBus{
 		handlers: make(map[string][]eventbus.HandlerFunc),
+		eventCh: make(chan struct {
+			ctx   context.Context
+			event domain.Event
+		}, 100),
 	}
+	go b.process()
+	b.log = logger.With("event-bus", "memory")
+	return b
 }
 
 func (b *MemoryRegistryEventBus) Register(eventType string, handler eventbus.HandlerFunc) {
+	b.mu.Lock()
 	b.handlers[eventType] = append(b.handlers[eventType], handler)
+	b.mu.Unlock()
 }
 
 func (b *MemoryRegistryEventBus) Emit(ctx context.Context, event domain.Event) error {
-	handlers := b.handlers[event.Type()]
-	for _, handler := range handlers {
-		if err := handler(ctx, event); err != nil {
-			return err
-		}
-	}
+	b.eventCh <- struct {
+		ctx   context.Context
+		event domain.Event
+	}{ctx, event}
 	return nil
+}
+
+func (b *MemoryRegistryEventBus) process() {
+	for w := range b.eventCh {
+		go func(w struct {
+			ctx   context.Context
+			event domain.Event
+		}) {
+			b.mu.RLock()
+			handlers := append([]eventbus.HandlerFunc{}, b.handlers[w.event.Type()]...)
+			b.mu.RUnlock()
+			for _, handler := range handlers {
+				if err := handler(w.ctx, w.event); err != nil {
+					b.log.Error("failed to process event", "type", w.event.Type(), "event", w.event, "error", err)
+					break
+				}
+			}
+		}(w)
+	}
 }
 
 // Ensure MemoryRegistryEventBus implements the Bus interface.
