@@ -1,64 +1,80 @@
 repos:
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.3.0
-    hooks:
-      - id: trailing-whitespace
-      - id: end-of-file-fixer
-      - id: check-yaml
-      - id: check-added-large-files
-  - repo: local
-    hooks:
-      - id: event-cycle-check
-        name: "event cycle check"
-        entry: ./scripts/event_cycle_check.go
-        pass_filenames: false
-        types: [bash]
-        language: system
-      - id: go-vet
-        name: "go run vet"
-        entry: go vet ./...
-        pass_filenames: false
-        types: [go]
-        language: system
-      - id: go-unit-tests
-        name: "run unit tests"
-        entry: go test -p 12 ./pkg/...
-        pass_filenames: false
-        types: [go]
-        language: system
-      - id: go-critic
-        name: "gocritic check"
-        entry: gocritic check ./...
-        pass_filenames: false
-        types: [go]
-        language: system
-      - id: golangci-lint
-        name: "golangci-lint"
-        entry: golangci-lint run
-        pass_filenames: false
-        types: [go]
-        language: system
-      - id: go-build
-        name: "go build"
-        entry: go build ./...
-        pass_filenames: false
-        types: [go]
-        language: system
-      - id: go-test
-        name: "go test"
-        entry: go test ./pkg/...
-        pass_filenames: false
-        types: [go]
-        language: system
-      - id: go-fmt
-        name: go go-fmt
-        entry: go fmt ./...
-        pass_filenames: false
-        types: [go]
-        language: system
-      - id: go-mod
-        name: go mod tidy
-        entry: go mod tidy
-        pass_filenames: false
-        types: [go]
-        language: system
+- hooks:
+  - id: trailing-whitespace
+  - id: end-of-file-fixer
+  - id: check-yaml
+  - id: check-added-large-files
+  repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v4.3.0
+- hooks:
+  - entry: ./scripts/event_cycle_check.go
+    id: event-cycle-check
+    language: system
+    name: event cycle check
+    pass_filenames: false
+    types:
+    - bash
+  - entry: go vet ./...
+    id: go-vet
+    language: system
+    name: go run vet
+    pass_filenames: false
+    types:
+    - go
+  - entry: go test -p 12 ./pkg/...
+    id: go-unit-tests
+    language: system
+    name: run unit tests
+    pass_filenames: false
+    types:
+    - go
+  - entry: gocritic check ./...
+    id: go-critic
+    language: system
+    name: gocritic check
+    pass_filenames: false
+    types:
+    - go
+  - entry: golangci-lint run
+    id: golangci-lint
+    language: system
+    name: golangci-lint
+    pass_filenames: false
+    types:
+    - go
+  - entry: go build ./...
+    id: go-build
+    language: system
+    name: go build
+    pass_filenames: false
+    types:
+    - go
+  - entry: go test ./pkg/...
+    id: go-test
+    language: system
+    name: go test
+    pass_filenames: false
+    types:
+    - go
+  - entry: go fmt ./...
+    id: go-fmt
+    language: system
+    name: go go-fmt
+    pass_filenames: false
+    types:
+    - go
+  - entry: go mod tidy
+    id: go-mod
+    language: system
+    name: go mod tidy
+    pass_filenames: false
+    types:
+    - go
+  repo: local
+- hooks:
+  - id: commitizen
+  - id: commitizen-branch
+    stages:
+    - push
+  repo: https://github.com/commitizen-tools/commitizen
+  rev: v4.8.3
