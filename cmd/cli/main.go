@@ -12,9 +12,10 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/amirasaad/fintech/app"
 	"github.com/amirasaad/fintech/config"
 	"github.com/amirasaad/fintech/infra"
-	"github.com/amirasaad/fintech/infra/provider"
+	"github.com/amirasaad/fintech/infra/eventbus"
 	infra_repository "github.com/amirasaad/fintech/infra/repository"
 	"github.com/amirasaad/fintech/pkg/commands"
 	"github.com/amirasaad/fintech/pkg/dto"
@@ -65,20 +66,17 @@ func main() {
 
 	// Create UOW factory using the shared db
 	uow := infra_repository.NewUoW(db)
-
-	// Create exchange rate system
-	currencyConverter, err := infra.NewExchangeRateSystem(logger, *cfg)
-	if err != nil {
-		_, _ = color.New(color.FgRed).Fprintln(os.Stderr, "Failed to initialize exchange rate system:", err)
-		return
-	}
-
-	scv := account.NewService(config.Deps{
-		Uow:               uow,
-		CurrencyConverter: currencyConverter,
-		Logger:            logger,
-		PaymentProvider:   provider.NewMockPaymentProvider(),
+	bus := app.SetupBus(config.Deps{
+		EventBus: eventbus.NewMemoryRegistryEventBus(),
+		Uow:      uow,
+		Logger:   logger,
 	})
+
+	scv := account.NewService(
+		bus,
+		uow,
+		logger,
+	)
 	authSvc := auth.NewBasicAuthService(uow, logger)
 
 	cliApp(scv, authSvc)

@@ -8,6 +8,8 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/amirasaad/fintech/pkg/eventbus"
+
 	"github.com/amirasaad/fintech/pkg/handler/conversion"
 	paymenthandler "github.com/amirasaad/fintech/pkg/handler/payment"
 
@@ -37,100 +39,19 @@ import (
 // New builds all services, registers event handlers, and returns the Fiber app.
 func New(deps config.Deps) *fiber.App {
 	// Build services
-	accountSvc := accountsvc.NewService(deps)
-	userSvc := usersvc.NewService(deps)
+	accountSvc := accountsvc.NewService(deps.EventBus, deps.Uow, deps.Logger)
+	userSvc := usersvc.NewService(deps.Uow, deps.Logger)
 	authStrategy := authsvc.NewJWTAuthStrategy(deps.Uow, deps.Config.Jwt, deps.Logger)
 	authSvc := authsvc.NewAuthService(deps.Uow, authStrategy, deps.Logger)
 	currencySvc := currencysvc.NewCurrencyService(deps.CurrencyRegistry, deps.Logger)
 
-	// Create a new context-aware event bus
-	bus := deps.EventBus
+	bus := SetupBus(deps)
+	app := SetupApp(deps, bus, accountSvc, authSvc, userSvc, currencySvc)
+	return app
+}
 
-	// ============================================================================
-	// 🧩 EVENT HANDLER REGISTRATION – CLEAN, SINGLE-PASS EVENT-DRIVEN ARCHITECTURE
-	//
-	// The application uses a single-pass event-driven architecture where:
-	// - Each event represents a discrete step in a business process
-	// - Handlers are responsible for exactly one task
-	// - Events flow in one direction through the system
-	// - No handler emits an event that would trigger itself (prevents cycles)
-	// - Business validation happens after conversion to account currency
-	// ============================================================================
-
-	// 1️⃣ GENERIC CONVERSION HANDLER
-	// Handles all ConversionRequestedEvent by delegating to a flow-specific factory.
-	conversionFactories := map[string]conversion.EventFactory{
-		"deposit":  &conversion.DepositEventFactory{},
-		"withdraw": &conversion.WithdrawEventFactory{},
-		"transfer": &conversion.TransferEventFactory{},
-	}
-
-	bus.Register("ConversionRequestedEvent", conversion.Handler(bus, deps.CurrencyConverter, deps.Logger, conversionFactories))
-	bus.Register("ConversionDoneEvent", conversion.Persistence(deps.Uow, deps.Logger))
-	// 2️⃣ DEPOSIT FLOW
-	// User request → Initial Validation → Persistence → Conversion → Business Validation → Payment Initiation → Payment Persistence
-
-	// a. Initial validation of deposit request
-	bus.Register("DepositRequestedEvent", deposithandler.Validation(bus, deps.Uow, deps.Logger))
-	// b. Persist transaction after validation
-	bus.Register("DepositValidatedEvent", deposithandler.Persistence(bus, deps.Uow, deps.Logger))
-	// c. Business validation after conversion (in account currency)
-	bus.Register("DepositBusinessValidationEvent", deposithandler.BusinessValidation(bus, deps.Uow, deps.Logger))
-	// d. Deposit Business Validated Event
-	bus.Register("DepositBusinessValidatedEvent", paymenthandler.Initiation(bus, deps.PaymentProvider, deps.Logger))
-
-	// 3️⃣ WITHDRAW FLOW
-	// User request → Initial Validation → Persistence → Conversion → Business Validation → Payment Initiation → Payment Persistence
-
-	// a. Initial validation of withdraw request
-	bus.Register("WithdrawRequestedEvent", withdrawhandler.Validation(bus, deps.Uow, deps.Logger))
-	// b. Persist transaction after validation
-	bus.Register("WithdrawValidatedEvent", withdrawhandler.Persistence(bus, deps.Uow, deps.Logger))
-	// c. Business validation after conversion (in account currency)
-	bus.Register("WithdrawBusinessValidationEvent", withdrawhandler.BusinessValidation(bus, deps.Uow, deps.Logger))
-	// d. Withdraw Business Validated Event
-	bus.Register("WithdrawBusinessValidatedEvent", paymenthandler.Initiation(bus, deps.PaymentProvider, deps.Logger))
-
-	// Payment workflow
-	// Payment Initiation → Payment Persistence
-	// (External via Webhook) Payment Completion -> Payment Completed
-	bus.Register("PaymentInitiationEvent", paymenthandler.Initiation(bus, deps.PaymentProvider, deps.Logger))
-	bus.Register("PaymentInitiatedEvent", paymenthandler.Persistence(bus, deps.Uow, deps.Logger))
-	bus.Register("PaymentCompletedEvent", paymenthandler.Completed(bus, deps.Uow, deps.Logger))
-
-	// 4️⃣ TRANSFER FLOW
-	// User request → Initial Validation → Initial Persistence → Conversion → Business Validation → Final Persistence
-
-	// a. Initial validation of transfer request
-	bus.Register("TransferRequestedEvent", transferhandler.Validation(bus, deps.Logger))
-	// b. Initial persistence after validation
-	bus.Register("TransferValidatedEvent", transferhandler.InitialPersistence(bus, deps.Uow, deps.Logger))
-	// c. Business validation after conversion
-	bus.Register("TransferConversionDoneEvent", transferhandler.BusinessValidation(bus, deps.Uow, deps.Logger))
-	// d. Final persistence after domain operation
-	bus.Register("TransferDomainOpDoneEvent", transferhandler.Persistence(bus, deps.Uow, deps.Logger))
-
-	// ============================================================================
-	// 📝 ARCHITECTURE NOTES
-	//
-	// Key Design Principles:
-	// - Single Responsibility: Each handler does exactly one thing
-	// - Event Sourcing: Business processes are modeled as a series of events
-	// - CQRS: Commands (write operations) are separated from queries (reads)
-	// - Domain-Driven Design: Core business logic is encapsulated in domain models
-	//
-	// Event Flow Patterns:
-	// 1. Validation → Persistence → Business Logic → External Integration
-	// 2. Fail Fast: Validation happens before any state changes
-	// 3. Idempotency: Handlers are designed to be safely retryable
-	//
-	// Security:
-	// - Rate limiting is applied globally
-	// - Authentication is required for all endpoints (except public ones)
-	// - Input validation happens at the API boundary
-	// ============================================================================
-
-	// Initialize Fiber with custom configuration
+// SetupApp Initialize Fiber with custom configuration
+func SetupApp(deps config.Deps, bus eventbus.Bus, accountSvc *accountsvc.Service, authSvc *authsvc.AuthService, userSvc *usersvc.Service, currencySvc *currencysvc.CurrencyService) *fiber.App {
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			return common.ProblemDetailsJSON(c, "Internal Server Error", err)
@@ -186,4 +107,94 @@ func New(deps config.Deps) *fiber.App {
 	auth.Routes(app, authSvc)
 	currencywebapi.Routes(app, currencySvc, authSvc, deps.Config)
 	return app
+}
+
+// SetupBus Registers each event with its delegated handler
+//
+// 📝 ARCHITECTURE NOTES
+//
+// Key Design Principles:
+// - Single Responsibility: Each handler does exactly one thing
+// - Event Sourcing: Business processes are modeled as a series of events
+// - CQRS: Commands (write operations) are separated from queries (reads)
+// - Domain-Driven Design: Core business logic is encapsulated in domain models
+//
+// Event Flow Patterns:
+// 1. Validation → Persistence → Business Logic → External Integration
+// 2. Fail Fast: Validation happens before any state changes
+// 3. Idempotency: Handlers are designed to be safely retryable
+//
+// Security:
+// - Rate limiting is applied globally
+// - Authentication is required for all endpoints (except public ones)
+// - Input validation happens at the API boundary
+// ============================================================================
+func SetupBus(deps config.Deps) eventbus.Bus {
+	// Create a new context-aware event bus
+	bus := deps.EventBus
+
+	// ============================================================================
+	// 🧩 EVENT HANDLER REGISTRATION – CLEAN, SINGLE-PASS EVENT-DRIVEN ARCHITECTURE
+	//
+	// The application uses a single-pass event-driven architecture where:
+	// - Each event represents a discrete step in a business process
+	// - Handlers are responsible for exactly one task
+	// - Events flow in one direction through the system
+	// - No handler emits an event that would trigger itself (prevents cycles)
+	// - Business validation happens after conversion to account currency
+	// ============================================================================
+	// 1️⃣ GENERIC CONVERSION HANDLER
+	// Handles all ConversionRequestedEvent by delegating to a flow-specific factory.
+	conversionFactories := map[string]conversion.EventFactory{
+		"deposit":  &conversion.DepositEventFactory{},
+		"withdraw": &conversion.WithdrawEventFactory{},
+		"transfer": &conversion.TransferEventFactory{},
+	}
+
+	bus.Register("ConversionRequestedEvent", conversion.Handler(bus, deps.CurrencyConverter, deps.Logger, conversionFactories))
+	bus.Register("ConversionDoneEvent", conversion.Persistence(deps.Uow, deps.Logger))
+	// 2️⃣ DEPOSIT FLOW
+	// User request → Initial Validation → Persistence → Conversion → Business Validation → Payment Initiation → Payment Persistence
+
+	// a. Initial validation of deposit request
+	bus.Register("DepositRequestedEvent", deposithandler.Validation(bus, deps.Uow, deps.Logger))
+	// b. Persist transaction after validation
+	bus.Register("DepositValidatedEvent", deposithandler.Persistence(bus, deps.Uow, deps.Logger))
+	// c. Business validation after conversion (in account currency)
+	bus.Register("DepositBusinessValidationEvent", deposithandler.BusinessValidation(bus, deps.Uow, deps.Logger))
+	// d. Deposit Business Validated Event
+	bus.Register("DepositBusinessValidatedEvent", paymenthandler.Initiation(bus, deps.PaymentProvider, deps.Logger))
+
+	// 3️⃣ WITHDRAW FLOW
+	// User request → Initial Validation → Persistence → Conversion → Business Validation → Payment Initiation → Payment Persistence
+
+	// a. Initial validation of withdraw request
+	bus.Register("WithdrawRequestedEvent", withdrawhandler.Validation(bus, deps.Uow, deps.Logger))
+	// b. Persist transaction after validation
+	bus.Register("WithdrawValidatedEvent", withdrawhandler.Persistence(bus, deps.Uow, deps.Logger))
+	// c. Business validation after conversion (in account currency)
+	bus.Register("WithdrawBusinessValidationEvent", withdrawhandler.BusinessValidation(bus, deps.Uow, deps.Logger))
+	// d. Withdraw Business Validated Event
+	bus.Register("WithdrawBusinessValidatedEvent", paymenthandler.Initiation(bus, deps.PaymentProvider, deps.Logger))
+
+	// Payment workflow
+	// Payment Initiation → Payment Persistence
+	// (External via Webhook) Payment Completion -> Payment Completed
+	bus.Register("PaymentInitiationEvent", paymenthandler.Initiation(bus, deps.PaymentProvider, deps.Logger))
+	bus.Register("PaymentInitiatedEvent", paymenthandler.Persistence(bus, deps.Uow, deps.Logger))
+	bus.Register("PaymentCompletedEvent", paymenthandler.Completed(bus, deps.Uow, deps.Logger))
+
+	// 4️⃣ TRANSFER FLOW
+	// User request → Initial Validation → Initial Persistence → Conversion → Business Validation → Final Persistence
+
+	// a. Initial validation of transfer request
+	bus.Register("TransferRequestedEvent", transferhandler.Validation(bus, deps.Logger))
+	// b. Initial persistence after validation
+	bus.Register("TransferValidatedEvent", transferhandler.InitialPersistence(bus, deps.Uow, deps.Logger))
+	// c. Business validation after conversion
+	bus.Register("TransferBusinessValidationEvent", transferhandler.BusinessValidation(bus, deps.Uow, deps.Logger))
+	// d. Final persistence after domain operation
+	bus.Register("TransferDomainOpDoneEvent", transferhandler.Persistence(bus, deps.Uow, deps.Logger))
+
+	return bus
 }

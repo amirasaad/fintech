@@ -10,9 +10,7 @@ import (
 
 	"log/slog"
 
-	"github.com/amirasaad/fintech/config"
 	"github.com/amirasaad/fintech/infra/eventbus"
-	"github.com/amirasaad/fintech/infra/provider"
 	"github.com/amirasaad/fintech/internal/fixtures/mocks"
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain"
@@ -38,12 +36,7 @@ func newServiceWithMocks(t interface {
 	uow = mocks.NewMockUnitOfWork(t)
 	uow.EXPECT().AccountRepository().Return(accountRepo, nil).Maybe()
 	uow.EXPECT().TransactionRepository().Return(transactionRepo, nil).Maybe()
-	svc = accountsvc.NewService(config.Deps{
-		Uow:               uow,
-		CurrencyConverter: nil,
-		Logger:            slog.Default(),
-		PaymentProvider:   provider.NewMockPaymentProvider(),
-	})
+	svc = accountsvc.NewService(nil, uow, slog.Default())
 	return svc, accountRepo, transactionRepo, uow
 }
 
@@ -68,12 +61,7 @@ func TestCreateAccount_Success(t *testing.T) {
 	accountRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Once()
 	accountRepo.EXPECT().Get(mock.Anything, mock.Anything).Return(&dto.AccountRead{}, nil).Once()
 
-	svc := accountsvc.NewService(config.Deps{
-		Uow:               uow,
-		CurrencyConverter: nil,
-		Logger:            slog.Default(),
-		PaymentProvider:   provider.NewMockPaymentProvider(),
-	})
+	svc := accountsvc.NewService(nil, uow, slog.Default())
 	_, err := svc.CreateAccount(context.Background(), dto.AccountCreate{UserID: userID})
 	require.NoError(t, err)
 }
@@ -91,12 +79,7 @@ func TestCreateAccount_RepoError(t *testing.T) {
 	uow.EXPECT().GetRepository(mock.Anything).Return(accountRepo, nil).Once()
 	accountRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(errors.New("repo error")).Once()
 
-	svc := accountsvc.NewService(config.Deps{
-		Uow:               uow,
-		CurrencyConverter: nil,
-		Logger:            slog.Default(),
-		PaymentProvider:   provider.NewMockPaymentProvider(),
-	})
+	svc := accountsvc.NewService(nil, uow, slog.Default())
 	gotAccount, err := svc.CreateAccount(context.Background(), dto.AccountCreate{UserID: userID})
 	require.Error(t, err)
 	assert.Empty(t, gotAccount)
@@ -104,13 +87,7 @@ func TestCreateAccount_RepoError(t *testing.T) {
 
 func TestDeposit_PublishesEvent(t *testing.T) {
 	memBus := eventbus.NewMemoryEventBus()
-	svc := accountsvc.NewService(config.Deps{
-		Uow:               nil,
-		CurrencyConverter: nil,
-		Logger:            slog.Default(),
-		PaymentProvider:   provider.NewMockPaymentProvider(),
-		EventBus:          memBus,
-	})
+	svc := accountsvc.NewService(memBus, nil, slog.Default())
 
 	// Register the handler before publishing
 	var called bool
@@ -127,13 +104,7 @@ func TestDeposit_PublishesEvent(t *testing.T) {
 
 func TestWithdraw_PublishesEvent(t *testing.T) {
 	memBus := eventbus.NewMemoryEventBus()
-	svc := accountsvc.NewService(config.Deps{
-		Uow:               nil,
-		CurrencyConverter: nil,
-		Logger:            slog.Default(),
-		PaymentProvider:   provider.NewMockPaymentProvider(),
-		EventBus:          memBus,
-	})
+	svc := accountsvc.NewService(memBus, nil, slog.Default())
 	userID := uuid.New()
 	accountID := uuid.New()
 	var publishedEvents []domain.Event
@@ -170,9 +141,7 @@ func TestTransfer_PublishesEvent(t *testing.T) {
 	currency := "USD"
 	moneySource := "transfer"
 
-	svc := accountsvc.NewService(config.Deps{
-		EventBus: memBus,
-	})
+	svc := accountsvc.NewService(memBus, nil, slog.Default())
 	var publishedEvents []domain.Event
 	memBus.Register("TransferRequestedEvent", func(c context.Context, e domain.Event) error {
 		publishedEvents = append(publishedEvents, e)
@@ -215,12 +184,7 @@ func TestGetAccount_Success(t *testing.T) {
 	).Once()
 	accountRepo.EXPECT().Get(accountID).Return(account, nil).Once()
 
-	svc := accountsvc.NewService(config.Deps{
-		Uow:               uow,
-		CurrencyConverter: nil,
-		Logger:            slog.Default(),
-		PaymentProvider:   provider.NewMockPaymentProvider(),
-	})
+	svc := accountsvc.NewService(nil, uow, slog.Default())
 	gotAccount, err := svc.GetAccount(userID, accountID)
 	require.NoError(t, err)
 	assert.NotNil(t, gotAccount)
@@ -240,12 +204,7 @@ func TestGetAccount_NotFound(t *testing.T) {
 	).Once()
 	accountRepo.EXPECT().Get(accountID).Return(nil, accountdomain.ErrAccountNotFound).Once()
 
-	svc := accountsvc.NewService(config.Deps{
-		Uow:               uow,
-		CurrencyConverter: nil,
-		Logger:            slog.Default(),
-		PaymentProvider:   provider.NewMockPaymentProvider(),
-	})
+	svc := accountsvc.NewService(nil, uow, slog.Default())
 	gotAccount, err := svc.GetAccount(userID, accountID)
 	require.Error(t, err)
 	assert.Nil(t, gotAccount)
@@ -265,12 +224,7 @@ func TestGetAccount_Unauthorized(t *testing.T) {
 	).Once()
 	accountRepo.EXPECT().Get(accountID).Return(nil, user.ErrUserUnauthorized).Once()
 
-	svc := accountsvc.NewService(config.Deps{
-		Uow:               uow,
-		CurrencyConverter: nil,
-		Logger:            slog.Default(),
-		PaymentProvider:   provider.NewMockPaymentProvider(),
-	})
+	svc := accountsvc.NewService(nil, uow, slog.Default())
 	gotAccount, err := svc.GetAccount(userID, accountID)
 	require.Error(t, err)
 	assert.Nil(t, gotAccount)
@@ -297,12 +251,7 @@ func TestGetTransactions_Success(t *testing.T) {
 	accountRepo.EXPECT().Get(accountID).Return(account, nil).Once()
 	transactionRepo.EXPECT().List(userID, accountID).Return(txs, nil).Once()
 
-	svc := accountsvc.NewService(config.Deps{
-		Uow:               uow,
-		CurrencyConverter: nil,
-		Logger:            slog.Default(),
-		PaymentProvider:   provider.NewMockPaymentProvider(),
-	})
+	svc := accountsvc.NewService(nil, uow, slog.Default())
 	gotTxs, err := svc.GetTransactions(userID, accountID)
 	require.NoError(t, err)
 	assert.Equal(t, txs, gotTxs)
@@ -326,12 +275,7 @@ func TestGetTransactions_Error(t *testing.T) {
 	accountRepo.EXPECT().Get(accountID).Return(account, nil).Once()
 	transactionRepo.EXPECT().List(userID, accountID).Return(nil, errors.New("list error")).Once()
 
-	svc := accountsvc.NewService(config.Deps{
-		Uow:               uow,
-		CurrencyConverter: nil,
-		Logger:            slog.Default(),
-		PaymentProvider:   provider.NewMockPaymentProvider(),
-	})
+	svc := accountsvc.NewService(nil, uow, slog.Default())
 	txs, err := svc.GetTransactions(userID, accountID)
 	require.Error(t, err)
 	assert.Nil(t, txs)
@@ -346,12 +290,7 @@ func TestGetTransactions_UoWFactoryError(t *testing.T) {
 		},
 	)
 
-	svc := accountsvc.NewService(config.Deps{
-		Uow:               uow,
-		CurrencyConverter: nil,
-		Logger:            slog.Default(),
-		PaymentProvider:   provider.NewMockPaymentProvider(),
-	})
+	svc := accountsvc.NewService(nil, uow, slog.Default())
 	_, err := svc.GetTransactions(uuid.New(), uuid.New())
 	require.Error(t, err)
 }
@@ -372,12 +311,7 @@ func TestGetBalance_Success(t *testing.T) {
 	err := acc.ValidateDeposit(userID, balanceMoney)
 	require.NoError(t, err)
 	accountRepo.EXPECT().Get(acc.ID).Return(acc, nil)
-	_, _ = accountsvc.NewService(config.Deps{
-		Uow:               uow,
-		CurrencyConverter: nil,
-		Logger:            slog.Default(),
-		PaymentProvider:   provider.NewMockPaymentProvider(),
-	}).GetBalance(userID, acc.ID)
+	_, _ = accountsvc.NewService(nil, uow, slog.Default()).GetBalance(userID, acc.ID)
 
 }
 
@@ -393,14 +327,9 @@ func TestGetBalance_NotFound(t *testing.T) {
 		},
 	)
 
-	accountRepo.EXPECT().Get(mock.Anything).Return(&domain.Account{}, domain.ErrAccountNotFound)
+	accountRepo.EXPECT().Get(mock.Anything).Return(&accountdomain.Account{}, accountdomain.ErrAccountNotFound)
 
-	balance, err := accountsvc.NewService(config.Deps{
-		Uow:               uow,
-		CurrencyConverter: nil,
-		Logger:            slog.Default(),
-		PaymentProvider:   provider.NewMockPaymentProvider(),
-	}).GetBalance(uuid.New(), uuid.New())
+	balance, err := accountsvc.NewService(nil, uow, slog.Default()).GetBalance(uuid.New(), uuid.New())
 	require.Error(err)
 	assert.InDelta(0, balance, 0.01)
 }
