@@ -167,12 +167,19 @@ func (a *Account) validateAmount(amount money.Money) error {
 
 // ValidateDeposit checks all business invariants for a deposit operation.
 func (a *Account) ValidateDeposit(userID uuid.UUID, amount money.Money) (err error) {
-
 	if err = a.validate(userID); err != nil {
 		return
 	}
-	return a.validateAmount(amount)
 
+	if err = a.validateAmount(amount); err != nil {
+		return
+	}
+
+	if !a.Balance.IsSameCurrency(amount) {
+		return ErrCurrencyMismatch
+	}
+
+	return
 }
 
 // ValidateWithdraw removes funds from the account if all business invariants are satisfied.

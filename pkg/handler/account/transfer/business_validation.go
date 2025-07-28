@@ -3,66 +3,80 @@ package transfer
 import (
 	"context"
 	"fmt"
-	"log/slog"
 
-	"github.com/amirasaad/fintech/pkg/domain"
+	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/amirasaad/fintech/pkg/domain/events"
+	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/amirasaad/fintech/pkg/mapper"
 	"github.com/amirasaad/fintech/pkg/repository"
-	"github.com/amirasaad/fintech/pkg/repository/account"
-	"github.com/google/uuid"
+	"log/slog"
 )
 
 // BusinessValidation performs checks like sufficient funds after currency conversion.
-func BusinessValidation(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e domain.Event) error {
-	return func(ctx context.Context, e domain.Event) error {
+func BusinessValidation(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e common.Event) error {
+	return func(ctx context.Context, e common.Event) error {
 		log := logger.With("handler", "BusinessValidation", "event_type", e.Type())
 
+		// Best practice: use pointer events for handlers
+		log.Info("🟢 [HANDLER] BusinessValidation received event", "event_type", e.Type(), "event_pointer", fmt.Sprintf("%T", e))
+
 		// 1. Defensive: Check event type and structure
-		cde, ok := e.(events.TransferBusinessValidatedEvent)
+		cde, ok := e.(*events.TransferBusinessValidationEvent)
 		if !ok {
 			log.Error("❌ [DISCARD] Unexpected event type", "event", e)
 			return nil
 		}
-		log = log.With("correlation_id", cde.CorrelationID)
-		log.Info("🟢 [START] Received event", "event", cde)
 
-		if cde.FlowType != "transfer" || cde.AccountID == uuid.Nil || cde.ConvertedAmount.IsZero() || cde.ConvertedAmount.IsNegative() {
-			log.Error("❌ [DISCARD] Invalid or non-transfer event", "event", cde)
-			return nil
-		}
-
-		// 2. Perform Business Validation
-		repoAny, err := uow.GetRepository((*account.Repository)(nil))
+		// 2. Get account repository
+		repoAny, err := uow.GetRepository((*repository.AccountRepository)(nil))
 		if err != nil {
-			log.Error("❌ [ERROR] Failed to get repository", "error", err)
-			return err // Return repository/DB errors directly
-		}
-		accRepo, ok := repoAny.(account.Repository)
-		if !ok {
-			err = fmt.Errorf("unexpected repository type")
-			log.Error("❌ [ERROR]", "error", err)
+			log.Error("❌ [ERROR] Failed to get account repository", "error", err)
 			return err
 		}
 
-		sourceAccDto, err := accRepo.Get(ctx, cde.AccountID)
+		accRepo, ok := repoAny.(repository.AccountRepository)
+		if !ok {
+			err = fmt.Errorf("unexpected repository type")
+			log.Error(" [ERROR] Unexpected repository type", "error", err)
+			return err
+		}
+
+		// Get source account DTO
+		sourceAccDto, err := accRepo.Get(cde.AccountID)
 		if err != nil {
-			log.Warn("❌ [BUSINESS] Business validation failed", "reason", "source account not found")
-			failureEvent := events.TransferFailedEvent{
-				TransferRequestedEvent: cde.TransferRequestedEvent,
-				Reason:                 "source account not found",
-			}
+			log.Warn(" [BUSINESS] Source account not found", "account_id", cde.AccountID, "error", err)
+			failureEvent := events.NewTransferFailedEvent(
+				cde.UserID,
+				cde.AccountID,
+				cde.CorrelationID,
+				"source account not found: "+err.Error(),
+				events.WithTransferFailedRequestedEvent(cde.TransferRequestedEvent),
+			)
 			return bus.Emit(ctx, failureEvent) // Emit business failure
 		}
 
-		sourceAcc := mapper.MapAccountReadToDomain(sourceAccDto)
+		// Map domain Account to DTO AccountRead
+		accountRead := &dto.AccountRead{
+			ID:        sourceAccDto.ID,
+			UserID:    sourceAccDto.UserID,
+			Balance:   float64(sourceAccDto.Balance.Amount()) / 100, // Convert from cents to dollars
+			Currency:  string(sourceAccDto.Balance.Currency()),
+			Status:    "active", // Assuming active status for simplicity
+			CreatedAt: sourceAccDto.CreatedAt,
+		}
+
+		// Map DTO to domain model
+		sourceAcc := mapper.MapAccountReadToDomain(accountRead)
 		if err := sourceAcc.ValidateWithdraw(cde.UserID, cde.ConvertedAmount); err != nil {
 			log.Warn("❌ [BUSINESS] Business validation failed", "reason", err)
-			failureEvent := events.TransferFailedEvent{
-				TransferRequestedEvent: cde.TransferRequestedEvent,
-				Reason:                 err.Error(),
-			}
+			failureEvent := events.NewTransferFailedEvent(
+				cde.UserID,
+				cde.AccountID,
+				cde.CorrelationID,
+				err.Error(),
+				events.WithTransferFailedRequestedEvent(cde.TransferRequestedEvent),
+			)
 			return bus.Emit(ctx, failureEvent) // Emit business failure
 		}
 

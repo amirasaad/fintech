@@ -36,7 +36,7 @@ func handler() http.HandlerFunc {
 		logger.Error("Failed to load application configuration", "error", err)
 		log.Fatal(err)
 	}
-	currencyConverter, err := infra.NewExchangeRateSystem(logger, *cfg)
+	currencyConverter, err := infra.NewExchangeRateSystem(logger, cfg.Exchange)
 	if err != nil {
 		logger.Error("Failed to initialize exchange rate system", "error", err)
 		log.Fatal(err)
@@ -61,7 +61,7 @@ func handler() http.HandlerFunc {
 
 	a := app.New(config.Deps{
 		Uow:               uow,
-		EventBus:          eventbus.NewMemoryRegistryEventBus(logger),
+		EventBus:          eventbus.NewWithMemoryAsync(logger),
 		CurrencyConverter: currencyConverter,
 		CurrencyRegistry:  currencyRegistry,
 		PaymentProvider:   provider.NewMockPaymentProvider(),

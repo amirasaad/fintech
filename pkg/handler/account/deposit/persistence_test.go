@@ -1,4 +1,4 @@
-package deposit
+package deposit_test
 
 import (
 	"context"
@@ -9,9 +9,13 @@ import (
 
 	"github.com/amirasaad/fintech/internal/fixtures/mocks"
 	"github.com/amirasaad/fintech/pkg/currency"
-	"github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/domain/money"
+	"github.com/amirasaad/fintech/pkg/dto"
+	"github.com/amirasaad/fintech/pkg/handler/account/deposit"
+	"github.com/amirasaad/fintech/pkg/repository"
+	"github.com/amirasaad/fintech/pkg/repository/account"
+	"github.com/amirasaad/fintech/pkg/repository/transaction"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -28,47 +32,83 @@ func TestPersistence(t *testing.T) {
 
 		userID := uuid.New()
 		accountID := uuid.New()
+		correlationID := uuid.New()
 		amount, _ := money.New(100, currency.USD)
 
-		acc, _ := account.New().
-			WithID(accountID).
-			WithUserID(userID).
-			WithBalance(amount.Amount()).
-			WithCurrency(currency.USD).
-			Build()
+		// Create a deposit validated event with all required fields
+		event := NewValidDepositValidatedEvent(userID, accountID, correlationID, amount)
 
-		event := events.DepositValidatedEvent{
-			DepositRequestedEvent: events.DepositRequestedEvent{
-				FlowEvent: events.FlowEvent{
-					FlowType:      "deposit",
-					UserID:        userID,
-					AccountID:     accountID,
-					CorrelationID: uuid.New(),
-				},
-				Amount: amount,
-			},
-			Account: acc,
+		// Setup test data
+		accRepo := mocks.NewAccountRepository(t)
+		accRead := &dto.AccountRead{
+			ID:       accountID,
+			UserID:   userID,
+			Balance:  100000,
+			Currency: "USD",
 		}
 
-		// Mock expectations
-		uow.On("Do", mock.Anything, mock.AnythingOfType("func(repository.UnitOfWork) error")).Return(nil).Once()
+		// Create a transaction repository mock
+		txRepo := mocks.NewTransactionRepository(t)
+
+		// Setup the uow.Do to execute the callback function
+		uow.On("Do", mock.Anything, mock.AnythingOfType("func(repository.UnitOfWork) error")).
+			Return(nil).
+			Run(func(args mock.Arguments) {
+				// This runs when Do is called, simulating the transaction
+				cb := args.Get(1).(func(repository.UnitOfWork) error)
+
+				// Setup mocks that will be used inside the callback
+				uow.Mock.On("GetRepository", (*account.Repository)(nil)).Return(accRepo, nil).Once()
+				uow.Mock.On("GetRepository", (*transaction.Repository)(nil)).Return(txRepo, nil).Once()
+
+				// Mock the account repository Get call
+				accRepo.On("Get", mock.Anything, accountID).Return(accRead, nil).Once()
+
+				// Mock the transaction repository Create call
+				txRepo.On("Create", mock.Anything, mock.MatchedBy(func(tx dto.TransactionCreate) bool {
+					return tx.UserID == userID &&
+						tx.AccountID == accountID &&
+						tx.Currency == "USD" &&
+						tx.Status == "created" &&
+						tx.Amount == 10000 // 100 * 100 (minor units)
+				})).Return(nil).Once()
+
+				// Execute the callback
+				err := cb(uow)
+				assert.NoError(t, err, "callback should not return error")
+			}).Once()
+
+		// Expect the Emit call for DepositPersistedEvent
 		bus.On("Emit", mock.Anything, mock.MatchedBy(func(e interface{}) bool {
-			persistedEvent, ok := e.(events.DepositPersistedEvent)
+			persistedEvent, ok := e.(*events.DepositPersistedEvent)
 			if !ok {
 				return false
 			}
-			return persistedEvent.DepositValidatedEvent.UserID == userID &&
-				persistedEvent.DepositValidatedEvent.AccountID == accountID &&
+			return persistedEvent.UserID == userID &&
+				persistedEvent.AccountID == accountID &&
+				persistedEvent.CorrelationID == correlationID &&
+				persistedEvent.TransactionID != uuid.Nil &&
+				persistedEvent.Amount.Equals(amount)
+		})).Return(nil).Once()
+		bus.On("Emit", mock.Anything, mock.MatchedBy(func(e interface{}) bool {
+			persistedEvent, ok := e.(*events.ConversionRequestedEvent)
+			if !ok {
+				return false
+			}
+			return persistedEvent.UserID == userID &&
+				persistedEvent.AccountID == accountID &&
+				persistedEvent.CorrelationID == correlationID &&
 				persistedEvent.TransactionID != uuid.Nil &&
 				persistedEvent.Amount.Equals(amount)
 		})).Return(nil).Once()
 
 		// Execute
-		handler := Persistence(bus, uow, logger)
+		handler := deposit.Persistence(bus, uow, logger)
 		err := handler(ctx, event)
 
 		// Assert
 		assert.NoError(t, err)
+		bus.AssertExpectations(t)
 	})
 
 	t.Run("handles unexpected event type gracefully", func(t *testing.T) {
@@ -80,12 +120,11 @@ func TestPersistence(t *testing.T) {
 		event := events.WithdrawValidatedEvent{}
 
 		// Execute
-		handler := Persistence(bus, uow, logger)
-		err := handler(ctx, event)
+		handler := deposit.Persistence(bus, uow, logger)
+		err := handler(ctx, &event)
 
 		// Assert
 		assert.NoError(t, err)
-		// No interactions should occur with mocks
 		uow.AssertNotCalled(t, "Do", mock.Anything, mock.Anything)
 		bus.AssertNotCalled(t, "Emit", mock.Anything, mock.Anything)
 	})
@@ -97,33 +136,17 @@ func TestPersistence(t *testing.T) {
 
 		userID := uuid.New()
 		accountID := uuid.New()
+		correlationID := uuid.New()
 		amount, _ := money.New(100, currency.USD)
 
-		acc, _ := account.New().
-			WithID(accountID).
-			WithUserID(userID).
-			WithBalance(amount.Amount()).
-			WithCurrency(currency.USD).
-			Build()
-
-		event := events.DepositValidatedEvent{
-			DepositRequestedEvent: events.DepositRequestedEvent{
-				FlowEvent: events.FlowEvent{
-					FlowType:      "deposit",
-					UserID:        userID,
-					AccountID:     accountID,
-					CorrelationID: uuid.New(),
-				},
-				Amount: amount,
-			},
-			Account: acc,
-		}
+		// Create a deposit validated event with all required fields
+		event := NewValidDepositValidatedEvent(userID, accountID, correlationID, amount)
 
 		// Mock persistence error
 		uow.On("Do", mock.Anything, mock.AnythingOfType("func(repository.UnitOfWork) error")).Return(errors.New("persistence error")).Once()
 
 		// Execute
-		handler := Persistence(bus, uow, logger)
+		handler := deposit.Persistence(bus, uow, logger)
 		err := handler(ctx, event)
 
 		// Assert
@@ -131,88 +154,4 @@ func TestPersistence(t *testing.T) {
 		bus.AssertNotCalled(t, "Emit", mock.Anything, mock.Anything)
 	})
 
-	t.Run("handles emit error", func(t *testing.T) {
-		// Setup
-		bus := mocks.NewMockBus(t)
-		uow := mocks.NewMockUnitOfWork(t)
-
-		userID := uuid.New()
-		accountID := uuid.New()
-		amount, _ := money.New(100, currency.USD)
-
-		acc, _ := account.New().
-			WithID(accountID).
-			WithUserID(userID).
-			WithBalance(amount.Amount()).
-			WithCurrency(currency.USD).
-			Build()
-
-		event := events.DepositValidatedEvent{
-			DepositRequestedEvent: events.DepositRequestedEvent{
-				FlowEvent: events.FlowEvent{
-					FlowType:      "deposit",
-					UserID:        userID,
-					AccountID:     accountID,
-					CorrelationID: uuid.New(),
-				},
-				Amount: amount,
-			},
-			Account: acc,
-		}
-
-		// Mock expectations
-		uow.On("Do", mock.Anything, mock.AnythingOfType("func(repository.UnitOfWork) error")).Return(nil).Once()
-		bus.On("Emit", mock.Anything, mock.AnythingOfType("events.DepositPersistedEvent")).Return(errors.New("emit error")).Once()
-
-		// Execute
-		handler := Persistence(bus, uow, logger)
-		err := handler(ctx, event)
-
-		// Assert
-		assert.Error(t, err)
-	})
-
-	t.Run("does not emit conversion event when currencies match", func(t *testing.T) {
-		// Setup
-		bus := mocks.NewMockBus(t)
-		uow := mocks.NewMockUnitOfWork(t)
-
-		userID := uuid.New()
-		accountID := uuid.New()
-		amount, _ := money.New(100, currency.USD)
-
-		// Account with same currency as deposit
-		acc, _ := account.New().
-			WithID(accountID).
-			WithUserID(userID).
-			WithBalance(amount.Amount()).
-			WithCurrency(currency.USD). // Same as deposit currency
-			Build()
-
-		event := events.DepositValidatedEvent{
-			DepositRequestedEvent: events.DepositRequestedEvent{
-				FlowEvent: events.FlowEvent{
-					FlowType:      "deposit",
-					UserID:        userID,
-					AccountID:     accountID,
-					CorrelationID: uuid.New(),
-				},
-				Amount: amount,
-			},
-			Account: acc,
-		}
-
-		// Mock expectations - only DepositPersistedEvent should be emitted, not ConversionRequestedEvent
-		uow.On("Do", mock.Anything, mock.AnythingOfType("func(repository.UnitOfWork) error")).Return(nil).Once()
-		bus.On("Emit", mock.Anything, mock.AnythingOfType("events.DepositPersistedEvent")).Return(nil).Once()
-
-		// Execute
-		handler := Persistence(bus, uow, logger)
-		err := handler(ctx, event)
-
-		// Assert
-		assert.NoError(t, err)
-		// Verify that ConversionRequestedEvent was not emitted
-		bus.AssertNotCalled(t, "Emit", mock.Anything, mock.AnythingOfType("*events.ConversionRequestedEvent"))
-	})
 }

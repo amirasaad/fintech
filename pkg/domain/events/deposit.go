@@ -1,8 +1,10 @@
 package events
 
 import (
-	"github.com/amirasaad/fintech/pkg/domain/account"
+	"errors"
 	"time"
+
+	"github.com/amirasaad/fintech/pkg/domain/common"
 
 	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/google/uuid"
@@ -17,19 +19,25 @@ type DepositRequestedEvent struct {
 	Timestamp time.Time
 }
 
+func (e DepositRequestedEvent) Validate() error {
+	if e.Amount.IsNegative() {
+		return errors.New("amount must be positive")
+	}
+	return nil
+}
+
 // DepositValidatedEvent is emitted after deposit validation succeeds.
 type DepositValidatedEvent struct {
-	ID uuid.UUID
 	DepositRequestedEvent
-	Account *account.Account
+	ID            uuid.UUID
+	TransactionID uuid.UUID
 }
 
 // DepositBusinessValidationEvent is emitted after deposit currency conversion is completed.
 type DepositBusinessValidationEvent struct {
 	DepositValidatedEvent
 	ConversionDoneEvent
-	Account *account.Account
-	Amount  money.Money
+	Amount money.Money
 }
 
 // DepositPersistedEvent is emitted after persistence is complete.
@@ -42,10 +50,15 @@ type DepositPersistedEvent struct {
 
 // DepositBusinessValidatedEvent is emitted after business validation in account currency.
 type DepositBusinessValidatedEvent struct {
-	FlowEvent
-	ID uuid.UUID
 	DepositBusinessValidationEvent
+	ID            uuid.UUID
 	TransactionID uuid.UUID
+}
+
+type DepositFailedEvent struct {
+	FlowEvent
+	TransactionID uuid.UUID
+	Reason        string
 }
 
 func (e DepositRequestedEvent) Type() string          { return "DepositRequestedEvent" }
@@ -53,3 +66,15 @@ func (e DepositValidatedEvent) Type() string          { return "DepositValidated
 func (e DepositBusinessValidationEvent) Type() string { return "DepositBusinessValidationEvent" }
 func (e DepositPersistedEvent) Type() string          { return "DepositPersistedEvent" }
 func (e DepositBusinessValidatedEvent) Type() string  { return "DepositBusinessValidatedEvent" }
+func (e DepositFailedEvent) Type() string             { return "DepositFailedEvent" }
+
+func DepositEventTypes() map[string]func() common.Event {
+	return map[string]func() common.Event{
+		"DepositRequestedEvent":          func() common.Event { return &DepositRequestedEvent{} },
+		"DepositValidatedEvent":          func() common.Event { return &DepositValidatedEvent{} },
+		"DepositBusinessValidationEvent": func() common.Event { return &DepositBusinessValidationEvent{} },
+		"DepositPersistedEvent":          func() common.Event { return &DepositPersistedEvent{} },
+		"DepositBusinessValidatedEvent":  func() common.Event { return &DepositBusinessValidatedEvent{} },
+		"DepositFailedEvent":             func() common.Event { return &DepositFailedEvent{} },
+	}
+}

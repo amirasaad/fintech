@@ -4,8 +4,8 @@ import (
 	"time"
 
 	"github.com/amirasaad/fintech/pkg/currency"
-	"github.com/amirasaad/fintech/pkg/domain"
 
+	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/google/uuid"
 )
@@ -21,6 +21,9 @@ type ConversionRequestedEvent struct {
 	Timestamp     time.Time
 }
 
+func (e ConversionRequestedEvent) Type() string        { return "ConversionRequestedEvent" }
+func (e ConversionRequestedEvent) FlowData() FlowEvent { return e.FlowEvent }
+
 // ConversionDoneEvent is a generic event for reporting the result of a currency conversion.
 type ConversionDoneEvent struct {
 	FlowEvent
@@ -28,9 +31,9 @@ type ConversionDoneEvent struct {
 	RequestID       string
 	TransactionID   uuid.UUID
 	ConvertedAmount money.Money
-	ConversionInfo  *domain.ConversionInfo
+	ConversionInfo  *common.ConversionInfo
 	Timestamp       time.Time
 }
 
-func (e ConversionRequestedEvent) Type() string { return "ConversionRequestedEvent" }
-func (e ConversionDoneEvent) Type() string      { return "ConversionDoneEvent" }
+func (e ConversionDoneEvent) Type() string        { return "ConversionDoneEvent" }
+func (e ConversionDoneEvent) FlowData() FlowEvent { return e.FlowEvent }

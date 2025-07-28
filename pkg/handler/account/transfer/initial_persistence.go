@@ -8,38 +8,38 @@ import (
 
 	"github.com/amirasaad/fintech/pkg/mapper"
 
-	"github.com/amirasaad/fintech/pkg/domain"
+	domainaccount "github.com/amirasaad/fintech/pkg/domain/account"
+	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/amirasaad/fintech/pkg/repository/account"
 	"github.com/amirasaad/fintech/pkg/repository/transaction"
-	"github.com/google/uuid"
 )
 
 // InitialPersistence handles TransferValidatedEvent, creates an initial 'pending' transaction, and triggers conversion.
-func InitialPersistence(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e domain.Event) error {
-	return func(ctx context.Context, e domain.Event) error {
+func InitialPersistence(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e common.Event) error {
+	return func(ctx context.Context, e common.Event) error {
 		log := logger.With("handler", "InitialPersistence", "event_type", e.Type())
 
 		// 1. Defensive: Check event type and structure
-		ve, ok := e.(events.TransferValidatedEvent)
+		ve, ok := e.(*events.TransferValidatedEvent)
 		if !ok {
 			log.Error("❌ [DISCARD] Unexpected event type", "event", e)
-			return nil
+			return fmt.Errorf("unexpected event type: %T", e)
 		}
 		log = log.With("correlation_id", ve.CorrelationID)
 		log.Info("🟢 [START] Received event", "event", ve)
 
-		if ve.AccountID == uuid.Nil || ve.UserID == uuid.Nil || ve.Amount.IsZero() || ve.Amount.IsNegative() {
-			log.Error("❌ [DISCARD] Malformed validated event", "event", ve)
-			return nil
+		if err := ve.Validate(); err != nil {
+			log.Error("❌ [DISCARD] Malformed validated event", "error", err)
+			return err
 		}
 
 		// 2. Persist initial transaction (tx_out) atomically
 		txID := ve.ID
-		var destAccount *domain.Account
+		var destAccount *domainaccount.Account
 		err := uow.Do(ctx, func(uow repository.UnitOfWork) error {
 			repoAny, err := uow.GetRepository((*transaction.Repository)(nil))
 			if err != nil {
@@ -81,14 +81,14 @@ func InitialPersistence(bus eventbus.Bus, uow repository.UnitOfWork, logger *slo
 		log.Info("✅ [SUCCESS] Initial 'pending' transaction created", "transaction_id", txID)
 
 		// 3. Emit event to trigger currency conversion
-		conversionEvent := events.ConversionRequestedEvent{
-			FlowEvent:     ve.FlowEvent,
-			Amount:        ve.Amount,
-			To:            destAccount.Currency(),
-			RequestID:     txID.String(),
-			Timestamp:     time.Now(),
-			TransactionID: txID,
-		}
+		conversionEvent := events.NewConversionRequestedEvent(
+			ve.FlowEvent,
+			events.WithConversionAmount(ve.Amount),
+			events.WithConversionTo(destAccount.Currency()),
+			events.WithConversionRequestID(txID.String()),
+			events.WithConversionTransactionID(txID),
+			events.WithConversionTimestamp(time.Now()),
+		)
 
 		log.Info("📤 [EMIT] Emitting ConversionRequestedEvent", "event", conversionEvent)
 		return bus.Emit(ctx, conversionEvent)

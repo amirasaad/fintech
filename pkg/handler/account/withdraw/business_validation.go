@@ -2,25 +2,29 @@ package withdraw
 
 import (
 	"context"
+	"log/slog"
+	"time"
+
 	"github.com/amirasaad/fintech/pkg/mapper"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/amirasaad/fintech/pkg/repository/account"
 	"github.com/google/uuid"
-	"log/slog"
-	"time"
+
+	"errors"
 
 	"github.com/amirasaad/fintech/pkg/domain"
+	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/eventbus"
 )
 
 // BusinessValidation performs business validation in account currency after conversion.
 // Emits WithdrawValidatedEvent to trigger payment initiation.
-func BusinessValidation(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e domain.Event) error {
-	return func(ctx context.Context, e domain.Event) error {
+func BusinessValidation(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e common.Event) error {
+	return func(ctx context.Context, e common.Event) error {
 		log := logger.With("handler", "BusinessValidation", "event_type", e.Type())
 		log.Info("🟢 [START] Received event", "event", e)
-		wce, ok := e.(events.WithdrawBusinessValidationEvent)
+		wce, ok := e.(*events.WithdrawBusinessValidationEvent)
 		if !ok {
 			log.Debug("🚫 [SKIP] Skipping: unexpected event type in BusinessValidation", "event", e)
 			return nil
@@ -33,19 +37,22 @@ func BusinessValidation(bus eventbus.Bus, uow repository.UnitOfWork, logger *slo
 		}
 		accRepoAny, err := uow.GetRepository((*account.Repository)(nil))
 		if err != nil {
-			log.Error("❌ [ERROR] Failed to get account repository", "error", err)
 			return err
 		}
 		accRepo, ok := accRepoAny.(account.Repository)
 		if !ok {
-			log.Error("❌ [ERROR] Invalid account repository type", "type", accRepoAny)
-			return err
+			return errors.New("invalid account repository type")
 		}
 
 		accRead, err := accRepo.Get(ctx, wce.AccountID)
-		if err != nil {
+		if err != nil && err != domain.ErrAccountNotFound {
 			log.Error("❌ [ERROR] Failed to get account", "error", err, "account_id", wce.AccountID)
 			return err
+		}
+
+		if accRead == nil {
+			log.Error("❌ [ERROR] Account not found", "account_id", wce.AccountID)
+			return domain.ErrAccountNotFound
 		}
 		acc := mapper.MapAccountReadToDomain(accRead)
 		// Validate the withdrawal (check sufficient funds, account status, etc.)

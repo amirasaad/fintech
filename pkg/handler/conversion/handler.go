@@ -6,10 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"reflect"
 	"time"
 
 	"github.com/amirasaad/fintech/pkg/currency"
-	"github.com/amirasaad/fintech/pkg/domain"
+	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/amirasaad/fintech/pkg/eventbus"
@@ -22,8 +23,8 @@ func Handler(
 	converter money.CurrencyConverter,
 	logger *slog.Logger,
 	factories map[string]EventFactory,
-) func(ctx context.Context, e domain.Event) error {
-	return func(ctx context.Context, e domain.Event) error {
+) func(ctx context.Context, e common.Event) error {
+	return func(ctx context.Context, e common.Event) error {
 		log := logger.With("handler", "ConversionHandler", "event_type", e.Type())
 		log.Info("🟢 [START] Received event", "event", e)
 
@@ -35,7 +36,19 @@ func Handler(
 		}
 
 		log.Debug("[DEBUG] ConversionRequestedEvent details", "event", cre)
+		// Use the factory map to get the correct event factory for the flow type.
+		factory, found := factories[cre.FlowType]
+		if !found {
+			log.Warn("Unknown flow type in ConversionRequestedEvent, discarding", "flow_type", cre.FlowType)
+			return nil // Or return an error if this should be a hard failure
+		}
 
+		if cre.Amount.IsCurrency(cre.To.String()) {
+			if nextEvent, err := factory.CreateNextEvent(cre, nil, cre.Amount); err == nil {
+				return bus.Emit(ctx, nextEvent)
+			}
+
+		}
 		if cre.TransactionID == uuid.Nil {
 			log.Error("Transaction ID is nil, discarding event", "event", cre)
 			return errors.New("invalid transaction ID")
@@ -67,16 +80,9 @@ func Handler(
 		}
 		log.Info("🔄 [PROCESS] Conversion completed successfully", "amount", cre.Amount, "to", convertedMoney)
 		log.Info("📤 [EMIT] Emitting conversion done ", "event_type", conversionDone)
-		if err = bus.Emit(ctx, conversionDone); err != nil {
+		if err = bus.Emit(ctx, &conversionDone); err != nil {
 			log.Error("[ERROR] Failed to emit conversion done", "error", err, "event", conversionDone)
 			return err
-		}
-
-		// Use the factory map to get the correct event factory for the flow type.
-		factory, found := factories[cre.FlowType]
-		if !found {
-			log.Warn("Unknown flow type in ConversionRequestedEvent, discarding", "flow_type", cre.FlowType)
-			return nil // Or return an error if this should be a hard failure
 		}
 
 		// Delegate the creation of the next event to the factory.
@@ -92,7 +98,12 @@ func Handler(
 		}
 
 		log.Debug("[DEBUG] Next event to emit", "event", nextEvent)
-		log.Info("📤 [EMIT] Emitting next event in flow", "event_type", nextEvent.Type(), "correlation_id", cre.CorrelationID.String())
+		// Best practice: always use pointer events for emission
+		log.Info("📤 [EMIT] Emitting next event in flow", "event_type", nextEvent.Type(), "event_pointer", fmt.Sprintf("%T", nextEvent), "correlation_id", cre.CorrelationID.String())
+		log.Debug("[DEBUG] Type name of nextEvent before emit", "type_name", reflect.TypeOf(nextEvent).String())
+
+		// Emit as pointer if not already
 		return bus.Emit(ctx, nextEvent)
+		// If nextEvent is a value, use &nextEvent
 	}
 }

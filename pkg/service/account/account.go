@@ -8,9 +8,9 @@ package account
 
 import (
 	"context"
-	"github.com/amirasaad/fintech/pkg/eventbus"
 	"log/slog"
-	"time"
+
+	"github.com/amirasaad/fintech/pkg/eventbus"
 
 	"github.com/amirasaad/fintech/pkg/commands"
 	"github.com/amirasaad/fintech/pkg/domain/events"
@@ -68,7 +68,7 @@ func (s *Service) CreateAccount(ctx context.Context, create dto.AccountCreate) (
 			Currency: curr.String(),
 			// Add more fields as needed
 		}
-		if err := acctRepo.Create(ctx, createDTO); err != nil {
+		if err = acctRepo.Create(ctx, createDTO); err != nil {
 			return err
 		}
 
@@ -87,75 +87,52 @@ func (s *Service) CreateAccount(ctx context.Context, create dto.AccountCreate) (
 }
 
 // Deposit adds funds to the specified account and creates a transaction record.
-func (s *Service) Deposit(ctx context.Context, cmd commands.DepositCommand) error {
+func (s *Service) Deposit(ctx context.Context, cmd commands.Deposit) error {
 	// Always use the source currency for the initial deposit event
 	amount, err := money.New(cmd.Amount, currency.Code(cmd.Currency))
 	if err != nil {
 		return err
 	}
-
-	return s.bus.Emit(ctx, events.DepositRequestedEvent{
-		FlowEvent: events.FlowEvent{
-			FlowType:      "deposit",
-			UserID:        cmd.UserID,
-			AccountID:     cmd.AccountID,
-			CorrelationID: uuid.New(),
-		},
-		ID:        uuid.New(),
-		Amount:    amount, // <-- Source currency only!
-		Source:    cmd.MoneySource,
-		Timestamp: time.Now(),
-	})
+	event := events.NewDepositRequestedEvent(
+		cmd.UserID,
+		cmd.AccountID,
+		uuid.New(),
+		events.WithDepositAmount(amount),
+		events.WithDepositSource(cmd.MoneySource),
+	)
+	return s.bus.Emit(ctx, event)
 }
 
 // Withdraw removes funds from the specified account to an external target and creates a transaction record.
-func (s *Service) Withdraw(ctx context.Context, cmd commands.WithdrawCommand) error {
+func (s *Service) Withdraw(ctx context.Context, cmd commands.Withdraw) error {
 	amount, err := money.New(cmd.Amount, currency.Code(cmd.Currency))
 	if err != nil {
 		return err
 	}
-	var bankAccountNumber, routingNumber, externalWalletAddress string
-	if cmd.ExternalTarget != nil {
-		bankAccountNumber = cmd.ExternalTarget.BankAccountNumber
-		routingNumber = cmd.ExternalTarget.RoutingNumber
-		externalWalletAddress = cmd.ExternalTarget.ExternalWalletAddress
-	}
-	evt := events.WithdrawRequestedEvent{
-		FlowEvent: events.FlowEvent{
-			FlowType:      "withdraw",
-			UserID:        cmd.UserID,
-			AccountID:     cmd.AccountID,
-			CorrelationID: uuid.New(),
-		},
-		ID:                    uuid.New(),
-		Amount:                amount,
-		BankAccountNumber:     bankAccountNumber,
-		RoutingNumber:         routingNumber,
-		ExternalWalletAddress: externalWalletAddress,
-		Timestamp:             time.Now(),
-	}
-	return s.bus.Emit(ctx, evt)
+	event := events.NewWithdrawRequestedEvent(
+		cmd.UserID,
+		cmd.AccountID,
+		uuid.New(),
+		events.WithWithdrawAmount(amount),
+		events.WithWithdrawExternalTarget(account.ExternalTarget(*cmd.ExternalTarget)),
+	)
+	return s.bus.Emit(ctx, event)
 }
 
 // Transfer moves funds from one account to another account.
-func (s *Service) Transfer(ctx context.Context, create dto.TransactionCreate, destAccountID uuid.UUID) error {
-	amount, err := money.New(float64(create.Amount), currency.Code(create.Currency))
+func (s *Service) Transfer(ctx context.Context, cmd commands.Transfer, destAccountID uuid.UUID) error {
+	amount, err := money.New(cmd.Amount, currency.Code(cmd.Currency))
 	if err != nil {
 		return err
 	}
-	return s.bus.Emit(ctx, events.TransferRequestedEvent{
-		FlowEvent: events.FlowEvent{
-			FlowType:      "transfer",
-			UserID:        create.UserID,
-			AccountID:     create.AccountID,
-			CorrelationID: uuid.New(),
-		},
-		ID:             uuid.New(),
-		Amount:         amount,
-		Source:         create.MoneySource,
-		DestAccountID:  destAccountID,
-		ReceiverUserID: create.UserID, // TODO: Look up destination account to get receiver user ID
-	})
+	event := events.NewTransferRequestedEvent(
+		cmd.UserID,
+		cmd.AccountID,
+		uuid.New(),
+		events.WithTransferDestAccountID(cmd.ToAccountID),
+		events.WithTransferRequestedAmount(amount),
+	)
+	return s.bus.Emit(ctx, event)
 }
 
 // UpdateTransactionStatusByPaymentID updates the status of a transaction identified by its payment ID.

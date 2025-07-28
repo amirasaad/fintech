@@ -1,4 +1,4 @@
-package withdraw
+package withdraw_test
 
 import (
 	"context"
@@ -9,9 +9,9 @@ import (
 
 	"github.com/amirasaad/fintech/internal/fixtures/mocks"
 	"github.com/amirasaad/fintech/pkg/currency"
-	"github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/domain/money"
+	"github.com/amirasaad/fintech/pkg/handler/account/withdraw"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -31,13 +31,6 @@ func TestPersistence(t *testing.T) {
 		correlationID := uuid.New()
 		amount, _ := money.New(100, currency.USD)
 
-		acc, _ := account.New().
-			WithID(accountID).
-			WithUserID(userID).
-			WithBalance(amount.Amount()).
-			WithCurrency(currency.USD).
-			Build()
-
 		event := events.WithdrawValidatedEvent{
 			WithdrawRequestedEvent: events.WithdrawRequestedEvent{
 				FlowEvent: events.FlowEvent{
@@ -49,14 +42,13 @@ func TestPersistence(t *testing.T) {
 				Amount: amount,
 			},
 			TargetCurrency: currency.USD.String(),
-			Account:        acc,
 		}
 
 		// Mock expectations - simplify by just mocking the Do function to return success
 		uow.On("Do", mock.Anything, mock.AnythingOfType("func(repository.UnitOfWork) error")).Return(nil).Once()
 
 		bus.On("Emit", mock.Anything, mock.MatchedBy(func(e interface{}) bool {
-			persistedEvent, ok := e.(events.WithdrawPersistedEvent)
+			persistedEvent, ok := e.(*events.WithdrawPersistedEvent)
 			if !ok {
 				return false
 			}
@@ -76,7 +68,7 @@ func TestPersistence(t *testing.T) {
 		})).Return(nil).Once()
 
 		// Execute
-		handler := Persistence(bus, uow, logger)
+		handler := withdraw.Persistence(bus, uow, logger)
 		err := handler(ctx, event)
 
 		// Assert
@@ -92,7 +84,7 @@ func TestPersistence(t *testing.T) {
 		event := events.DepositValidatedEvent{}
 
 		// Execute
-		handler := Persistence(bus, uow, logger)
+		handler := withdraw.Persistence(bus, uow, logger)
 		err := handler(ctx, event)
 
 		// Assert
@@ -112,13 +104,6 @@ func TestPersistence(t *testing.T) {
 		correlationID := uuid.New()
 		amount, _ := money.New(100, currency.USD)
 
-		acc, _ := account.New().
-			WithID(accountID).
-			WithUserID(userID).
-			WithBalance(amount.Amount()).
-			WithCurrency(currency.USD).
-			Build()
-
 		event := events.WithdrawValidatedEvent{
 			WithdrawRequestedEvent: events.WithdrawRequestedEvent{
 				FlowEvent: events.FlowEvent{
@@ -130,7 +115,6 @@ func TestPersistence(t *testing.T) {
 				Amount: amount,
 			},
 			TargetCurrency: currency.USD.String(),
-			Account:        acc,
 		}
 
 		// Mock repository error
@@ -138,7 +122,7 @@ func TestPersistence(t *testing.T) {
 			Return(errors.New("repository error")).Once()
 
 		// Execute
-		handler := Persistence(bus, uow, logger)
+		handler := withdraw.Persistence(bus, uow, logger)
 		err := handler(ctx, event)
 
 		// Assert
@@ -156,13 +140,6 @@ func TestPersistence(t *testing.T) {
 		correlationID := uuid.New()
 		amount, _ := money.New(100, currency.USD)
 
-		acc, _ := account.New().
-			WithID(accountID).
-			WithUserID(userID).
-			WithBalance(amount.Amount()).
-			WithCurrency(currency.USD).
-			Build()
-
 		event := events.WithdrawValidatedEvent{
 			WithdrawRequestedEvent: events.WithdrawRequestedEvent{
 				FlowEvent: events.FlowEvent{
@@ -174,7 +151,6 @@ func TestPersistence(t *testing.T) {
 				Amount: amount,
 			},
 			TargetCurrency: currency.USD.String(),
-			Account:        acc,
 		}
 
 		// Mock expectations
@@ -183,7 +159,7 @@ func TestPersistence(t *testing.T) {
 			Return(errors.New("emit error")).Once()
 
 		// Execute
-		handler := Persistence(bus, uow, logger)
+		handler := withdraw.Persistence(bus, uow, logger)
 		err := handler(ctx, event)
 
 		// Assert
@@ -200,13 +176,6 @@ func TestPersistence(t *testing.T) {
 		correlationID := uuid.New()
 		amount, _ := money.New(100, currency.USD)
 
-		acc, _ := account.New().
-			WithID(accountID).
-			WithUserID(userID).
-			WithBalance(amount.Amount()).
-			WithCurrency(currency.USD).
-			Build()
-
 		event := events.WithdrawValidatedEvent{
 			WithdrawRequestedEvent: events.WithdrawRequestedEvent{
 				FlowEvent: events.FlowEvent{
@@ -218,7 +187,6 @@ func TestPersistence(t *testing.T) {
 				Amount: amount,
 			},
 			TargetCurrency: currency.USD.String(),
-			Account:        acc,
 		}
 
 		// Mock expectations
@@ -228,7 +196,7 @@ func TestPersistence(t *testing.T) {
 			Return(errors.New("conversion emit error")).Once()
 
 		// Execute
-		handler := Persistence(bus, uow, logger)
+		handler := withdraw.Persistence(bus, uow, logger)
 		err := handler(ctx, event)
 
 		// Assert
@@ -244,13 +212,6 @@ func TestPersistence(t *testing.T) {
 		accountID := uuid.New()
 		amount, _ := money.New(100, currency.USD)
 
-		acc, _ := account.New().
-			WithID(accountID).
-			WithUserID(userID).
-			WithBalance(amount.Amount()).
-			WithCurrency(currency.USD).
-			Build()
-
 		event := events.WithdrawValidatedEvent{
 			WithdrawRequestedEvent: events.WithdrawRequestedEvent{
 				FlowEvent: events.FlowEvent{
@@ -262,7 +223,6 @@ func TestPersistence(t *testing.T) {
 				Amount: amount,
 			},
 			TargetCurrency: currency.USD.String(),
-			Account:        acc,
 		}
 
 		// Mock expectations
@@ -271,7 +231,7 @@ func TestPersistence(t *testing.T) {
 		bus.On("Emit", mock.Anything, mock.AnythingOfType("*events.ConversionRequestedEvent")).Return(nil).Once()
 
 		// Execute
-		handler := Persistence(bus, uow, logger)
+		handler := withdraw.Persistence(bus, uow, logger)
 		err := handler(ctx, event)
 
 		// Assert

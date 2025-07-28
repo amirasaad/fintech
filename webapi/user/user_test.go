@@ -2,10 +2,10 @@ package user_test
 
 import (
 	"context"
-	"os"
 	"testing"
 
 	"github.com/amirasaad/fintech/pkg/domain"
+	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/amirasaad/fintech/webapi/testutils"
 	"github.com/gofiber/fiber/v2"
@@ -145,7 +145,7 @@ type mockBus struct {
 	handlers map[string][]eventbus.HandlerFunc
 }
 
-func (m *mockBus) Emit(ctx context.Context, event domain.Event) error {
+func (m *mockBus) Emit(ctx context.Context, event common.Event) error {
 	handlers := m.handlers[event.Type()]
 	for _, handler := range handlers {
 		if err := handler(ctx, event); err != nil {
@@ -164,15 +164,12 @@ func (m *mockBus) Register(eventType string, handler eventbus.HandlerFunc) {
 
 func TestUserEventEmission(t *testing.T) {
 	mockBus := &mockBus{}
-	mockBus.Register("SomeEventType", func(ctx context.Context, event domain.Event) error {
+	mockBus.Register("SomeEventType", func(ctx context.Context, event common.Event) error {
 		return nil
 	})
 	// ... rest of test logic ...
 }
 
 func TestUserTestSuite(t *testing.T) {
-	if os.Getenv("E2E") == "" {
-		t.Skip("Skipping E2E tests")
-	}
 	suite.Run(t, new(testutils.E2ETestSuite))
 }

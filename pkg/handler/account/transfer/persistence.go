@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/amirasaad/fintech/pkg/domain"
+	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/amirasaad/fintech/pkg/dto"
@@ -17,12 +17,12 @@ import (
 )
 
 // Persistence handles the final, atomic persistence of a transfer.
-func Persistence(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e domain.Event) error {
-	return func(ctx context.Context, e domain.Event) error {
+func Persistence(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e common.Event) error {
+	return func(ctx context.Context, e common.Event) error {
 		log := logger.With("handler", "FinalPersistence", "event_type", e.Type())
 
 		// 1. Defensive: Check event type and structure
-		te, ok := e.(events.TransferDomainOpDoneEvent)
+		te, ok := e.(*events.TransferDomainOpDoneEvent)
 		if !ok {
 			log.Error("❌ [DISCARD] Unexpected event type", "event", e)
 			return nil
@@ -52,20 +52,6 @@ func Persistence(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logge
 			}
 			accRepo := accRepoAny.(account.Repository)
 
-			// a. Create tx_in for the receiver
-			if err = txRepo.Create(ctx, dto.TransactionCreate{
-				ID:          txInID,
-				UserID:      te.ReceiverUserID,
-				AccountID:   te.DestAccountID,
-				Amount:      te.Amount.Amount(),
-				Currency:    te.Amount.Currency().String(),
-				Status:      "completed",
-				MoneySource: "transfer",
-			}); err != nil {
-				return fmt.Errorf("failed to create tx_in: %w", err)
-			}
-
-			// b. Update tx_out status to 'completed'
 			completedStatus := "completed"
 			if err = txRepo.Update(ctx, txOutID, dto.TransactionUpdate{Status: &completedStatus}); err != nil {
 				return fmt.Errorf("failed to update tx_out: %w", err)
@@ -123,11 +109,11 @@ func Persistence(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logge
 		log.Info("✅ [SUCCESS] Final transfer persistence complete", "tx_out_id", txOutID, "tx_in_id", txInID)
 
 		// 3. Emit final success event
-		completedEvent := events.TransferCompletedEvent{
-			TransferDomainOpDoneEvent: te,
-			TxOutID:                   txOutID,
-			TxInID:                    txInID,
-		}
+		completedEvent := events.NewTransferCompletedEvent(
+			events.WithTransferDomainOpDoneEvent(*te),
+			events.WithTxOutID(txOutID),
+			events.WithTxInID(txInID),
+		)
 		log.Info("📤 [EMIT] Emitting TransferCompletedEvent")
 		return bus.Emit(ctx, completedEvent)
 	}

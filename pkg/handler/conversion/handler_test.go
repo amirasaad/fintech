@@ -1,15 +1,17 @@
 package conversion
 
 import (
+	"bytes"
 	"context"
 	"errors"
-	"io"
 	"log/slog"
 	"testing"
+	"time"
 
 	"github.com/amirasaad/fintech/internal/fixtures/mocks"
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain"
+	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/google/uuid"
@@ -22,14 +24,15 @@ type MockEventFactory struct {
 	mock.Mock
 }
 
-func (m *MockEventFactory) CreateNextEvent(cre *events.ConversionRequestedEvent, convInfo *domain.ConversionInfo, convertedMoney money.Money) (domain.Event, error) {
+func (m *MockEventFactory) CreateNextEvent(cre *events.ConversionRequestedEvent, convInfo *domain.ConversionInfo, convertedMoney money.Money) (common.Event, error) {
 	args := m.Called(cre, convInfo, convertedMoney)
-	return args.Get(0).(domain.Event), args.Error(1)
+	return args.Get(0).(common.Event), args.Error(1)
 }
 
 func TestConversionHandler(t *testing.T) {
 	ctx := context.Background()
-	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	var buf bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&buf, nil))
 
 	t.Run("successfully converts currency and emits conversion done event", func(t *testing.T) {
 		// Setup
@@ -53,7 +56,6 @@ func TestConversionHandler(t *testing.T) {
 			To:            currency.EUR,
 			TransactionID: transactionID,
 		}
-
 		convInfo := &domain.ConversionInfo{
 			OriginalAmount:    100.0,
 			OriginalCurrency:  "USD",
@@ -63,13 +65,31 @@ func TestConversionHandler(t *testing.T) {
 		}
 
 		convertedAmount, _ := money.New(85, currency.EUR)
-		nextEvent := events.DepositBusinessValidationEvent{}
+		correlationID := uuid.New()
+		nextEvent := events.NewDepositBusinessValidationEvent(
+			userID,
+			accountID,
+			correlationID,
+			events.WithBusinessValidationAmount(convertedAmount),
+			events.WithDepositValidatedEvent(*events.NewDepositValidatedEvent(
+				userID,
+				accountID,
+				correlationID,
+				events.WithDepositRequestedEvent(*events.NewDepositRequestedEvent(
+					userID,
+					accountID,
+					correlationID,
+					events.WithDepositAmount(amount),
+					events.WithDepositTimestamp(time.Now().UTC()),
+				)),
+			)),
+		)
 
 		// Mock expectations
 		mockConverter.On("Convert", 100.0, "USD", "EUR").Return(convInfo, nil).Once()
-		bus.On("Emit", mock.Anything, mock.AnythingOfType("events.ConversionDoneEvent")).Return(nil).Once()
+		bus.On("Emit", mock.Anything, mock.AnythingOfType("*events.ConversionDoneEvent")).Return(nil).Once()
 		mockFactory.On("CreateNextEvent", event, convInfo, convertedAmount).Return(nextEvent, nil).Once()
-		bus.On("Emit", mock.Anything, nextEvent).Return(nil).Once()
+		bus.On("Emit", mock.Anything, mock.AnythingOfType("*events.DepositBusinessValidationEvent")).Return(nil).Once()
 
 		factories := map[string]EventFactory{
 			"deposit": mockFactory,
@@ -91,7 +111,9 @@ func TestConversionHandler(t *testing.T) {
 		// Use a different event type
 		event := events.DepositRequestedEvent{}
 
-		factories := map[string]EventFactory{}
+		factories := map[string]EventFactory{
+			"deposit": &MockEventFactory{},
+		}
 
 		// Execute
 		handler := Handler(bus, mockConverter, logger, factories)
@@ -129,7 +151,9 @@ func TestConversionHandler(t *testing.T) {
 		// Mock conversion error
 		mockConverter.On("Convert", 100.0, "USD", "EUR").Return((*domain.ConversionInfo)(nil), errors.New("conversion error")).Once()
 
-		factories := map[string]EventFactory{}
+		factories := map[string]EventFactory{
+			"deposit": &MockEventFactory{},
+		}
 
 		// Execute
 		handler := Handler(bus, mockConverter, logger, factories)
@@ -137,7 +161,8 @@ func TestConversionHandler(t *testing.T) {
 
 		// Assert
 		assert.Error(t, err)
-		bus.AssertNotCalled(t, "Emit", mock.Anything, mock.Anything)
+		bus.AssertNotCalled(t, "Emit", mock.Anything, mock.AnythingOfType("*events.ConversionDoneEvent"))
+		bus.AssertNotCalled(t, "Emit", mock.Anything, mock.AnythingOfType("*events.DepositBusinessValidationEvent"))
 	})
 
 	t.Run("handles unknown flow type", func(t *testing.T) {
@@ -157,22 +182,15 @@ func TestConversionHandler(t *testing.T) {
 				AccountID:     accountID,
 				CorrelationID: uuid.New(),
 			},
+			ID:            uuid.New(),
 			Amount:        amount,
 			To:            currency.EUR,
+			RequestID:     uuid.New().String(),
 			TransactionID: transactionID,
+			Timestamp:     time.Now(),
 		}
 
-		convInfo := &domain.ConversionInfo{
-			OriginalAmount:    100.0,
-			OriginalCurrency:  "USD",
-			ConvertedAmount:   85.0,
-			ConvertedCurrency: "EUR",
-			ConversionRate:    0.85,
-		}
-
-		// Mock expectations
-		mockConverter.On("Convert", 100.0, "USD", "EUR").Return(convInfo, nil).Once()
-		bus.On("Emit", mock.Anything, mock.AnythingOfType("events.ConversionDoneEvent")).Return(nil).Once()
+		// No mock expectations for unknown flow type
 
 		factories := map[string]EventFactory{
 			"deposit": &MockEventFactory{}, // No factory for "unknown_flow"

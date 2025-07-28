@@ -23,11 +23,12 @@ func TestCompletedHandler(t *testing.T) {
 	bus := mocks.NewMockBus(t)
 	mUow := mocks.NewMockUnitOfWork(t)
 
-	validEvent := &events.PaymentCompletedEvent{
-		ID:            uuid.New(),
-		PaymentID:     "pay_123",
-		CorrelationID: uuid.New(),
-	}
+	validEvent := events.NewPaymentCompletedEvent(
+		uuid.Nil, // userID (not used in this test)
+		uuid.Nil, // accountID (not used in this test)
+		events.WithPaymentID("pay_123"),
+		events.WithCorrelationID(uuid.New()),
+	)
 
 	t.Run("returns nil for incorrect event type", func(t *testing.T) {
 		h := Completed(bus, mUow, logger)

@@ -2,6 +2,8 @@ package infra_test
 
 import (
 	"context"
+	"github.com/amirasaad/fintech/pkg/domain/common"
+	"github.com/amirasaad/fintech/pkg/domain/money"
 	"io"
 	"log/slog"
 	"testing"
@@ -10,8 +12,6 @@ import (
 	"github.com/amirasaad/fintech/pkg/eventbus"
 
 	"github.com/amirasaad/fintech/internal/fixtures/mocks"
-	"github.com/amirasaad/fintech/pkg/domain"
-	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/handler/account/deposit"
 	"github.com/google/uuid"
@@ -21,10 +21,10 @@ import (
 )
 
 type mockBus struct {
-	published []domain.Event
+	published []common.Event
 }
 
-func (m *mockBus) Emit(ctx context.Context, event domain.Event) error {
+func (m *mockBus) Emit(ctx context.Context, event common.Event) error {
 	m.published = append(m.published, event)
 	return nil
 }
@@ -49,23 +49,17 @@ func TestDrivenDepositFlow_Integration(t *testing.T) {
 	ctx := context.Background()
 
 	// Step 1: Simulate DepositRequested
-	depositRequested := events.DepositRequestedEvent{
-		ID: uuid.New(),
-		FlowEvent: events.FlowEvent{
-			FlowType:  "deposit",
-			AccountID: validAccount,
-			UserID:    validUser,
-		},
-		Amount: money.NewFromData(10000, "USD"),
-		Source: "Cash",
-	}
+	depositRequested := events.NewDepositRequestedEvent(
+		validUser, validAccount, uuid.New(),
+		events.WithDepositAmount(money.NewFromData(1000, "USD")),
+	)
 
 	// Step 2: Validation Handler
 	validationHandler := deposit.Validation(bus, uow, logger)
 	validationHandler(ctx, depositRequested) //nolint:errcheck
 	assert.Len(t, bus.published, 1, "Validation handler should publish DepositValidated")
 
-	depositValidated, ok := bus.published[0].(events.DepositValidatedEvent)
+	depositValidated, ok := bus.published[0].(*events.DepositValidatedEvent)
 	require.True(t, ok, "First event should be DepositValidated")
 	assert.Equal(t, validUser, depositValidated.UserID)
 	assert.Equal(t, validAccount, depositValidated.AccountID)
@@ -73,21 +67,21 @@ func TestDrivenDepositFlow_Integration(t *testing.T) {
 	// Step 3: Persistence Handler
 	persistHandler := deposit.Persistence(bus, uow, logger)
 	persistHandler(ctx, depositValidated) //nolint:errcheck
-	assert.Len(t, bus.published, 2, "Should publish DepositValidated and DepositPersisted")
+	assert.Len(t, bus.published, 3, "Should publish DepositValidated, DepositPersisted and ConversionRequested")
 
-	depositPersisted, ok := bus.published[1].(events.DepositPersistedEvent)
+	depositPersisted, ok := bus.published[1].(*events.DepositPersistedEvent)
 	require.True(t, ok, "Second event should be DepositPersisted")
 	assert.Equal(t, validUser, depositPersisted.UserID)
 	assert.Equal(t, validAccount, depositPersisted.AccountID)
 
-	// conversionRequested, ok := bus.published[2].(events.ConversionRequestedEvent)
-	// require.True(t, ok, "Third event should be ConversionRequested")
-	// assert.Equal(t, "deposit", conversionRequested.FlowType)
-	// assert.Equal(t, validUser, conversionRequested.UserID)
-	// assert.Equal(t, validAccount, conversionRequested.AccountID)
+	conversionRequested, ok := bus.published[2].(*events.ConversionRequestedEvent)
+	require.True(t, ok, "Third event should be ConversionRequested")
+	assert.Equal(t, "deposit", conversionRequested.FlowType)
+	assert.Equal(t, validUser, conversionRequested.UserID)
+	assert.Equal(t, validAccount, conversionRequested.AccountID)
 
 	t.Logf("Published events: %#v", bus.published)
 	t.Logf("✅ -driven deposit flow completed successfully:")
-	t.Logf("   DepositRequested → DepositValidated → DepositPersisted")
+	t.Logf("   DepositRequested → DepositValidated → DepositPersisted, ConversionRequested")
 	t.Logf("   Total events published: %d", len(bus.published))
 }

@@ -1,10 +1,10 @@
-package withdraw
+package withdraw_test
 
 import (
 	"context"
 	"errors"
-	"io"
 	"log/slog"
+	"os"
 	"testing"
 
 	"github.com/amirasaad/fintech/internal/fixtures/mocks"
@@ -12,6 +12,8 @@ import (
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/amirasaad/fintech/pkg/dto"
+	"github.com/amirasaad/fintech/pkg/handler/account/withdraw"
+	accountRepo "github.com/amirasaad/fintech/pkg/repository/account"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -19,7 +21,9 @@ import (
 
 func TestValidation(t *testing.T) {
 	ctx := context.Background()
-	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	// Create a logger that outputs to stderr for debugging
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	logger.Info("Starting withdraw validation tests")
 
 	t.Run("should emit WithdrawValidatedEvent on valid request", func(t *testing.T) {
 		// Setup
@@ -32,7 +36,7 @@ func TestValidation(t *testing.T) {
 		correlationID := uuid.New()
 		amount, _ := money.New(100, currency.USD)
 
-		event := events.WithdrawRequestedEvent{
+		event := &events.WithdrawRequestedEvent{
 			FlowEvent: events.FlowEvent{
 				FlowType:      "withdraw",
 				UserID:        userID,
@@ -51,23 +55,33 @@ func TestValidation(t *testing.T) {
 		}
 
 		// Mock expectations
-		mockUoW.On("GetRepository", mock.Anything).Return(mockAccRepo, nil).Once()
+		mockUoW.On("GetRepository", (*accountRepo.Repository)(nil)).Return(mockAccRepo, nil).Once()
 		mockAccRepo.On("Get", ctx, accountID).Return(accRead, nil).Once()
-		mockBus.On("Emit", mock.Anything, mock.MatchedBy(func(e interface{}) bool {
-			validatedEvent, ok := e.(events.WithdrawValidatedEvent)
+		mockBus.On("Emit", ctx, mock.MatchedBy(func(e any) bool {
+			validatedEvent, ok := e.(*events.WithdrawValidatedEvent)
 			if !ok {
 				return false
 			}
-			return validatedEvent.WithdrawRequestedEvent.UserID == userID &&
-				validatedEvent.WithdrawRequestedEvent.AccountID == accountID
+			// Check that the FlowEvent fields are set correctly
+			return validatedEvent.UserID == userID &&
+				validatedEvent.AccountID == accountID &&
+				validatedEvent.CorrelationID == correlationID &&
+				validatedEvent.FlowType == "withdraw"
 		})).Return(nil).Once()
 
 		// Execute
-		handler := Validation(mockBus, mockUoW, logger)
+		handler := withdraw.Validation(mockBus, mockUoW, logger)
+		logger.Debug("Calling handler with event", "event", event)
 		err := handler(ctx, event)
+		logger.Debug("Handler returned", "error", err)
 
 		// Assert
 		assert.NoError(t, err)
+
+		// Verify all expectations were met
+		mockBus.AssertExpectations(t)
+		mockUoW.AssertExpectations(t)
+		mockAccRepo.AssertExpectations(t)
 	})
 
 	t.Run("should emit WithdrawFailedEvent on invalid request", func(t *testing.T) {
@@ -76,22 +90,34 @@ func TestValidation(t *testing.T) {
 		mockUoW := mocks.NewMockUnitOfWork(t)
 
 		// Invalid event with nil UUIDs
-		event := events.WithdrawRequestedEvent{
+		event := &events.WithdrawRequestedEvent{
+			FlowEvent: events.FlowEvent{
+				FlowType: "withdraw",
+			},
 			ID: uuid.New(),
 		}
 
 		// Mock expectations for failed event
-		mockBus.On("Emit", mock.Anything, mock.MatchedBy(func(e interface{}) bool {
-			_, ok := e.(events.WithdrawFailedEvent)
-			return ok
+		mockBus.On("Emit", ctx, mock.MatchedBy(func(e interface{}) bool {
+			failedEvent, ok := e.(*events.WithdrawFailedEvent)
+			if !ok {
+				return false
+			}
+			return failedEvent.FlowType == "withdraw"
 		})).Return(nil).Once()
 
 		// Execute
-		handler := Validation(mockBus, mockUoW, logger)
+		handler := withdraw.Validation(mockBus, mockUoW, logger)
+		logger.Debug("Calling handler with event", "event", event)
 		err := handler(ctx, event)
+		logger.Debug("Handler returned", "error", err)
 
 		// Assert
-		assert.NoError(t, err) // Handler should not return error, just emit failed event
+		assert.NoError(t, err)
+
+		// Verify all expectations were met
+		mockBus.AssertExpectations(t)
+		mockUoW.AssertExpectations(t)
 	})
 
 	t.Run("should handle account not found", func(t *testing.T) {
@@ -105,7 +131,7 @@ func TestValidation(t *testing.T) {
 		correlationID := uuid.New()
 		amount, _ := money.New(100, currency.USD)
 
-		event := events.WithdrawRequestedEvent{
+		event := &events.WithdrawRequestedEvent{
 			FlowEvent: events.FlowEvent{
 				FlowType:      "withdraw",
 				UserID:        userID,
@@ -117,21 +143,28 @@ func TestValidation(t *testing.T) {
 		}
 
 		// Mock expectations
-		mockUoW.On("GetRepository", mock.Anything).Return(mockAccRepo, nil).Once()
+		mockUoW.On("GetRepository", (*accountRepo.Repository)(nil)).Return(mockAccRepo, nil).Once()
 		mockAccRepo.On("Get", ctx, accountID).Return(nil, errors.New("account not found")).Once()
-		mockBus.On("Emit", mock.Anything, mock.MatchedBy(func(e interface{}) bool {
-			failedEvent, ok := e.(events.WithdrawFailedEvent)
+		mockBus.On("Emit", ctx, mock.MatchedBy(func(e interface{}) bool {
+			failedEvent, ok := e.(*events.WithdrawFailedEvent)
 			if !ok {
 				return false
 			}
-			return failedEvent.Reason == "Account not found"
+			return failedEvent.FlowType == "withdraw" && failedEvent.Reason == "Account not found"
 		})).Return(nil).Once()
 
 		// Execute
-		handler := Validation(mockBus, mockUoW, logger)
+		handler := withdraw.Validation(mockBus, mockUoW, logger)
+		logger.Debug("Calling handler with event", "event", event)
 		err := handler(ctx, event)
+		logger.Debug("Handler returned", "error", err)
 
 		// Assert
 		assert.NoError(t, err)
+
+		// Verify all expectations were met
+		mockBus.AssertExpectations(t)
+		mockUoW.AssertExpectations(t)
+		mockAccRepo.AssertExpectations(t)
 	})
 }

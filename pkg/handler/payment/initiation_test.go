@@ -7,8 +7,7 @@ import (
 	"time"
 
 	"github.com/amirasaad/fintech/pkg/currency"
-	"github.com/amirasaad/fintech/pkg/domain"
-	"github.com/amirasaad/fintech/pkg/domain/account"
+	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/domain/money"
 
@@ -37,7 +36,7 @@ type mockBus struct {
 	handlers map[string][]eventbus.HandlerFunc
 }
 
-func (m *mockBus) Emit(ctx context.Context, event domain.Event) error {
+func (m *mockBus) Emit(ctx context.Context, event common.Event) error {
 	handlers := m.handlers[event.Type()]
 	for _, handler := range handlers {
 		if err := handler(ctx, event); err != nil {
@@ -60,16 +59,9 @@ func TestPaymentInitiation_BusinessLogic(t *testing.T) {
 	amount, _ := money.New(100, currency.USD)
 	paymentID := "pay-123"
 
-	// Create a mock account for testing
-	mockAccount := &account.Account{
-		ID:      accountID,
-		UserID:  userID,
-		Balance: amount,
-	}
-
 	tests := []struct {
 		name        string
-		input       domain.Event
+		input       common.Event
 		provider    *mockPaymentProvider
 		expectPub   bool
 		expectPayID string
@@ -96,7 +88,6 @@ func TestPaymentInitiation_BusinessLogic(t *testing.T) {
 							Source:    "deposit",
 							Timestamp: time.Now(),
 						},
-						Account: mockAccount,
 					},
 					ConversionDoneEvent: events.ConversionDoneEvent{
 						FlowEvent: events.FlowEvent{
@@ -127,8 +118,8 @@ func TestPaymentInitiation_BusinessLogic(t *testing.T) {
 			expectAmt:   amount.Amount(),
 			expectCur:   amount.Currency().String(),
 			setupMocks: func(bus *mockBus) {
-				bus.Register("PaymentInitiatedEvent", func(ctx context.Context, e domain.Event) error {
-					pi := e.(events.PaymentInitiatedEvent)
+				bus.Register("PaymentInitiatedEvent", func(ctx context.Context, e common.Event) error {
+					pi := e.(*events.PaymentInitiatedEvent)
 					assert.Equal(t, paymentID, pi.PaymentID)
 					assert.Equal(t, userID, pi.UserID)
 					assert.Equal(t, accountID, pi.AccountID)
@@ -151,7 +142,6 @@ func TestPaymentInitiation_BusinessLogic(t *testing.T) {
 					Timestamp: time.Now(),
 				},
 				TargetCurrency: amount.Currency().String(),
-				Account:        mockAccount,
 			},
 			provider: &mockPaymentProvider{
 				initiateFn: func(ctx context.Context, u, a uuid.UUID, amt int64, cur string) (string, error) {
@@ -169,8 +159,8 @@ func TestPaymentInitiation_BusinessLogic(t *testing.T) {
 			expectAmt:   amount.Amount(),
 			expectCur:   amount.Currency().String(),
 			setupMocks: func(bus *mockBus) {
-				bus.Register("PaymentInitiatedEvent", func(ctx context.Context, e domain.Event) error {
-					pi := e.(events.PaymentInitiatedEvent)
+				bus.Register("PaymentInitiatedEvent", func(ctx context.Context, e common.Event) error {
+					pi := e.(*events.PaymentInitiatedEvent)
 					assert.Equal(t, paymentID, pi.PaymentID)
 					assert.Equal(t, userID, pi.UserID)
 					assert.Equal(t, accountID, pi.AccountID)
@@ -195,7 +185,6 @@ func TestPaymentInitiation_BusinessLogic(t *testing.T) {
 							Source:    "deposit",
 							Timestamp: time.Now(),
 						},
-						Account: mockAccount,
 					},
 					ConversionDoneEvent: events.ConversionDoneEvent{
 						FlowEvent: events.FlowEvent{
@@ -273,20 +262,18 @@ func TestDepositEventChain_NoInfiniteLoop(t *testing.T) {
 	bus := &mockBus{}
 
 	// Minimal stub for account and UoW
-	mockAccount := &account.Account{ID: accountID, UserID: userID, Balance: amount}
 	txID := uuid.New()
 
 	// Register handlers for the deposit flow
-	bus.Register("DepositRequestedEvent", func(ctx context.Context, e domain.Event) error {
+	bus.Register("DepositRequestedEvent", func(ctx context.Context, e common.Event) error {
 		handlerCalls["DepositRequestedEvent"]++
 		dr := e.(events.DepositRequestedEvent)
 		_ = bus.Emit(ctx, events.DepositValidatedEvent{
 			DepositRequestedEvent: dr,
-			Account:               mockAccount,
 		})
 		return nil
 	})
-	bus.Register("DepositValidatedEvent", func(ctx context.Context, e domain.Event) error {
+	bus.Register("DepositValidatedEvent", func(ctx context.Context, e common.Event) error {
 		handlerCalls["DepositValidatedEvent"]++
 		ve := e.(events.DepositValidatedEvent)
 		_ = bus.Emit(ctx, events.DepositPersistedEvent{
@@ -296,7 +283,7 @@ func TestDepositEventChain_NoInfiniteLoop(t *testing.T) {
 		})
 		return nil
 	})
-	bus.Register("DepositPersistedEvent", func(ctx context.Context, e domain.Event) error {
+	bus.Register("DepositPersistedEvent", func(ctx context.Context, e common.Event) error {
 		handlerCalls["DepositPersistedEvent"]++
 		// End of chain for this test
 		return nil
@@ -330,20 +317,18 @@ func TestDepositAndWithdrawEventChains_NoCrossWorkflowInfiniteLoop(t *testing.T)
 
 	handlerCalls := make(map[string]int)
 	bus := &mockBus{}
-	mockAccount := &account.Account{ID: accountID, UserID: userID, Balance: amount}
 	txID := uuid.New()
 
 	// Deposit workflow
-	bus.Register("DepositRequestedEvent", func(ctx context.Context, e domain.Event) error {
+	bus.Register("DepositRequestedEvent", func(ctx context.Context, e common.Event) error {
 		handlerCalls["DepositRequestedEvent"]++
 		dr := e.(events.DepositRequestedEvent)
 		_ = bus.Emit(ctx, events.DepositValidatedEvent{
 			DepositRequestedEvent: dr,
-			Account:               mockAccount,
 		})
 		return nil
 	})
-	bus.Register("DepositValidatedEvent", func(ctx context.Context, e domain.Event) error {
+	bus.Register("DepositValidatedEvent", func(ctx context.Context, e common.Event) error {
 		handlerCalls["DepositValidatedEvent"]++
 		ve := e.(events.DepositValidatedEvent)
 		_ = bus.Emit(ctx, events.DepositPersistedEvent{
@@ -353,23 +338,22 @@ func TestDepositAndWithdrawEventChains_NoCrossWorkflowInfiniteLoop(t *testing.T)
 		})
 		return nil
 	})
-	bus.Register("DepositPersistedEvent", func(ctx context.Context, e domain.Event) error {
+	bus.Register("DepositPersistedEvent", func(ctx context.Context, e common.Event) error {
 		handlerCalls["DepositPersistedEvent"]++
 		return nil
 	})
 
 	// Withdraw workflow
-	bus.Register("WithdrawRequestedEvent", func(ctx context.Context, e domain.Event) error {
+	bus.Register("WithdrawRequestedEvent", func(ctx context.Context, e common.Event) error {
 		handlerCalls["WithdrawRequestedEvent"]++
 		wr := e.(events.WithdrawRequestedEvent)
 		_ = bus.Emit(ctx, events.WithdrawValidatedEvent{
 			WithdrawRequestedEvent: wr,
 			TargetCurrency:         amount.Currency().String(),
-			Account:                mockAccount,
 		})
 		return nil
 	})
-	bus.Register("WithdrawValidatedEvent", func(ctx context.Context, e domain.Event) error {
+	bus.Register("WithdrawValidatedEvent", func(ctx context.Context, e common.Event) error {
 		handlerCalls["WithdrawValidatedEvent"]++
 		wv := e.(events.WithdrawValidatedEvent)
 		_ = bus.Emit(ctx, events.WithdrawPersistedEvent{
@@ -378,7 +362,7 @@ func TestDepositAndWithdrawEventChains_NoCrossWorkflowInfiniteLoop(t *testing.T)
 		})
 		return nil
 	})
-	bus.Register("WithdrawPersistedEvent", func(ctx context.Context, e domain.Event) error {
+	bus.Register("WithdrawPersistedEvent", func(ctx context.Context, e common.Event) error {
 		handlerCalls["WithdrawPersistedEvent"]++
 		return nil
 	})
@@ -425,20 +409,18 @@ func TestAllWorkflowsEventChains_NoCrossWorkflowInfiniteLoop(t *testing.T) {
 
 	handlerCalls := make(map[string]int)
 	bus := &mockBus{}
-	mockAccount := &account.Account{ID: accountID, UserID: userID, Balance: amount}
 	txID := uuid.New()
 
 	// Deposit workflow
-	bus.Register("DepositRequestedEvent", func(ctx context.Context, e domain.Event) error {
+	bus.Register("DepositRequestedEvent", func(ctx context.Context, e common.Event) error {
 		handlerCalls["DepositRequestedEvent"]++
 		dr := e.(events.DepositRequestedEvent)
 		_ = bus.Emit(ctx, events.DepositValidatedEvent{
 			DepositRequestedEvent: dr,
-			Account:               mockAccount,
 		})
 		return nil
 	})
-	bus.Register("DepositValidatedEvent", func(ctx context.Context, e domain.Event) error {
+	bus.Register("DepositValidatedEvent", func(ctx context.Context, e common.Event) error {
 		handlerCalls["DepositValidatedEvent"]++
 		ve := e.(events.DepositValidatedEvent)
 		_ = bus.Emit(ctx, events.DepositPersistedEvent{
@@ -448,23 +430,22 @@ func TestAllWorkflowsEventChains_NoCrossWorkflowInfiniteLoop(t *testing.T) {
 		})
 		return nil
 	})
-	bus.Register("DepositPersistedEvent", func(ctx context.Context, e domain.Event) error {
+	bus.Register("DepositPersistedEvent", func(ctx context.Context, e common.Event) error {
 		handlerCalls["DepositPersistedEvent"]++
 		return nil
 	})
 
 	// Withdraw workflow
-	bus.Register("WithdrawRequestedEvent", func(ctx context.Context, e domain.Event) error {
+	bus.Register("WithdrawRequestedEvent", func(ctx context.Context, e common.Event) error {
 		handlerCalls["WithdrawRequestedEvent"]++
 		wr := e.(events.WithdrawRequestedEvent)
 		_ = bus.Emit(ctx, events.WithdrawValidatedEvent{
 			WithdrawRequestedEvent: wr,
 			TargetCurrency:         amount.Currency().String(),
-			Account:                mockAccount,
 		})
 		return nil
 	})
-	bus.Register("WithdrawValidatedEvent", func(ctx context.Context, e domain.Event) error {
+	bus.Register("WithdrawValidatedEvent", func(ctx context.Context, e common.Event) error {
 		handlerCalls["WithdrawValidatedEvent"]++
 		wv := e.(events.WithdrawValidatedEvent)
 		_ = bus.Emit(ctx, events.WithdrawPersistedEvent{
@@ -473,31 +454,31 @@ func TestAllWorkflowsEventChains_NoCrossWorkflowInfiniteLoop(t *testing.T) {
 		})
 		return nil
 	})
-	bus.Register("WithdrawPersistedEvent", func(ctx context.Context, e domain.Event) error {
+	bus.Register("WithdrawPersistedEvent", func(ctx context.Context, e common.Event) error {
 		handlerCalls["WithdrawPersistedEvent"]++
 		return nil
 	})
 
 	// Transfer workflow
-	bus.Register("TransferRequestedEvent", func(ctx context.Context, e domain.Event) error {
+	bus.Register("TransferRequestedEvent", func(ctx context.Context, e common.Event) error {
 		handlerCalls["TransferRequestedEvent"]++
 		tr := e.(events.TransferRequestedEvent)
 		_ = bus.Emit(ctx, events.TransferValidatedEvent{TransferRequestedEvent: tr})
 		return nil
 	})
-	bus.Register("TransferValidatedEvent", func(ctx context.Context, e domain.Event) error {
+	bus.Register("TransferValidatedEvent", func(ctx context.Context, e common.Event) error {
 		handlerCalls["TransferValidatedEvent"]++
 		tv := e.(events.TransferValidatedEvent)
 		_ = bus.Emit(ctx, events.TransferDomainOpDoneEvent{TransferValidatedEvent: tv})
 		return nil
 	})
-	bus.Register("TransferDomainOpDoneEvent", func(ctx context.Context, e domain.Event) error {
+	bus.Register("TransferDomainOpDoneEvent", func(ctx context.Context, e common.Event) error {
 		handlerCalls["TransferDomainOpDoneEvent"]++
 		do := e.(events.TransferDomainOpDoneEvent)
 		_ = bus.Emit(ctx, events.TransferPersistedEvent{TransferDomainOpDoneEvent: do})
 		return nil
 	})
-	bus.Register("TransferPersistedEvent", func(ctx context.Context, e domain.Event) error {
+	bus.Register("TransferPersistedEvent", func(ctx context.Context, e common.Event) error {
 		handlerCalls["TransferPersistedEvent"]++
 		return nil
 	})
@@ -533,11 +514,10 @@ func TestAllWorkflowsEventChains_NoCrossWorkflowInfiniteLoop(t *testing.T) {
 			CorrelationID: uuid.New(),
 			FlowType:      "transfer",
 		},
-		ID:             uuid.New(),
-		Amount:         amount,
-		Source:         "transfer",
-		DestAccountID:  accountID,
-		ReceiverUserID: userID,
+		ID:            uuid.New(),
+		Amount:        amount,
+		Source:        "transfer",
+		DestAccountID: accountID,
 	})
 
 	// Assert each handler called exactly once per event

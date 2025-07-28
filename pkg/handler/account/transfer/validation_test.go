@@ -1,4 +1,4 @@
-package transfer
+package transfer_test
 
 import (
 	"context"
@@ -10,6 +10,7 @@ import (
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/domain/money"
+	"github.com/amirasaad/fintech/pkg/handler/account/transfer"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -26,24 +27,17 @@ func TestValidation(t *testing.T) {
 		userID := uuid.New()
 		accountID := uuid.New()
 		destAccountID := uuid.New()
-		receiverUserID := uuid.New()
 		amount, _ := money.New(100, currency.USD)
-
-		event := events.TransferRequestedEvent{
-			FlowEvent: events.FlowEvent{
-				FlowType:      "transfer",
-				UserID:        userID,
-				AccountID:     accountID,
-				CorrelationID: uuid.New(),
-			},
-			ID:             uuid.New(),
-			Amount:         amount,
-			DestAccountID:  destAccountID,
-			ReceiverUserID: receiverUserID,
-		}
+		event := events.NewTransferRequestedEvent(
+			userID,
+			accountID,
+			uuid.New(),
+			events.WithTransferDestAccountID(destAccountID),
+			events.WithTransferRequestedAmount(amount),
+		)
 
 		bus.On("Emit", mock.Anything, mock.MatchedBy(func(e interface{}) bool {
-			validatedEvent, ok := e.(events.TransferValidatedEvent)
+			validatedEvent, ok := e.(*events.TransferValidatedEvent)
 			if !ok {
 				return false
 			}
@@ -53,7 +47,7 @@ func TestValidation(t *testing.T) {
 		})).Return(nil).Once()
 
 		// Execute
-		handler := Validation(bus, logger)
+		handler := transfer.Validation(bus, logger)
 		err := handler(ctx, event)
 
 		// Assert
@@ -65,16 +59,16 @@ func TestValidation(t *testing.T) {
 		bus := mocks.NewMockBus(t)
 
 		// Event with missing required fields
-		event := events.TransferRequestedEvent{
-			FlowEvent: events.FlowEvent{
-				FlowType: "transfer",
-				// Missing UserID, AccountID, etc.
-			},
-			// Missing ID, Amount, etc.
-		}
+		event := events.NewTransferRequestedEvent(
+			uuid.Nil,
+			uuid.Nil,
+			uuid.New(),
+			events.WithTransferDestAccountID(uuid.Nil),
+			events.WithTransferRequestedAmount(money.Money{}),
+		)
 
 		// Execute
-		handler := Validation(bus, logger)
+		handler := transfer.Validation(bus, logger)
 		err := handler(ctx, event)
 
 		// Assert
@@ -90,7 +84,7 @@ func TestValidation(t *testing.T) {
 		event := events.DepositRequestedEvent{}
 
 		// Execute
-		handler := Validation(bus, logger)
+		handler := transfer.Validation(bus, logger)
 		err := handler(ctx, event)
 
 		// Assert
@@ -105,24 +99,17 @@ func TestValidation(t *testing.T) {
 		userID := uuid.New()
 		accountID := uuid.New()
 		destAccountID := uuid.New()
-		receiverUserID := uuid.New()
-		amount, _ := money.New(-100, currency.USD) // Negative amount
-
-		event := events.TransferRequestedEvent{
-			FlowEvent: events.FlowEvent{
-				FlowType:      "transfer",
-				UserID:        userID,
-				AccountID:     accountID,
-				CorrelationID: uuid.New(),
-			},
-			ID:             uuid.New(),
-			Amount:         amount,
-			DestAccountID:  destAccountID,
-			ReceiverUserID: receiverUserID,
-		}
+		amount, _ := money.New(-100, currency.USD)
+		event := events.NewTransferRequestedEvent(
+			userID,
+			accountID,
+			uuid.New(),
+			events.WithTransferDestAccountID(destAccountID),
+			events.WithTransferRequestedAmount(amount),
+		)
 
 		// Execute
-		handler := Validation(bus, logger)
+		handler := transfer.Validation(bus, logger)
 		err := handler(ctx, event)
 
 		// Assert

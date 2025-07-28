@@ -55,10 +55,11 @@ func StripeWebhookHandler(eventBus eventbus.Bus, signingSecret string) fiber.Han
 			}
 
 			// Publish PaymentCompletedEvent to the event bus
-			paymentEvent := &events.PaymentCompletedEvent{
-				ID:        uuid.New(),
-				PaymentID: paymentIntent.ID,
-			}
+			paymentEvent := events.NewPaymentCompletedEvent(
+				uuid.Nil, // UserID is not available in this context
+				uuid.Nil, // AccountID is not available in this context
+				events.WithPaymentID(paymentIntent.ID),
+			)
 			if err := eventBus.Emit(c.Context(), paymentEvent); err != nil {
 				return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 			}

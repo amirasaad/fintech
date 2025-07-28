@@ -1,7 +1,6 @@
 package conversion
 
 import (
-	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/domain/money"
@@ -16,5 +15,5 @@ type EventFactory interface {
 		cre *events.ConversionRequestedEvent,
 		convInfo *common.ConversionInfo,
 		convertedMoney money.Money,
-	) (domain.Event, error)
+	) (common.Event, error)
 }

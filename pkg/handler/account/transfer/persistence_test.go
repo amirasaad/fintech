@@ -1,7 +1,8 @@
-package transfer
+package transfer_test
 
 import (
 	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"testing"
@@ -10,6 +11,10 @@ import (
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/domain/money"
+	"github.com/amirasaad/fintech/pkg/handler/account/transfer"
+	"github.com/amirasaad/fintech/pkg/repository"
+	"github.com/amirasaad/fintech/pkg/repository/account"
+	"github.com/amirasaad/fintech/pkg/repository/transaction"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -19,95 +24,155 @@ func TestPersistence(t *testing.T) {
 	ctx := context.Background()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
-	t.Run("handles unexpected event type gracefully", func(t *testing.T) {
-		// Setup
+	t.Run("successfully persists transaction and emits event", func(t *testing.T) {
 		bus := mocks.NewMockBus(t)
 		uow := mocks.NewMockUnitOfWork(t)
+		txRepo := mocks.NewTransactionRepository(t)
+		accRepo := mocks.NewAccountRepository(t)
 
-		// Use a different event type
-		event := events.DepositValidatedEvent{}
-
-		// Execute
-		handler := Persistence(bus, uow, logger)
-		err := handler(ctx, event)
-
-		// Assert
-		assert.NoError(t, err)
-		// No interactions should occur with mocks
-		uow.AssertNotCalled(t, "Do", mock.Anything, mock.Anything)
-		bus.AssertNotCalled(t, "Emit", mock.Anything, mock.Anything)
-	})
-
-	t.Run("handles malformed event gracefully", func(t *testing.T) {
-		// Setup
-		bus := mocks.NewMockBus(t)
-		uow := mocks.NewMockUnitOfWork(t)
-
-		// Event with missing required fields
-		event := events.TransferDomainOpDoneEvent{
-			TransferValidatedEvent: events.TransferValidatedEvent{
-				TransferRequestedEvent: events.TransferRequestedEvent{
-					FlowEvent: events.FlowEvent{
-						FlowType: "transfer",
-						// Missing required fields
-					},
-				},
-			},
-		}
-
-		// Execute
-		handler := Persistence(bus, uow, logger)
-		err := handler(ctx, event)
-
-		// Assert
-		assert.NoError(t, err) // Handler should not return error, just log and discard
-		uow.AssertNotCalled(t, "Do", mock.Anything, mock.Anything)
-		bus.AssertNotCalled(t, "Emit", mock.Anything, mock.Anything)
-	})
-
-	t.Run("validates event structure", func(t *testing.T) {
-		// Setup
-		bus := mocks.NewMockBus(t)
-		uow := mocks.NewMockUnitOfWork(t)
-
+		amount, _ := money.New(100, currency.USD)
 		userID := uuid.New()
 		accountID := uuid.New()
+		correlationID := uuid.New()
 		destAccountID := uuid.New()
-		receiverUserID := uuid.New()
-		transactionID := uuid.New()
-		amount, _ := money.New(100, currency.USD)
 
-		// Valid event structure
-		event := events.TransferDomainOpDoneEvent{
-			TransferValidatedEvent: events.TransferValidatedEvent{
-				TransferRequestedEvent: events.TransferRequestedEvent{
-					FlowEvent: events.FlowEvent{
-						FlowType:      "transfer",
-						UserID:        userID,
-						AccountID:     accountID,
-						CorrelationID: uuid.New(),
-					},
-					ID:             transactionID,
-					Amount:         amount,
-					DestAccountID:  destAccountID,
-					ReceiverUserID: receiverUserID,
-				},
+		transferRequested := events.NewTransferRequestedEvent(
+			userID, accountID, correlationID,
+			events.WithTransferRequestedAmount(amount),
+			events.WithTransferDestAccountID(destAccountID),
+		)
+		validated := events.NewTransferValidatedEvent(
+			userID, accountID, correlationID,
+			events.WithTransferRequestedEvent(*transferRequested),
+		)
+		conversionDone := events.NewConversionDoneEvent(
+			userID,
+			accountID,
+			correlationID,
+			events.WithConvertedAmount(amount),
+		)
+		event := events.NewTransferDomainOpDoneEvent(
+			events.WithTransferFlowEvent(validated.FlowEvent),
+			events.WithTransferAmount(amount),
+			events.WithDestAccountID(destAccountID),
+			func(e *events.TransferDomainOpDoneEvent) {
+				e.TransferValidatedEvent = *validated
+				e.ConversionDoneEvent = conversionDone
 			},
-			TransactionID: transactionID,
-		}
+		)
 
-		// Execute - we don't mock the complex internal logic, just verify the handler doesn't crash
-		handler := Persistence(bus, uow, logger)
+		uow.On("Do", mock.Anything, mock.AnythingOfType("func(repository.UnitOfWork) error")).
+			Return(nil).
+			Run(func(args mock.Arguments) {
+				fn := args.Get(1).(func(repository.UnitOfWork) error)
+				uow.On("GetRepository", mock.MatchedBy(func(repoType interface{}) bool {
+					_, isTx := repoType.(*transaction.Repository)
+					return isTx
+				})).Return(txRepo, nil)
+				uow.On("GetRepository", mock.MatchedBy(func(repoType interface{}) bool {
+					_, isAcc := repoType.(*account.Repository)
+					return isAcc
+				})).Return(accRepo, nil)
+				accRepo.On("Update", mock.Anything, mock.AnythingOfType("uuid.UUID"), mock.AnythingOfType("dto.AccountUpdate")).Return(nil)
+				txRepo.On("Update", mock.Anything, mock.AnythingOfType("uuid.UUID"), mock.AnythingOfType("dto.TransactionUpdate")).Return(nil)
+				assert.NoError(t, fn(uow))
+			})
+
+		bus.On("Emit", mock.Anything, mock.AnythingOfType("*events.TransferCompletedEvent")).Return(nil).Once()
+
+		handler := transfer.Persistence(bus, uow, logger)
 		err := handler(ctx, event)
 
-		// Assert - the handler will likely fail due to missing repository setup, but it shouldn't panic
-		// We're just testing that the event structure validation works
-		assert.NotPanics(t, func() {
-			handler(ctx, event) //nolint:errcheck
-		})
+		assert.NoError(t, err)
+	})
 
-		// The error could be nil or an error depending on the mock setup, but we don't care
-		// We just want to ensure the handler processes the event structure correctly
-		_ = err
+	t.Run("fails gracefully when repository error occurs", func(t *testing.T) {
+		bus := mocks.NewMockBus(t)
+		uow := mocks.NewMockUnitOfWork(t)
+		accRepo := mocks.NewAccountRepository(t)
+
+		amount, _ := money.New(100, currency.USD)
+		userID := uuid.New()
+		accountID := uuid.New()
+		correlationID := uuid.New()
+		destAccountID := uuid.New()
+
+		transferRequested := events.NewTransferRequestedEvent(
+			userID, accountID, correlationID,
+			events.WithTransferRequestedAmount(amount),
+			events.WithTransferDestAccountID(destAccountID),
+		)
+		validated := events.NewTransferValidatedEvent(
+			userID, accountID, correlationID,
+			events.WithTransferRequestedEvent(*transferRequested),
+		)
+		conversionDone := events.NewConversionDoneEvent(
+			userID,
+			accountID,
+			correlationID,
+			events.WithConvertedAmount(amount),
+		)
+		event := events.NewTransferDomainOpDoneEvent(
+			events.WithTransferFlowEvent(validated.FlowEvent),
+			events.WithTransferAmount(amount),
+			events.WithDestAccountID(destAccountID),
+			func(e *events.TransferDomainOpDoneEvent) {
+				e.TransferValidatedEvent = *validated
+				e.ConversionDoneEvent = conversionDone
+			},
+		)
+
+		uow.On("Do", mock.Anything, mock.AnythingOfType("func(repository.UnitOfWork) error")).Return(errors.New("repository error"))
+		uow.On("GetRepository", mock.Anything).Return(accRepo, nil)
+
+		handler := transfer.Persistence(bus, uow, logger)
+		err := handler(ctx, event)
+
+		assert.Error(t, err)
+	})
+
+	t.Run("returns error when repository fails", func(t *testing.T) {
+		uow := mocks.NewMockUnitOfWork(t)
+		bus := mocks.NewMockBus(t)
+
+		amount, _ := money.New(100, currency.USD)
+		userID := uuid.New()
+		accountID := uuid.New()
+		correlationID := uuid.New()
+		destAccountID := uuid.New()
+
+		transferRequested := events.NewTransferRequestedEvent(
+			userID, accountID, correlationID,
+			events.WithTransferRequestedAmount(amount),
+			events.WithTransferDestAccountID(destAccountID),
+		)
+		validated := events.NewTransferValidatedEvent(
+			userID, accountID, correlationID,
+			events.WithTransferRequestedEvent(*transferRequested),
+		)
+		conversionDone := events.NewConversionDoneEvent(
+			userID,
+			accountID,
+			correlationID,
+			events.WithConvertedAmount(amount),
+		)
+		event := events.NewTransferDomainOpDoneEvent(
+			events.WithTransferFlowEvent(validated.FlowEvent),
+			events.WithTransferAmount(amount),
+			events.WithDestAccountID(destAccountID),
+			func(e *events.TransferDomainOpDoneEvent) {
+				e.TransferValidatedEvent = *validated
+				e.ConversionDoneEvent = conversionDone
+			},
+		)
+		dbError := errors.New("database error")
+		uow.On("Do", mock.Anything, mock.AnythingOfType("func(repository.UnitOfWork) error")).Return(nil)
+
+		uow.On("GetRepository", mock.Anything).Return(nil, dbError).Once()
+
+		handler := transfer.Persistence(bus, uow, logger)
+		err := handler(ctx, event)
+
+		assert.ErrorIs(t, err, dbError)
 	})
 }

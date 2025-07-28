@@ -8,17 +8,17 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/amirasaad/fintech/infra/eventbus"
+	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 
 	"io"
 	"log/slog"
 
 	fixturesmocks "github.com/amirasaad/fintech/internal/fixtures/mocks"
-	"github.com/amirasaad/fintech/pkg/domain"
 	accountdomain "github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/amirasaad/fintech/pkg/dto"
-	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/amirasaad/fintech/pkg/handler/payment"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/amirasaad/fintech/webapi/account"
@@ -28,35 +28,13 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-// --- Mock EventBus for unit test ---
-type mockBus struct {
-	handlers map[string][]eventbus.HandlerFunc
-}
-
-func (m *mockBus) Emit(ctx context.Context, event domain.Event) error {
-	handlers := m.handlers[event.Type()]
-	for _, handler := range handlers {
-		if err := handler(ctx, event); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (m *mockBus) Register(eventType string, handler eventbus.HandlerFunc) {
-	if m.handlers == nil {
-		m.handlers = make(map[string][]eventbus.HandlerFunc)
-	}
-	m.handlers[eventType] = append(m.handlers[eventType], handler)
-}
-
 func TestStripeWebhookHandler_PublishesEvent(t *testing.T) {
 	app := fiber.New()
 	var called bool
-	mockBus := &mockBus{}
+	mockBus := eventbus.NewWithMemory(slog.New(slog.NewTextHandler(io.Discard, nil)))
 	// Register for the correct event type emitted by the handler
 	eventType := (events.PaymentCompletedEvent{}).Type()
-	mockBus.Register(eventType, func(ctx context.Context, event domain.Event) error {
+	mockBus.Register(eventType, func(ctx context.Context, event common.Event) error {
 		called = true
 		t.Logf("Handler called for event type: %s", event.Type())
 		return nil
@@ -139,9 +117,10 @@ func TestStripeWebhookHandler_Integration(t *testing.T) {
 	})
 
 	// Set up event bus and register handler
-	bus := eventbus.NewSimpleEventBus()
+
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	bus.Subscribe((events.PaymentCompletedEvent{}).Type(), payment.Completed(bus, uow, logger))
+	bus := eventbus.NewWithMemory(logger)
+	bus.Register("PaymentCompletedEvent", payment.Completed(bus, uow, logger))
 	// Remove other handlers that might interfere with the test
 	// bus.Subscribe((events.PaymentInitiationEvent{}).Type(), payment.PaymentInitiationHandler(bus, provider.NewMockPaymentProvider(), logger))
 	// bus.Subscribe((events.PaymentIdPersistedEvent{}).Type(), payment.Persistence(bus, uow, logger))

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"maps"
 	"os"
 	"time"
 
@@ -15,6 +16,8 @@ import (
 	"github.com/amirasaad/fintech/infra/provider"
 	infra_repository "github.com/amirasaad/fintech/infra/repository"
 	"github.com/amirasaad/fintech/pkg/currency"
+	"github.com/amirasaad/fintech/pkg/domain/common"
+	"github.com/amirasaad/fintech/pkg/domain/events"
 
 	"github.com/charmbracelet/log"
 )
@@ -78,20 +81,43 @@ func main() {
 	uow := infra_repository.NewUoW(db)
 
 	// Create exchange rate system
-	currencyConverter, err := infra.NewExchangeRateSystem(logger, *cfg)
+	currencyConverter, err := infra.NewExchangeRateSystem(logger, cfg.Exchange)
 	if err != nil {
 		logger.Error("Failed to initialize exchange rate system", "error", err)
+		log.Fatal(err)
+	}
+
+	eventTypes := map[string]func() common.Event{
+		"ConversionRequestedEvent": func() common.Event { return &events.ConversionRequestedEvent{} },
+		"ConversionDoneEvent":      func() common.Event { return &events.ConversionDoneEvent{} },
+	}
+
+	// Add all event types from different domains
+	maps.Copy(eventTypes, events.DepositEventTypes())  // Deposit events
+	maps.Copy(eventTypes, events.WithdrawEventTypes()) // Withdraw events
+	maps.Copy(eventTypes, events.TransferEventTypes()) // Transfer events
+	logger.Info("Event types copied", "event_types", eventTypes)
+	bus, err := eventbus.NewWithRedis(
+		cfg.Redis.URL,
+		"fintech_events",
+		"fintech_consumers",
+		eventTypes,
+		logger,
+	)
+	// bus := eventbus.NewWithMemory(logger)
+	if err != nil {
+		logger.Error("Failed to initialize event bus", "error", err)
 		log.Fatal(err)
 	}
 
 	logger.Info("Starting fintech server", "port", ":3000")
 	log.Fatal(app.New(config.Deps{
 		Uow:               uow,
-		EventBus:          eventbus.NewMemoryRegistryEventBus(logger),
+		EventBus:          bus,
 		CurrencyConverter: currencyConverter,
 		CurrencyRegistry:  currencyRegistry,
 		Logger:            logger,
-		PaymentProvider:   provider.NewStripePaymentProvider(cfg.PaymentProviders.Stripe.ApiKey, logger),
+		PaymentProvider:   provider.NewMockPaymentProvider(),
 		Config:            cfg,
 	}).Listen(fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)))
 }

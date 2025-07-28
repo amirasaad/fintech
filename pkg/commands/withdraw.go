@@ -3,8 +3,8 @@ package commands
 
 import "github.com/google/uuid"
 
-// WithdrawCommand is a DTO for withdraw operations (command pattern).
-type WithdrawCommand struct {
+// Withdraw is a DTO for withdraw operations (command pattern).
+type Withdraw struct {
 	UserID         uuid.UUID
 	AccountID      uuid.UUID
 	Amount         float64

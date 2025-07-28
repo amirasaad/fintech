@@ -5,21 +5,20 @@ import (
 	"log/slog"
 	"sync"
 
+	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 
-	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/amirasaad/fintech/pkg/provider"
-	"github.com/google/uuid"
 )
 
 var processedPaymentInitiation sync.Map // map[string]struct{} for idempotency
 
 // Initiation handles DepositBusinessValidatedEvent and initiates payment for deposits.
-func Initiation(bus eventbus.Bus, paymentProvider provider.PaymentProvider, logger *slog.Logger) func(ctx context.Context, e domain.Event) error {
-	return func(ctx context.Context, e domain.Event) error {
+func Initiation(bus eventbus.Bus, paymentProvider provider.PaymentProvider, logger *slog.Logger) func(ctx context.Context, e common.Event) error {
+	return func(ctx context.Context, e common.Event) error {
 		log := logger.With("handler", "Initiation")
-		evt, ok := e.(events.PaymentInitiationEvent)
+		evt, ok := e.(*events.PaymentInitiationEvent)
 		if !ok {
 			log.Debug("🚫 [SKIP] Skipping: unexpected event type in Initiation", "event", e)
 			return nil
@@ -40,13 +39,12 @@ func Initiation(bus eventbus.Bus, paymentProvider provider.PaymentProvider, logg
 			return err
 		}
 		log.Info("📤 [EMIT] Emitting PaymentInitiatedEvent", "transaction_id", transactionID, "payment_id", paymentID)
-		return bus.Emit(ctx, events.PaymentInitiatedEvent{
-			ID:            uuid.New().String(),
-			TransactionID: transactionID,
-			PaymentID:     paymentID,
-			UserID:        evt.UserID,
-			AccountID:     evt.AccountID,
-			CorrelationID: evt.CorrelationID,
-		})
+		paymentInitiatedEvent := events.NewPaymentInitiatedEvent(
+			evt.FlowEvent,
+			evt.ID.String(),
+			transactionID,
+			paymentID,
+		)
+		return bus.Emit(ctx, paymentInitiatedEvent)
 	}
 }

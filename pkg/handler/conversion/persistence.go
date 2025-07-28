@@ -4,19 +4,21 @@ package conversion
 import (
 	"context"
 	"errors"
-	"github.com/amirasaad/fintech/pkg/dto"
-	"github.com/amirasaad/fintech/pkg/repository/transaction"
+	"fmt"
 	"log/slog"
 
+	"github.com/amirasaad/fintech/pkg/dto"
+	"github.com/amirasaad/fintech/pkg/repository/transaction"
+
+	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 
-	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/repository"
 )
 
 // Persistence persists ConversionDoneEvent events.
-func Persistence(uow repository.UnitOfWork, logger *slog.Logger) func(context.Context, domain.Event) error {
-	return func(ctx context.Context, e domain.Event) error {
+func Persistence(uow repository.UnitOfWork, logger *slog.Logger) func(context.Context, common.Event) error {
+	return func(ctx context.Context, e common.Event) error {
 		log := logger.With(
 			"handler", "Persistence",
 			"event_type", e.Type(),
@@ -25,7 +27,10 @@ func Persistence(uow repository.UnitOfWork, logger *slog.Logger) func(context.Co
 
 		ce, ok := e.(events.ConversionDoneEvent)
 		if !ok {
-			log.Error("unexpected event", "event", e)
+			log.Error("unexpected event",
+				"event", e,
+				"concrete_type", fmt.Sprintf("%T", e),
+				"expected_type", "ConversionDoneEvent")
 			return errors.New("unexpected event")
 		}
 		log.Info("💾 [PROGRESS] persisting conversion data", "transaction_id", ce.TransactionID)

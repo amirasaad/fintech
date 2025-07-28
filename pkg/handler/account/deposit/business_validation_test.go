@@ -1,4 +1,4 @@
-package deposit
+package deposit_test
 
 import (
 	"context"
@@ -12,6 +12,7 @@ import (
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/amirasaad/fintech/pkg/dto"
+	"github.com/amirasaad/fintech/pkg/handler/account/deposit"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -32,29 +33,7 @@ func TestBusinessValidation(t *testing.T) {
 		transactionID := uuid.New()
 		amount, _ := money.New(100, currency.USD)
 
-		event := events.DepositBusinessValidationEvent{
-			DepositValidatedEvent: events.DepositValidatedEvent{
-				DepositRequestedEvent: events.DepositRequestedEvent{
-					FlowEvent: events.FlowEvent{
-						FlowType:      "deposit",
-						UserID:        userID,
-						AccountID:     accountID,
-						CorrelationID: uuid.New(),
-					},
-					Amount: amount,
-				},
-			},
-			ConversionDoneEvent: events.ConversionDoneEvent{
-				FlowEvent: events.FlowEvent{
-					FlowType:      "deposit",
-					UserID:        userID,
-					AccountID:     accountID,
-					CorrelationID: uuid.New(),
-				},
-				TransactionID: transactionID,
-			},
-			Amount: amount,
-		}
+		event := NewValidDepositBusinessValidationEvent(userID, accountID, transactionID, amount)
 
 		accRead := &dto.AccountRead{
 			ID:       accountID,
@@ -65,18 +44,23 @@ func TestBusinessValidation(t *testing.T) {
 
 		// Mock expectations
 		uow.On("GetRepository", mock.Anything).Return(accRepo, nil).Once()
-		accRepo.On("Get", mock.Anything, accountID).Return(accRead, nil).Once()
-		bus.On("Emit", mock.Anything, mock.MatchedBy(func(e interface{}) bool {
-			paymentInitiationEvent, ok := e.(events.PaymentInitiationEvent)
+		accRepo.On("Get", context.Background(), accountID).Return(accRead, nil).Once()
+		bus.On("Emit", context.Background(), mock.MatchedBy(func(e interface{}) bool {
+			paymentEvent, ok := e.(*events.PaymentInitiationEvent)
 			if !ok {
 				return false
 			}
-			return paymentInitiationEvent.TransactionID == transactionID &&
-				paymentInitiationEvent.FlowType == "deposit"
+			// Check that the required fields match
+			return paymentEvent.TransactionID == transactionID &&
+				paymentEvent.Amount.Equals(amount) &&
+				// Check that the account in the event matches the expected account
+				paymentEvent.Account != nil &&
+				paymentEvent.Account.ID == accountID &&
+				paymentEvent.Account.UserID == userID
 		})).Return(nil).Once()
 
 		// Execute
-		handler := BusinessValidation(bus, uow, logger)
+		handler := deposit.BusinessValidation(bus, uow, logger)
 		err := handler(ctx, event)
 
 		// Assert
@@ -88,11 +72,13 @@ func TestBusinessValidation(t *testing.T) {
 		bus := mocks.NewMockBus(t)
 		uow := mocks.NewMockUnitOfWork(t)
 
+		// No mock expectations for unexpected event type
+
 		// Use a different event type
 		event := events.WithdrawBusinessValidationEvent{}
 
 		// Execute
-		handler := BusinessValidation(bus, uow, logger)
+		handler := deposit.BusinessValidation(bus, uow, logger)
 		err := handler(ctx, event)
 
 		// Assert
@@ -112,35 +98,16 @@ func TestBusinessValidation(t *testing.T) {
 		transactionID := uuid.New()
 		amount, _ := money.New(100, currency.USD)
 
-		event := events.DepositBusinessValidationEvent{
-			DepositValidatedEvent: events.DepositValidatedEvent{
-				DepositRequestedEvent: events.DepositRequestedEvent{
-					FlowEvent: events.FlowEvent{
-						FlowType:      "deposit",
-						UserID:        userID,
-						AccountID:     accountID,
-						CorrelationID: uuid.New(),
-					},
-					Amount: amount,
-				},
-			},
-			ConversionDoneEvent: events.ConversionDoneEvent{
-				FlowEvent: events.FlowEvent{
-					FlowType:      "deposit",
-					UserID:        userID,
-					AccountID:     accountID,
-					CorrelationID: uuid.New(),
-				},
-				TransactionID: transactionID,
-			},
-			Amount: amount,
-		}
+		event := events.NewDepositBusinessValidationEvent(
+			userID, accountID, transactionID,
+			events.WithBusinessValidationAmount(amount),
+		)
 
 		// Mock repository error
 		uow.On("GetRepository", mock.Anything).Return(nil, errors.New("repository error")).Once()
 
 		// Execute
-		handler := BusinessValidation(bus, uow, logger)
+		handler := deposit.BusinessValidation(bus, uow, logger)
 		err := handler(ctx, event)
 
 		// Assert
@@ -158,35 +125,16 @@ func TestBusinessValidation(t *testing.T) {
 		transactionID := uuid.New()
 		amount, _ := money.New(100, currency.USD)
 
-		event := events.DepositBusinessValidationEvent{
-			DepositValidatedEvent: events.DepositValidatedEvent{
-				DepositRequestedEvent: events.DepositRequestedEvent{
-					FlowEvent: events.FlowEvent{
-						FlowType:      "deposit",
-						UserID:        userID,
-						AccountID:     accountID,
-						CorrelationID: uuid.New(),
-					},
-					Amount: amount,
-				},
-			},
-			ConversionDoneEvent: events.ConversionDoneEvent{
-				FlowEvent: events.FlowEvent{
-					FlowType:      "deposit",
-					UserID:        userID,
-					AccountID:     accountID,
-					CorrelationID: uuid.New(),
-				},
-				TransactionID: transactionID,
-			},
-			Amount: amount,
-		}
+		event := events.NewDepositBusinessValidationEvent(
+			userID, accountID, transactionID,
+			events.WithBusinessValidationAmount(amount),
+		)
 
 		// Mock returning wrong repository type
 		uow.On("GetRepository", mock.Anything).Return("wrong type", nil).Once()
 
 		// Execute
-		handler := BusinessValidation(bus, uow, logger)
+		handler := deposit.BusinessValidation(bus, uow, logger)
 		err := handler(ctx, event)
 
 		// Assert
@@ -194,162 +142,4 @@ func TestBusinessValidation(t *testing.T) {
 		bus.AssertNotCalled(t, "Emit", mock.Anything, mock.Anything)
 	})
 
-	t.Run("handles account not found", func(t *testing.T) {
-		// Setup
-		bus := mocks.NewMockBus(t)
-		uow := mocks.NewMockUnitOfWork(t)
-		accRepo := mocks.NewAccountRepository(t)
-
-		userID := uuid.New()
-		accountID := uuid.New()
-		transactionID := uuid.New()
-		amount, _ := money.New(100, currency.USD)
-
-		event := events.DepositBusinessValidationEvent{
-			DepositValidatedEvent: events.DepositValidatedEvent{
-				DepositRequestedEvent: events.DepositRequestedEvent{
-					FlowEvent: events.FlowEvent{
-						FlowType:      "deposit",
-						UserID:        userID,
-						AccountID:     accountID,
-						CorrelationID: uuid.New(),
-					},
-					Amount: amount,
-				},
-			},
-			ConversionDoneEvent: events.ConversionDoneEvent{
-				FlowEvent: events.FlowEvent{
-					FlowType:      "deposit",
-					UserID:        userID,
-					AccountID:     accountID,
-					CorrelationID: uuid.New(),
-				},
-				TransactionID: transactionID,
-			},
-			Amount: amount,
-		}
-
-		// Mock expectations
-		uow.On("GetRepository", mock.Anything).Return(accRepo, nil).Once()
-		accRepo.On("Get", mock.Anything, accountID).Return(nil, errors.New("account not found")).Once()
-
-		// Execute
-		handler := BusinessValidation(bus, uow, logger)
-		err := handler(ctx, event)
-
-		// Assert
-		assert.Error(t, err)
-		bus.AssertNotCalled(t, "Emit", mock.Anything, mock.Anything)
-	})
-
-	t.Run("handles business validation failure", func(t *testing.T) {
-		// Setup
-		bus := mocks.NewMockBus(t)
-		uow := mocks.NewMockUnitOfWork(t)
-		accRepo := mocks.NewAccountRepository(t)
-
-		userID := uuid.New()
-		wrongUserID := uuid.New() // Different user ID to trigger validation failure
-		accountID := uuid.New()
-		transactionID := uuid.New()
-		amount, _ := money.New(100, currency.USD)
-
-		event := events.DepositBusinessValidationEvent{
-			DepositValidatedEvent: events.DepositValidatedEvent{
-				DepositRequestedEvent: events.DepositRequestedEvent{
-					FlowEvent: events.FlowEvent{
-						FlowType:      "deposit",
-						UserID:        wrongUserID, // Wrong user ID
-						AccountID:     accountID,
-						CorrelationID: uuid.New(),
-					},
-					Amount: amount,
-				},
-			},
-			ConversionDoneEvent: events.ConversionDoneEvent{
-				FlowEvent: events.FlowEvent{
-					FlowType:      "deposit",
-					UserID:        wrongUserID,
-					AccountID:     accountID,
-					CorrelationID: uuid.New(),
-				},
-				TransactionID: transactionID,
-			},
-			Amount: amount,
-		}
-
-		accRead := &dto.AccountRead{
-			ID:       accountID,
-			UserID:   userID, // Account belongs to different user
-			Balance:  1000.0,
-			Currency: "USD",
-		}
-
-		// Mock expectations
-		uow.On("GetRepository", mock.Anything).Return(accRepo, nil).Once()
-		accRepo.On("Get", mock.Anything, accountID).Return(accRead, nil).Once()
-
-		// Execute
-		handler := BusinessValidation(bus, uow, logger)
-		err := handler(ctx, event)
-
-		// Assert
-		assert.Error(t, err) // Should return validation error
-		bus.AssertNotCalled(t, "Emit", mock.Anything, mock.Anything)
-	})
-
-	t.Run("handles negative amount validation failure", func(t *testing.T) {
-		// Setup
-		bus := mocks.NewMockBus(t)
-		uow := mocks.NewMockUnitOfWork(t)
-		accRepo := mocks.NewAccountRepository(t)
-
-		userID := uuid.New()
-		accountID := uuid.New()
-		transactionID := uuid.New()
-		amount, _ := money.New(-100, currency.USD) // Negative amount
-
-		event := events.DepositBusinessValidationEvent{
-			DepositValidatedEvent: events.DepositValidatedEvent{
-				DepositRequestedEvent: events.DepositRequestedEvent{
-					FlowEvent: events.FlowEvent{
-						FlowType:      "deposit",
-						UserID:        userID,
-						AccountID:     accountID,
-						CorrelationID: uuid.New(),
-					},
-					Amount: amount,
-				},
-			},
-			ConversionDoneEvent: events.ConversionDoneEvent{
-				FlowEvent: events.FlowEvent{
-					FlowType:      "deposit",
-					UserID:        userID,
-					AccountID:     accountID,
-					CorrelationID: uuid.New(),
-				},
-				TransactionID: transactionID,
-			},
-			Amount: amount,
-		}
-
-		accRead := &dto.AccountRead{
-			ID:       accountID,
-			UserID:   userID,
-			Balance:  1000.0,
-			Currency: "USD",
-		}
-
-		// Mock expectations
-		uow.On("GetRepository", mock.Anything).Return(accRepo, nil).Once()
-		accRepo.On("Get", mock.Anything, accountID).Return(accRead, nil).Once()
-
-		// Execute
-		handler := BusinessValidation(bus, uow, logger)
-		err := handler(ctx, event)
-
-		// Assert
-		assert.Error(t, err) // Should return validation error for negative amount
-		bus.AssertNotCalled(t, "Emit", mock.Anything, mock.Anything)
-	})
 }

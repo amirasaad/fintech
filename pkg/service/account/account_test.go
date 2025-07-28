@@ -6,14 +6,14 @@ import (
 	"testing"
 
 	"github.com/amirasaad/fintech/pkg/commands"
-	events2 "github.com/amirasaad/fintech/pkg/domain/events"
+	"github.com/amirasaad/fintech/pkg/domain/common"
+	"github.com/amirasaad/fintech/pkg/domain/events"
 
 	"log/slog"
 
 	"github.com/amirasaad/fintech/infra/eventbus"
 	"github.com/amirasaad/fintech/internal/fixtures/mocks"
 	"github.com/amirasaad/fintech/pkg/currency"
-	"github.com/amirasaad/fintech/pkg/domain"
 	accountdomain "github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/amirasaad/fintech/pkg/domain/user"
@@ -86,33 +86,49 @@ func TestCreateAccount_RepoError(t *testing.T) {
 }
 
 func TestDeposit_PublishesEvent(t *testing.T) {
-	memBus := eventbus.NewMemoryEventBus()
+	memBus := eventbus.NewWithMemory(slog.Default())
 	svc := accountsvc.NewService(memBus, nil, slog.Default())
 
-	// Register the handler before publishing
 	var called bool
-	memBus.Register("DepositRequestedEvent", func(c context.Context, e domain.Event) error {
+
+	userID := uuid.New()
+	accountID := uuid.New()
+	amount := 100.0
+	currencyCode := "USD"
+
+	// Register the handler before publishing
+	memBus.Register("DepositRequestedEvent", func(c context.Context, e common.Event) error {
+		evt, ok := e.(*events.DepositRequestedEvent)
+		require.True(t, ok)
+		assert.Equal(t, userID, evt.UserID)
+		assert.Equal(t, accountID, evt.AccountID)
+		assert.InEpsilon(t, amount, evt.Amount.AmountFloat(), 0.01)
+		assert.Equal(t, currencyCode, evt.Amount.Currency().String())
 		called = true
-		// Optionally, assert on event fields here
 		return nil
 	})
 
-	err := svc.Deposit(context.Background(), commands.DepositCommand{Amount: 100})
+	err := svc.Deposit(context.Background(), commands.Deposit{
+		UserID:    userID,
+		AccountID: accountID,
+		Amount:    amount,
+		Currency:  currencyCode,
+	})
 	require.NoError(t, err)
 	assert.True(t, called, "Handler should have been called")
 }
 
 func TestWithdraw_PublishesEvent(t *testing.T) {
-	memBus := eventbus.NewMemoryEventBus()
+	memBus := eventbus.NewWithMemory(slog.Default())
 	svc := accountsvc.NewService(memBus, nil, slog.Default())
 	userID := uuid.New()
 	accountID := uuid.New()
-	var publishedEvents []domain.Event
-	memBus.Register("WithdrawRequestedEvent", func(c context.Context, e domain.Event) error {
+	var publishedEvents []common.Event
+	memBus.Register("WithdrawRequestedEvent", func(c context.Context, e common.Event) error {
 		publishedEvents = append(publishedEvents, e)
 		return nil
 	})
-	err := svc.Withdraw(context.Background(), commands.WithdrawCommand{
+	err := svc.Withdraw(context.Background(), commands.Withdraw{
 		UserID:    userID,
 		AccountID: accountID,
 		Amount:    50.0,
@@ -123,7 +139,7 @@ func TestWithdraw_PublishesEvent(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Len(t, publishedEvents, 1)
-	evt, ok := publishedEvents[0].(events2.WithdrawRequestedEvent)
+	evt, ok := publishedEvents[0].(*events.WithdrawRequestedEvent)
 	require.True(t, ok)
 	assert.Equal(t, userID, evt.UserID)
 	assert.Equal(t, accountID, evt.AccountID)
@@ -133,39 +149,36 @@ func TestWithdraw_PublishesEvent(t *testing.T) {
 }
 
 func TestTransfer_PublishesEvent(t *testing.T) {
-	memBus := eventbus.NewMemoryEventBus()
+	memBus := eventbus.NewWithMemory(slog.Default())
 	userID := uuid.New()
 	sourceAccountID := uuid.New()
 	destAccountID := uuid.New()
 	amount := 25.0
 	currency := "USD"
-	moneySource := "transfer"
 
 	svc := accountsvc.NewService(memBus, nil, slog.Default())
-	var publishedEvents []domain.Event
-	memBus.Register("TransferRequestedEvent", func(c context.Context, e domain.Event) error {
+	var publishedEvents []common.Event
+	memBus.Register("TransferRequestedEvent", func(c context.Context, e common.Event) error {
 		publishedEvents = append(publishedEvents, e)
 		return nil
 	})
-	transferDTO := dto.TransactionCreate{
+	cmd := commands.Transfer{
 		UserID:      userID,
 		AccountID:   sourceAccountID,
-		Amount:      int64(amount), // TODO: until refactor
+		ToAccountID: destAccountID,
+		Amount:      amount,
 		Currency:    currency,
-		MoneySource: moneySource,
 	}
-	err := svc.Transfer(context.TODO(), transferDTO, destAccountID)
+	err := svc.Transfer(context.TODO(), cmd, destAccountID)
 	require.NoError(t, err)
 	require.Len(t, publishedEvents, 1)
-	evt, ok := publishedEvents[0].(events2.TransferRequestedEvent)
+	evt, ok := publishedEvents[0].(*events.TransferRequestedEvent)
 	require.True(t, ok)
 	assert.Equal(t, userID, evt.UserID)
 	assert.Equal(t, sourceAccountID, evt.AccountID)
 	assert.Equal(t, destAccountID, evt.DestAccountID)
-	assert.Equal(t, userID, evt.ReceiverUserID)
 	// assert.InEpsilon(t, amount, evt.Amount, 0.01)
 	assert.Equal(t, currency, evt.Amount.Currency().String())
-	assert.Equal(t, moneySource, evt.Source)
 }
 
 func TestGetAccount_Success(t *testing.T) {

@@ -67,7 +67,7 @@ func main() {
 	// Create UOW factory using the shared db
 	uow := infra_repository.NewUoW(db)
 	bus := app.SetupBus(config.Deps{
-		EventBus: eventbus.NewMemoryRegistryEventBus(logger),
+		EventBus: eventbus.NewWithMemoryAsync(logger),
 		Uow:      uow,
 		Logger:   logger,
 	})
@@ -214,7 +214,7 @@ func handleDeposit(args []string, scv *account.Service, errorMsg, successMsg fun
 		return
 	}
 
-	err = scv.Deposit(context.Background(), commands.DepositCommand{})
+	err = scv.Deposit(context.Background(), commands.Deposit{})
 	if err != nil {
 		fmt.Println(errorMsg("Error depositing:"), err)
 		return
@@ -249,7 +249,7 @@ func handleWithdraw(args []string, scv *account.Service, errorMsg, successMsg fu
 	externalWalletAddress, _ := reader.ReadString('\n')
 	externalWalletAddress = strings.TrimSpace(externalWalletAddress)
 
-	err = scv.Withdraw(context.Background(), commands.WithdrawCommand{
+	err = scv.Withdraw(context.Background(), commands.Withdraw{
 		UserID:    userID,
 		AccountID: uuid.MustParse(accountID),
 		Amount:    amount,
