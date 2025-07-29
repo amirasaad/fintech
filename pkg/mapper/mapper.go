@@ -14,6 +14,7 @@ func MapAccountReadToDomain(dto *dto.AccountRead) *account.Account {
 		panic(err)
 	}
 	acc, err := account.New().
+		WithID(dto.ID).
 		WithUserID(dto.UserID).
 		WithBalance(balance.Amount()).
 		WithCurrency(balance.Currency()).

@@ -29,11 +29,14 @@ func TestBusinessValidation(t *testing.T) {
 		accRepo := mocks.NewAccountRepository(t)
 
 		userID := uuid.New()
-		accountID := uuid.New()
 		transactionID := uuid.New()
 		amount, _ := money.New(100, currency.USD)
 
+		// Create a new account ID for the test
+		accountID := uuid.New()
 		event := NewValidDepositBusinessValidationEvent(userID, accountID, transactionID, amount)
+		// Use the account ID from the event's FlowEvent
+		accountID = event.FlowEvent.AccountID
 
 		accRead := &dto.AccountRead{
 			ID:       accountID,
@@ -48,15 +51,43 @@ func TestBusinessValidation(t *testing.T) {
 		bus.On("Emit", context.Background(), mock.MatchedBy(func(e interface{}) bool {
 			paymentEvent, ok := e.(*events.PaymentInitiationEvent)
 			if !ok {
+				t.Logf("Expected *events.PaymentInitiationEvent, got %T", e)
 				return false
 			}
+
+			// Log the actual values for debugging
+			t.Logf("PaymentEvent: TransactionID=%v, Amount=%v, Account=%+v",
+				paymentEvent.TransactionID,
+				paymentEvent.Amount,
+				paymentEvent.Account)
+
 			// Check that the required fields match
-			return paymentEvent.TransactionID == transactionID &&
-				paymentEvent.Amount.Equals(amount) &&
-				// Check that the account in the event matches the expected account
-				paymentEvent.Account != nil &&
-				paymentEvent.Account.ID == accountID &&
-				paymentEvent.Account.UserID == userID
+			if paymentEvent.TransactionID != transactionID {
+				t.Logf("TransactionID mismatch: expected %v, got %v", transactionID, paymentEvent.TransactionID)
+				return false
+			}
+
+			if !paymentEvent.Amount.Equals(amount) {
+				t.Logf("Amount mismatch: expected %v, got %v", amount, paymentEvent.Amount)
+				return false
+			}
+
+			if paymentEvent.Account == nil {
+				t.Log("Account is nil")
+				return false
+			}
+
+			if paymentEvent.Account.ID != accountID {
+				t.Logf("Account ID mismatch: expected %v, got %v", accountID, paymentEvent.Account.ID)
+				return false
+			}
+
+			if paymentEvent.Account.UserID != userID {
+				t.Logf("UserID mismatch: expected %v, got %v", userID, paymentEvent.Account.UserID)
+				return false
+			}
+
+			return true
 		})).Return(nil).Once()
 
 		// Execute

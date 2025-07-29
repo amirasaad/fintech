@@ -52,10 +52,7 @@ func Persistence(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logge
 			}
 			accRepo := accRepoAny.(account.Repository)
 
-			completedStatus := "completed"
-			if err = txRepo.Update(ctx, txOutID, dto.TransactionUpdate{Status: &completedStatus}); err != nil {
-				return fmt.Errorf("failed to update tx_out: %w", err)
-			}
+			// Don't update status here, we'll update it based on success/failure after all operations
 
 			// c. Atomically update account balances using money value object
 			sourceAcc, err := accRepo.Get(ctx, te.AccountID)
@@ -95,15 +92,43 @@ func Persistence(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logge
 				return fmt.Errorf("failed to credit destination account: %w", err)
 			}
 
+			// Only mark as completed if all operations succeeded
+			completedStatus := "completed"
+			if err := txRepo.Update(ctx, txOutID, dto.TransactionUpdate{Status: &completedStatus}); err != nil {
+				return fmt.Errorf("failed to update transaction status to completed: %w", err)
+			}
+
 			return nil
 		})
 
 		if err != nil {
 			log.Error("❌ [ERROR] Final persistence transaction failed", "error", err)
+			// Create the failure event first so we can use the error message
 			failureEvent := events.TransferFailedEvent{
 				TransferRequestedEvent: te.TransferRequestedEvent,
 				Reason:                 "PersistenceFailed: " + err.Error(),
 			}
+
+			// Try to mark the transaction as failed, but don't let this fail the whole operation
+			err2 := uow.Do(ctx, func(uow repository.UnitOfWork) error {
+				txRepoAny, err := uow.GetRepository((*transaction.Repository)(nil))
+				if err != nil {
+					return fmt.Errorf("failed to get transaction repo: %w", err)
+				}
+				txRepo := txRepoAny.(transaction.Repository)
+
+				failedStatus := "failed"
+				if updateErr := txRepo.Update(ctx, txOutID, dto.TransactionUpdate{Status: &failedStatus}); updateErr != nil {
+					log.Error("❌ [ERROR] Failed to update transaction status to failed", "error", updateErr)
+				}
+				return nil
+			})
+
+			if err2 != nil {
+				log.Error("❌ [ERROR] Failed to mark transaction as failed", "error", err2)
+			}
+
+			// Emit the failure event regardless of whether marking as failed succeeded
 			return bus.Emit(ctx, failureEvent)
 		}
 		log.Info("✅ [SUCCESS] Final transfer persistence complete", "tx_out_id", txOutID, "tx_in_id", txInID)
