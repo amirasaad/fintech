@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/repository"
@@ -13,8 +12,8 @@ import (
 )
 
 // ConversionPersistence handles persisting conversion details for any transaction.
-func ConversionPersistence(uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e common.Event) error {
-	return func(ctx context.Context, e common.Event) error {
+func ConversionPersistence(uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e events.Event) error {
+	return func(ctx context.Context, e events.Event) error {
 		log := logger.With("handler", "ConversionPersistence", "event_type", e.Type())
 		log.Info("🟢 [START] Received event", "event", e)
 

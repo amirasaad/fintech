@@ -22,11 +22,3 @@ type ConversionInfo struct {
 	ConvertedCurrency string
 	ConversionRate    float64
 }
-
-// Event represents a domain event in the common package.
-// The generic type T is used to specify the concrete event type.
-type Event interface {
-	// Type returns the reflect.Type of the concrete event.
-	// This is used for type-safe event registration and dispatching.
-	Type() string
-}

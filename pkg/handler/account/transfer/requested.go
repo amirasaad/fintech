@@ -6,7 +6,6 @@ import (
 	"log/slog"
 
 	"github.com/amirasaad/fintech/pkg/currency"
-	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/eventbus"
@@ -17,8 +16,8 @@ import (
 
 // RequestedHandler handles TransferRequested events by validating and persisting the transfer.
 // This follows the new event flow pattern: Requested -> RequestedHandler (validate and persist).
-func RequestedHandler(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e common.Event) error {
-	return func(ctx context.Context, e common.Event) error {
+func RequestedHandler(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e events.Event) error {
+	return func(ctx context.Context, e events.Event) error {
 		log := logger.With("handler", "TransferRequestedHandler", "event_type", e.Type())
 		log.Info("🟢 [START] Processing TransferRequested event")
 

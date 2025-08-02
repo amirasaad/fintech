@@ -19,3 +19,11 @@ type FlowEvent struct {
 type Validator interface {
 	Validate() error
 }
+
+// Event represents a domain event in the common package.
+// The generic type T is used to specify the concrete event type.
+type Event interface {
+	// Type returns string of the event type.
+	// This is used for type-safe event registration and dispatching.
+	Type() string
+}

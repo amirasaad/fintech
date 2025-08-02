@@ -6,7 +6,6 @@ import (
 	"log/slog"
 
 	"github.com/amirasaad/fintech/pkg/domain"
-	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/amirasaad/fintech/pkg/mapper"
@@ -14,11 +13,11 @@ import (
 	"github.com/amirasaad/fintech/pkg/repository/account"
 )
 
-// WithdrawCurrencyConverted performs domain validation after currency conversion for withdrawals.
+// CurrencyConverted performs domain validation after currency conversion for withdrawals.
 // Emits WithdrawBusinessValidated event to trigger payment initiation.
-func WithdrawCurrencyConverted(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e common.Event) error {
-	return func(ctx context.Context, e common.Event) error {
-		log := logger.With("handler", "WithdrawCurrencyConverted", "event_type", e.Type())
+func CurrencyConverted(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e events.Event) error {
+	return func(ctx context.Context, e events.Event) error {
+		log := logger.With("handler", "CurrencyConverted", "event_type", e.Type())
 		log.Info("🟢 [START] Received event", "event", e)
 
 		wce, ok := e.(*events.WithdrawCurrencyConverted)

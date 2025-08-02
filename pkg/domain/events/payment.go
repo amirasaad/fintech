@@ -16,13 +16,13 @@ type PaymentInitiated struct {
 
 func (e PaymentInitiated) Type() string { return "PaymentInitiated" }
 
-// PaymentFailedEvent is emitted when payment fails.
-type PaymentFailedEvent struct {
+// PaymentFailed is emitted when payment fails.
+type PaymentFailed struct {
 	PaymentInitiated
 	Reason string
 }
 
-func (e PaymentFailedEvent) Type() string { return "PaymentFailedEvent" }
+func (e PaymentFailed) Type() string { return "PaymentFailed" }
 
 type PaymentProcessed struct {
 	PaymentInitiated
@@ -35,9 +35,9 @@ type PaymentCompleted struct {
 
 func (e PaymentCompleted) Type() string { return "PaymentCompleted" }
 
-// PaymentIdPersisted is emitted after the paymentId is persisted to the transaction.
-type PaymentIdPersisted struct {
+// PaymentPersisted is emitted after the payment ID is persisted to the transaction.
+type PaymentPersisted struct {
 	PaymentInitiated
 }
 
-func (e PaymentIdPersisted) Type() string { return "PaymentIdPersisted" }
+func (e PaymentPersisted) Type() string { return "PaymentPersisted" }

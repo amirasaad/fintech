@@ -5,7 +5,6 @@ import (
 	"errors"
 	"log/slog"
 
-	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/amirasaad/fintech/pkg/mapper"
@@ -13,11 +12,11 @@ import (
 	"github.com/amirasaad/fintech/pkg/repository/account"
 )
 
-// DepositCurrencyConverted performs domain validation after currency conversion for deposits.
+// CurrencyConverted performs domain validation after currency conversion for deposits.
 // Emits DepositBusinessValidated event to trigger payment initiation.
-func DepositCurrencyConverted(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e common.Event) error {
-	return func(ctx context.Context, e common.Event) error {
-		log := logger.With("handler", "DepositCurrencyConverted", "event_type", e.Type())
+func CurrencyConverted(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e events.Event) error {
+	return func(ctx context.Context, e events.Event) error {
+		log := logger.With("handler", "CurrencyConverted", "event_type", e.Type())
 
 		dce, ok := e.(*events.DepositCurrencyConverted)
 		if !ok {
@@ -61,13 +60,15 @@ func DepositCurrencyConverted(bus eventbus.Bus, uow repository.UnitOfWork, logge
 			log.Error("❌ [ERROR] Domain validation failed", "error", err)
 			// Create the failed event
 			failedEvent := events.NewDepositFailed(dce.DepositRequested, err.Error())
-			return bus.Emit(ctx, failedEvent)
+			_ = bus.Emit(ctx, failedEvent)
+			return nil
 		}
 
 		log.Info("✅ [SUCCESS] Domain validation passed, emitting DepositBusinessValidated", "transaction_id", dce.DepositRequested.TransactionID)
 
 		// Emit DepositBusinessValidated event
 		businessValidatedEvent := events.NewDepositBusinessValidated(dce)
-		return bus.Emit(ctx, businessValidatedEvent)
+		_ = bus.Emit(ctx, businessValidatedEvent)
+		return nil
 	}
 }

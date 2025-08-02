@@ -6,7 +6,6 @@ import (
 	"log/slog"
 
 	"github.com/amirasaad/fintech/pkg/currency"
-	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/eventbus"
@@ -18,8 +17,8 @@ import (
 
 // Requested handles DepositRequested events by validating and persisting the deposit.
 // This follows the new event flow pattern: Requested -> Requested (validate and persist).
-func Requested(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e common.Event) error {
-	return func(ctx context.Context, e common.Event) error {
+func Requested(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e events.Event) error {
+	return func(ctx context.Context, e events.Event) error {
 		log := logger.With("handler", "DepositRequestedHandler", "event_type", e.Type())
 		log.Info("🟢 [START] Processing DepositRequested event")
 
@@ -48,15 +47,15 @@ func Requested(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger)
 			return nil
 		}
 
-		accountRepoAny, err := uow.GetRepository((*repository.AccountRepository)(nil))
+		accountRepoAny, err := uow.GetRepository((*account.Repository)(nil))
 		if err != nil {
 			log.Error("❌ [ERROR] Failed to get account repository", "error", err)
 			return fmt.Errorf("failed to get account repository: %w", err)
 		}
 		accountRepo, ok := accountRepoAny.(account.Repository)
 		if !ok {
-			log.Error("❌ [ERROR] Failed to get account repository", "error", err)
-			return fmt.Errorf("failed to get account repository: %w", err)
+			log.Error("❌ [ERROR] Failed to cast account repository", "error", err)
+			return fmt.Errorf("failed to cast account repository: %w", err)
 		}
 
 		account, err := accountRepo.Get(ctx, dr.AccountID)
@@ -89,6 +88,7 @@ func Requested(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger)
 			dr.FlowEvent,
 			events.WithConversionAmount(dr.Amount),
 			events.WithConversionTo(currency.Code(account.Currency)),
+			events.WithConversionTransactionID(txID),
 		)
 		if err := bus.Emit(ctx, conversionEvent); err != nil {
 			log.Error("❌ [ERROR] Failed to emit CurrencyConversionRequested event", "error", err)

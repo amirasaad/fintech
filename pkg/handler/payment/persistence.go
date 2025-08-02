@@ -6,7 +6,6 @@ import (
 	"log/slog"
 
 	"github.com/amirasaad/fintech/pkg/domain/account"
-	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 
 	"github.com/amirasaad/fintech/pkg/dto"
@@ -18,8 +17,8 @@ import (
 
 // Persistence handles PaymentInitiatedEvent and updates the transaction with payment ID.
 // This is a generic handler that can process payment events for all operations (deposit, withdraw, transfer).
-func Persistence(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e common.Event) error {
-	return func(ctx context.Context, e common.Event) error {
+func Persistence(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e events.Event) error {
+	return func(ctx context.Context, e events.Event) error {
 		log := logger.With(
 			"handler", "Persistence",
 			"event_type", e.Type(),

@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"sync"
 
-	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/amirasaad/fintech/pkg/provider"
@@ -14,8 +13,8 @@ import (
 var processedPaymentInitiation sync.Map // map[string]struct{} for idempotency
 
 // Initiated handles DepositBusinessValidatedEvent and initiates payment for deposits.
-func Initiated(bus eventbus.Bus, paymentProvider provider.PaymentProvider, logger *slog.Logger) func(ctx context.Context, e common.Event) error {
-	return func(ctx context.Context, e common.Event) error {
+func Initiated(bus eventbus.Bus, paymentProvider provider.PaymentProvider, logger *slog.Logger) func(ctx context.Context, e events.Event) error {
+	return func(ctx context.Context, e events.Event) error {
 		log := logger.With("handler", "Initiation")
 		evt, ok := e.(*events.PaymentInitiated)
 		if !ok {

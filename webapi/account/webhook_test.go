@@ -4,13 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"github.com/amirasaad/fintech/pkg/domain/events"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/amirasaad/fintech/infra/eventbus"
-	"github.com/amirasaad/fintech/pkg/domain/common"
-
 	"io"
 	"log/slog"
 
@@ -33,7 +32,7 @@ func TestStripeWebhookHandler_PublishesEvent(t *testing.T) {
 	mockBus := eventbus.NewWithMemory(slog.New(slog.NewTextHandler(io.Discard, nil)))
 	// Register for the correct event type emitted by the handler
 	eventType := "PaymentCompleted"
-	mockBus.Register(eventType, func(ctx context.Context, event common.Event) error {
+	mockBus.Register(eventType, func(ctx context.Context, event events.Event) error {
 		called = true
 		t.Logf("Handler called for event type: %s", event.Type())
 		return nil

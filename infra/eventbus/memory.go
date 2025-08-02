@@ -2,10 +2,10 @@ package eventbus
 
 import (
 	"context"
+	"github.com/amirasaad/fintech/pkg/domain/events"
 	"log/slog"
 	"sync"
 
-	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/amirasaad/fintech/pkg/eventbus"
 )
 
@@ -17,7 +17,7 @@ type MemoryEventBus struct {
 	handlers  map[string][]eventbus.HandlerFunc
 	mu        sync.RWMutex
 	logger    *slog.Logger
-	published []common.Event // Added for testing purposes
+	published []events.Event // Added for testing purposes
 }
 
 // NewWithMemory creates a new in-memory event bus for event-driven communication.
@@ -25,7 +25,7 @@ func NewWithMemory(logger *slog.Logger) *MemoryEventBus {
 	return &MemoryEventBus{
 		handlers:  make(map[string][]eventbus.HandlerFunc),
 		logger:    logger.With("bus", "memory"),
-		published: make([]common.Event, 0), // Initialize the slice
+		published: make([]events.Event, 0), // Initialize the slice
 	}
 }
 
@@ -37,7 +37,7 @@ func (b *MemoryEventBus) Register(eventType string, handler eventbus.HandlerFunc
 }
 
 // Emit dispatches the event to all registered handlers for its type.
-func (b *MemoryEventBus) Emit(ctx context.Context, event common.Event) error {
+func (b *MemoryEventBus) Emit(ctx context.Context, event events.Event) error {
 	eventType := event.Type()
 	b.mu.RLock()
 	handlers := b.handlers[eventType]
@@ -58,11 +58,11 @@ func (b *MemoryEventBus) Emit(ctx context.Context, event common.Event) error {
 func (b *MemoryEventBus) ClearPublished() {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	b.published = make([]common.Event, 0)
+	b.published = make([]events.Event, 0)
 }
 
 // Published returns the list of published events. This is useful for testing.
-func (b *MemoryEventBus) Published() []common.Event {
+func (b *MemoryEventBus) Published() []events.Event {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	return b.published
@@ -77,7 +77,7 @@ type MemoryAsyncEventBus struct {
 	mu       sync.RWMutex
 	eventCh  chan struct {
 		ctx   context.Context
-		event common.Event
+		event events.Event
 	}
 	log *slog.Logger
 }
@@ -88,7 +88,7 @@ func NewWithMemoryAsync(logger *slog.Logger) *MemoryAsyncEventBus {
 		handlers: make(map[string][]eventbus.HandlerFunc),
 		eventCh: make(chan struct {
 			ctx   context.Context
-			event common.Event
+			event events.Event
 		}, 100),
 	}
 	go b.process()
@@ -103,10 +103,10 @@ func (b *MemoryAsyncEventBus) Register(eventType string, handler eventbus.Handle
 	b.mu.Unlock()
 }
 
-func (b *MemoryAsyncEventBus) Emit(ctx context.Context, event common.Event) error {
+func (b *MemoryAsyncEventBus) Emit(ctx context.Context, event events.Event) error {
 	b.eventCh <- struct {
 		ctx   context.Context
-		event common.Event
+		event events.Event
 	}{ctx, event}
 	return nil
 }
@@ -115,7 +115,7 @@ func (b *MemoryAsyncEventBus) process() {
 	for w := range b.eventCh {
 		go func(w struct {
 			ctx   context.Context
-			event common.Event
+			event events.Event
 		}) {
 			b.mu.RLock()
 			handlers := append([]eventbus.HandlerFunc{}, b.handlers[w.event.Type()]...)

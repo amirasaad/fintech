@@ -10,15 +10,14 @@ import (
 	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/repository/transaction"
 
-	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 
 	"github.com/amirasaad/fintech/pkg/repository"
 )
 
 // Persistence persists ConversionDoneEvent events.
-func Persistence(uow repository.UnitOfWork, logger *slog.Logger) func(context.Context, common.Event) error {
-	return func(ctx context.Context, e common.Event) error {
+func Persistence(uow repository.UnitOfWork, logger *slog.Logger) func(context.Context, events.Event) error {
+	return func(ctx context.Context, e events.Event) error {
 		log := logger.With(
 			"handler", "Persistence",
 			"event_type", e.Type(),

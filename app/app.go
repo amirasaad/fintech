@@ -159,7 +159,7 @@ func SetupBus(deps config.Deps) eventbus.Bus {
 	// a. Requested handler (validate and persist)
 	bus.Register("DepositRequested", deposithandler.Requested(bus, deps.Uow, deps.Logger))
 	// b. Business validation after conversion (in account currency)
-	bus.Register("DepositCurrencyConverted", deposithandler.DepositCurrencyConverted(bus, deps.Uow, deps.Logger))
+	bus.Register("DepositCurrencyConverted", deposithandler.CurrencyConverted(bus, deps.Uow, deps.Logger))
 	// c. Payment initiation after business validation
 	bus.Register("DepositBusinessValidated", paymenthandler.Initiated(bus, deps.PaymentProvider, deps.Logger))
 
@@ -169,7 +169,7 @@ func SetupBus(deps config.Deps) eventbus.Bus {
 	// a. Requested handler (validate and persist)
 	bus.Register("WithdrawRequested", withdrawhandler.RequestedHandler(bus, deps.Uow, deps.Logger))
 	// b. Business validation after conversion (in account currency)
-	bus.Register("WithdrawCurrencyConverted", withdrawhandler.WithdrawCurrencyConverted(bus, deps.Uow, deps.Logger))
+	bus.Register("WithdrawCurrencyConverted", withdrawhandler.CurrencyConverted(bus, deps.Uow, deps.Logger))
 	// c. Payment initiation after business validation
 	bus.Register("WithdrawBusinessValidated", paymenthandler.Initiated(bus, deps.PaymentProvider, deps.Logger))
 

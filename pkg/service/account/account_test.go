@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/amirasaad/fintech/pkg/commands"
-	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 
 	"log/slog"
@@ -83,7 +82,7 @@ func TestDeposit_PublishesEvent(t *testing.T) {
 	currencyCode := "USD"
 
 	// Register the handler before publishing
-	memBus.Register("DepositRequested", func(c context.Context, e common.Event) error {
+	memBus.Register("DepositRequested", func(c context.Context, e events.Event) error {
 		evt, ok := e.(*events.DepositRequested)
 		require.True(t, ok)
 		assert.Equal(t, userID, evt.UserID)
@@ -109,8 +108,8 @@ func TestWithdraw_PublishesEvent(t *testing.T) {
 	svc := accountsvc.NewService(memBus, nil, slog.Default())
 	userID := uuid.New()
 	accountID := uuid.New()
-	var publishedEvents []common.Event
-	memBus.Register("WithdrawRequested", func(c context.Context, e common.Event) error {
+	var publishedEvents []events.Event
+	memBus.Register("WithdrawRequested", func(c context.Context, e events.Event) error {
 		publishedEvents = append(publishedEvents, e)
 		return nil
 	})
@@ -143,8 +142,8 @@ func TestTransfer_PublishesEvent(t *testing.T) {
 	currency := "USD"
 
 	svc := accountsvc.NewService(memBus, nil, slog.Default())
-	var publishedEvents []common.Event
-	memBus.Register("TransferRequested", func(c context.Context, e common.Event) error {
+	var publishedEvents []events.Event
+	memBus.Register("TransferRequested", func(c context.Context, e events.Event) error {
 		publishedEvents = append(publishedEvents, e)
 		return nil
 	})

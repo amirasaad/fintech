@@ -9,7 +9,6 @@ import (
 	"reflect"
 
 	"github.com/amirasaad/fintech/pkg/currency"
-	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/amirasaad/fintech/pkg/eventbus"
@@ -22,8 +21,8 @@ func Handler(
 	converter money.CurrencyConverter,
 	logger *slog.Logger,
 	factories map[string]EventFactory,
-) func(ctx context.Context, e common.Event) error {
-	return func(ctx context.Context, e common.Event) error {
+) func(ctx context.Context, e events.Event) error {
+	return func(ctx context.Context, e events.Event) error {
 		log := logger.With("handler", "ConversionHandler", "event_type", e.Type())
 		log.Info("🟢 [START] Received event", "event", e)
 

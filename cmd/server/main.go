@@ -14,8 +14,6 @@ import (
 	"github.com/amirasaad/fintech/infra/provider"
 	infra_repository "github.com/amirasaad/fintech/infra/repository"
 	"github.com/amirasaad/fintech/pkg/currency"
-	"github.com/amirasaad/fintech/pkg/domain/common"
-	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/charmbracelet/log"
 )
 
@@ -88,22 +86,9 @@ func main() {
 	}
 
 	// Define event types for Redis event bus
-	eventTypes := map[string]func() common.Event{
-		"PaymentInitiated":          func() common.Event { return &events.PaymentInitiated{} },
-		"PaymentCompleted":          func() common.Event { return &events.PaymentCompleted{} },
-		"DepositRequested":          func() common.Event { return &events.DepositRequested{} },
-		"DepositBusinessValidated":  func() common.Event { return &events.DepositBusinessValidated{} },
-		"WithdrawRequested":         func() common.Event { return &events.WithdrawRequested{} },
-		"WithdrawBusinessValidated": func() common.Event { return &events.WithdrawBusinessValidated{} },
-		"TransferRequested":         func() common.Event { return &events.TransferRequested{} },
-		"TransferBusinessValidated": func() common.Event { return &events.TransferBusinessValidated{} },
-	}
 
 	bus, err := eventbus.NewWithRedis(
 		cfg.Redis.URL,
-		"fintech_events",
-		"fintech_consumers",
-		eventTypes,
 		logger,
 	)
 	// bus := eventbus.NewWithMemory(logger)

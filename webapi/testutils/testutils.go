@@ -115,7 +115,7 @@ func (s *E2ETestSuite) TearDownSuite() {
 	}
 }
 
-// setupApp creates all services and the test app
+// setupApp creates all services and the test app, using Redis as the event bus via testcontainers-go.
 func (s *E2ETestSuite) setupApp() {
 	// Create deps
 	uow := infrarepo.NewUoW(s.db)
@@ -137,6 +137,29 @@ func (s *E2ETestSuite) setupApp() {
 		s.Require().NoError(currencyRegistry.Register(meta))
 	}
 
+	// Start Redis container
+	redisContainer, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+		ContainerRequest: testcontainers.ContainerRequest{
+			Image:        "redis:7-alpine",
+			ExposedPorts: []string{"6379/tcp"},
+			WaitingFor:   wait.ForListeningPort("6379/tcp").WithStartupTimeout(10 * time.Second),
+		},
+		Started: true,
+	})
+	s.Require().NoError(err)
+
+	endpoint, err := redisContainer.Endpoint(ctx, "")
+	s.Require().NoError(err)
+
+	// Setup Redis EventBus
+	eventBus, err := eventbus.NewWithRedis("redis://"+endpoint, logger)
+	s.Require().NoError(err)
+
+	// Store Redis container for cleanup at the end of this test
+	s.T().Cleanup(func() {
+		_ = redisContainer.Terminate(ctx)
+	})
+
 	// Create test app
 	s.app = app.New(
 		config.Deps{
@@ -144,7 +167,7 @@ func (s *E2ETestSuite) setupApp() {
 			CurrencyRegistry:  currencyRegistry,
 			Uow:               uow,
 			PaymentProvider:   provider.NewMockPaymentProvider(),
-			EventBus:          eventbus.NewWithMemory(logger),
+			EventBus:          eventBus,
 			Logger:            logger,
 			Config:            s.cfg,
 		},

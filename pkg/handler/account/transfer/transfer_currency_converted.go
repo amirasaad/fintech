@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/eventbus"
@@ -15,8 +14,8 @@ import (
 
 // TransferCurrencyConverted performs domain validation after currency conversion for transfers.
 // Emits TransferBusinessValidated event to trigger final persistence.
-func TransferCurrencyConverted(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e common.Event) error {
-	return func(ctx context.Context, e common.Event) error {
+func TransferCurrencyConverted(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e events.Event) error {
+	return func(ctx context.Context, e events.Event) error {
 		log := logger.With("handler", "TransferCurrencyConverted", "event_type", e.Type())
 
 		log.Info("🟢 [HANDLER] TransferCurrencyConverted received event", "event_type", e.Type())

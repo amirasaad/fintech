@@ -10,7 +10,6 @@ import (
 	"github.com/amirasaad/fintech/internal/fixtures/mocks"
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain"
-	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/google/uuid"
@@ -23,9 +22,9 @@ type MockEventFactory struct {
 	mock.Mock
 }
 
-func (m *MockEventFactory) CreateNextEvent(cr *events.CurrencyConverted) common.Event {
+func (m *MockEventFactory) CreateNextEvent(cr *events.CurrencyConverted) events.Event {
 	args := m.Called(cr)
-	return args.Get(0).(common.Event)
+	return args.Get(0).(events.Event)
 }
 
 func TestConversionHandler(t *testing.T) {

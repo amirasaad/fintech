@@ -1,7 +1,6 @@
 package conversion
 
 import (
-	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 )
 
@@ -16,7 +15,7 @@ func NewDepositEventFactory(depositRequested *events.DepositRequested) *DepositE
 	}
 }
 
-func (f *DepositEventFactory) CreateNextEvent(convertedEvent *events.CurrencyConverted) common.Event {
+func (f *DepositEventFactory) CreateNextEvent(convertedEvent *events.CurrencyConverted) events.Event {
 	// Create the deposit currency converted event with the deposit request and converted amount
 	dcc := events.NewDepositCurrencyConverted(convertedEvent)
 	// Apply the deposit request details
@@ -35,7 +34,7 @@ func NewWithdrawEventFactory(withdrawRequested *events.WithdrawRequested) *Withd
 	}
 }
 
-func (f *WithdrawEventFactory) CreateNextEvent(convertedEvent *events.CurrencyConverted) common.Event {
+func (f *WithdrawEventFactory) CreateNextEvent(convertedEvent *events.CurrencyConverted) events.Event {
 	// Create WithdrawCurrencyConverted with both the withdraw request and converted event
 	return events.NewWithdrawCurrencyConverted(f.withdrawRequested, convertedEvent)
 }
@@ -51,7 +50,7 @@ func NewTransferEventFactory(transferRequested *events.TransferRequested) *Trans
 	}
 }
 
-func (f *TransferEventFactory) CreateNextEvent(convertedEvent *events.CurrencyConverted) common.Event {
+func (f *TransferEventFactory) CreateNextEvent(convertedEvent *events.CurrencyConverted) events.Event {
 	// Create TransferCurrencyConverted with the transfer request and apply the converted amount
 	tcc := events.NewTransferCurrencyConverted(f.transferRequested)
 	// Apply the converted amount and conversion info from the CurrencyConverted event
