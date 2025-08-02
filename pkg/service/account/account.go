@@ -93,13 +93,7 @@ func (s *Service) Deposit(ctx context.Context, cmd commands.Deposit) error {
 	if err != nil {
 		return err
 	}
-	event := events.NewDepositRequestedEvent(
-		cmd.UserID,
-		cmd.AccountID,
-		uuid.New(),
-		events.WithDepositAmount(amount),
-		events.WithDepositSource(cmd.MoneySource),
-	)
+	event := events.NewDepositRequested(cmd.UserID, cmd.AccountID, uuid.New(), events.WithDepositAmount(amount))
 	return s.bus.Emit(ctx, event)
 }
 
@@ -109,13 +103,17 @@ func (s *Service) Withdraw(ctx context.Context, cmd commands.Withdraw) error {
 	if err != nil {
 		return err
 	}
-	event := events.NewWithdrawRequestedEvent(
-		cmd.UserID,
-		cmd.AccountID,
-		uuid.New(),
+
+	// Create event with amount and bank account number if provided
+	opts := []events.WithdrawRequestedOpt{
 		events.WithWithdrawAmount(amount),
-		events.WithWithdrawExternalTarget(account.ExternalTarget(*cmd.ExternalTarget)),
-	)
+	}
+
+	if cmd.ExternalTarget != nil && cmd.ExternalTarget.BankAccountNumber != "" {
+		opts = append(opts, events.WithWithdrawBankAccountNumber(cmd.ExternalTarget.BankAccountNumber))
+	}
+
+	event := events.NewWithdrawRequested(cmd.UserID, cmd.AccountID, uuid.New(), opts...)
 	return s.bus.Emit(ctx, event)
 }
 
@@ -125,13 +123,7 @@ func (s *Service) Transfer(ctx context.Context, cmd commands.Transfer, destAccou
 	if err != nil {
 		return err
 	}
-	event := events.NewTransferRequestedEvent(
-		cmd.UserID,
-		cmd.AccountID,
-		uuid.New(),
-		events.WithTransferDestAccountID(cmd.ToAccountID),
-		events.WithTransferRequestedAmount(amount),
-	)
+	event := events.NewTransferRequested(cmd.UserID, cmd.AccountID, uuid.New(), events.WithTransferDestAccountID(cmd.ToAccountID), events.WithTransferRequestedAmount(amount))
 	return s.bus.Emit(ctx, event)
 }
 

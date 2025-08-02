@@ -18,7 +18,7 @@ func ConversionPersistence(uow repository.UnitOfWork, logger *slog.Logger) func(
 		log := logger.With("handler", "ConversionPersistence", "event_type", e.Type())
 		log.Info("🟢 [START] Received event", "event", e)
 
-		cde, ok := e.(events.ConversionDoneEvent)
+		cde, ok := e.(events.CurrencyConverted)
 		if !ok {
 			log.Error("❌ [ERROR] Unexpected event type for conversion persistence", "event", e)
 			return nil

@@ -8,151 +8,104 @@ import (
 	"github.com/google/uuid"
 )
 
-// DepositPersistedEventOpt is a function that configures a DepositPersistedEvent
-type DepositPersistedEventOpt func(*DepositPersistedEvent)
+// DepositRequestedOpt is a function that configures a DepositRequested
+type DepositRequestedOpt func(*DepositRequested)
 
-// --- DepositRequestedEvent ---
-type DepositRequestedEventOpt func(*DepositRequestedEvent)
-
-func WithDepositAmount(m money.Money) DepositRequestedEventOpt {
-	return func(e *DepositRequestedEvent) { e.Amount = m }
-}
-func WithDepositTimestamp(ts time.Time) DepositRequestedEventOpt {
-	return func(e *DepositRequestedEvent) { e.Timestamp = ts }
-}
-func WithDepositID(id uuid.UUID) DepositRequestedEventOpt {
-	return func(e *DepositRequestedEvent) { e.ID = id }
-}
-func WithDepositFlowEvent(fe FlowEvent) DepositRequestedEventOpt {
-	return func(e *DepositRequestedEvent) { e.FlowEvent = fe }
+// WithDepositAmount sets the deposit amount
+func WithDepositAmount(m money.Money) DepositRequestedOpt {
+	return func(e *DepositRequested) { e.Amount = m }
 }
 
-func NewDepositRequestedEvent(userID, accountID, correlationID uuid.UUID, opts ...DepositRequestedEventOpt) *DepositRequestedEvent {
-	event := DepositRequestedEvent{
+// WithDepositTimestamp sets the deposit timestamp
+func WithDepositTimestamp(ts time.Time) DepositRequestedOpt {
+	return func(e *DepositRequested) { e.Timestamp = ts }
+}
+
+// WithDepositID sets the deposit ID
+func WithDepositID(id uuid.UUID) DepositRequestedOpt {
+	return func(e *DepositRequested) { e.ID = id }
+}
+
+// WithDepositFlowEvent sets the flow event for the deposit
+func WithDepositFlowEvent(fe FlowEvent) DepositRequestedOpt {
+	return func(e *DepositRequested) { e.FlowEvent = fe }
+}
+
+// WithDepositTransactionID sets the transaction ID for the deposit
+func WithDepositTransactionID(id uuid.UUID) DepositRequestedOpt {
+	return func(e *DepositRequested) { e.TransactionID = id }
+}
+
+// NewDepositRequested creates a new DepositRequested event with the given parameters
+func NewDepositRequested(userID, accountID, correlationID uuid.UUID, opts ...DepositRequestedOpt) *DepositRequested {
+	event := &DepositRequested{
 		FlowEvent: FlowEvent{
 			FlowType:      "deposit",
 			UserID:        userID,
 			AccountID:     accountID,
 			CorrelationID: correlationID,
 		},
-		ID:        uuid.New(),
-		Amount:    money.Zero(currency.USD),
-		Timestamp: time.Now(),
+		TransactionID: uuid.New(),
+		Amount:        money.Zero(currency.USD),
 	}
+	event.ID = uuid.New()
+	event.Timestamp = time.Now()
+
 	for _, opt := range opts {
-		opt(&event)
+		opt(event)
 	}
-	return &event
+
+	return event
 }
 
-// --- DepositValidatedEvent ---
-type DepositValidatedEventOpt func(*DepositValidatedEvent)
+type DepositCurrencyConvertedOpt func(*DepositCurrencyConverted)
 
-func WithDepositRequestedEvent(e DepositRequestedEvent) DepositValidatedEventOpt {
-	return func(v *DepositValidatedEvent) { v.DepositRequestedEvent = e }
-}
-func NewDepositValidatedEvent(userID, accountID, correlationID uuid.UUID, opts ...DepositValidatedEventOpt) *DepositValidatedEvent {
-	// By default, embed a valid DepositRequestedEvent
-	dre := NewDepositRequestedEvent(userID, accountID, correlationID)
-	v := DepositValidatedEvent{
-		DepositRequestedEvent: *dre,
+// NewDepositCurrencyConverted creates a new DepositCurrencyConverted event with the given parameters
+func NewDepositCurrencyConverted(dcv *CurrencyConverted, opts ...DepositCurrencyConvertedOpt) *DepositCurrencyConverted {
+	event := &DepositCurrencyConverted{
+		CurrencyConverted: *dcv,
 	}
+
 	for _, opt := range opts {
-		opt(&v)
+		opt(event)
 	}
-	return &v
+
+	return event
 }
 
-// --- DepositBusinessValidationEvent ---
-type DepositBusinessValidationEventOpt func(*DepositBusinessValidationEvent)
+type DepositBusinessValidatedOpt func(*DepositBusinessValidated)
 
-func WithDepositValidatedEvent(e DepositValidatedEvent) DepositBusinessValidationEventOpt {
-	return func(bv *DepositBusinessValidationEvent) { bv.DepositValidatedEvent = e }
-}
-func WithBusinessValidationAmount(m money.Money) DepositBusinessValidationEventOpt {
-	return func(bv *DepositBusinessValidationEvent) { bv.Amount = m }
-}
-func NewDepositBusinessValidationEvent(userID, accountID, correlationID uuid.UUID, opts ...DepositBusinessValidationEventOpt) *DepositBusinessValidationEvent {
-	// By default, embed a valid DepositValidatedEvent
-	ve := NewDepositValidatedEvent(userID, accountID, correlationID)
-	bv := DepositBusinessValidationEvent{
-		DepositValidatedEvent: *ve,
-		Amount:                money.Zero(currency.USD),
+// NewDepositBusinessValidated creates a new DepositBusinessValidated event with the given parameters
+func NewDepositBusinessValidated(dcv *DepositCurrencyConverted) *DepositBusinessValidated {
+	return &DepositBusinessValidated{
+		DepositCurrencyConverted: *dcv,
 	}
-	for _, opt := range opts {
-		opt(&bv)
-	}
-	return &bv
 }
 
-// --- DepositFailedEvent ---
-type DepositFailedEventOpt func(*DepositFailedEvent)
+// DepositFailedOpt is a function that configures a DepositFailed
+type DepositFailedOpt func(*DepositFailed)
 
-func WithFailureReason(reason string) DepositFailedEventOpt {
-	return func(df *DepositFailedEvent) { df.Reason = reason }
+// WithFailureReason sets the failure reason
+func WithFailureReason(reason string) DepositFailedOpt {
+	return func(df *DepositFailed) { df.Reason = reason }
 }
 
 // WithDepositFailedTransactionID sets the transaction ID for a failed deposit event
-func WithDepositFailedTransactionID(id uuid.UUID) DepositFailedEventOpt {
-	return func(df *DepositFailedEvent) { df.TransactionID = id }
+func WithDepositFailedTransactionID(id uuid.UUID) DepositFailedOpt {
+	return func(df *DepositFailed) { df.TransactionID = id }
 }
 
-func NewDepositFailedEvent(flowEvent FlowEvent, reason string, opts ...DepositFailedEventOpt) *DepositFailedEvent {
-	df := DepositFailedEvent{
-		FlowEvent: flowEvent,
-		Reason:    reason,
+// NewDepositFailed creates a new DepositFailed event with the given parameters
+func NewDepositFailed(requsted DepositRequested, reason string, opts ...DepositFailedOpt) *DepositFailed {
+	failed := &DepositFailed{
+		DepositRequested: requsted,
+		Reason:           reason,
 	}
+	failed.ID = uuid.New()
+	failed.Timestamp = time.Now()
 	for _, opt := range opts {
-		opt(&df)
-	}
-	return &df
-}
-
-// --- DepositPersistedEvent ---
-
-// WithDepositValidatedEventForPersisted sets the DepositValidatedEvent on a DepositPersistedEvent
-func WithDepositValidatedEventForPersisted(e DepositValidatedEvent) DepositPersistedEventOpt {
-	return func(d *DepositPersistedEvent) { d.DepositValidatedEvent = e }
-}
-
-// WithTransactionIDForPersisted sets the TransactionID on a DepositPersistedEvent
-func WithTransactionIDForPersisted(id uuid.UUID) DepositPersistedEventOpt {
-	return func(d *DepositPersistedEvent) { d.TransactionID = id }
-}
-
-// WithDepositAmountForPersisted sets the Amount on a DepositPersistedEvent
-func WithDepositAmountForPersisted(amount money.Money) DepositPersistedEventOpt {
-	return func(d *DepositPersistedEvent) { d.Amount = amount }
-}
-
-// NewDepositPersistedEvent creates a new DepositPersistedEvent with the given options
-func NewDepositPersistedEvent(userID, accountID, correlationID uuid.UUID, opts ...DepositPersistedEventOpt) *DepositPersistedEvent {
-	e := &DepositPersistedEvent{
-		ID: uuid.New(),
-		DepositValidatedEvent: DepositValidatedEvent{
-			DepositRequestedEvent: DepositRequestedEvent{
-				FlowEvent: FlowEvent{
-					FlowType:      "deposit",
-					UserID:        userID,
-					AccountID:     accountID,
-					CorrelationID: correlationID,
-				},
-				ID:        uuid.New(),
-				Timestamp: time.Now(),
-			},
-		},
-		TransactionID: uuid.Nil,
+		opt(failed)
 	}
 
-	for _, opt := range opts {
-		opt(e)
-	}
-
-	return e
+	return failed
 }
-
-// --- Usage Example (for tests) ---
-// event := NewDepositRequestedEvent(userID, accountID, correlationID, WithDepositAmount(mustMoney(5000, "EUR")))
-// validated := NewDepositValidatedEvent(userID, accountID, correlationID, WithDepositRequestedEvent(event))
-// businessValid := NewDepositBusinessValidationEvent(userID, accountID, correlationID, WithDepositValidatedEvent(validated))
-// failed := NewDepositFailedEvent(userID, accountID, correlationID, "negative amount", WithDepositBusinessValidationEvent(businessValid))

@@ -61,7 +61,7 @@ func (b *MemoryEventBus) ClearPublished() {
 	b.published = make([]common.Event, 0)
 }
 
-// GetPublished returns the list of published events. This is useful for testing.
+// Published returns the list of published events. This is useful for testing.
 func (b *MemoryEventBus) Published() []common.Event {
 	b.mu.RLock()
 	defer b.mu.RUnlock()

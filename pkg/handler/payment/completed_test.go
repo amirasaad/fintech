@@ -23,9 +23,14 @@ func TestCompletedHandler(t *testing.T) {
 	bus := mocks.NewMockBus(t)
 	mUow := mocks.NewMockUnitOfWork(t)
 
-	validEvent := events.NewPaymentCompletedEvent(
-		uuid.Nil, // userID (not used in this test)
-		uuid.Nil, // accountID (not used in this test)
+	validEvent := events.NewPaymentCompleted(
+		events.FlowEvent{
+			ID:            uuid.New(),
+			FlowType:      "payment",
+			UserID:        uuid.Nil,
+			AccountID:     uuid.Nil,
+			CorrelationID: uuid.Nil,
+		},
 		events.WithPaymentID("pay_123"),
 		events.WithCorrelationID(uuid.New()),
 	)

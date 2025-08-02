@@ -10,7 +10,6 @@ import (
 
 	"github.com/amirasaad/fintech/infra/eventbus"
 	"github.com/amirasaad/fintech/pkg/domain/common"
-	"github.com/amirasaad/fintech/pkg/domain/events"
 
 	"io"
 	"log/slog"
@@ -33,7 +32,7 @@ func TestStripeWebhookHandler_PublishesEvent(t *testing.T) {
 	var called bool
 	mockBus := eventbus.NewWithMemory(slog.New(slog.NewTextHandler(io.Discard, nil)))
 	// Register for the correct event type emitted by the handler
-	eventType := (events.PaymentCompletedEvent{}).Type()
+	eventType := "PaymentCompleted"
 	mockBus.Register(eventType, func(ctx context.Context, event common.Event) error {
 		called = true
 		t.Logf("Handler called for event type: %s", event.Type())
@@ -120,7 +119,7 @@ func TestStripeWebhookHandler_Integration(t *testing.T) {
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	bus := eventbus.NewWithMemory(logger)
-	bus.Register("PaymentCompletedEvent", payment.Completed(bus, uow, logger))
+	bus.Register("PaymentCompleted", payment.Completed(bus, uow, logger))
 	// Remove other handlers that might interfere with the test
 	// bus.Subscribe((events.PaymentInitiationEvent{}).Type(), payment.PaymentInitiationHandler(bus, provider.NewMockPaymentProvider(), logger))
 	// bus.Subscribe((events.PaymentIdPersistedEvent{}).Type(), payment.Persistence(bus, uow, logger))

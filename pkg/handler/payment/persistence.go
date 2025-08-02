@@ -26,7 +26,7 @@ func Persistence(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logge
 		)
 		log.Info("🟢 [START] Received event", "event", e)
 
-		pie, ok := e.(*events.PaymentInitiatedEvent)
+		pie, ok := e.(*events.PaymentInitiated)
 		if !ok {
 			log.Error("❌ [ERROR] Unexpected event type for payment persistence", "event", e)
 			return nil

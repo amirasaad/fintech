@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"time"
 
 	"github.com/amirasaad/fintech/pkg/mapper"
 
@@ -23,8 +22,7 @@ func InitialPersistence(bus eventbus.Bus, uow repository.UnitOfWork, logger *slo
 	return func(ctx context.Context, e common.Event) error {
 		log := logger.With("handler", "InitialPersistence", "event_type", e.Type())
 
-		// 1. Defensive: Check event type and structure
-		ve, ok := e.(*events.TransferValidatedEvent)
+		ve, ok := e.(*events.TransferRequested)
 		if !ok {
 			log.Error("❌ [DISCARD] Unexpected event type", "event", e)
 			return fmt.Errorf("unexpected event type: %T", e)
@@ -81,16 +79,26 @@ func InitialPersistence(bus eventbus.Bus, uow repository.UnitOfWork, logger *slo
 		log.Info("✅ [SUCCESS] Initial 'pending' transaction created", "transaction_id", txID)
 
 		// 3. Emit event to trigger currency conversion
-		conversionEvent := events.NewConversionRequestedEvent(
+		conversionEvent := events.NewCurrencyConversionRequested(
 			ve.FlowEvent,
 			events.WithConversionAmount(ve.Amount),
 			events.WithConversionTo(destAccount.Currency()),
-			events.WithConversionRequestID(txID.String()),
 			events.WithConversionTransactionID(txID),
-			events.WithConversionTimestamp(time.Now()),
 		)
 
-		log.Info("📤 [EMIT] Emitting ConversionRequestedEvent", "event", conversionEvent)
-		return bus.Emit(ctx, conversionEvent)
+		log.Info("📤 [EMIT] Emitting ConversionRequested", "event", conversionEvent)
+		if err := bus.Emit(ctx, conversionEvent); err != nil {
+			log.Error("❌ [ERROR] Failed to emit ConversionRequested", "error", err)
+			// If we fail to emit the conversion event, emit a failed event
+			err = bus.Emit(ctx, events.NewTransferFailed(
+				ve.FlowEvent,
+				"failed to emit conversion event: "+err.Error(),
+			))
+			if err != nil {
+				log.Error("❌ [CRITICAL] Failed to emit TransferFailedEvent", "error", err)
+			}
+			return fmt.Errorf("failed to emit conversion event: %w", err)
+		}
+		return nil
 	}
 }

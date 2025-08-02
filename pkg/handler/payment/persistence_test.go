@@ -29,7 +29,7 @@ func TestPersistence(t *testing.T) {
 		transactionID := uuid.New()
 		paymentID := "pm_12345"
 
-		event := &events.PaymentInitiatedEvent{
+		event := &events.PaymentInitiated{
 			TransactionID: transactionID,
 			PaymentID:     paymentID,
 		}
@@ -73,7 +73,7 @@ func TestPersistence(t *testing.T) {
 		uow := mocks.NewMockUnitOfWork(t)
 
 		// Use a different event type
-		event := events.DepositRequestedEvent{}
+		event := events.DepositRequested{}
 
 		// Execute
 		handler := Persistence(bus, uow, logger)
@@ -94,9 +94,17 @@ func TestPersistence(t *testing.T) {
 		transactionID := uuid.New()
 		paymentID := "pm_12345"
 
-		event := &events.PaymentInitiatedEvent{
+		event := &events.PaymentInitiated{
+			FlowEvent: events.FlowEvent{
+				ID:            uuid.New(),
+				FlowType:      "payment",
+				UserID:        uuid.Nil,
+				AccountID:     uuid.Nil,
+				CorrelationID: uuid.Nil,
+			},
 			TransactionID: transactionID,
 			PaymentID:     paymentID,
+			Status:        "initiated",
 		}
 
 		// Create a mock transaction repository

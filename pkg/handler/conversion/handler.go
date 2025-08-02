@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log/slog"
 	"reflect"
-	"time"
 
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/common"
@@ -29,10 +28,10 @@ func Handler(
 		log.Info("🟢 [START] Received event", "event", e)
 
 		log.Debug("[DEBUG] Event type received", "type", fmt.Sprintf("%T", e))
-		cre, ok := e.(*events.ConversionRequestedEvent)
+		cre, ok := e.(*events.CurrencyConversionRequested)
 		if !ok {
-			log.Debug("🚫 [SKIP] Skipping: unexpected event type", "event", e)
-			return nil
+			log.Debug("🚫 [ERROR] Unexpected event type", "event", e)
+			return fmt.Errorf("unexpected event type %T", e)
 		}
 
 		log.Debug("[DEBUG] ConversionRequestedEvent details", "event", cre)
@@ -40,14 +39,30 @@ func Handler(
 		factory, found := factories[cre.FlowType]
 		if !found {
 			log.Warn("Unknown flow type in ConversionRequestedEvent, discarding", "flow_type", cre.FlowType)
-			return nil // Or return an error if this should be a hard failure
+			return fmt.Errorf("unknown flow type %s", cre.FlowType)
 		}
 
+		// If no conversion is needed, create the next event directly
 		if cre.Amount.IsCurrency(cre.To.String()) {
-			if nextEvent, err := factory.CreateNextEvent(cre, nil, cre.Amount); err == nil {
-				return bus.Emit(ctx, nextEvent)
+			// Create a CurrencyConverted event with the same amount (no conversion needed)
+			conversionDone := &events.CurrencyConverted{
+				FlowEvent:       cre.FlowEvent,
+				TransactionID:   cre.TransactionID,
+				ConvertedAmount: cre.Amount,
+				// No conversion info since no actual conversion happened
 			}
 
+			// Use the factory to create the next event in the flow
+			nextEvent := factory.CreateNextEvent(conversionDone)
+			if nextEvent == nil {
+				log.Error("❌ [ERROR] Factory returned nil next event for non-converted amount")
+				return errors.New("factory returned nil event")
+			}
+
+			log.Info("🔄 [PROCESS] No conversion needed, proceeding to next event",
+				"amount", cre.Amount, "currency", cre.To)
+
+			return bus.Emit(ctx, nextEvent)
 		}
 		if cre.TransactionID == uuid.Nil {
 			log.Error("Transaction ID is nil, discarding event", "event", cre)
@@ -70,13 +85,11 @@ func Handler(
 			log.Error("❌ [ERROR] Failed to create converted money object", "error", err, "convInfo", convInfo)
 			return err
 		}
-		conversionDone := events.ConversionDoneEvent{
-			ID:              uuid.New(),
+		conversionDone := events.CurrencyConverted{
 			FlowEvent:       cre.FlowEvent,
 			TransactionID:   cre.TransactionID,
 			ConversionInfo:  convInfo,
 			ConvertedAmount: convertedMoney,
-			Timestamp:       time.Now(),
 		}
 		log.Info("🔄 [PROCESS] Conversion completed successfully", "amount", cre.Amount, "to", convertedMoney)
 		log.Info("📤 [EMIT] Emitting conversion done ", "event_type", conversionDone)
@@ -86,14 +99,9 @@ func Handler(
 		}
 
 		// Delegate the creation of the next event to the factory.
-		nextEvent, err := factory.CreateNextEvent(cre, convInfo, convertedMoney)
-		if err != nil {
-			log.Error("❌ [ERROR] Failed to create next event", "error", err, "flow_type", cre.FlowType, "cre", cre, "convInfo", convInfo, "convertedMoney", convertedMoney)
-			return err
-		}
-
+		nextEvent := factory.CreateNextEvent(&conversionDone)
 		if nextEvent == nil {
-			log.Error("[ERROR] Factory returned nil nextEvent", "cre", cre, "convInfo", convInfo, "convertedMoney", convertedMoney)
+			log.Error("❌ [ERROR] Factory returned nil next event", "flow_type", cre.FlowType, "cre", cre, "convInfo", convInfo, "convertedMoney", convertedMoney)
 			return errors.New("factory returned nil event")
 		}
 

@@ -52,7 +52,7 @@ func NewWithRedis(url, stream, group string, types map[string]func() common.Even
 		stream:        stream,
 		group:         group,
 		typeFactories: types,
-		logger:        logger.With("component", "redis-event-bus"),
+		logger:        logger.With("bus", "redis"),
 	}
 
 	// Initialize stream and consumer group

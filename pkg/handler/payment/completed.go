@@ -19,7 +19,7 @@ import (
 func Completed(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e common.Event) error {
 	return func(ctx context.Context, e common.Event) error {
 		logger.Info("Completed: received event", "event", e)
-		pe, ok := e.(*events.PaymentCompletedEvent)
+		pe, ok := e.(*events.PaymentCompleted)
 		if !ok {
 			logger.Error("event is not PaymentCompletedEvent", "event", e)
 			return nil

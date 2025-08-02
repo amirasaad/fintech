@@ -8,21 +8,32 @@ import (
 	"github.com/google/uuid"
 )
 
-// --- WithdrawRequestedEvent ---
-type WithdrawRequestedEventOpt func(*WithdrawRequestedEvent)
+// --- WithdrawRequested ---
+type WithdrawRequestedOpt func(*WithdrawRequested)
 
-func WithWithdrawTimestamp(ts time.Time) WithdrawRequestedEventOpt {
-	return func(e *WithdrawRequestedEvent) { e.Timestamp = ts }
-}
-func WithWithdrawID(id uuid.UUID) WithdrawRequestedEventOpt {
-	return func(e *WithdrawRequestedEvent) { e.ID = id }
-}
-func WithWithdrawFlowEvent(fe FlowEvent) WithdrawRequestedEventOpt {
-	return func(e *WithdrawRequestedEvent) { e.FlowEvent = fe }
+func WithWithdrawAmount(m money.Money) WithdrawRequestedOpt {
+	return func(e *WithdrawRequested) { e.Amount = m }
 }
 
-func NewWithdrawRequestedEvent(userID, accountID, correlationID uuid.UUID, opts ...WithdrawRequestedEventOpt) *WithdrawRequestedEvent {
-	event := WithdrawRequestedEvent{
+func WithWithdrawTimestamp(ts time.Time) WithdrawRequestedOpt {
+	return func(e *WithdrawRequested) { e.Timestamp = ts }
+}
+
+func WithWithdrawID(id uuid.UUID) WithdrawRequestedOpt {
+	return func(e *WithdrawRequested) { e.ID = id }
+}
+
+func WithWithdrawFlowEvent(fe FlowEvent) WithdrawRequestedOpt {
+	return func(e *WithdrawRequested) { e.FlowEvent = fe }
+}
+
+// WithWithdrawBankAccountNumber sets the bank account number for the withdraw request
+func WithWithdrawBankAccountNumber(accountNumber string) WithdrawRequestedOpt {
+	return func(e *WithdrawRequested) { e.BankAccountNumber = accountNumber }
+}
+
+func NewWithdrawRequested(userID, accountID, correlationID uuid.UUID, opts ...WithdrawRequestedOpt) *WithdrawRequested {
+	event := WithdrawRequested{
 		FlowEvent: FlowEvent{
 			FlowType:      "withdraw",
 			UserID:        userID,
@@ -39,112 +50,51 @@ func NewWithdrawRequestedEvent(userID, accountID, correlationID uuid.UUID, opts 
 	return &event
 }
 
-// --- WithdrawValidatedEvent ---
-type WithdrawValidatedEventOpt func(*WithdrawValidatedEvent)
+type WithdrawCurrencyConvertedOpt func(*WithdrawCurrencyConverted)
 
-func WithWithdrawRequestedEvent(e WithdrawRequestedEvent) WithdrawValidatedEventOpt {
-	return func(v *WithdrawValidatedEvent) {
-		// Preserve the FlowEvent fields that were already set
-		e.FlowEvent = v.FlowEvent
-		v.WithdrawRequestedEvent = e
+// NewWithdrawCurrencyConverted creates a new WithdrawCurrencyConverted event.
+// It takes a WithdrawRequested and a CurrencyConverted and combines them into a WithdrawCurrencyConverted event.
+func NewWithdrawCurrencyConverted(withdrawReq *WithdrawRequested, converted *CurrencyConverted, opts ...WithdrawCurrencyConvertedOpt) *WithdrawCurrencyConverted {
+	wr := WithdrawCurrencyConverted{
+		WithdrawRequested: *withdrawReq,
+		CurrencyConverted: *converted,
 	}
-}
-func NewWithdrawValidatedEvent(userID, accountID, correlationID uuid.UUID, opts ...WithdrawValidatedEventOpt) *WithdrawValidatedEvent {
-	// Initialize WithdrawValidatedEvent with proper FlowEvent
-	v := &WithdrawValidatedEvent{
-		WithdrawRequestedEvent: WithdrawRequestedEvent{
-			FlowEvent: FlowEvent{
-				FlowType:      "withdraw",
-				UserID:        userID,
-				AccountID:     accountID,
-				CorrelationID: correlationID,
-			},
-		},
-	}
-
-	// Apply any additional options
+	wr.Timestamp = time.Now()
 	for _, opt := range opts {
-		opt(v)
+		opt(&wr)
 	}
-	return v
-}
-func WithTargetCurrency(s string) WithdrawValidatedEventOpt {
-	return func(w *WithdrawValidatedEvent) { w.TargetCurrency = s }
+	return &wr
 }
 
-// WithWithdrawValidatedFlowEvent sets the FlowEvent for a WithdrawValidatedEvent
-func WithWithdrawValidatedFlowEvent(fe FlowEvent) WithdrawValidatedEventOpt {
-	return func(v *WithdrawValidatedEvent) { v.FlowEvent = fe }
-}
+type WithdrawBusinessValidatedOpt func(*WithdrawBusinessValidated)
 
-// --- WithdrawBusinessValidationEvent ---
-type WithdrawBusinessValidationEventOpt func(*WithdrawBusinessValidationEvent)
-
-// WithEventFlow sets the FlowEvent for a WithdrawBusinessValidationEvent
-func WithEventFlow(flowType string, userID, accountID, correlationID uuid.UUID) WithdrawBusinessValidationEventOpt {
-	return func(e *WithdrawBusinessValidationEvent) {
-		e.FlowEvent = FlowEvent{
-			FlowType:      flowType,
-			UserID:        userID,
-			AccountID:     accountID,
-			CorrelationID: correlationID,
-		}
+// NewWithdrawBusinessValidated creates a new WithdrawBusinessValidated event.
+// It takes a WithdrawCurrencyConverted and returns a new WithdrawBusinessValidated event.
+func NewWithdrawBusinessValidated(converted *WithdrawCurrencyConverted, opts ...WithdrawBusinessValidatedOpt) *WithdrawBusinessValidated {
+	wbt := WithdrawBusinessValidated{
+		WithdrawCurrencyConverted: *converted,
 	}
-}
-
-// WithWithdrawValidatedEvent sets the WithdrawValidatedEvent for a WithdrawBusinessValidationEvent
-func WithWithdrawValidatedEvent(e WithdrawValidatedEvent) WithdrawBusinessValidationEventOpt {
-	return func(b *WithdrawBusinessValidationEvent) { b.WithdrawValidatedEvent = e }
-}
-func NewWithdrawBusinessValidationEvent(userID, accountID, correlationID uuid.UUID, opts ...WithdrawBusinessValidationEventOpt) *WithdrawBusinessValidationEvent {
-	// By default, embed a valid WithdrawValidatedEvent
-	ve := NewWithdrawValidatedEvent(userID, accountID, correlationID)
-	bv := WithdrawBusinessValidationEvent{
-		WithdrawValidatedEvent: *ve,
-		Amount:                 money.Zero(currency.USD),
-	}
+	wbt.Timestamp = time.Now()
 	for _, opt := range opts {
-		opt(&bv)
+		opt(&wbt)
 	}
-	return &bv
+	return &wbt
 }
 
-// --- WithdrawFailedEvent ---
-type WithdrawFailedEventOpt func(*WithdrawFailedEvent)
+// --- WithdrawFailed ---
+type WithdrawFailedOpt func(*WithdrawFailed)
 
-func WithWithdrawFailureReason(reason string) WithdrawFailedEventOpt {
-	return func(df *WithdrawFailedEvent) { df.Reason = reason }
+func WithWithdrawFailureReason(reason string) WithdrawFailedOpt {
+	return func(df *WithdrawFailed) { df.Reason = reason }
 }
-func NewWithdrawFailedEvent(flowEvent FlowEvent, reason string, opts ...WithdrawFailedEventOpt) *WithdrawFailedEvent {
-	df := WithdrawFailedEvent{
-		FlowEvent: flowEvent,
-		Reason:    reason,
+
+func NewWithdrawFailed(requested *WithdrawRequested, reason string, opts ...WithdrawFailedOpt) *WithdrawFailed {
+	df := WithdrawFailed{
+		WithdrawRequested: *requested,
+		Reason:            reason,
 	}
 	for _, opt := range opts {
 		opt(&df)
 	}
 	return &df
-}
-
-// --- WithdrawPersistedEvent ---
-type WithdrawPersistedEventOpt func(*WithdrawPersistedEvent)
-
-// WithWithdrawTransactionID sets the transaction ID for the WithdrawPersistedEvent
-func WithWithdrawTransactionID(id uuid.UUID) WithdrawPersistedEventOpt {
-	return func(e *WithdrawPersistedEvent) { e.TransactionID = id }
-}
-
-// NewWithdrawPersistedEvent creates a new WithdrawPersistedEvent with the given options
-func NewWithdrawPersistedEvent(flowEvent FlowEvent, validatedEvent WithdrawValidatedEvent, opts ...WithdrawPersistedEventOpt) *WithdrawPersistedEvent {
-	e := &WithdrawPersistedEvent{
-		FlowEvent:              flowEvent,
-		WithdrawValidatedEvent: validatedEvent,
-		TransactionID:          uuid.Nil,
-	}
-
-	for _, opt := range opts {
-		opt(e)
-	}
-
-	return e
 }

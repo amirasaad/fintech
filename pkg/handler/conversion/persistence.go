@@ -25,7 +25,7 @@ func Persistence(uow repository.UnitOfWork, logger *slog.Logger) func(context.Co
 		)
 		log.Info("🟢 [START] Received event", "event", e)
 
-		ce, ok := e.(events.ConversionDoneEvent)
+		ce, ok := e.(events.CurrencyConverted)
 		if !ok {
 			log.Error("unexpected event",
 				"event", e,

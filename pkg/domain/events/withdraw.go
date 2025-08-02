@@ -1,15 +1,15 @@
 package events
 
 import (
+	"fmt"
 	"time"
 
-	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/google/uuid"
 )
 
 // WithdrawRequestedEvent is emitted when a withdrawal is requested (pure event-driven domain).
-type WithdrawRequestedEvent struct {
+type WithdrawRequested struct {
 	FlowEvent
 	ID                    uuid.UUID
 	Amount                money.Money
@@ -20,68 +20,44 @@ type WithdrawRequestedEvent struct {
 	PaymentID             string // Added for payment provider integration
 }
 
-func (e WithdrawRequestedEvent) Type() string        { return "WithdrawRequestedEvent" }
-func (e WithdrawRequestedEvent) FlowData() FlowEvent { return e.FlowEvent }
+func (e WithdrawRequested) Type() string { return "WithdrawRequested" }
 
-// WithdrawValidatedEvent is emitted after withdraw validation succeeds.
-type WithdrawValidatedEvent struct {
-	FlowEvent
-	WithdrawRequestedEvent
-	TargetCurrency string
+// Validate performs business validation on the withdraw request
+func (e *WithdrawRequested) Validate() error {
+	if e.AccountID == uuid.Nil {
+		return fmt.Errorf("account ID cannot be nil")
+	}
+	if e.UserID == uuid.Nil {
+		return fmt.Errorf("user ID cannot be nil")
+	}
+	if e.Amount.IsZero() {
+		return fmt.Errorf("amount cannot be zero")
+	}
+	if e.Amount.IsNegative() {
+		return fmt.Errorf("amount must be positive")
+	}
+	return nil
 }
 
-func (e WithdrawValidatedEvent) Type() string        { return "WithdrawValidatedEvent" }
-func (e WithdrawValidatedEvent) FlowData() FlowEvent { return e.FlowEvent }
-
-// WithdrawBusinessValidationEvent is emitted after withdraw currency conversion is completed.
-type WithdrawBusinessValidationEvent struct {
-	FlowEvent
-	WithdrawValidatedEvent
-	ConversionDoneEvent
-	Amount money.Money
+// WithdrawCurrencyConverted is emitted after currency conversion for withdraw.
+type WithdrawCurrencyConverted struct {
+	WithdrawRequested
+	CurrencyConverted
 }
 
-func (e WithdrawBusinessValidationEvent) Type() string        { return "WithdrawBusinessValidationEvent" }
-func (e WithdrawBusinessValidationEvent) FlowData() FlowEvent { return e.FlowEvent }
+func (e WithdrawCurrencyConverted) Type() string { return "WithdrawCurrencyConverted" }
 
-// WithdrawPersistedEvent is emitted after withdraw persistence is complete.
-type WithdrawPersistedEvent struct {
-	FlowEvent
-	WithdrawValidatedEvent
-	TransactionID uuid.UUID
+// WithdrawBusinessValidated is emitted after business validation for withdraw.
+type WithdrawBusinessValidated struct {
+	WithdrawCurrencyConverted
 }
 
-func (e WithdrawPersistedEvent) Type() string        { return "WithdrawPersistedEvent" }
-func (e WithdrawPersistedEvent) FlowData() FlowEvent { return e.FlowEvent }
+func (e WithdrawBusinessValidated) Type() string { return "WithdrawBusinessValidated" }
 
-// WithdrawBusinessValidatedEvent is emitted after business validation in account currency for withdraw.
-type WithdrawBusinessValidatedEvent struct {
-	FlowEvent
-	WithdrawBusinessValidationEvent
-	TransactionID uuid.UUID
-}
-
-func (e WithdrawBusinessValidatedEvent) Type() string        { return "WithdrawBusinessValidatedEvent" }
-func (e WithdrawBusinessValidatedEvent) FlowData() FlowEvent { return e.FlowEvent }
-
-// WithdrawFailedEvent is emitted when any part of the withdrawal flow fails.
-type WithdrawFailedEvent struct {
-	FlowEvent
-	WithdrawRequestedEvent
+// WithdrawFailed is emitted when any part of the withdrawal flow fails.
+type WithdrawFailed struct {
+	WithdrawRequested
 	Reason string
 }
 
-func (e WithdrawFailedEvent) Type() string        { return "WithdrawFailedEvent" }
-func (e WithdrawFailedEvent) FlowData() FlowEvent { return e.FlowEvent }
-
-// WithdrawEventTypes returns a map of all withdraw-related event types to their constructors.
-func WithdrawEventTypes() map[string]func() common.Event {
-	return map[string]func() common.Event{
-		"WithdrawRequestedEvent":          func() common.Event { return &WithdrawRequestedEvent{} },
-		"WithdrawValidatedEvent":          func() common.Event { return &WithdrawValidatedEvent{} },
-		"WithdrawBusinessValidationEvent": func() common.Event { return &WithdrawBusinessValidationEvent{} },
-		"WithdrawPersistedEvent":          func() common.Event { return &WithdrawPersistedEvent{} },
-		"WithdrawBusinessValidatedEvent":  func() common.Event { return &WithdrawBusinessValidatedEvent{} },
-		"WithdrawFailedEvent":             func() common.Event { return &WithdrawFailedEvent{} },
-	}
-}
+func (e WithdrawFailed) Type() string { return "WithdrawFailed" }

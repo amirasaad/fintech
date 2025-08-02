@@ -4,12 +4,10 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"maps"
 	"os"
 	"time"
 
 	"github.com/amirasaad/fintech/app"
-
 	"github.com/amirasaad/fintech/config"
 	"github.com/amirasaad/fintech/infra"
 	"github.com/amirasaad/fintech/infra/eventbus"
@@ -18,7 +16,6 @@ import (
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/amirasaad/fintech/pkg/domain/events"
-
 	"github.com/charmbracelet/log"
 )
 
@@ -38,12 +35,15 @@ import (
 // @name Authorization
 // @description "Enter your Bearer token in the format: `Bearer {token}`"
 func main() {
-	handler := log.NewWithOptions(os.Stdout, log.Options{
-		ReportTimestamp: true,
-		TimeFunction:    log.NowUTC,
-		TimeFormat:      time.Kitchen,
-		ReportCaller:    true,
-		Prefix:          "Server 🗄️ ",
+	handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		Level:     slog.LevelDebug,
+		AddSource: true,
+		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+			if a.Key == slog.TimeKey {
+				return slog.String(a.Key, a.Value.Time().Format(time.RFC3339))
+			}
+			return a
+		},
 	})
 	// Setup structured logging
 	logger := slog.New(handler)
@@ -87,16 +87,18 @@ func main() {
 		log.Fatal(err)
 	}
 
+	// Define event types for Redis event bus
 	eventTypes := map[string]func() common.Event{
-		"ConversionRequestedEvent": func() common.Event { return &events.ConversionRequestedEvent{} },
-		"ConversionDoneEvent":      func() common.Event { return &events.ConversionDoneEvent{} },
+		"PaymentInitiated":          func() common.Event { return &events.PaymentInitiated{} },
+		"PaymentCompleted":          func() common.Event { return &events.PaymentCompleted{} },
+		"DepositRequested":          func() common.Event { return &events.DepositRequested{} },
+		"DepositBusinessValidated":  func() common.Event { return &events.DepositBusinessValidated{} },
+		"WithdrawRequested":         func() common.Event { return &events.WithdrawRequested{} },
+		"WithdrawBusinessValidated": func() common.Event { return &events.WithdrawBusinessValidated{} },
+		"TransferRequested":         func() common.Event { return &events.TransferRequested{} },
+		"TransferBusinessValidated": func() common.Event { return &events.TransferBusinessValidated{} },
 	}
 
-	// Add all event types from different domains
-	maps.Copy(eventTypes, events.DepositEventTypes())  // Deposit events
-	maps.Copy(eventTypes, events.WithdrawEventTypes()) // Withdraw events
-	maps.Copy(eventTypes, events.TransferEventTypes()) // Transfer events
-	logger.Info("Event types copied", "event_types", eventTypes)
 	bus, err := eventbus.NewWithRedis(
 		cfg.Redis.URL,
 		"fintech_events",

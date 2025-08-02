@@ -1,8 +1,6 @@
 package common
 
-import (
-	"errors"
-)
+import "errors"
 
 // ErrInvalidCurrencyCode is returned when a currency code is invalid.
 var ErrInvalidCurrencyCode = errors.New("invalid currency code") // Use error type if needed
@@ -26,6 +24,9 @@ type ConversionInfo struct {
 }
 
 // Event represents a domain event in the common package.
+// The generic type T is used to specify the concrete event type.
 type Event interface {
+	// Type returns the reflect.Type of the concrete event.
+	// This is used for type-safe event registration and dispatching.
 	Type() string
 }

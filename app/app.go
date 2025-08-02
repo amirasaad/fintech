@@ -154,47 +154,40 @@ func SetupBus(deps config.Deps) eventbus.Bus {
 	bus.Register("ConversionRequestedEvent", conversion.Handler(bus, deps.CurrencyConverter, deps.Logger, conversionFactories))
 	bus.Register("ConversionDoneEvent", conversion.Persistence(deps.Uow, deps.Logger))
 	// 2️⃣ DEPOSIT FLOW
-	// User request → Initial Validation → Persistence → Conversion → Business Validation → Payment Initiation → Payment Persistence
+	// Requested → RequestedHandler (validate and persist) → CurrencyConversionRequested → CurrencyConverted → BusinessValidation
 
-	// a. Initial validation of deposit request
-	bus.Register("DepositRequestedEvent", deposithandler.Validation(bus, deps.Uow, deps.Logger))
-	// b. Persist transaction after validation
-	bus.Register("DepositValidatedEvent", deposithandler.Persistence(bus, deps.Uow, deps.Logger))
-	// c. Business validation after conversion (in account currency)
-	bus.Register("DepositBusinessValidationEvent", deposithandler.BusinessValidation(bus, deps.Uow, deps.Logger))
-	// d. Deposit Business Validated Event
-	bus.Register("DepositBusinessValidatedEvent", paymenthandler.Initiation(bus, deps.PaymentProvider, deps.Logger))
+	// a. Requested handler (validate and persist)
+	bus.Register("DepositRequested", deposithandler.Requested(bus, deps.Uow, deps.Logger))
+	// b. Business validation after conversion (in account currency)
+	bus.Register("DepositCurrencyConverted", deposithandler.DepositCurrencyConverted(bus, deps.Uow, deps.Logger))
+	// c. Payment initiation after business validation
+	bus.Register("DepositBusinessValidated", paymenthandler.Initiated(bus, deps.PaymentProvider, deps.Logger))
 
 	// 3️⃣ WITHDRAW FLOW
-	// User request → Initial Validation → Persistence → Conversion → Business Validation → Payment Initiation → Payment Persistence
+	// Requested → RequestedHandler (validate and persist) → CurrencyConversionRequested → CurrencyConverted → BusinessValidation
 
-	// a. Initial validation of withdraw request
-	bus.Register("WithdrawRequestedEvent", withdrawhandler.Validation(bus, deps.Uow, deps.Logger))
-	// b. Persist transaction after validation
-	bus.Register("WithdrawValidatedEvent", withdrawhandler.Persistence(bus, deps.Uow, deps.Logger))
-	// c. Business validation after conversion (in account currency)
-	bus.Register("WithdrawBusinessValidationEvent", withdrawhandler.BusinessValidation(bus, deps.Uow, deps.Logger))
-	// d. Withdraw Business Validated Event
-	bus.Register("WithdrawBusinessValidatedEvent", paymenthandler.Initiation(bus, deps.PaymentProvider, deps.Logger))
+	// a. Requested handler (validate and persist)
+	bus.Register("WithdrawRequested", withdrawhandler.RequestedHandler(bus, deps.Uow, deps.Logger))
+	// b. Business validation after conversion (in account currency)
+	bus.Register("WithdrawCurrencyConverted", withdrawhandler.WithdrawCurrencyConverted(bus, deps.Uow, deps.Logger))
+	// c. Payment initiation after business validation
+	bus.Register("WithdrawBusinessValidated", paymenthandler.Initiated(bus, deps.PaymentProvider, deps.Logger))
 
 	// Payment workflow
-	// Payment Initiation → Payment Persistence
-	// (External via Webhook) Payment Completion -> Payment Completed
-	bus.Register("PaymentInitiationEvent", paymenthandler.Initiation(bus, deps.PaymentProvider, deps.Logger))
+	// Payment Initiation → Payment Persistence → Payment Completed
+	bus.Register("PaymentInitiated", paymenthandler.Initiated(bus, deps.PaymentProvider, deps.Logger))
 	bus.Register("PaymentInitiatedEvent", paymenthandler.Persistence(bus, deps.Uow, deps.Logger))
 	bus.Register("PaymentCompletedEvent", paymenthandler.Completed(bus, deps.Uow, deps.Logger))
 
 	// 4️⃣ TRANSFER FLOW
-	// User request → Initial Validation → Initial Persistence → Conversion → Business Validation → Final Persistence
+	// Requested → RequestedHandler (validate and persist) → CurrencyConversionRequested → CurrencyConverted → BusinessValidation
 
-	// a. Initial validation of transfer request
-	bus.Register("TransferRequestedEvent", transferhandler.Validation(bus, deps.Logger))
-	// b. Initial persistence after validation
-	bus.Register("TransferValidatedEvent", transferhandler.InitialPersistence(bus, deps.Uow, deps.Logger))
+	// a. Requested handler (validate and persist)
+	bus.Register("TransferRequested", transferhandler.RequestedHandler(bus, deps.Uow, deps.Logger))
 	// c. Business validation after conversion
-	bus.Register("TransferBusinessValidationEvent", transferhandler.BusinessValidation(bus, deps.Uow, deps.Logger))
+	bus.Register("TransferCurrencyConverted", transferhandler.TransferCurrencyConverted(bus, deps.Uow, deps.Logger))
 	// d. Final persistence after domain operation
-	bus.Register("TransferDomainOpDoneEvent", transferhandler.Persistence(bus, deps.Uow, deps.Logger))
+	bus.Register("TransferBusinessValidated", transferhandler.Persistence(bus, deps.Uow, deps.Logger))
 
 	return bus
 }

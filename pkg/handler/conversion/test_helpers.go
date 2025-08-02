@@ -1,8 +1,6 @@
 package conversion
 
 import (
-	"time"
-
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/amirasaad/fintech/pkg/domain/events"
@@ -11,15 +9,13 @@ import (
 )
 
 // NewValidConversionRequestedEvent returns a fully valid ConversionRequestedEvent for use in tests.
-func NewValidConversionRequestedEvent(flow events.FlowEvent, transactionID uuid.UUID, amount money.Money, to string) *events.ConversionRequestedEvent {
+func NewValidConversionRequestedEvent(flow events.FlowEvent, transactionID uuid.UUID, amount money.Money, to string) *events.CurrencyConversionRequested {
 	// Create the event using the factory function with options
-	event := events.NewConversionRequestedEvent(
+	event := events.NewCurrencyConversionRequested(
 		flow,
 		events.WithConversionAmount(amount),
 		events.WithConversionTo(currency.Code(to)),
-		events.WithConversionRequestID(uuid.New().String()),
 		events.WithConversionTransactionID(transactionID),
-		events.WithConversionTimestamp(time.Now()),
 	)
 
 	return event

@@ -26,20 +26,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Helper to create a service with mocks
-func newServiceWithMocks(t interface {
-	mock.TestingT
-	Cleanup(func())
-}) (svc *accountsvc.Service, accountRepo *mocks.MockAccountRepository, transactionRepo *mocks.MockTransactionRepository, uow *mocks.MockUnitOfWork) {
-	accountRepo = mocks.NewMockAccountRepository(t)
-	transactionRepo = mocks.NewMockTransactionRepository(t)
-	uow = mocks.NewMockUnitOfWork(t)
-	uow.EXPECT().AccountRepository().Return(accountRepo, nil).Maybe()
-	uow.EXPECT().TransactionRepository().Return(transactionRepo, nil).Maybe()
-	svc = accountsvc.NewService(nil, uow, slog.Default())
-	return svc, accountRepo, transactionRepo, uow
-}
-
 func setupTestMocks(t *testing.T) (*mocks.MockUnitOfWork, *mocks.MockAccountRepository, *mocks.MockTransactionRepository) {
 	uow := mocks.NewMockUnitOfWork(t)
 	accountRepo := mocks.NewMockAccountRepository(t)
@@ -97,8 +83,8 @@ func TestDeposit_PublishesEvent(t *testing.T) {
 	currencyCode := "USD"
 
 	// Register the handler before publishing
-	memBus.Register("DepositRequestedEvent", func(c context.Context, e common.Event) error {
-		evt, ok := e.(*events.DepositRequestedEvent)
+	memBus.Register("DepositRequested", func(c context.Context, e common.Event) error {
+		evt, ok := e.(*events.DepositRequested)
 		require.True(t, ok)
 		assert.Equal(t, userID, evt.UserID)
 		assert.Equal(t, accountID, evt.AccountID)
@@ -124,7 +110,7 @@ func TestWithdraw_PublishesEvent(t *testing.T) {
 	userID := uuid.New()
 	accountID := uuid.New()
 	var publishedEvents []common.Event
-	memBus.Register("WithdrawRequestedEvent", func(c context.Context, e common.Event) error {
+	memBus.Register("WithdrawRequested", func(c context.Context, e common.Event) error {
 		publishedEvents = append(publishedEvents, e)
 		return nil
 	})
@@ -139,7 +125,7 @@ func TestWithdraw_PublishesEvent(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Len(t, publishedEvents, 1)
-	evt, ok := publishedEvents[0].(*events.WithdrawRequestedEvent)
+	evt, ok := publishedEvents[0].(*events.WithdrawRequested)
 	require.True(t, ok)
 	assert.Equal(t, userID, evt.UserID)
 	assert.Equal(t, accountID, evt.AccountID)
@@ -158,7 +144,7 @@ func TestTransfer_PublishesEvent(t *testing.T) {
 
 	svc := accountsvc.NewService(memBus, nil, slog.Default())
 	var publishedEvents []common.Event
-	memBus.Register("TransferRequestedEvent", func(c context.Context, e common.Event) error {
+	memBus.Register("TransferRequested", func(c context.Context, e common.Event) error {
 		publishedEvents = append(publishedEvents, e)
 		return nil
 	})
@@ -172,7 +158,7 @@ func TestTransfer_PublishesEvent(t *testing.T) {
 	err := svc.Transfer(context.TODO(), cmd, destAccountID)
 	require.NoError(t, err)
 	require.Len(t, publishedEvents, 1)
-	evt, ok := publishedEvents[0].(*events.TransferRequestedEvent)
+	evt, ok := publishedEvents[0].(*events.TransferRequested)
 	require.True(t, ok)
 	assert.Equal(t, userID, evt.UserID)
 	assert.Equal(t, sourceAccountID, evt.AccountID)
