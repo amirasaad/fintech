@@ -1,36 +1,39 @@
 package events
 
 import (
-	"time"
-
 	"github.com/amirasaad/fintech/pkg/currency"
-	"github.com/amirasaad/fintech/pkg/domain"
-
+	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/google/uuid"
 )
 
-// ConversionRequestedEvent is a generic event for requesting currency conversion in any business flow.
-type ConversionRequestedEvent struct {
+// CurrencyConversionRequested is an agnostic event for requesting currency conversion in any business flow.
+type CurrencyConversionRequested struct {
 	FlowEvent
-	ID            uuid.UUID
 	Amount        money.Money
 	To            currency.Code
-	RequestID     string
 	TransactionID uuid.UUID
-	Timestamp     time.Time
 }
 
-// ConversionDoneEvent is a generic event for reporting the result of a currency conversion.
-type ConversionDoneEvent struct {
+func (e CurrencyConversionRequested) Type() string { return "CurrencyConversionRequested" }
+
+// CurrencyConverted is an agnostic event for reporting the successful result of a currency conversion.
+type CurrencyConverted struct {
 	FlowEvent
-	ID              uuid.UUID
-	RequestID       string
 	TransactionID   uuid.UUID
 	ConvertedAmount money.Money
-	ConversionInfo  *domain.ConversionInfo
-	Timestamp       time.Time
+	ConversionInfo  *common.ConversionInfo
 }
 
-func (e ConversionRequestedEvent) Type() string { return "ConversionRequestedEvent" }
-func (e ConversionDoneEvent) Type() string      { return "ConversionDoneEvent" }
+func (e CurrencyConverted) Type() string { return "CurrencyConverted" }
+
+// CurrencyConversionFailed is an event for reporting a failed currency conversion.
+type CurrencyConversionFailed struct {
+	FlowEvent
+	TransactionID uuid.UUID
+	Amount        money.Money
+	To            currency.Code
+	Reason        string
+}
+
+func (e CurrencyConversionFailed) Type() string { return "CurrencyConversionFailed" }

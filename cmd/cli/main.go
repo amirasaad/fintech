@@ -12,9 +12,10 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/amirasaad/fintech/app"
 	"github.com/amirasaad/fintech/config"
 	"github.com/amirasaad/fintech/infra"
-	"github.com/amirasaad/fintech/infra/provider"
+	"github.com/amirasaad/fintech/infra/eventbus"
 	infra_repository "github.com/amirasaad/fintech/infra/repository"
 	"github.com/amirasaad/fintech/pkg/commands"
 	"github.com/amirasaad/fintech/pkg/dto"
@@ -65,20 +66,17 @@ func main() {
 
 	// Create UOW factory using the shared db
 	uow := infra_repository.NewUoW(db)
-
-	// Create exchange rate system
-	currencyConverter, err := infra.NewExchangeRateSystem(logger, *cfg)
-	if err != nil {
-		_, _ = color.New(color.FgRed).Fprintln(os.Stderr, "Failed to initialize exchange rate system:", err)
-		return
-	}
-
-	scv := account.NewService(config.Deps{
-		Uow:               uow,
-		CurrencyConverter: currencyConverter,
-		Logger:            logger,
-		PaymentProvider:   provider.NewMockPaymentProvider(),
+	bus := app.SetupBus(config.Deps{
+		EventBus: eventbus.NewWithMemoryAsync(logger),
+		Uow:      uow,
+		Logger:   logger,
 	})
+
+	scv := account.NewService(
+		bus,
+		uow,
+		logger,
+	)
 	authSvc := auth.NewBasicAuthService(uow, logger)
 
 	cliApp(scv, authSvc)
@@ -216,7 +214,7 @@ func handleDeposit(args []string, scv *account.Service, errorMsg, successMsg fun
 		return
 	}
 
-	err = scv.Deposit(context.Background(), commands.DepositCommand{})
+	err = scv.Deposit(context.Background(), commands.Deposit{})
 	if err != nil {
 		fmt.Println(errorMsg("Error depositing:"), err)
 		return
@@ -251,7 +249,7 @@ func handleWithdraw(args []string, scv *account.Service, errorMsg, successMsg fu
 	externalWalletAddress, _ := reader.ReadString('\n')
 	externalWalletAddress = strings.TrimSpace(externalWalletAddress)
 
-	err = scv.Withdraw(context.Background(), commands.WithdrawCommand{
+	err = scv.Withdraw(context.Background(), commands.Withdraw{
 		UserID:    userID,
 		AccountID: uuid.MustParse(accountID),
 		Amount:    amount,

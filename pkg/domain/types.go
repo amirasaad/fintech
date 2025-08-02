@@ -44,8 +44,3 @@ var (
 	ErrExchangeRateExpired     = money.ErrExchangeRateExpired
 	ErrExchangeRateInvalid     = money.ErrExchangeRateInvalid
 )
-
-// Event represents a domain event in the system.
-type Event interface {
-	Type() string
-}

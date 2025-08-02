@@ -34,12 +34,26 @@ services:
     container_name: fintech-redis
     ports:
       - "6379:6379"
+    volumes:
+      - redis_data:/data
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
+  redisinsight:
+    image: redis/redisinsight:latest
+    container_name: fintech-redisinsight
+    ports:
+      - "5540:5540"
+    volumes:
+      - redisinsight_data:/data
+    depends_on:
+      - redis
+    restart: unless-stopped
 
 volumes:
   pg_data: {}
+  redis_data: {}
+  redisinsight_data: {}

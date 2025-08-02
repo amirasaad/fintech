@@ -13,17 +13,17 @@ import (
 )
 
 // NewExchangeRateSystem creates a complete exchange rate system with providers, cache, and converter
-func NewExchangeRateSystem(logger *slog.Logger, cfg config.AppConfig) (domain.CurrencyConverter, error) {
+func NewExchangeRateSystem(logger *slog.Logger, cfg config.ExchangeRateConfig) (domain.CurrencyConverter, error) {
 	// Create cache
 	var rateCache cache.ExchangeRateCache
-	if cfg.Redis.URL != "" {
-		opt, err := redis.ParseURL(cfg.Redis.URL)
+	if cfg.CacheUrl != "" {
+		opt, err := redis.ParseURL(cfg.CacheUrl)
 		if err != nil {
-			logger.Error("Invalid Redis URL", "url", cfg.Redis.URL, "error", err)
+			logger.Error("Invalid Redis URL", "url", cfg.CacheUrl, "error", err)
 			return nil, err
 		}
-		rateCache = infra_cache.NewRedisExchangeRateCacheWithOptions(opt, cfg.Exchange.CachePrefix, logger)
-		logger.Info("Using Redis for exchange rate cache", "url", cfg.Redis.URL)
+		rateCache = infra_cache.NewRedisExchangeRateCacheWithOptions(opt, cfg.CachePrefix, logger)
+		logger.Info("Using Redis for exchange rate cache", "url", cfg.CacheUrl)
 	} else {
 		rateCache = infra_cache.NewMemoryCache()
 		logger.Info("Using in-memory cache for exchange rates")
@@ -38,28 +38,28 @@ func NewExchangeRateSystem(logger *slog.Logger, cfg config.AppConfig) (domain.Cu
 
 	// Add ExchangeRate API provider if API key is configured
 	var exchangeRateProvider *infra_provider.ExchangeRateAPIProvider
-	if cfg.Exchange.ApiKey != "" {
-		exchangeRateProvider = infra_provider.NewExchangeRateAPIProvider(cfg.Exchange, logger)
+	if cfg.ApiKey != "" {
+		exchangeRateProvider = infra_provider.NewExchangeRateAPIProvider(cfg, logger)
 		exchangeRateProviders = append(exchangeRateProviders, exchangeRateProvider)
-		logger.Info("ExchangeRate API provider configured", "apiKey", maskAPIKey(cfg.Exchange.ApiKey))
+		logger.Info("ExchangeRate API provider configured", "apiKey", maskAPIKey(cfg.ApiKey))
 	} else {
 		logger.Warn("No ExchangeRate API key configured, using fallback only")
 	}
 
 	// Fetch and cache rates ONCE at startup for POC
 	if exchangeRateProvider != nil {
-		err := exchangeRateProvider.FetchAndCacheRates(baseCurrency, rateCache, cfg.Exchange.CacheTTL)
+		err := exchangeRateProvider.FetchAndCacheRates(baseCurrency, rateCache, cfg.CacheTTL)
 		if err != nil {
 			logger.Error("Failed to fetch and cache exchange rates at startup", "error", err)
 		}
 	}
 
 	// Create exchange rate service
-	exchangeRateService := infra_provider.NewExchangeRateService(exchangeRateProviders, rateCache, logger, &cfg.Exchange)
+	exchangeRateService := infra_provider.NewExchangeRateService(exchangeRateProviders, rateCache, logger, &cfg)
 
 	// Create fallback converter
 	var fallback domain.CurrencyConverter
-	if cfg.Exchange.EnableFallback {
+	if cfg.EnableFallback {
 		fallback = infra_provider.NewStubCurrencyConverter()
 		logger.Info("Fallback currency converter enabled")
 	}
@@ -69,8 +69,8 @@ func NewExchangeRateSystem(logger *slog.Logger, cfg config.AppConfig) (domain.Cu
 
 	logger.Info("Exchange rate system initialized",
 		"providers", len(exchangeRateProviders),
-		"fallbackEnabled", cfg.Exchange.EnableFallback,
-		"cacheTTL", cfg.Exchange.CacheTTL)
+		"fallbackEnabled", cfg.EnableFallback,
+		"cacheTTL", cfg.CacheTTL)
 
 	return converter, nil
 }

@@ -127,7 +127,7 @@ func Deposit(
 		if input.Currency != "" {
 			currencyCode = currency.Code(input.Currency)
 		}
-		depositCmd := commands.DepositCommand{
+		depositCmd := commands.Deposit{
 			UserID:    userID,
 			AccountID: accountID,
 			Amount:    input.Amount,
@@ -199,7 +199,7 @@ func Withdraw(
 		if input.Currency != "" {
 			currencyCode = currency.Code(input.Currency)
 		}
-		err = accountSvc.Withdraw(c.Context(), commands.WithdrawCommand{
+		err = accountSvc.Withdraw(c.Context(), commands.Withdraw{
 			UserID:    userID,
 			AccountID: accountID,
 			Amount:    input.Amount,
@@ -263,15 +263,15 @@ func Transfer(accountSvc *accountsvc.Service, authSvc *authsvc.AuthService) fibe
 		if input.Currency != "" {
 			currencyCode = currency.Code(input.Currency)
 		}
-		// Construct a DTO for transfer
-		transferDTO := dto.TransactionCreate{
+		// Construct transfer command
+		cmd := commands.Transfer{
 			UserID:      userID,
 			AccountID:   sourceAccountID,
-			Amount:      int64(input.Amount),
-			Currency:    string(currencyCode),
-			MoneySource: "transfer", // Use consistent source for transfers
+			ToAccountID: destAccountID,
+			Amount:      input.Amount,
+			Currency:    currencyCode.String(),
 		}
-		err = accountSvc.Transfer(c.Context(), transferDTO, destAccountID)
+		err = accountSvc.Transfer(c.Context(), cmd, destAccountID)
 		if err != nil {
 			return common.ProblemDetailsJSON(c, "Failed to transfer", err)
 		}

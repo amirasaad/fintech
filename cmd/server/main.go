@@ -8,14 +8,14 @@ import (
 	"time"
 
 	"github.com/amirasaad/fintech/app"
-
 	"github.com/amirasaad/fintech/config"
 	"github.com/amirasaad/fintech/infra"
 	"github.com/amirasaad/fintech/infra/eventbus"
 	"github.com/amirasaad/fintech/infra/provider"
 	infra_repository "github.com/amirasaad/fintech/infra/repository"
 	"github.com/amirasaad/fintech/pkg/currency"
-
+	"github.com/amirasaad/fintech/pkg/domain/common"
+	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/charmbracelet/log"
 )
 
@@ -35,12 +35,15 @@ import (
 // @name Authorization
 // @description "Enter your Bearer token in the format: `Bearer {token}`"
 func main() {
-	handler := log.NewWithOptions(os.Stdout, log.Options{
-		ReportTimestamp: true,
-		TimeFunction:    log.NowUTC,
-		TimeFormat:      time.Kitchen,
-		ReportCaller:    true,
-		Prefix:          "Server 🗄️ ",
+	handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		Level:     slog.LevelDebug,
+		AddSource: true,
+		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+			if a.Key == slog.TimeKey {
+				return slog.String(a.Key, a.Value.Time().Format(time.RFC3339))
+			}
+			return a
+		},
 	})
 	// Setup structured logging
 	logger := slog.New(handler)
@@ -78,20 +81,45 @@ func main() {
 	uow := infra_repository.NewUoW(db)
 
 	// Create exchange rate system
-	currencyConverter, err := infra.NewExchangeRateSystem(logger, *cfg)
+	currencyConverter, err := infra.NewExchangeRateSystem(logger, cfg.Exchange)
 	if err != nil {
 		logger.Error("Failed to initialize exchange rate system", "error", err)
+		log.Fatal(err)
+	}
+
+	// Define event types for Redis event bus
+	eventTypes := map[string]func() common.Event{
+		"PaymentInitiated":          func() common.Event { return &events.PaymentInitiated{} },
+		"PaymentCompleted":          func() common.Event { return &events.PaymentCompleted{} },
+		"DepositRequested":          func() common.Event { return &events.DepositRequested{} },
+		"DepositBusinessValidated":  func() common.Event { return &events.DepositBusinessValidated{} },
+		"WithdrawRequested":         func() common.Event { return &events.WithdrawRequested{} },
+		"WithdrawBusinessValidated": func() common.Event { return &events.WithdrawBusinessValidated{} },
+		"TransferRequested":         func() common.Event { return &events.TransferRequested{} },
+		"TransferBusinessValidated": func() common.Event { return &events.TransferBusinessValidated{} },
+	}
+
+	bus, err := eventbus.NewWithRedis(
+		cfg.Redis.URL,
+		"fintech_events",
+		"fintech_consumers",
+		eventTypes,
+		logger,
+	)
+	// bus := eventbus.NewWithMemory(logger)
+	if err != nil {
+		logger.Error("Failed to initialize event bus", "error", err)
 		log.Fatal(err)
 	}
 
 	logger.Info("Starting fintech server", "port", ":3000")
 	log.Fatal(app.New(config.Deps{
 		Uow:               uow,
-		EventBus:          eventbus.NewMemoryRegistryEventBus(),
+		EventBus:          bus,
 		CurrencyConverter: currencyConverter,
 		CurrencyRegistry:  currencyRegistry,
 		Logger:            logger,
-		PaymentProvider:   provider.NewStripePaymentProvider(cfg.PaymentProviders.Stripe.ApiKey, logger),
+		PaymentProvider:   provider.NewMockPaymentProvider(),
 		Config:            cfg,
 	}).Listen(fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)))
 }

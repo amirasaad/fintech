@@ -7,7 +7,6 @@ import (
 
 	"log/slog"
 
-	"github.com/amirasaad/fintech/config"
 	"github.com/amirasaad/fintech/internal/fixtures/mocks"
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/repository"
@@ -26,9 +25,7 @@ func newUserServiceWithMocks(t interface {
 	userRepo := mocks.NewMockUserRepository(t)
 	uow := mocks.NewMockUnitOfWork(t)
 	uow.EXPECT().UserRepository().Return(userRepo, nil).Maybe()
-	svc := usersvc.NewService(config.Deps{
-		Uow: uow, Logger: slog.Default(),
-	})
+	svc := usersvc.NewService(uow, slog.Default())
 	return svc, userRepo, uow
 }
 
@@ -103,9 +100,7 @@ func TestGetUser_UoWFactoryError(t *testing.T) {
 		},
 	)
 
-	svc := usersvc.NewService(config.Deps{
-		Uow: uow, Logger: slog.Default(),
-	})
+	svc := usersvc.NewService(uow, slog.Default())
 	_, err := svc.GetUser(context.Background(), uuid.New().String())
 	require.Error(t, err)
 }
@@ -151,9 +146,7 @@ func TestGetUserByEmail_UoWFactoryError(t *testing.T) {
 		},
 	)
 
-	svc := usersvc.NewService(config.Deps{
-		Uow: uow, Logger: slog.Default(),
-	})
+	svc := usersvc.NewService(uow, slog.Default())
 	_, err := svc.GetUserByEmail(context.Background(), "user@example.com")
 	require.Error(t, err)
 }
@@ -198,9 +191,7 @@ func TestGetUserByUsername_UoWFactoryError(t *testing.T) {
 		},
 	)
 
-	svc := usersvc.NewService(config.Deps{
-		Uow: uow, Logger: slog.Default(),
-	})
+	svc := usersvc.NewService(uow, slog.Default())
 	_, err := svc.GetUserByUsername(context.Background(), "username")
 	require.Error(t, err)
 }
@@ -254,9 +245,7 @@ func TestUpdateUser_UoWFactoryError(t *testing.T) {
 		},
 	)
 
-	svc := usersvc.NewService(config.Deps{
-		Uow: uow, Logger: slog.Default(),
-	})
+	svc := usersvc.NewService(uow, slog.Default())
 	err := svc.UpdateUser(context.Background(), uuid.New().String(), nil)
 	require.Error(t, err)
 }
@@ -283,9 +272,7 @@ func TestUpdateUser_CallsGetRepositoryOnce(t *testing.T) {
 	userRepo.EXPECT().Get(userID).Return(user, nil)
 	userRepo.EXPECT().Update(user).Return(nil)
 
-	svc := usersvc.NewService(config.Deps{
-		Uow: uow, Logger: slog.Default(),
-	})
+	svc := usersvc.NewService(uow, slog.Default())
 	err := svc.UpdateUser(context.Background(), userID.String(), func(u *domain.User) error {
 		u.Username = "updated"
 		return nil

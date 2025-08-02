@@ -3,7 +3,6 @@ package account_test
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"testing"
 
 	"github.com/amirasaad/fintech/pkg/domain"
@@ -61,8 +60,5 @@ func (s *AccountTransferTestSuite) TestTransfer_Success() {
 }
 
 func TestTransferE2ETestSuite(t *testing.T) {
-	if os.Getenv("E2E") == "" {
-		t.Skip("Skipping E2E tests")
-	}
 	suite.Run(t, new(testutils.E2ETestSuite))
 }

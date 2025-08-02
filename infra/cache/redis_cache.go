@@ -3,6 +3,7 @@ package cache
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"time"
 
 	"log/slog"
@@ -41,7 +42,7 @@ func (r *RedisExchangeRateCache) key(key string) string {
 func (r *RedisExchangeRateCache) Get(key string) (*domain.ExchangeRate, error) {
 	ctx := context.Background()
 	val, err := r.client.Get(ctx, r.key(key)).Result()
-	if err == redis.Nil {
+	if errors.Is(err, redis.Nil) {
 		r.logger.Debug("Redis cache miss", "key", key)
 		return nil, nil // cache miss
 	}

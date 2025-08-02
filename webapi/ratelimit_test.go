@@ -35,7 +35,7 @@ func TestRateLimit(t *testing.T) {
 
 	app := app.New(config.Deps{
 		Uow:               dummyUow,
-		EventBus:          eventbus.NewMemoryEventBus(),
+		EventBus:          eventbus.NewWithMemory(slog.Default()),
 		CurrencyConverter: infra_provider.NewStubCurrencyConverter(),
 		CurrencyRegistry:  dummyRegistry,
 		PaymentProvider:   infra_provider.NewMockPaymentProvider(),

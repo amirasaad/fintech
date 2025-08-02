@@ -4,9 +4,9 @@ import (
 	"context"
 	"log/slog"
 
+	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 
-	"github.com/amirasaad/fintech/pkg/domain"
 	accountdomain "github.com/amirasaad/fintech/pkg/domain/account"
 	dto "github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/eventbus"
@@ -16,10 +16,10 @@ import (
 )
 
 // Completed handles PaymentCompletedEvent, updates the transaction status in the DB, and publishes a follow-up event if needed.
-func Completed(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e domain.Event) error {
-	return func(ctx context.Context, e domain.Event) error {
+func Completed(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e common.Event) error {
+	return func(ctx context.Context, e common.Event) error {
 		logger.Info("Completed: received event", "event", e)
-		pe, ok := e.(*events.PaymentCompletedEvent)
+		pe, ok := e.(*events.PaymentCompleted)
 		if !ok {
 			logger.Error("event is not PaymentCompletedEvent", "event", e)
 			return nil

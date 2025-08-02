@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"testing"
 
 	"github.com/amirasaad/fintech/webapi/testutils"
@@ -24,7 +23,7 @@ func (s *E2EFlowsTestSuite) TestDepositE2E() {
 	accountBody := fmt.Sprintf(`{"user_id":"%s","currency":"USD"}`, user.ID)
 	resp := s.MakeRequest("POST", "/account", accountBody, token)
 	s.Require().Equal(http.StatusCreated, resp.StatusCode)
-	var accountResp map[string]interface{}
+	var accountResp map[string]any
 	_ = json.NewDecoder(resp.Body).Decode(&accountResp)
 	data, ok := accountResp["data"].(map[string]interface{})
 	s.Require().True(ok, "Expected accountResp['data'] to be a map, got: %#v", accountResp["data"])
@@ -44,7 +43,7 @@ func (s *E2EFlowsTestSuite) TestDepositE2E() {
 		s.T().Logf("Deposit response body: %s", string(b))
 	}
 	s.Require().Equal(http.StatusAccepted, resp.StatusCode)
-	var depositResp map[string]interface{}
+	var depositResp map[string]any
 	_ = json.NewDecoder(resp.Body).Decode(&depositResp)
 	s.T().Logf("Deposit response: %+v", depositResp)
 }
@@ -57,9 +56,9 @@ func (s *E2EFlowsTestSuite) TestWithdrawE2E() {
 	accountBody := fmt.Sprintf(`{"user_id":"%s","currency":"USD"}`, user.ID)
 	resp := s.MakeRequest("POST", "/account", accountBody, token)
 	s.Require().Equal(http.StatusCreated, resp.StatusCode)
-	var accountResp map[string]interface{}
+	var accountResp map[string]any
 	_ = json.NewDecoder(resp.Body).Decode(&accountResp)
-	data, ok := accountResp["data"].(map[string]interface{})
+	data, ok := accountResp["data"].(map[string]any)
 	s.Require().True(ok, "Expected accountResp['data'] to be a map, got: %#v", accountResp["data"])
 	accountID, ok := data["ID"].(string)
 	s.Require().True(ok, "Expected data['ID'] to be a string, got: %#v", data["ID"])
@@ -81,7 +80,7 @@ func (s *E2EFlowsTestSuite) TestWithdrawE2E() {
 		s.T().Logf("Withdraw response body: %s", string(b))
 	}
 	s.Require().Equal(http.StatusAccepted, resp.StatusCode)
-	var withdrawResp map[string]interface{}
+	var withdrawResp map[string]any
 	_ = json.NewDecoder(resp.Body).Decode(&withdrawResp)
 	s.T().Logf("Withdraw response: %+v", withdrawResp)
 }
@@ -96,7 +95,7 @@ func (s *E2EFlowsTestSuite) TestTransferE2E() {
 	s.Require().Equal(http.StatusCreated, resp.StatusCode)
 	var accountResp1 map[string]interface{}
 	_ = json.NewDecoder(resp.Body).Decode(&accountResp1)
-	data, ok := accountResp1["data"].(map[string]interface{})
+	data, ok := accountResp1["data"].(map[string]any)
 	s.Require().True(ok, "Expected accountResp1['data'] to be a map, got: %#v", accountResp1["data"])
 	accountID1, ok := data["ID"].(string)
 	if !ok {
@@ -107,9 +106,9 @@ func (s *E2EFlowsTestSuite) TestTransferE2E() {
 
 	resp = s.MakeRequest("POST", "/account", accountBody, token)
 	s.Require().Equal(http.StatusCreated, resp.StatusCode)
-	var accountResp2 map[string]interface{}
+	var accountResp2 map[string]any
 	_ = json.NewDecoder(resp.Body).Decode(&accountResp2)
-	data, ok = accountResp2["data"].(map[string]interface{})
+	data, ok = accountResp2["data"].(map[string]any)
 	s.Require().True(ok, "Expected accountResp2['data'] to be a map, got: %#v", accountResp2["data"])
 	accountID2, ok := data["ID"].(string)
 	if !ok {
@@ -135,14 +134,11 @@ func (s *E2EFlowsTestSuite) TestTransferE2E() {
 		s.T().Logf("Transfer response body: %s", string(b))
 	}
 	s.Require().Equal(http.StatusAccepted, resp.StatusCode)
-	var transferResp map[string]interface{}
+	var transferResp map[string]any
 	_ = json.NewDecoder(resp.Body).Decode(&transferResp)
 	s.T().Logf("Transfer response: %+v", transferResp)
 }
 
 func TestE2EFlowsTestSuite(t *testing.T) {
-	if os.Getenv("E2E") == "" {
-		t.Skip("Skipping E2E tests")
-	}
-	suite.Run(t, new(testutils.E2ETestSuite))
+	suite.Run(t, new(E2EFlowsTestSuite))
 }

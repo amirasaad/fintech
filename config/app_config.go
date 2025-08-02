@@ -50,6 +50,7 @@ type ExchangeRateConfig struct {
 	EnableFallback    bool          `envconfig:"ENABLE_FALLBACK" default:"true"`
 	FallbackTTL       time.Duration `envconfig:"FALLBACK_TTL" default:"1h"`
 	CachePrefix       string        `envconfig:"CACHE_PREFIX" default:"exr:rate:"`
+	CacheUrl          string        `envconfig:"CACHE_URL"`
 }
 
 type AppConfig struct {

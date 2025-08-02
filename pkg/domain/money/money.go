@@ -1,6 +1,7 @@
 package money
 
 import (
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"math"
@@ -23,6 +24,30 @@ type Amount = int64
 type Money struct {
 	amount   Amount
 	currency currency.Code
+}
+
+// MarshalJSON implements json.Marshaler interface.
+func (m Money) MarshalJSON() ([]byte, error) {
+	return json.Marshal(map[string]any{
+		"amount":   m.amount,
+		"currency": m.currency,
+	})
+}
+
+// UnmarshalJSON implements json.Unmarshaler interface.
+func (m *Money) UnmarshalJSON(data []byte) error {
+	var aux struct {
+		Amount   int64         `json:"amount"`
+		Currency currency.Code `json:"currency"`
+	}
+
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	m.amount = aux.Amount
+	m.currency = aux.Currency
+	return nil
 }
 
 // Zero creates a Money object with zero amount in the specified currency.

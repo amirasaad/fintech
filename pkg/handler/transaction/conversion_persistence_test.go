@@ -25,7 +25,7 @@ func TestConversionPersistence(t *testing.T) {
 		uow := mocks.NewMockUnitOfWork(t)
 
 		transactionID := uuid.New()
-		event := events.ConversionDoneEvent{
+		event := events.CurrencyConverted{
 			FlowEvent: events.FlowEvent{
 				FlowType:      "deposit",
 				UserID:        uuid.New(),
@@ -57,8 +57,8 @@ func TestConversionPersistence(t *testing.T) {
 		// Setup
 		uow := mocks.NewMockUnitOfWork(t)
 
-		// Use a different event type
-		event := events.DepositRequestedEvent{}
+		// Use a different event type that's not CurrencyConverted
+		event := events.DepositRequested{}
 
 		// Execute
 		handler := ConversionPersistence(uow, logger)
@@ -66,7 +66,7 @@ func TestConversionPersistence(t *testing.T) {
 
 		// Assert
 		assert.NoError(t, err)
-		// No interactions should occur with mocks
+		// No interactions should occur with mocks since the event type is unexpected
 		uow.AssertNotCalled(t, "Do", mock.Anything, mock.Anything)
 	})
 
@@ -75,7 +75,7 @@ func TestConversionPersistence(t *testing.T) {
 		uow := mocks.NewMockUnitOfWork(t)
 
 		transactionID := uuid.New()
-		event := events.ConversionDoneEvent{
+		event := events.CurrencyConverted{
 			FlowEvent: events.FlowEvent{
 				FlowType:      "deposit",
 				UserID:        uuid.New(),

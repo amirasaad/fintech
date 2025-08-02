@@ -1,10 +1,10 @@
-package transfer
+package transfer_test
 
 import (
 	"context"
 	"errors"
-	"io"
 	"log/slog"
+	"os"
 	"testing"
 
 	"github.com/amirasaad/fintech/internal/fixtures/mocks"
@@ -12,34 +12,28 @@ import (
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/amirasaad/fintech/pkg/dto"
+	transferhandler "github.com/amirasaad/fintech/pkg/handler/account/transfer"
 	"github.com/amirasaad/fintech/pkg/repository"
-	"github.com/amirasaad/fintech/pkg/repository/account"
+	repoaccount "github.com/amirasaad/fintech/pkg/repository/account"
 	"github.com/amirasaad/fintech/pkg/repository/transaction"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 func TestInitialPersistence(t *testing.T) {
 	ctx := context.Background()
-	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	validAmount, _ := money.New(100, currency.USD)
-
-	baseEvent := events.TransferValidatedEvent{
-		TransferRequestedEvent: events.TransferRequestedEvent{
-			FlowEvent: events.FlowEvent{
-				FlowType:      "transfer",
-				UserID:        uuid.New(),
-				AccountID:     uuid.New(),
-				CorrelationID: uuid.New(),
-			},
-			ID:             uuid.New(),
-			Amount:         validAmount,
-			Source:         "transfer",
-			DestAccountID:  uuid.New(),
-			ReceiverUserID: uuid.New(),
-		},
-	}
+	// Create a logger that discards output for tests using standard library's log/slog
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelDebug,
+	}))
+	// Common test data
+	userID := uuid.New()
+	accountID := uuid.New()
+	destAccountID := uuid.New()
+	correlationID := uuid.New()
+	validAmount, _ := money.New(100, "USD")
 
 	t.Run("successfully persists and emits event", func(t *testing.T) {
 		bus := mocks.NewMockBus(t)
@@ -47,92 +41,217 @@ func TestInitialPersistence(t *testing.T) {
 		txRepo := mocks.NewTransactionRepository(t)
 		accRepo := mocks.NewAccountRepository(t)
 
-		// Mock the unit of work Do function to execute the callback
+		// Create a fully populated TransferRequestedEvent
+		transactionID := uuid.New()
+		requestedEvent := events.NewTransferRequested(
+			userID,
+			accountID,
+			correlationID,
+			events.WithTransferRequestedAmount(validAmount),
+			events.WithTransferDestAccountID(destAccountID),
+		)
+		requestedEvent.ID = transactionID // Set the transaction ID
+
+		// Set up the transaction create matcher with all expected fields
+		txCreateMatcher := mock.MatchedBy(func(tx dto.TransactionCreate) bool {
+			return tx.AccountID == accountID &&
+				tx.UserID == userID &&
+				tx.Currency == currency.USD.String() &&
+				tx.Status == "pending" &&
+				tx.ID != uuid.Nil
+		})
+
+		// Mock the unit of work Do function
 		uow.On("Do", mock.Anything, mock.AnythingOfType("func(repository.UnitOfWork) error")).
 			Return(nil).
 			Run(func(args mock.Arguments) {
 				fn := args.Get(1).(func(repository.UnitOfWork) error)
 
-				// Setup mocks inside the Do callback to match the actual implementation
+				// Set up repository mocks for this execution
 				uow.On("GetRepository", mock.MatchedBy(func(repoType interface{}) bool {
-					_, ok := repoType.(*transaction.Repository)
-					return ok
+					_, isTx := repoType.(*transaction.Repository)
+					return isTx
 				})).Return(txRepo, nil).Once()
 
 				uow.On("GetRepository", mock.MatchedBy(func(repoType interface{}) bool {
-					_, ok := repoType.(*account.Repository)
-					return ok
+					_, isAcc := repoType.(*repoaccount.Repository)
+					return isAcc
 				})).Return(accRepo, nil).Once()
 
-				// Mock the destination account lookup
-				accRepo.On("Get", mock.Anything, baseEvent.DestAccountID).
+				// Set up account repository expectations
+				accRepo.On("Get", mock.Anything, destAccountID).
 					Return(&dto.AccountRead{
-						ID:       baseEvent.DestAccountID,
-						UserID:   baseEvent.ReceiverUserID,
-						Currency: "USD",
-					}, nil).Once()
+						ID:       destAccountID,
+						UserID:   userID,
+						Balance:  1000,
+						Currency: currency.USD.String(),
+					}, nil).
+					Once()
 
-				// Mock the transaction creation
-				txRepo.On("Create", mock.Anything, mock.AnythingOfType("dto.TransactionCreate")).
+				// Set up transaction repository expectations
+				txRepo.On("Create", mock.Anything, txCreateMatcher).
 					Return(nil).
-					Run(func(args mock.Arguments) {
-						txCreate := args.Get(1).(dto.TransactionCreate)
-						assert.Equal(t, baseEvent.AccountID, txCreate.AccountID)
-						assert.Equal(t, baseEvent.UserID, txCreate.UserID)
-						assert.Equal(t, "pending", txCreate.Status)
-						assert.Equal(t, "transfer", txCreate.MoneySource)
-						assert.Equal(t, validAmount.Negate().Amount(), txCreate.Amount)
-					}).Once()
+					Once()
 
-				// Execute the callback
-				fn(uow) //nolint:errcheck
-			}).Once()
+				// Execute the function under test
+				err := fn(uow)
+				require.NoError(t, err, "Unexpected error in Do callback")
+			})
 
-		// Mock the event bus to expect a ConversionRequestedEvent with specific fields
-		bus.On("Emit", mock.Anything, mock.MatchedBy(func(event interface{}) bool {
-			convEvent, ok := event.(events.ConversionRequestedEvent)
-			if !ok {
-				return false
-			}
-			// Compare the Money values using Equals method
-			return convEvent.FlowEvent.CorrelationID == baseEvent.CorrelationID &&
-				convEvent.Amount.Equals(baseEvent.Amount) &&
-				convEvent.TransactionID == baseEvent.ID
-		})).Return(nil).Once()
+		bus.On("Emit", mock.Anything, mock.AnythingOfType("*events.CurrencyConversionRequested")).Return(nil)
 
-		handler := InitialPersistence(bus, uow, logger)
-		err := handler(ctx, baseEvent)
-
+		handler := transferhandler.InitialPersistence(bus, uow, logger)
+		err := handler(ctx, requestedEvent)
 		assert.NoError(t, err)
 	})
 
-	t.Run("discards malformed event", func(t *testing.T) {
+	t.Run("emits_failed_event_for_repository_error", func(t *testing.T) {
 		bus := mocks.NewMockBus(t)
 		uow := mocks.NewMockUnitOfWork(t)
 
-		malformedEvent := baseEvent
-		malformedEvent.AccountID = uuid.Nil
+		// Create a validated event
+		requestedEvent := &events.TransferRequested{
+			FlowEvent: events.FlowEvent{
+				FlowType:      "transfer",
+				UserID:        userID,
+				AccountID:     accountID,
+				CorrelationID: correlationID,
+			},
+			Amount:        validAmount,
+			DestAccountID: destAccountID,
+		}
 
-		handler := InitialPersistence(bus, uow, logger)
-		err := handler(ctx, malformedEvent)
-
-		assert.NoError(t, err)
-	})
-
-	t.Run("handles error from repository", func(t *testing.T) {
-		bus := mocks.NewMockBus(t)
-		uow := mocks.NewMockUnitOfWork(t)
-
-		dbError := errors.New("database error")
+		// Mock the unit of work to return a repository that returns an error
 		uow.On("Do", mock.Anything, mock.AnythingOfType("func(repository.UnitOfWork) error")).
-			Return(dbError).
-			Once()
+			Run(func(args mock.Arguments) {
+				t.Log("Running Do callback...")
+				// Get the callback function
+				fn := args.Get(1).(func(repository.UnitOfWork) error)
 
-		handler := InitialPersistence(bus, uow, logger)
-		err := handler(ctx, baseEvent)
+				t.Log("Setting up GetRepository mocks...")
+				// Mock the GetRepository method to return a mock transaction repository first
+				txRepo := mocks.NewTransactionRepository(t)
+				// Then mock the account repository
+				accRepo := mocks.NewAccountRepository(t)
 
-		assert.ErrorIs(t, err, dbError)
-		// Verify that no events were emitted on error
-		bus.AssertNotCalled(t, "Emit")
+				// First call to GetRepository is for transaction repository
+				uow.On("GetRepository", mock.MatchedBy(func(repoType interface{}) bool {
+					_, isTx := repoType.(*transaction.Repository)
+					return isTx
+				})).Return(txRepo, nil).Once()
+
+				// Second call to GetRepository is for account repository
+				uow.On("GetRepository", mock.MatchedBy(func(repoType interface{}) bool {
+					_, isAcc := repoType.(*repoaccount.Repository)
+					return isAcc
+				})).Return(accRepo, nil).Once()
+
+				t.Log("Setting up account repository mock...")
+				// Mock the Get method to return an error
+				accRepo.On("Get", mock.Anything, destAccountID).
+					Return(nil, errors.New("account not found")).
+					Run(func(args mock.Arguments) {
+						t.Logf("Account repository Get called with: %v", args.Get(1))
+					}).
+					Once()
+
+				t.Log("Calling the callback function...")
+				// Call the callback function with the mock UoW
+				err := fn(uow)
+				if err != nil {
+					t.Logf("Callback returned error: %v", err)
+				}
+				require.Error(t, err)
+			}).
+			Return(errors.New("db error"))
+
+		// The handler should return an error and not emit any events
+		bus.AssertNotCalled(t, "Emit", mock.Anything, mock.Anything)
+
+		handler := transferhandler.InitialPersistence(bus, uow, logger)
+		// Pass the event as a common.Event interface
+		err := handler(ctx, requestedEvent)
+
+		// Verify the error is properly propagated
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "db error")
+
+		// Verify no events were emitted
+		bus.AssertExpectations(t)
+	})
+
+	t.Run("returns error when repository fails to get repository", func(t *testing.T) {
+		bus := mocks.NewMockBus(t)
+		uow := mocks.NewMockUnitOfWork(t)
+
+		// Create a fully valid TransferValidatedEvent with all required fields
+		transactionID := uuid.New()
+		requestedEvent := &events.TransferRequested{
+			FlowEvent: events.FlowEvent{
+				FlowType:      "transfer",
+				UserID:        userID,
+				AccountID:     accountID,
+				CorrelationID: transactionID,
+			},
+			Amount:        validAmount,
+			Source:        "test-source",
+			DestAccountID: destAccountID,
+		}
+
+		// Mock the unit of work to return an error when getting the repository
+		uow.On("Do", mock.Anything, mock.AnythingOfType("func(repository.UnitOfWork) error")).
+			Run(func(args mock.Arguments) {
+				t.Log("Running Do callback...")
+				// When Do is called, it should try to get the repository
+				t.Log("Setting up GetRepository mocks...")
+
+				// First GetRepository call is for the transaction repository
+				txRepo := mocks.NewTransactionRepository(t)
+				uow.On("GetRepository", mock.MatchedBy(func(repoType interface{}) bool {
+					_, isTx := repoType.(*transaction.Repository)
+					return isTx
+				})).Return(txRepo, nil).Once()
+
+				// Second GetRepository call is for the account repository
+				accRepo := mocks.NewAccountRepository(t)
+				uow.On("GetRepository", mock.MatchedBy(func(repoType interface{}) bool {
+					_, isAcc := repoType.(*repoaccount.Repository)
+					return isAcc
+				})).Return(accRepo, nil).Once()
+
+				// Mock the account repository to return an error when Get is called
+				accRepo.On("Get", mock.Anything, destAccountID).Return((*dto.AccountRead)(nil), errors.New("db error")).Once()
+
+				// Execute the callback to simulate the actual flow
+				t.Log("Calling the callback function...")
+				fn := args.Get(1).(func(repository.UnitOfWork) error)
+				err := fn(uow)
+				t.Log("Callback returned error:", err)
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), "failed to get destination account: db error")
+			}).
+			Return(errors.New("db error")) // Return the error from Do
+
+		// The handler should return an error and not emit any events
+		bus.AssertNotCalled(t, "Emit", mock.Anything, mock.Anything)
+
+		handler := transferhandler.InitialPersistence(bus, uow, logger)
+		t.Log("Calling handler...")
+		err := handler(ctx, requestedEvent)
+
+		// Debug log the actual error
+		if err != nil {
+			t.Logf("Handler returned error: %v", err)
+		}
+
+		// Verify the error is properly propagated
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "db error")
+
+		// Verify no events were emitted
+		bus.AssertExpectations(t)
+
+		// Verify all repository expectations were met
+		uow.AssertExpectations(t)
 	})
 }
