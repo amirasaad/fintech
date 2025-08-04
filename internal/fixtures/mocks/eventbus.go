@@ -6,8 +6,8 @@ package mocks
 
 import (
 	"context"
-	"github.com/amirasaad/fintech/pkg/domain/events"
 
+	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/eventbus"
 	mock "github.com/stretchr/testify/mock"
 )
@@ -63,7 +63,7 @@ type MockBus_Emit_Call struct {
 
 // Emit is a helper method to define mock.On call
 //   - ctx context.Context
-//   - event common.Event
+//   - event events.Event
 func (_e *MockBus_Expecter) Emit(ctx interface{}, event interface{}) *MockBus_Emit_Call {
 	return &MockBus_Emit_Call{Call: _e.mock.On("Emit", ctx, event)}
 }
@@ -97,7 +97,7 @@ func (_c *MockBus_Emit_Call) RunAndReturn(run func(ctx context.Context, event ev
 }
 
 // Register provides a mock function for the type MockBus
-func (_mock *MockBus) Register(eventType string, handler eventbus.HandlerFunc) {
+func (_mock *MockBus) Register(eventType events.EventType, handler eventbus.HandlerFunc) {
 	_mock.Called(eventType, handler)
 	return
 }
@@ -108,17 +108,17 @@ type MockBus_Register_Call struct {
 }
 
 // Register is a helper method to define mock.On call
-//   - eventType string
+//   - eventType events.EventType
 //   - handler eventbus.HandlerFunc
 func (_e *MockBus_Expecter) Register(eventType interface{}, handler interface{}) *MockBus_Register_Call {
 	return &MockBus_Register_Call{Call: _e.mock.On("Register", eventType, handler)}
 }
 
-func (_c *MockBus_Register_Call) Run(run func(eventType string, handler eventbus.HandlerFunc)) *MockBus_Register_Call {
+func (_c *MockBus_Register_Call) Run(run func(eventType events.EventType, handler eventbus.HandlerFunc)) *MockBus_Register_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 string
+		var arg0 events.EventType
 		if args[0] != nil {
-			arg0 = args[0].(string)
+			arg0 = args[0].(events.EventType)
 		}
 		var arg1 eventbus.HandlerFunc
 		if args[1] != nil {
@@ -137,7 +137,7 @@ func (_c *MockBus_Register_Call) Return() *MockBus_Register_Call {
 	return _c
 }
 
-func (_c *MockBus_Register_Call) RunAndReturn(run func(eventType string, handler eventbus.HandlerFunc)) *MockBus_Register_Call {
+func (_c *MockBus_Register_Call) RunAndReturn(run func(eventType events.EventType, handler eventbus.HandlerFunc)) *MockBus_Register_Call {
 	_c.Run(run)
 	return _c
 }

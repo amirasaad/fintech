@@ -125,7 +125,7 @@ func TestGetUserByEmail_Success(t *testing.T) {
 func TestGetUserByEmail_NotFound(t *testing.T) {
 	t.Parallel()
 	svc, userRepo, uow := newUserServiceWithMocks(t)
-	userRepo.EXPECT().GetByEmail(mock.Anything).Return((*domain.User)(nil), errors.New("not found"))
+	userRepo.EXPECT().GetByEmail(mock.Anything).Return(nil, domain.ErrAccountNotFound)
 	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).RunAndReturn(
 		func(ctx context.Context, fn func(repository.UnitOfWork) error) error {
 			return fn(uow)
@@ -170,7 +170,12 @@ func TestGetUserByUsername_Success(t *testing.T) {
 func TestGetUserByUsername_NotFound(t *testing.T) {
 	t.Parallel()
 	svc, userRepo, uow := newUserServiceWithMocks(t)
-	userRepo.EXPECT().GetByUsername(mock.Anything).Return((*domain.User)(nil), errors.New("not found"))
+	userRepo.EXPECT().GetByUsername(
+		mock.Anything,
+	).Return(
+		nil,
+		domain.ErrAccountNotFound,
+	)
 	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).RunAndReturn(
 		func(ctx context.Context, fn func(repository.UnitOfWork) error) error {
 			return fn(uow)
@@ -203,7 +208,10 @@ func TestUpdateUser_Success(t *testing.T) {
 	uuidStr := user.ID.String()
 	userRepo.EXPECT().Get(user.ID).Return(user, nil)
 	userRepo.EXPECT().Update(user).Return(nil)
-	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).RunAndReturn(
+	uow.EXPECT().Do(
+		mock.Anything,
+		mock.Anything,
+	).Return(nil).RunAndReturn(
 		func(ctx context.Context, fn func(repository.UnitOfWork) error) error {
 			return fn(uow)
 		},
@@ -223,7 +231,10 @@ func TestUpdateUser_RepoError(t *testing.T) {
 	uuidStr := user.ID.String()
 	userRepo.EXPECT().Get(user.ID).Return(user, nil)
 	userRepo.EXPECT().Update(user).Return(errors.New("db error"))
-	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).RunAndReturn(
+	uow.EXPECT().Do(
+		mock.Anything,
+		mock.Anything,
+	).Return(nil).RunAndReturn(
 		func(ctx context.Context, fn func(repository.UnitOfWork) error) error {
 			return fn(uow)
 		},
@@ -256,7 +267,10 @@ func TestUpdateUser_CallsGetRepositoryOnce(t *testing.T) {
 	userRepo := mocks.NewMockUserRepository(t)
 	callCount := 0
 
-	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).RunAndReturn(
+	uow.EXPECT().Do(
+		mock.Anything,
+		mock.Anything,
+	).Return(nil).RunAndReturn(
 		func(ctx context.Context, fn func(repository.UnitOfWork) error) error {
 			return fn(uow)
 		},
@@ -273,10 +287,14 @@ func TestUpdateUser_CallsGetRepositoryOnce(t *testing.T) {
 	userRepo.EXPECT().Update(user).Return(nil)
 
 	svc := usersvc.NewService(uow, slog.Default())
-	err := svc.UpdateUser(context.Background(), userID.String(), func(u *domain.User) error {
-		u.Username = "updated"
-		return nil
-	})
+	err := svc.UpdateUser(
+		context.Background(),
+		userID.String(),
+		func(u *domain.User) error {
+			u.Username = "updated"
+			return nil
+		},
+	)
 	require.NoError(t, err)
 	assert.Equal(t, 1, callCount, "GetRepository should be called exactly once")
 }
@@ -286,7 +304,10 @@ func TestDeleteUser_Success(t *testing.T) {
 	svc, userRepo, uow := newUserServiceWithMocks(t)
 	id := uuid.New()
 	userRepo.EXPECT().Delete(id).Return(nil)
-	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).RunAndReturn(
+	uow.EXPECT().Do(
+		mock.Anything,
+		mock.Anything,
+	).Return(nil).RunAndReturn(
 		func(ctx context.Context, fn func(repository.UnitOfWork) error) error {
 			return fn(uow)
 		},
@@ -301,7 +322,10 @@ func TestDeleteUser_RepoError(t *testing.T) {
 	svc, userRepo, uow := newUserServiceWithMocks(t)
 	id := uuid.New()
 	userRepo.EXPECT().Delete(id).Return(errors.New("db error"))
-	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).RunAndReturn(
+	uow.EXPECT().Do(
+		mock.Anything,
+		mock.Anything,
+	).Return(nil).RunAndReturn(
 		func(ctx context.Context, fn func(repository.UnitOfWork) error) error {
 			return fn(uow)
 		},
@@ -316,7 +340,10 @@ func TestValidUser_True(t *testing.T) {
 	svc, userRepo, uow := newUserServiceWithMocks(t)
 	id := uuid.New()
 	userRepo.EXPECT().Valid(id, "password").Return(true)
-	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).RunAndReturn(
+	uow.EXPECT().Do(
+		mock.Anything,
+		mock.Anything,
+	).Return(nil).RunAndReturn(
 		func(ctx context.Context, fn func(repository.UnitOfWork) error) error {
 			return fn(uow)
 		},
@@ -331,7 +358,10 @@ func TestValidUser_False(t *testing.T) {
 	svc, userRepo, uow := newUserServiceWithMocks(t)
 	id := uuid.New()
 	userRepo.EXPECT().Valid(id, "wrongpass").Return(false)
-	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).RunAndReturn(
+	uow.EXPECT().Do(
+		mock.Anything,
+		mock.Anything,
+	).Return(nil).RunAndReturn(
 		func(ctx context.Context, fn func(repository.UnitOfWork) error) error {
 			return fn(uow)
 		},

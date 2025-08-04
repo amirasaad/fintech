@@ -9,7 +9,8 @@ import (
 )
 
 var (
-	// ErrUserNotFound is returned when a user cannot be found in the repository.
+	// ErrUserNotFound is returned when a user cannot be found in the
+	// repository.
 	ErrUserNotFound = errors.New("user not found")
 	// ErrUserUnauthorized is return when user
 	ErrUserUnauthorized = errors.New("user unauthorized")

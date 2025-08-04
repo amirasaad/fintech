@@ -11,13 +11,15 @@ func FuzzNewUser(f *testing.F) {
 	f.Fuzz(func(t *testing.T, username, email, password string) {
 		defer func() {
 			if r := recover(); r != nil {
-				t.Errorf("NewUser panicked: %v (username=%q, email=%q, password=%q)", r, username, email, password)
+				t.Errorf("NewUser panicked: %v (username=%q, email=%q, password=%q)",
+					r, username, email, password)
 			}
 		}()
 		user, err := NewUser(username, email, password)
 		if err == nil {
 			if user.Username == "" || user.Email == "" {
-				t.Errorf("User has empty username or email: username=%q, email=%q", user.Username, user.Email)
+				t.Errorf("User has empty username or email: username=%q, email=%q",
+					user.Username, user.Email)
 			}
 		}
 	})

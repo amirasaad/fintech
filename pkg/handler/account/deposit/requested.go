@@ -15,17 +15,29 @@ import (
 	"github.com/google/uuid"
 )
 
-// Requested handles DepositRequested events by validating and persisting the deposit.
-// This follows the new event flow pattern: Requested -> Requested (validate and persist).
-func Requested(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e events.Event) error {
+// HandleRequested handles DepositRequested events by validating and persisting the deposit.
+// This follows the new event flow pattern:
+// HandleRequested -> HandleRequested (validate and persist).
+func HandleRequested(
+	bus eventbus.Bus,
+	uow repository.UnitOfWork,
+	logger *slog.Logger,
+) func(
+	ctx context.Context,
+	e events.Event,
+) error {
 	return func(ctx context.Context, e events.Event) error {
-		log := logger.With("handler", "DepositRequestedHandler", "event_type", e.Type())
+		log := logger.With(
+			"handler", "deposit.HandleRequested",
+			"event_type", e.Type(),
+		)
 		log.Info("🟢 [START] Processing DepositRequested event")
 
 		// Type assert to get the deposit request
 		dr, ok := e.(*events.DepositRequested)
 		if !ok {
-			log.Error("❌ [ERROR] Unexpected event type", "expected", "DepositRequested", "got", e.Type())
+			log.Error(
+				"❌ [ERROR] Unexpected event type")
 			return fmt.Errorf("unexpected event type: %s", e.Type())
 		}
 
@@ -38,10 +50,13 @@ func Requested(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger)
 
 		// Validate the deposit request
 		if err := dr.Validate(); err != nil {
-			log.Error("❌ [ERROR] Deposit validation failed", "error", err)
+			log.Error(
+				"❌ [ERROR] Deposit validation failed",
+				"error", err,
+			)
 			// Emit failed event
-			failedEvent := events.NewDepositFailed(*dr, err.Error())
-			if err := bus.Emit(ctx, failedEvent); err != nil {
+			df := events.NewDepositFailed(dr, err.Error())
+			if err := bus.Emit(ctx, df); err != nil {
 				log.Error("❌ [ERROR] Failed to emit DepositFailed event", "error", err)
 			}
 			return nil
@@ -72,36 +87,67 @@ func Requested(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger)
 		// Persist the deposit transaction
 		txID := dr.TransactionID
 		if err := persistDepositTransaction(ctx, uow, dr); err != nil {
-			log.Error("❌ [ERROR] Failed to persist deposit transaction", "error", err, "transaction_id", txID)
+			log.Error(
+				"❌ [ERROR] Failed to persist deposit transaction",
+				"error", err,
+				"transaction_id", txID,
+			)
 			// Emit failed event
-			failedEvent := events.NewDepositFailed(*dr, fmt.Sprintf("failed to persist transaction: %v", err))
-			if err := bus.Emit(ctx, failedEvent); err != nil {
-				log.Error("❌ [ERROR] Failed to emit DepositFailed event", "error", err)
+			df := events.NewDepositFailed(dr, fmt.Sprintf("failed to persist transaction: %v", err))
+			if err := bus.Emit(ctx, df); err != nil {
+				log.Error(
+					"❌ [ERROR] Failed to emit DepositFailed event",
+					"error", err,
+				)
 			}
 			return nil
 		}
 
-		log.Info("✅ [SUCCESS] Deposit validated and persisted", "transaction_id", txID)
+		log.Info(
+			"✅ [SUCCESS] Deposit validated and persisted",
+			"transaction_id", txID,
+		)
 
 		// Emit CurrencyConversionRequested event
-		conversionEvent := events.NewCurrencyConversionRequested(
+		log.Info(
+			"🔧 [DEBUG] Creating CurrencyConversionRequested event",
+			"deposit_request", fmt.Sprintf("%+v", *dr),
+			"original_request_type", fmt.Sprintf("%T", *dr))
+
+		ccr := events.NewCurrencyConversionRequested(
 			dr.FlowEvent,
+			*dr,
 			events.WithConversionAmount(dr.Amount),
 			events.WithConversionTo(currency.Code(account.Currency)),
 			events.WithConversionTransactionID(txID),
 		)
-		if err := bus.Emit(ctx, conversionEvent); err != nil {
+
+		log.Info(
+			"🔧 [DEBUG] CurrencyConversionRequested event created",
+			"ccr_original_request_nil", ccr.OriginalRequest == nil,
+			"ccr_original_request_type", fmt.Sprintf("%T", ccr.OriginalRequest),
+			"ccr_transaction_id", ccr.TransactionID,
+		)
+		if err := bus.Emit(ctx, ccr); err != nil {
 			log.Error("❌ [ERROR] Failed to emit CurrencyConversionRequested event", "error", err)
-			return fmt.Errorf("failed to emit CurrencyConversionRequested event: %w", err)
+			return nil
 		}
 
-		log.Info("📤 [PUBLISHED] CurrencyConversionRequested event", "event_id", conversionEvent.ID)
+		log.Info(
+			"📤 [Emitted] event",
+			"event_id", ccr.ID,
+			"event_type", ccr.Type(),
+		)
 		return nil
 	}
 }
 
 // persistDepositTransaction persists the deposit transaction to the database
-func persistDepositTransaction(ctx context.Context, uow repository.UnitOfWork, dr *events.DepositRequested) error {
+func persistDepositTransaction(
+	ctx context.Context,
+	uow repository.UnitOfWork,
+	dr *events.DepositRequested,
+) error {
 	return uow.Do(ctx, func(uow repository.UnitOfWork) error {
 		// Get the transaction repository
 		txRepoAny, err := uow.GetRepository((*transaction.Repository)(nil))

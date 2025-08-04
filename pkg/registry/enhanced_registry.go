@@ -3,41 +3,42 @@ package registry
 import (
 	"context"
 	"fmt"
+	"log"
 	"sync"
 	"time"
 )
 
 // EnhancedRegistry provides a full-featured registry implementation
 type EnhancedRegistry struct {
-	config      RegistryConfig
+	config      Config
 	entities    map[string]Entity
 	mu          sync.RWMutex
-	observers   []RegistryObserver
-	validator   RegistryValidator
-	cache       RegistryCache
+	observers   []Observer
+	validator   Validator
+	cache       Cache
 	persistence RegistryPersistence
-	metrics     RegistryMetrics
-	health      RegistryHealth
-	eventBus    RegistryEventBus
+	metrics     Metrics
+	health      Health
+	eventBus    EventBus
 }
 
 // NewEnhancedRegistry creates a new enhanced registry
-func NewEnhancedRegistry(config RegistryConfig) *EnhancedRegistry {
+func NewEnhancedRegistry(config Config) *EnhancedRegistry {
 	return &EnhancedRegistry{
 		config:    config,
 		entities:  make(map[string]Entity),
-		observers: make([]RegistryObserver, 0),
+		observers: make([]Observer, 0),
 	}
 }
 
 // WithValidator sets the validator for the registry
-func (r *EnhancedRegistry) WithValidator(validator RegistryValidator) *EnhancedRegistry {
+func (r *EnhancedRegistry) WithValidator(validator Validator) *EnhancedRegistry {
 	r.validator = validator
 	return r
 }
 
 // WithCache sets the cache for the registry
-func (r *EnhancedRegistry) WithCache(cache RegistryCache) *EnhancedRegistry {
+func (r *EnhancedRegistry) WithCache(cache Cache) *EnhancedRegistry {
 	r.cache = cache
 	return r
 }
@@ -49,19 +50,19 @@ func (r *EnhancedRegistry) WithPersistence(persistence RegistryPersistence) *Enh
 }
 
 // WithMetrics sets the metrics collector for the registry
-func (r *EnhancedRegistry) WithMetrics(metrics RegistryMetrics) *EnhancedRegistry {
+func (r *EnhancedRegistry) WithMetrics(metrics Metrics) *EnhancedRegistry {
 	r.metrics = metrics
 	return r
 }
 
 // WithHealth sets the health checker for the registry
-func (r *EnhancedRegistry) WithHealth(health RegistryHealth) *EnhancedRegistry {
+func (r *EnhancedRegistry) WithHealth(health Health) *EnhancedRegistry {
 	r.health = health
 	return r
 }
 
 // WithEventBus sets the event bus for the registry
-func (r *EnhancedRegistry) WithEventBus(eventBus RegistryEventBus) *EnhancedRegistry {
+func (r *EnhancedRegistry) WithEventBus(eventBus EventBus) *EnhancedRegistry {
 	r.eventBus = eventBus
 	return r
 }
@@ -107,7 +108,11 @@ func (r *EnhancedRegistry) Register(ctx context.Context, entity Entity) error {
 
 	// Update cache if available
 	if r.cache != nil {
-		r.cache.Set(ctx, entity) //nolint:errcheck
+		if err := r.cache.Set(ctx, entity); err != nil {
+			// Log cache set error but don't fail the operation
+			// as the main registry operation succeeded
+			log.Printf("warning: failed to update cache for entity %s: %v", entity.ID(), err)
+		}
 	}
 
 	// Update metrics
@@ -126,13 +131,17 @@ func (r *EnhancedRegistry) Register(ctx context.Context, entity Entity) error {
 		if exists {
 			eventType = EventEntityUpdated
 		}
-		event := RegistryEvent{
+		event := Event{
 			Type:      eventType,
 			EntityID:  entity.ID(),
 			Entity:    entity,
 			Timestamp: time.Now(),
 		}
-		r.eventBus.Emit(ctx, event) //nolint:errcheck
+		if err := r.eventBus.Emit(ctx, event); err != nil {
+			// Log event emission error but don't fail the operation
+			log.Printf("warning: failed to emit %s event for entity %s: %v",
+				eventType, entity.ID(), err)
+		}
 	}
 
 	// Notify observers
@@ -179,7 +188,10 @@ func (r *EnhancedRegistry) Get(ctx context.Context, id string) (Entity, error) {
 
 	// Update cache
 	if r.cache != nil {
-		r.cache.Set(ctx, entity) //nolint:errcheck
+		if err := r.cache.Set(ctx, entity); err != nil {
+			// Log cache set error but don't fail the operation
+			log.Printf("warning: failed to update cache for entity %s: %v", entity.ID(), err)
+		}
 	}
 
 	if r.metrics != nil {
@@ -210,9 +222,12 @@ func (r *EnhancedRegistry) Unregister(ctx context.Context, id string) error {
 
 	delete(r.entities, id)
 
-	// Remove from cache
+	// Remove from cache if available
 	if r.cache != nil {
-		r.cache.Delete(ctx, id) //nolint:errcheck
+		if err := r.cache.Delete(ctx, id); err != nil {
+			// Log cache delete error but don't fail the operation
+			log.Printf("warning: failed to delete entity %s from cache: %v", id, err)
+		}
 	}
 
 	// Update metrics
@@ -225,12 +240,15 @@ func (r *EnhancedRegistry) Unregister(ctx context.Context, id string) error {
 
 	// Publish event
 	if r.eventBus != nil {
-		event := RegistryEvent{
+		event := Event{
 			Type:      EventEntityUnregistered,
 			EntityID:  id,
 			Timestamp: time.Now(),
 		}
-		r.eventBus.Emit(ctx, event) //nolint:errcheck
+		if err := r.eventBus.Emit(ctx, event); err != nil {
+			// Log event emission error but don't fail the operation
+			log.Printf("warning: failed to emit unregister event for entity %s: %v", id, err)
+		}
 	}
 
 	// Notify observers
@@ -276,7 +294,10 @@ func (r *EnhancedRegistry) ListActive(ctx context.Context) ([]Entity, error) {
 }
 
 // ListByMetadata returns entities with specific metadata
-func (r *EnhancedRegistry) ListByMetadata(ctx context.Context, key, value string) ([]Entity, error) {
+func (r *EnhancedRegistry) ListByMetadata(
+	ctx context.Context,
+	key, value string,
+) ([]Entity, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -426,7 +447,10 @@ func (r *EnhancedRegistry) Search(ctx context.Context, query string) ([]Entity, 
 }
 
 // SearchByMetadata searches entities by metadata
-func (r *EnhancedRegistry) SearchByMetadata(ctx context.Context, metadata map[string]string) ([]Entity, error) {
+func (r *EnhancedRegistry) SearchByMetadata(
+	ctx context.Context,
+	metadata map[string]string,
+) ([]Entity, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -448,14 +472,14 @@ func (r *EnhancedRegistry) SearchByMetadata(ctx context.Context, metadata map[st
 }
 
 // AddObserver adds an observer to the registry
-func (r *EnhancedRegistry) AddObserver(observer RegistryObserver) {
+func (r *EnhancedRegistry) AddObserver(observer Observer) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.observers = append(r.observers, observer)
 }
 
 // RemoveObserver removes an observer from the registry
-func (r *EnhancedRegistry) RemoveObserver(observer RegistryObserver) {
+func (r *EnhancedRegistry) RemoveObserver(observer Observer) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 

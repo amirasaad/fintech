@@ -4,16 +4,18 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"github.com/amirasaad/fintech/pkg/domain/events"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
-	"github.com/amirasaad/fintech/infra/eventbus"
+	"github.com/amirasaad/fintech/pkg/domain/events"
+
 	"io"
 	"log/slog"
 
-	fixturesmocks "github.com/amirasaad/fintech/internal/fixtures/mocks"
+	"github.com/amirasaad/fintech/infra/eventbus"
+
+	"github.com/amirasaad/fintech/internal/fixtures/mocks"
 	accountdomain "github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/amirasaad/fintech/pkg/dto"
@@ -31,20 +33,22 @@ func TestStripeWebhookHandler_PublishesEvent(t *testing.T) {
 	var called bool
 	mockBus := eventbus.NewWithMemory(slog.New(slog.NewTextHandler(io.Discard, nil)))
 	// Register for the correct event type emitted by the handler
-	eventType := "PaymentCompleted"
-	mockBus.Register(eventType, func(ctx context.Context, event events.Event) error {
-		called = true
-		t.Logf("Handler called for event type: %s", event.Type())
-		return nil
-	})
-	t.Logf("Registered event type: %s", eventType)
+	mockBus.Register(
+		events.EventTypePaymentCompleted,
+		func(ctx context.Context, event events.Event) error {
+			called = true
+			t.Logf("Handler called for event type: %s", event.Type())
+			return nil
+		},
+	)
+	t.Logf("Registered event type: %s", events.EventTypePaymentCompleted)
 	app.Post("/webhook/stripe", account.StripeWebhookHandler(mockBus, "test_secret"))
 
-	stripeEvent := map[string]interface{}{
+	stripeEvent := map[string]any{
 		"id":   "evt_test",
 		"type": "payment_intent.succeeded",
-		"data": map[string]interface{}{
-			"object": map[string]interface{}{
+		"data": map[string]any{
+			"object": map[string]any{
 				"id":     "pi_test",
 				"status": "succeeded",
 			},
@@ -72,9 +76,9 @@ func TestStripeWebhookHandler_PublishesEvent(t *testing.T) {
 // For now, this is a stub to be filled in as the event-driven refactor proceeds.
 func TestStripeWebhookHandler_Integration(t *testing.T) {
 	// Mocks
-	txRepo := fixturesmocks.NewMockTransactionRepository(t)
-	accRepo := fixturesmocks.NewAccountRepository(t)
-	uow := fixturesmocks.NewMockUnitOfWork(t)
+	txRepo := mocks.NewMockTransactionRepository(t)
+	accRepo := mocks.NewAccountRepository(t)
+	uow := mocks.NewMockUnitOfWork(t)
 
 	// Use a real *account.Transaction for the fake transaction
 	fakeTx := &accountdomain.Transaction{
@@ -118,21 +122,19 @@ func TestStripeWebhookHandler_Integration(t *testing.T) {
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	bus := eventbus.NewWithMemory(logger)
-	bus.Register("PaymentCompleted", payment.Completed(bus, uow, logger))
-	// Remove other handlers that might interfere with the test
-	// bus.Subscribe((events.PaymentInitiationEvent{}).Type(), payment.PaymentInitiationHandler(bus, provider.NewMockPaymentProvider(), logger))
-	// bus.Subscribe((events.PaymentIdPersistedEvent{}).Type(), payment.Persistence(bus, uow, logger))
+	// Use the correct event type constant from events package
+	bus.Register(events.EventTypePaymentCompleted, payment.HandleCompleted(bus, uow, logger))
 
 	// Set up Fiber app with webhook handler
 	app := fiber.New()
 	app.Post("/webhook/stripe", account.StripeWebhookHandler(bus, "test_secret"))
 
 	// Simulate Stripe webhook call
-	stripeEvent := map[string]interface{}{
+	stripeEvent := map[string]any{
 		"id":   "evt_test",
 		"type": "payment_intent.succeeded",
-		"data": map[string]interface{}{
-			"object": map[string]interface{}{
+		"data": map[string]any{
+			"object": map[string]any{
 				"id":     "pi_test",
 				"status": "succeeded",
 			},

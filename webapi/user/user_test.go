@@ -29,8 +29,9 @@ func (s *UserTestSuite) TestCreateUserVariants() {
 		wantStatus int
 	}{
 		{
-			desc:       "success",
-			body:       `{"username":"newuser","email":"new@example.com","password":"password123"}`,
+			desc: "success",
+			body: `{"username":"newuser",
+				"email":"new@example.com","password":"password123"}`,
 			wantStatus: fiber.StatusCreated,
 		},
 		{
@@ -96,7 +97,8 @@ func (s *UserTestSuite) TestUpdateUserVariants() {
 
 	for _, tc := range testCases {
 		s.Run(tc.desc, func() {
-			resp := s.MakeRequest("PUT", "/user/"+s.testUser.ID.String(), tc.body, s.token)
+			resp := s.MakeRequest("PUT", "/user/"+s.testUser.ID.String(), tc.body,
+				s.token)
 			defer resp.Body.Close() //nolint:errcheck
 			s.Equal(tc.wantStatus, resp.StatusCode)
 		})
@@ -122,16 +124,18 @@ func (s *UserTestSuite) TestDeleteUserVariants() {
 		{
 			desc:       "invalid password",
 			body:       `{"password":"wrongpass"}`,
-			wantStatus: fiber.StatusUnauthorized, // This is correct - invalid credentials should return 401
+			wantStatus: fiber.StatusUnauthorized,
 		},
 	}
 
 	for _, tc := range testCases {
 		s.Run(tc.desc, func() {
-			// Create a fresh user for each test case to avoid conflicts when user is deleted
+			// Create a fresh user for each test case to avoid conflicts when user is
+			// deleted
 			testUser := s.CreateTestUser()
 			token := s.LoginUser(testUser)
-			resp := s.MakeRequest("DELETE", "/user/"+testUser.ID.String(), tc.body, token)
+			resp := s.MakeRequest("DELETE", "/user/"+testUser.ID.String(), tc.body,
+				token)
 			defer resp.Body.Close() //nolint:errcheck
 			s.Equal(tc.wantStatus, resp.StatusCode)
 		})

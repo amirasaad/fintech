@@ -10,7 +10,7 @@ import (
 )
 
 type DBConfig struct {
-	Url string `envconfig:"URL" default:"postgres://postgres:password@localhost:5432/fintech?sslmode=disable"`
+	Url string `envconfig:"URL"`
 }
 
 type AuthConfig struct {
@@ -41,7 +41,7 @@ type PaymentProviders struct {
 
 type ExchangeRateConfig struct {
 	ApiKey            string        `envconfig:"API_KEY"`
-	ApiUrl            string        `envconfig:"API_URL" default:"https://api.exchangerate-api.com/v4/latest"`
+	ApiUrl            string        `envconfig:"API_URL" default:""`
 	CacheTTL          time.Duration `envconfig:"CACHE_TTL" default:"15m"`
 	HTTPTimeout       time.Duration `envconfig:"HTTP_TIMEOUT" default:"10s"`
 	MaxRetries        int           `envconfig:"MAX_RETRIES" default:"3"`

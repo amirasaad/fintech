@@ -20,7 +20,8 @@ type mockPayment struct {
 // - GetPaymentStatus can be polled until PaymentCompleted is returned.
 // - This is NOT for production use. Real payment providers use webhooks or callbacks.
 //
-// In tests, the service will poll GetPaymentStatus until completion, simulating a real-world async flow.
+// In tests, the service will poll GetPaymentStatus until completion,
+// simulating a real-world async flow.
 //
 // See pkg/service/account/account.go for example usage.
 //
@@ -38,7 +39,12 @@ func NewMockPaymentProvider() *MockPaymentProvider {
 }
 
 // InitiatePayment simulates initiating a deposit payment.
-func (m *MockPaymentProvider) InitiatePayment(ctx context.Context, userID, accountID uuid.UUID, amount int64, currency string) (string, error) {
+func (m *MockPaymentProvider) InitiatePayment(
+	ctx context.Context,
+	userID, accountID uuid.UUID,
+	amount int64,
+	currency string,
+) (string, error) {
 	paymentID := uuid.New().String()
 	m.mu.Lock()
 	m.payments[paymentID] = &mockPayment{status: provider.PaymentPending}
@@ -54,7 +60,10 @@ func (m *MockPaymentProvider) InitiatePayment(ctx context.Context, userID, accou
 }
 
 // GetPaymentStatus returns the current status of a payment.
-func (m *MockPaymentProvider) GetPaymentStatus(ctx context.Context, paymentID string) (provider.PaymentStatus, error) {
+func (m *MockPaymentProvider) GetPaymentStatus(
+	ctx context.Context,
+	paymentID string,
+) (provider.PaymentStatus, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if p, ok := m.payments[paymentID]; ok {

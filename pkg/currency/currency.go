@@ -13,25 +13,29 @@ import (
 
 // Common errors
 var (
-	ErrInvalidCurrencyCode = errors.New("invalid currency code: must be 3 uppercase letters")
-	ErrInvalidDecimals     = errors.New("invalid decimals: must be between 0 and 8")
-	ErrInvalidSymbol       = errors.New("invalid symbol: must not be empty and max 10 characters")
-	ErrCurrencyNotFound    = errors.New("currency not found")
-	ErrCurrencyExists      = errors.New("currency already exists")
+	ErrInvalidCode = errors.New(
+		"invalid currency code: must be 3 uppercase letters")
+	ErrInvalidDecimals = errors.New("invalid decimals: must be between 0 and 8")
+	ErrInvalidSymbol   = errors.New(
+		"invalid symbol: must not be empty and max 10 characters")
+	ErrCurrencyNotFound = errors.New("currency not found")
+	ErrCurrencyExists   = errors.New("currency already exists")
 )
 
 const (
-	// DefaultCurrency is the fallback currency code (USD)
-	DefaultCurrency = "USD"
+	// DefaultCode is the fallback currency code (USD)
+	DefaultCode = "USD"
 	// DefaultDecimals is the default number of decimal places for currencies
 	DefaultDecimals = 2
 	// MaxDecimals is the maximum number of decimal places allowed
-	MaxDecimals = 8
+	MaxDecimals = 18
 	// MaxSymbolLength is the maximum length for currency symbols
 	MaxSymbolLength = 10
 
 	USD = Code("USD")
 	EUR = Code("EUR")
+
+	Default = USD
 )
 
 // Code represents a 3-letter ISO currency code
@@ -42,8 +46,8 @@ func (c Code) String() string {
 	return string(c)
 }
 
-// CurrencyMeta holds currency-specific metadata
-type CurrencyMeta struct {
+// Meta holds currency-specific metadata
+type Meta struct {
 	Code     string            `json:"code"`
 	Name     string            `json:"name"`
 	Symbol   string            `json:"symbol"`
@@ -56,41 +60,41 @@ type CurrencyMeta struct {
 	Updated  time.Time         `json:"updated"`
 }
 
-// CurrencyEntity implements the registry.Entity interface
-type CurrencyEntity struct {
+// Entity implements the registry.Entity interface
+type Entity struct {
 	*registry.BaseEntity
-	meta CurrencyMeta
+	meta Meta
 }
 
-// NewCurrencyEntity creates a new currency entity
-func NewCurrencyEntity(meta CurrencyMeta) *CurrencyEntity {
+// NewEntity creates a new currency entity
+func NewEntity(meta Meta) *Entity {
 	now := time.Now()
 	meta.Created = now
 	meta.Updated = now
 
-	return &CurrencyEntity{
+	return &Entity{
 		BaseEntity: registry.NewBaseEntity(meta.Code, meta.Name),
 		meta:       meta,
 	}
 }
 
 // Code returns the currency code
-func (c *CurrencyEntity) Code() string {
+func (c *Entity) Code() string {
 	return c.meta.Code
 }
 
 // Name returns the currency name
-func (c *CurrencyEntity) Name() string {
+func (c *Entity) Name() string {
 	return c.meta.Name
 }
 
 // Active returns whether the currency is active
-func (c *CurrencyEntity) Active() bool {
+func (c *Entity) Active() bool {
 	return c.meta.Active
 }
 
 // Metadata returns currency metadata
-func (c *CurrencyEntity) Metadata() map[string]string {
+func (c *Entity) Metadata() map[string]string {
 	metadata := c.BaseEntity.Metadata()
 	metadata["code"] = c.meta.Code
 	metadata["symbol"] = c.meta.Symbol
@@ -110,40 +114,40 @@ func (c *CurrencyEntity) Metadata() map[string]string {
 }
 
 // CreatedAt returns the creation timestamp
-func (c *CurrencyEntity) CreatedAt() time.Time {
+func (c *Entity) CreatedAt() time.Time {
 	return c.meta.Created
 }
 
 // UpdatedAt returns the last update timestamp
-func (c *CurrencyEntity) UpdatedAt() time.Time {
+func (c *Entity) UpdatedAt() time.Time {
 	return c.meta.Updated
 }
 
 // Meta returns the currency metadata
-func (c *CurrencyEntity) Meta() CurrencyMeta {
+func (c *Entity) Meta() Meta {
 	return c.meta
 }
 
-// CurrencyValidator implements registry.RegistryValidator for currency entities
-type CurrencyValidator struct{}
+// Validator implements registry.Validator for currency entities
+type Validator struct{}
 
 // NewCurrencyValidator creates a new currency validator
-func NewCurrencyValidator() *CurrencyValidator {
-	return &CurrencyValidator{}
+func NewCurrencyValidator() *Validator {
+	return &Validator{}
 }
 
 // Validate validates a currency entity
-func (cv *CurrencyValidator) Validate(ctx context.Context, entity registry.Entity) error {
-	// Try to convert to CurrencyEntity first
-	if currencyEntity, ok := entity.(*CurrencyEntity); ok {
-		return validateCurrencyMeta(currencyEntity.Meta())
+func (cv *Validator) Validate(ctx context.Context, entity registry.Entity) error {
+	// Try to convert to Entity first
+	if currencyEntity, ok := entity.(*Entity); ok {
+		return validateMeta(currencyEntity.Meta())
 	}
 
-	// If it's not a CurrencyEntity, try to validate using metadata
+	// If it's not a Entity, try to validate using metadata
 	// This handles cases where the entity might be a BaseEntity or other type
 	metadata := entity.Metadata()
 	if len(metadata) == 0 {
-		return fmt.Errorf("invalid entity type: expected *CurrencyEntity or entity with metadata")
+		return fmt.Errorf("invalid entity type: expected *Entity or entity with metadata")
 	}
 
 	// Validate required metadata fields
@@ -157,7 +161,7 @@ func (cv *CurrencyValidator) Validate(ctx context.Context, entity registry.Entit
 	// Validate currency code format
 	if code, exists := metadata["code"]; exists {
 		if !isValidCurrencyCode(code) {
-			return ErrInvalidCurrencyCode
+			return ErrInvalidCode
 		}
 	}
 
@@ -181,7 +185,7 @@ func (cv *CurrencyValidator) Validate(ctx context.Context, entity registry.Entit
 }
 
 // ValidateMetadata validates currency metadata
-func (cv *CurrencyValidator) ValidateMetadata(ctx context.Context, metadata map[string]string) error {
+func (cv *Validator) ValidateMetadata(ctx context.Context, metadata map[string]string) error {
 	// Validate required metadata fields
 	requiredFields := []string{"code", "symbol", "decimals"}
 	for _, field := range requiredFields {
@@ -193,7 +197,7 @@ func (cv *CurrencyValidator) ValidateMetadata(ctx context.Context, metadata map[
 	// Validate currency code format
 	if code, exists := metadata["code"]; exists {
 		if !isValidCurrencyCode(code) {
-			return ErrInvalidCurrencyCode
+			return ErrInvalidCode
 		}
 	}
 
@@ -216,11 +220,11 @@ func (cv *CurrencyValidator) ValidateMetadata(ctx context.Context, metadata map[
 	return nil
 }
 
-// validateCurrencyMeta validates currency metadata
-func validateCurrencyMeta(meta CurrencyMeta) error {
+// validateMeta validates currency metadata
+func validateMeta(meta Meta) error {
 	// Validate currency code format
 	if !isValidCurrencyCode(meta.Code) {
-		return ErrInvalidCurrencyCode
+		return ErrInvalidCode
 	}
 
 	// Validate decimals
@@ -241,27 +245,28 @@ func validateCurrencyMeta(meta CurrencyMeta) error {
 	return nil
 }
 
-// IsValidCurrencyFormat returns true if the code is a well-formed ISO 4217 currency code (3 uppercase letters).
-func IsValidCurrencyFormat(code string) bool {
+// IsValidFormat returns true if the code
+// is a well-formed ISO 4217 currency code (3 uppercase letters).
+func IsValidFormat(code string) bool {
 	re := regexp.MustCompile(`^[A-Z]{3}$`)
 	return re.MatchString(code)
 }
 
 // isValidCurrencyCode checks if a currency code is valid (3 uppercase letters)
 func isValidCurrencyCode(code string) bool {
-	return IsValidCurrencyFormat(code)
+	return IsValidFormat(code)
 }
 
-// CurrencyRegistry provides currency-specific operations using the registry system
-type CurrencyRegistry struct {
-	registry registry.RegistryProvider
+// Registry provides currency-specific operations using the registry system
+type Registry struct {
+	registry registry.Provider
 	ctx      context.Context
 }
 
-// NewCurrencyRegistry creates a new currency registry with default currencies
-func NewCurrencyRegistry(ctx context.Context) (*CurrencyRegistry, error) {
+// NewRegistry creates a new currency registry with default currencies
+func NewRegistry(ctx context.Context) (*Registry, error) {
 	// Create registry with currency-specific configuration
-	config := registry.RegistryConfig{
+	config := registry.Config{
 		Name:             "currency-registry",
 		MaxEntities:      1000,
 		EnableEvents:     true,
@@ -274,7 +279,7 @@ func NewCurrencyRegistry(ctx context.Context) (*CurrencyRegistry, error) {
 	reg.WithValidator(NewCurrencyValidator())
 	reg.WithCache(registry.NewMemoryCache(10 * time.Minute))
 
-	cr := &CurrencyRegistry{
+	cr := &Registry{
 		registry: reg,
 		ctx:      ctx,
 	}
@@ -287,9 +292,11 @@ func NewCurrencyRegistry(ctx context.Context) (*CurrencyRegistry, error) {
 	return cr, nil
 }
 
-// NewCurrencyRegistryWithPersistence creates a currency registry with persistence
-func NewCurrencyRegistryWithPersistence(ctx context.Context, persistencePath string) (*CurrencyRegistry, error) {
-	config := registry.RegistryConfig{
+// NewRegistryWithPersistence creates a currency registry with persistence
+func NewRegistryWithPersistence(
+	ctx context.Context, persistencePath string,
+) (*Registry, error) {
+	config := registry.Config{
 		Name:              "currency-registry",
 		MaxEntities:       1000,
 		EnableEvents:      true,
@@ -309,7 +316,7 @@ func NewCurrencyRegistryWithPersistence(ctx context.Context, persistencePath str
 	persistence := registry.NewFilePersistence(persistencePath)
 	reg.WithPersistence(persistence)
 
-	cr := &CurrencyRegistry{
+	cr := &Registry{
 		registry: reg,
 		ctx:      ctx,
 	}
@@ -338,20 +345,32 @@ func NewCurrencyRegistryWithPersistence(ctx context.Context, persistencePath str
 }
 
 // registerDefaults registers the default set of currencies
-func (cr *CurrencyRegistry) registerDefaults() error {
-	defaultCurrencies := []CurrencyMeta{
-		{Code: "USD", Name: "US Dollar", Symbol: "$", Decimals: 2, Country: "United States", Region: "North America", Active: true},
-		{Code: "EUR", Name: "Euro", Symbol: "€", Decimals: 2, Country: "European Union", Region: "Europe", Active: true},
-		{Code: "GBP", Name: "British Pound", Symbol: "£", Decimals: 2, Country: "United Kingdom", Region: "Europe", Active: true},
-		{Code: "JPY", Name: "Japanese Yen", Symbol: "¥", Decimals: 0, Country: "Japan", Region: "Asia", Active: true},
-		{Code: "CAD", Name: "Canadian Dollar", Symbol: "C$", Decimals: 2, Country: "Canada", Region: "North America", Active: true},
-		{Code: "AUD", Name: "Australian Dollar", Symbol: "A$", Decimals: 2, Country: "Australia", Region: "Oceania", Active: true},
-		{Code: "CHF", Name: "Swiss Franc", Symbol: "CHF", Decimals: 2, Country: "Switzerland", Region: "Europe", Active: true},
-		{Code: "CNY", Name: "Chinese Yuan", Symbol: "¥", Decimals: 2, Country: "China", Region: "Asia", Active: true},
-		{Code: "INR", Name: "Indian Rupee", Symbol: "₹", Decimals: 2, Country: "India", Region: "Asia", Active: true},
-		{Code: "BRL", Name: "Brazilian Real", Symbol: "R$", Decimals: 2, Country: "Brazil", Region: "South America", Active: true},
-		{Code: "KWD", Name: "Kuwaiti Dinar", Symbol: "د.ك", Decimals: 3, Country: "Kuwait", Region: "Middle East", Active: true},
-		{Code: "EGP", Name: "Egyptian Pound", Symbol: "£", Decimals: 2, Country: "Egypt", Region: "Africa", Active: true},
+func (cr *Registry) registerDefaults() error {
+	defaultCurrencies := []Meta{
+		{Code: "USD", Name: "US Dollar", Symbol: "$", Decimals: 2,
+			Country: "United States", Region: "North America", Active: true},
+		{Code: "EUR", Name: "Euro", Symbol: "€", Decimals: 2,
+			Country: "European Union", Region: "Europe", Active: true},
+		{Code: "GBP", Name: "British Pound", Symbol: "£", Decimals: 2,
+			Country: "United Kingdom", Region: "Europe", Active: true},
+		{Code: "JPY", Name: "Japanese Yen", Symbol: "¥", Decimals: 0,
+			Country: "Japan", Region: "Asia", Active: true},
+		{Code: "CAD", Name: "Canadian Dollar", Symbol: "C$", Decimals: 2,
+			Country: "Canada", Region: "North America", Active: true},
+		{Code: "AUD", Name: "Australian Dollar", Symbol: "A$", Decimals: 2,
+			Country: "Australia", Region: "Oceania", Active: true},
+		{Code: "CHF", Name: "Swiss Franc", Symbol: "CHF", Decimals: 2,
+			Country: "Switzerland", Region: "Europe", Active: true},
+		{Code: "CNY", Name: "Chinese Yuan", Symbol: "¥", Decimals: 2,
+			Country: "China", Region: "Asia", Active: true},
+		{Code: "INR", Name: "Indian Rupee", Symbol: "₹", Decimals: 2,
+			Country: "India", Region: "Asia", Active: true},
+		{Code: "BRL", Name: "Brazilian Real", Symbol: "R$", Decimals: 2,
+			Country: "Brazil", Region: "South America", Active: true},
+		{Code: "KWD", Name: "Kuwaiti Dinar", Symbol: "د.ك", Decimals: 3,
+			Country: "Kuwait", Region: "Middle East", Active: true},
+		{Code: "EGP", Name: "Egyptian Pound", Symbol: "£", Decimals: 2,
+			Country: "Egypt", Region: "Africa", Active: true},
 	}
 
 	for _, meta := range defaultCurrencies {
@@ -364,14 +383,14 @@ func (cr *CurrencyRegistry) registerDefaults() error {
 }
 
 // Register adds or updates a currency in the registry
-func (cr *CurrencyRegistry) Register(meta CurrencyMeta) error {
+func (cr *Registry) Register(meta Meta) error {
 	// Validate currency metadata
-	if err := validateCurrencyMeta(meta); err != nil {
+	if err := validateMeta(meta); err != nil {
 		return fmt.Errorf("validation failed: %w", err)
 	}
 
 	// Create currency entity
-	entity := NewCurrencyEntity(meta)
+	entity := NewEntity(meta)
 
 	// Register with the registry
 	if err := cr.registry.Register(cr.ctx, entity); err != nil {
@@ -382,21 +401,21 @@ func (cr *CurrencyRegistry) Register(meta CurrencyMeta) error {
 }
 
 // Get returns currency metadata for the given code
-func (cr *CurrencyRegistry) Get(code string) (CurrencyMeta, error) {
+func (cr *Registry) Get(code string) (Meta, error) {
 	entity, err := cr.registry.Get(cr.ctx, code)
 	if err != nil {
-		return CurrencyMeta{}, fmt.Errorf("currency not found: %w", err)
+		return Meta{}, fmt.Errorf("currency not found: %w", err)
 	}
 
 	// Convert entity back to currency metadata
-	currencyEntity, ok := entity.(*CurrencyEntity)
+	currencyEntity, ok := entity.(*Entity)
 	if !ok {
 		// Fallback: try to convert from BaseEntity
 		metadata := entity.Metadata()
 		decimals, _ := strconv.Atoi(metadata["decimals"])
 		active, _ := strconv.ParseBool(metadata["active"])
 
-		return CurrencyMeta{
+		return Meta{
 			Code:     metadata["code"],
 			Name:     entity.Name(),
 			Symbol:   metadata["symbol"],
@@ -411,7 +430,7 @@ func (cr *CurrencyRegistry) Get(code string) (CurrencyMeta, error) {
 }
 
 // IsSupported checks if a currency code is registered and active
-func (cr *CurrencyRegistry) IsSupported(code string) bool {
+func (cr *Registry) IsSupported(code string) bool {
 	if !cr.registry.IsRegistered(cr.ctx, code) {
 		return false
 	}
@@ -421,7 +440,7 @@ func (cr *CurrencyRegistry) IsSupported(code string) bool {
 		return false
 	}
 
-	if ce, ok := entity.(*CurrencyEntity); ok {
+	if ce, ok := entity.(*Entity); ok {
 		return ce.Active()
 	} else {
 		return entity.Active()
@@ -429,7 +448,7 @@ func (cr *CurrencyRegistry) IsSupported(code string) bool {
 }
 
 // ListSupported returns a list of all supported currency codes
-func (cr *CurrencyRegistry) ListSupported() ([]string, error) {
+func (cr *Registry) ListSupported() ([]string, error) {
 	entities, err := cr.registry.ListActive(cr.ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list currencies: %w", err)
@@ -437,7 +456,7 @@ func (cr *CurrencyRegistry) ListSupported() ([]string, error) {
 
 	codes := make([]string, len(entities))
 	for i, entity := range entities {
-		if ce, ok := entity.(*CurrencyEntity); ok {
+		if ce, ok := entity.(*Entity); ok {
 			codes[i] = ce.Code()
 		} else {
 			codes[i] = entity.ID()
@@ -448,15 +467,15 @@ func (cr *CurrencyRegistry) ListSupported() ([]string, error) {
 }
 
 // ListAll returns all registered currencies (active and inactive)
-func (cr *CurrencyRegistry) ListAll() ([]CurrencyMeta, error) {
+func (cr *Registry) ListAll() ([]Meta, error) {
 	entities, err := cr.registry.List(cr.ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list currencies: %w", err)
 	}
 
-	currencies := make([]CurrencyMeta, len(entities))
+	currencies := make([]Meta, len(entities))
 	for i, entity := range entities {
-		if currencyEntity, ok := entity.(*CurrencyEntity); ok {
+		if currencyEntity, ok := entity.(*Entity); ok {
 			currencies[i] = currencyEntity.Meta()
 		} else {
 			// Fallback conversion
@@ -464,7 +483,7 @@ func (cr *CurrencyRegistry) ListAll() ([]CurrencyMeta, error) {
 			decimals, _ := strconv.Atoi(metadata["decimals"])
 			active, _ := strconv.ParseBool(metadata["active"])
 
-			currencies[i] = CurrencyMeta{
+			currencies[i] = Meta{
 				Code:     metadata["code"],
 				Name:     entity.Name(),
 				Symbol:   metadata["symbol"],
@@ -480,7 +499,7 @@ func (cr *CurrencyRegistry) ListAll() ([]CurrencyMeta, error) {
 }
 
 // Unregister removes a currency from the registry
-func (cr *CurrencyRegistry) Unregister(code string) error {
+func (cr *Registry) Unregister(code string) error {
 	if err := cr.registry.Unregister(cr.ctx, code); err != nil {
 		return fmt.Errorf("failed to unregister currency: %w", err)
 	}
@@ -489,7 +508,7 @@ func (cr *CurrencyRegistry) Unregister(code string) error {
 }
 
 // Activate activates a currency
-func (cr *CurrencyRegistry) Activate(code string) error {
+func (cr *Registry) Activate(code string) error {
 	if err := cr.registry.Activate(cr.ctx, code); err != nil {
 		return fmt.Errorf("failed to activate currency: %w", err)
 	}
@@ -498,7 +517,7 @@ func (cr *CurrencyRegistry) Activate(code string) error {
 }
 
 // Deactivate deactivates a currency
-func (cr *CurrencyRegistry) Deactivate(code string) error {
+func (cr *Registry) Deactivate(code string) error {
 	if err := cr.registry.Deactivate(cr.ctx, code); err != nil {
 		return fmt.Errorf("failed to deactivate currency: %w", err)
 	}
@@ -507,25 +526,25 @@ func (cr *CurrencyRegistry) Deactivate(code string) error {
 }
 
 // Count returns the total number of registered currencies
-func (cr *CurrencyRegistry) Count() (int, error) {
+func (cr *Registry) Count() (int, error) {
 	return cr.registry.Count(cr.ctx)
 }
 
 // CountActive returns the number of active currencies
-func (cr *CurrencyRegistry) CountActive() (int, error) {
+func (cr *Registry) CountActive() (int, error) {
 	return cr.registry.CountActive(cr.ctx)
 }
 
 // Search searches for currencies by name
-func (cr *CurrencyRegistry) Search(query string) ([]CurrencyMeta, error) {
+func (cr *Registry) Search(query string) ([]Meta, error) {
 	entities, err := cr.registry.Search(cr.ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to search currencies: %w", err)
 	}
 
-	currencies := make([]CurrencyMeta, len(entities))
+	currencies := make([]Meta, len(entities))
 	for i, entity := range entities {
-		if currencyEntity, ok := entity.(*CurrencyEntity); ok {
+		if currencyEntity, ok := entity.(*Entity); ok {
 			currencies[i] = currencyEntity.Meta()
 		}
 	}
@@ -534,15 +553,15 @@ func (cr *CurrencyRegistry) Search(query string) ([]CurrencyMeta, error) {
 }
 
 // SearchByRegion searches for currencies by region
-func (cr *CurrencyRegistry) SearchByRegion(region string) ([]CurrencyMeta, error) {
+func (cr *Registry) SearchByRegion(region string) ([]Meta, error) {
 	entities, err := cr.registry.SearchByMetadata(cr.ctx, map[string]string{"region": region})
 	if err != nil {
 		return nil, fmt.Errorf("failed to search currencies by region: %w", err)
 	}
 
-	currencies := make([]CurrencyMeta, len(entities))
+	currencies := make([]Meta, len(entities))
 	for i, entity := range entities {
-		if currencyEntity, ok := entity.(*CurrencyEntity); ok {
+		if currencyEntity, ok := entity.(*Entity); ok {
 			currencies[i] = currencyEntity.Meta()
 		}
 	}
@@ -551,28 +570,28 @@ func (cr *CurrencyRegistry) SearchByRegion(region string) ([]CurrencyMeta, error
 }
 
 // GetRegistry returns the underlying registry provider
-func (cr *CurrencyRegistry) GetRegistry() registry.RegistryProvider {
+func (cr *Registry) GetRegistry() registry.Provider {
 	return cr.registry
 }
 
 // Global currency registry instance
-var globalCurrencyRegistry *CurrencyRegistry
+var globalCurrencyRegistry *Registry
 
 // Initialize global registry
 func init() {
 	var err error
-	globalCurrencyRegistry, err = NewCurrencyRegistry(context.Background())
+	globalCurrencyRegistry, err = NewRegistry(context.Background())
 	if err != nil {
 		panic(fmt.Sprintf("failed to initialize global currency registry: %v", err))
 	}
 }
 
 // Global convenience functions with error handling
-func Register(meta CurrencyMeta) error {
+func Register(meta Meta) error {
 	return globalCurrencyRegistry.Register(meta)
 }
 
-func Get(code string) (CurrencyMeta, error) {
+func Get(code string) (Meta, error) {
 	return globalCurrencyRegistry.Get(code)
 }
 
@@ -584,7 +603,7 @@ func ListSupported() ([]string, error) {
 	return globalCurrencyRegistry.ListSupported()
 }
 
-func ListAll() ([]CurrencyMeta, error) {
+func ListAll() ([]Meta, error) {
 	return globalCurrencyRegistry.ListAll()
 }
 
@@ -600,18 +619,18 @@ func CountActive() (int, error) {
 	return globalCurrencyRegistry.CountActive()
 }
 
-func Search(query string) ([]CurrencyMeta, error) {
+func Search(query string) ([]Meta, error) {
 	return globalCurrencyRegistry.Search(query)
 }
 
-func SearchByRegion(region string) ([]CurrencyMeta, error) {
+func SearchByRegion(region string) ([]Meta, error) {
 	return globalCurrencyRegistry.SearchByRegion(region)
 }
 
 // Backward compatibility functions (deprecated)
-func RegisterLegacy(code string, meta CurrencyMeta) {
+func Legacy(code string, meta Meta) {
 	// Convert legacy format to new format
-	newMeta := CurrencyMeta{
+	newMeta := Meta{
 		Code:     code,
 		Name:     code,
 		Symbol:   meta.Symbol,
@@ -625,11 +644,11 @@ func RegisterLegacy(code string, meta CurrencyMeta) {
 	}
 }
 
-func GetLegacy(code string) CurrencyMeta {
+func GetLegacy(code string) Meta {
 	meta, err := Get(code)
 	if err != nil {
 		// Return default for backward compatibility
-		return CurrencyMeta{
+		return Meta{
 			Code:     code,
 			Name:     code,
 			Symbol:   code,

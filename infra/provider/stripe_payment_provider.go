@@ -17,13 +17,21 @@ type StripePaymentProvider struct {
 }
 
 // NewStripePaymentProvider creates a new StripePaymentProvider with the given API key and logger.
-func NewStripePaymentProvider(apiKey string, logger *slog.Logger) *StripePaymentProvider {
+func NewStripePaymentProvider(
+	apiKey string,
+	logger *slog.Logger,
+) *StripePaymentProvider {
 	client := stripe.NewClient(apiKey)
 	return &StripePaymentProvider{client: client, logger: logger}
 }
 
 // InitiatePayment creates a PaymentIntent in Stripe and returns its ID.
-func (s *StripePaymentProvider) InitiatePayment(ctx context.Context, userID, accountID uuid.UUID, amount int64, currency string) (string, error) {
+func (s *StripePaymentProvider) InitiatePayment(
+	ctx context.Context,
+	userID, accountID uuid.UUID,
+	amount int64,
+	currency string,
+) (string, error) {
 	params := &stripe.PaymentIntentCreateParams{
 		Amount:   stripe.Int64(int64(amount)),
 		Currency: stripe.String(currency),
@@ -41,7 +49,10 @@ func (s *StripePaymentProvider) InitiatePayment(ctx context.Context, userID, acc
 }
 
 // GetPaymentStatus retrieves the status of a PaymentIntent from Stripe.
-func (s *StripePaymentProvider) GetPaymentStatus(ctx context.Context, paymentID string) (provider.PaymentStatus, error) {
+func (s *StripePaymentProvider) GetPaymentStatus(
+	ctx context.Context,
+	paymentID string,
+) (provider.PaymentStatus, error) {
 	pi, err := s.client.V1PaymentIntents.Retrieve(ctx, paymentID, nil)
 	if err != nil {
 		s.logger.Error("stripe: failed to get payment intent", "err", err)
@@ -50,7 +61,9 @@ func (s *StripePaymentProvider) GetPaymentStatus(ctx context.Context, paymentID 
 	switch pi.Status {
 	case stripe.PaymentIntentStatusSucceeded:
 		return provider.PaymentCompleted, nil
-	case stripe.PaymentIntentStatusProcessing, stripe.PaymentIntentStatusRequiresPaymentMethod, stripe.PaymentIntentStatusRequiresConfirmation:
+	case stripe.PaymentIntentStatusProcessing,
+		stripe.PaymentIntentStatusRequiresPaymentMethod,
+		stripe.PaymentIntentStatusRequiresConfirmation:
 		return provider.PaymentPending, nil
 	default:
 		return provider.PaymentFailed, nil

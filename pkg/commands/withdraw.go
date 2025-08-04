@@ -13,7 +13,8 @@ type Withdraw struct {
 	ExternalTarget *ExternalTarget // pointer for optionality
 }
 
-// ExternalTarget represents the destination for an external withdrawal, such as a bank account or wallet.
+// ExternalTarget represents the destination for an external withdrawal, such
+// as a bank account or wallet.
 type ExternalTarget struct {
 	BankAccountNumber     string
 	RoutingNumber         string

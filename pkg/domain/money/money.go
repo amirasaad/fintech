@@ -11,9 +11,10 @@ import (
 	"github.com/amirasaad/fintech/pkg/domain/common"
 )
 
-// Use common.ErrInvalidCurrencyCode and common.ConversionInfo
+// Use common.ErrInvalidCode and common.ConversionInfo
 
-// Amount represents a monetary amount as an integer in the smallest currency unit (e.g., cents for USD).
+// Amount represents a monetary amount as an integer in the
+// smallest currency unit (e.g., cents for USD).
 type Amount = int64
 
 // Money represents a monetary value in a specific currency.
@@ -82,9 +83,9 @@ func New(
 	err error,
 ) {
 	if currencyCode == "" {
-		currencyCode = currency.Code(currency.DefaultCurrency)
+		currencyCode = currency.Code(currency.DefaultCode)
 	}
-	if !currency.IsValidCurrencyFormat(string(currencyCode)) {
+	if !currency.IsValidFormat(string(currencyCode)) {
 		err = common.ErrInvalidCurrencyCode
 		return
 	}
@@ -111,9 +112,9 @@ func NewMoneyFromSmallestUnit(
 	err error,
 ) {
 	if currencyCode == "" {
-		currencyCode = currency.Code(currency.DefaultCurrency)
+		currencyCode = currency.Code(currency.DefaultCode)
 	}
-	if !currency.IsValidCurrencyFormat(string(currencyCode)) {
+	if !currency.IsValidFormat(string(currencyCode)) {
 		err = common.ErrInvalidCurrencyCode
 		return
 	}

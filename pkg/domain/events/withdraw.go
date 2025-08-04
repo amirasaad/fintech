@@ -8,10 +8,12 @@ import (
 	"github.com/google/uuid"
 )
 
-// WithdrawRequestedEvent is emitted when a withdrawal is requested (pure event-driven domain).
+// WithdrawRequested is emitted when a withdrawal is requested (pure event-driven
+// domain).
 type WithdrawRequested struct {
 	FlowEvent
 	ID                    uuid.UUID
+	TransactionID         uuid.UUID
 	Amount                money.Money
 	BankAccountNumber     string
 	RoutingNumber         string
@@ -20,9 +22,11 @@ type WithdrawRequested struct {
 	PaymentID             string // Added for payment provider integration
 }
 
-func (e WithdrawRequested) Type() string { return "WithdrawRequested" }
+func (e *WithdrawRequested) Type() string {
+	return EventTypeWithdrawRequested.String()
+}
 
-// Validate performs business validation on the withdraw request
+// Validate performs business validation on the withdrawal request
 func (e *WithdrawRequested) Validate() error {
 	if e.AccountID == uuid.Nil {
 		return fmt.Errorf("account ID cannot be nil")
@@ -41,18 +45,21 @@ func (e *WithdrawRequested) Validate() error {
 
 // WithdrawCurrencyConverted is emitted after currency conversion for withdraw.
 type WithdrawCurrencyConverted struct {
-	WithdrawRequested
 	CurrencyConverted
 }
 
-func (e WithdrawCurrencyConverted) Type() string { return "WithdrawCurrencyConverted" }
+func (e WithdrawCurrencyConverted) Type() string {
+	return EventTypeWithdrawCurrencyConverted.String()
+}
 
-// WithdrawBusinessValidated is emitted after business validation for withdraw.
-type WithdrawBusinessValidated struct {
+// WithdrawValidated is emitted after business validation for withdraw.
+type WithdrawValidated struct {
 	WithdrawCurrencyConverted
 }
 
-func (e WithdrawBusinessValidated) Type() string { return "WithdrawBusinessValidated" }
+func (e WithdrawValidated) Type() string {
+	return EventTypeWithdrawValidated.String()
+}
 
 // WithdrawFailed is emitted when any part of the withdrawal flow fails.
 type WithdrawFailed struct {
@@ -60,4 +67,4 @@ type WithdrawFailed struct {
 	Reason string
 }
 
-func (e WithdrawFailed) Type() string { return "WithdrawFailed" }
+func (e WithdrawFailed) Type() string { return EventTypeWithdrawFailed.String() }

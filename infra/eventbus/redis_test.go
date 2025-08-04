@@ -25,7 +25,8 @@ func (e *TestEvent) Type() string {
 	return "test.event"
 }
 
-// setupRedisBus starts a Redis container using testcontainers-go and returns a RedisEventBus and a cleanup function.
+// setupRedisBus starts a Redis container using testcontainers-go and returns a
+// RedisEventBus and a cleanup function.
 
 func setupRedisBus(t interface {
 	testing.TB
@@ -37,19 +38,21 @@ func setupRedisBus(t interface {
 		ExposedPorts: []string{"6379/tcp"},
 		WaitingFor:   wait.ForLog("Ready to accept connections"),
 	}
-	redisC, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: req,
-		Started:          true,
-	})
+	redisC, err := testcontainers.GenericContainer(ctx,
+		testcontainers.GenericContainerRequest{
+			ContainerRequest: req,
+			Started:          true,
+		})
 	require.NoError(t, err)
 	host, err := redisC.Host(ctx)
 	require.NoError(t, err)
 	port, err := redisC.MappedPort(ctx, "6379")
 	require.NoError(t, err)
-	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: req,
-		Started:          true,
-	})
+	container, err := testcontainers.GenericContainer(ctx,
+		testcontainers.GenericContainerRequest{
+			ContainerRequest: req,
+			Started:          true,
+		})
 	require.NoError(t, err)
 	url := "redis://" + host + ":" + port.Port()
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
@@ -65,6 +68,7 @@ func setupRedisBus(t interface {
 }
 
 func TestRedisBusHandlerReceivesEvent(t *testing.T) {
+	events.EventTypes["test.event"] = func() events.Event { return &TestEvent{} }
 	bus, cleanup := setupRedisBus(t)
 	defer cleanup()
 
@@ -88,6 +92,7 @@ func TestRedisBusHandlerReceivesEvent(t *testing.T) {
 }
 
 func TestRedisBusMultipleEvents(t *testing.T) {
+	events.EventTypes["test.event"] = func() events.Event { return &TestEvent{} }
 	bus, cleanup := setupRedisBus(t)
 	defer cleanup()
 
@@ -102,7 +107,7 @@ func TestRedisBusMultipleEvents(t *testing.T) {
 	})
 
 	ctx := context.Background()
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		err := bus.Emit(ctx, &TestEvent{Message: fmt.Sprintf("msg %d", i)})
 		require.NoError(t, err)
 	}
@@ -115,6 +120,9 @@ func TestRedisBusMultipleEvents(t *testing.T) {
 }
 
 func TestRedisBusDLQ(t *testing.T) {
+	events.EventTypes["test.event"] = func() events.Event {
+		return &TestEvent{}
+	}
 	bus, cleanup := setupRedisBus(t)
 	defer cleanup()
 
@@ -136,7 +144,7 @@ func TestRedisBusDLQ(t *testing.T) {
 	// We reconstruct the Redis URL as in setupRedisBus
 	// The stream name is "test-stream-DLQ"
 
-	dlqStream := "test-stream-DLQ"
+	dlqStream := streamNameFor("test.event")
 	res, err := bus.client.XRead(ctx, &redis.XReadArgs{
 		Streams: []string{dlqStream, "0"},
 		Count:   1,

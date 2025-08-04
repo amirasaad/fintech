@@ -1,6 +1,8 @@
 package processor
 
 import (
+	"context"
+
 	"github.com/amirasaad/fintech/pkg/service/account"
 )
 
@@ -24,5 +26,9 @@ func NewDefaultPaymentEventProcessor(svc *account.Service) *DefaultPaymentEventP
 }
 
 func (p *DefaultPaymentEventProcessor) ProcessEvent(event Event) error {
-	return p.AccountService.UpdateTransactionStatusByPaymentID(event.PaymentID, event.Status)
+	return p.AccountService.UpdateTransactionStatusByPaymentID(
+		context.Background(),
+		event.PaymentID,
+		event.Status,
+	)
 }

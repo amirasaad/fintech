@@ -32,13 +32,17 @@ func FuzzAccountDeposit(f *testing.F) {
 		}()
 		_ = acc.ValidateDeposit(userID, mon)
 		// Invariant: balance should never be negative
-		if notNegative, err := acc.Balance.GreaterThan(money.Zero(acc.Balance.Currency())); err != nil {
+		if notNegative, err := acc.Balance.GreaterThan(
+			money.Zero(acc.Balance.Currency())); err != nil {
 			if !notNegative {
-				t.Errorf("Account balance is negative after deposit: %v (amount=%v, currency=%q)", acc.Balance, amount, cc)
+				t.Errorf(
+					"Account balance is negative after deposit: %v (amount=%v, currency=%q)",
+					acc.Balance, amount, cc,
+				)
 			}
 		}
 		// Invariant: currency format is always valid
-		if !currency.IsValidCurrencyFormat(string(acc.Balance.Currency())) {
+		if !currency.IsValidFormat(string(acc.Balance.Currency())) {
 			t.Errorf("Account currency is invalid: %q", acc.Balance.Currency())
 		}
 	})
@@ -62,19 +66,28 @@ func FuzzAccountWithdraw(f *testing.F) {
 		}
 		defer func() {
 			if r := recover(); r != nil {
-				t.Errorf("Withdraw panicked: %v (amount=%v, currency=%q)", r, amount, cc)
+				t.Errorf(
+					"Withdraw panicked: %v (amount=%v, currency=%q)",
+					r,
+					amount,
+					cc,
+				)
 			}
 		}()
 		_ = acc.ValidateWithdraw(userID, mon)
 		// Invariant: balance should never be negative
-		if notNegative, err := acc.Balance.GreaterThan(money.Zero(acc.Balance.Currency())); err != nil {
+		if notNegative, err := acc.Balance.GreaterThan(
+			money.Zero(acc.Balance.Currency())); err != nil {
 			if !notNegative {
-				t.Errorf("Account balance is negative after deposit: %v (amount=%v, currency=%q)", acc.Balance, amount, cc)
+				t.Errorf(
+					"Account balance is negative after deposit: %v (amount=%v, currency=%q)",
+					acc.Balance, amount, cc,
+				)
 			}
 		}
 		// Invariant: currency format is always valid
 		// Explicitly convert string to currency.Code for validation
-		if !currency.IsValidCurrencyFormat(string(acc.Balance.Currency())) {
+		if !currency.IsValidFormat(string(acc.Balance.Currency())) {
 			t.Errorf("Account currency is invalid: %q", acc.Balance.Currency())
 		}
 	})

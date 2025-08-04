@@ -1,7 +1,6 @@
 package deposit
 
 import (
-	"reflect"
 	"testing"
 	"time"
 
@@ -40,26 +39,23 @@ func TestDepositCurrencyConverted(t *testing.T) {
 			WithDepositSource("test-source"),
 		)
 
-		// 2. Create the CurrencyConverted event with the same transaction ID
+		// 2. Create the HandleCurrencyConverted event with the same transaction ID
 		convertedEvent := &events.CurrencyConverted{
-			FlowEvent: events.FlowEvent{
-				ID:            uuid.New(),
-				FlowType:      "deposit",
-				UserID:        userID,
-				AccountID:     accountID,
-				CorrelationID: correlationID,
-				Timestamp:     time.Now(),
-			},
+			CurrencyConversionRequested: *events.NewCurrencyConversionRequested(
+				depositReq.FlowEvent, depositReq),
 			TransactionID:   transactionID,
 			ConvertedAmount: amount,
 			ConversionInfo:  nil,
 		}
 
 		// 3. Create the DepositCurrencyConverted using the factory function
-		event := events.NewDepositCurrencyConverted(convertedEvent, func(dcc *events.DepositCurrencyConverted) {
-			dcc.DepositRequested = *depositReq
-			dcc.Timestamp = time.Now()
-		})
+		event := events.NewDepositCurrencyConverted(
+			convertedEvent,
+			func(dcc *events.DepositCurrencyConverted) {
+				dcc.CurrencyConverted = *convertedEvent
+				dcc.Timestamp = time.Now()
+			},
+		)
 
 		// Assertions
 		require.NotNil(t, event, "event should not be nil")
@@ -67,7 +63,7 @@ func TestDepositCurrencyConverted(t *testing.T) {
 		// Verify DepositRequested fields
 		t.Run("has correct DepositRequested fields", func(t *testing.T) {
 			// Access fields through the embedded DepositRequested struct
-			dr := event.DepositRequested
+			dr := event.OriginalRequest.(*events.DepositRequested)
 			assert.Equal(t, userID, dr.UserID, "user ID should match")
 			assert.Equal(t, accountID, dr.AccountID, "account ID should match")
 			assert.Equal(t, transactionID, dr.TransactionID, "transaction ID should match")
@@ -77,18 +73,34 @@ func TestDepositCurrencyConverted(t *testing.T) {
 			assert.True(t, dr.Amount.Equals(amount), "amount should match")
 		})
 
-		// Verify CurrencyConverted fields
-		t.Run("has correct CurrencyConverted fields", func(t *testing.T) {
+		// Verify HandleCurrencyConverted fields
+		t.Run("has correct HandleCurrencyConverted fields", func(t *testing.T) {
 			cc := event.CurrencyConverted
-			assert.Equal(t, transactionID, cc.TransactionID, "transaction ID should match in CurrencyConverted")
-			assert.True(t, cc.ConvertedAmount.Equals(amount), "converted amount should match")
-			assert.Nil(t, cc.ConversionInfo, "conversion info should be nil")
+			assert.Equal(
+				t,
+				transactionID,
+				cc.TransactionID,
+				"transaction ID should match in HandleCurrencyConverted",
+			)
+			assert.True(
+				t,
+				cc.ConvertedAmount.Equals(amount),
+				"converted amount should match",
+			)
+			assert.Nil(
+				t,
+				cc.ConversionInfo,
+				"conversion info should be nil",
+			)
 		})
 
 		// Verify timestamps
 		t.Run("has valid timestamps", func(t *testing.T) {
-			assert.False(t, event.Timestamp.IsZero(), "timestamp should be set")
-			assert.False(t, event.DepositRequested.Timestamp.IsZero(), "deposit requested timestamp should be set")
+			assert.False(
+				t,
+				event.Timestamp.IsZero(),
+				"timestamp should be set",
+			)
 		})
 	})
 
@@ -100,20 +112,15 @@ func TestDepositCurrencyConverted(t *testing.T) {
 		eventType := event.Type()
 
 		// Assert
-		assert.Equal(t, "DepositCurrencyConverted", eventType, "type name should be correct")
+		assert.Equal(
+			t,
+			events.EventTypeDepositCurrencyConverted.String(),
+			eventType,
+			"type name should match the constant",
+		)
 
 		// Verify the type can be used for registration
 		// The event is already of type *events.DepositCurrencyConverted, no need to assert
 	})
 
-	t.Run("can be used with event bus registration", func(t *testing.T) {
-		// This test verifies the event can be used with reflect.Type for registration
-		eventType := reflect.TypeOf((*events.DepositCurrencyConverted)(nil)).Elem()
-		assert.Equal(t, "DepositCurrencyConverted", eventType.Name(), "should get correct type name")
-
-		// Verify we can create a new instance of the event
-		eventValue := reflect.New(eventType).Interface()
-		_, ok := eventValue.(*events.DepositCurrencyConverted)
-		assert.True(t, ok, "should be able to create new instance of DepositCurrencyConverted")
-	})
 }

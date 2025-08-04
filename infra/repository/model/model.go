@@ -42,7 +42,8 @@ type Transaction struct {
 	OriginalCurrency *string  `gorm:"type:varchar(3)"`
 	ConversionRate   *float64 `gorm:"type:decimal(20,8)"`
 
-	// MoneySource indicates the origin of funds (e.g., Cash, BankAccount, Stripe, etc.)
+	// MoneySource indicates the origin of funds (e.g., Cash, BankAccount, Stripe,
+	// etc.)
 	MoneySource          string `gorm:"type:varchar(64);not null;default:'Internal'"`
 	ExternalTargetMasked string `gorm:"type:varchar(128);column:external_target_masked"`
 	// TargetCurrency is the currency the account is credited in (for multi-currency deposits)

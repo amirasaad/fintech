@@ -4,6 +4,8 @@ import (
 	"github.com/amirasaad/fintech/pkg/domain"
 )
 
+//revive:disable
+
 // CreateAccountRequest represents the request body for creating a new account.
 type CreateAccountRequest struct {
 	Currency string `json:"currency" validate:"omitempty,len=3,uppercase,alpha"`
@@ -106,3 +108,5 @@ func ToTransferResponseDTO(txOut, txIn *domain.Transaction, convInfo *domain.Con
 		ConversionInfo: ToConversionInfoDTO(convInfo),
 	}
 }
+
+//revive:enable

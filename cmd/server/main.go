@@ -3,11 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/amirasaad/fintech/webapi"
 	"log/slog"
 	"os"
 	"time"
 
-	"github.com/amirasaad/fintech/app"
 	"github.com/amirasaad/fintech/config"
 	"github.com/amirasaad/fintech/infra"
 	"github.com/amirasaad/fintech/infra/eventbus"
@@ -61,7 +61,7 @@ func main() {
 
 	// Initialize currency registry
 	ctx := context.Background()
-	currencyRegistry, err := currency.NewCurrencyRegistry(ctx)
+	currencyRegistry, err := currency.NewRegistry(ctx)
 	if err != nil {
 		logger.Error("Failed to initialize currency registry", "error", err)
 		log.Fatal(err)
@@ -98,7 +98,7 @@ func main() {
 	}
 
 	logger.Info("Starting fintech server", "port", ":3000")
-	log.Fatal(app.New(config.Deps{
+	log.Fatal(webapi.SetupApp(config.Deps{
 		Uow:               uow,
 		EventBus:          bus,
 		CurrencyConverter: currencyConverter,

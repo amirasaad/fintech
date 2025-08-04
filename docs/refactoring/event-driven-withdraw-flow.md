@@ -88,7 +88,7 @@ flowchart TD
   - Account has sufficient balance
   - Account is in valid state for withdrawals
 
-### 2. Persistence Handler (`pkg/handler/account/withdraw/persistence.go`)
+### 2. HandleProcessed Handler (`pkg/handler/account/withdraw/persistence.go`)
 
 - **Purpose:** Persists withdraw transaction to database
 - **Events Consumed:** `WithdrawValidatedEvent`
@@ -118,7 +118,7 @@ flowchart TD
   - Integrates with payment providers (e.g., Stripe)
   - Creates payment intent for withdrawal
 
-### 5. Payment Persistence Handler (`pkg/handler/payment/persistence.go`)
+### 5. Payment HandleProcessed Handler (`pkg/handler/payment/persistence.go`)
 
 - **Purpose:** Persists payment ID to transaction record
 - **Events Consumed:** `PaymentInitiatedEvent`
@@ -194,7 +194,7 @@ func (a *Account) ValidateWithdraw(userID uuid.UUID, amount money.Money) error {
 }
 ```
 
-### Persistence with Conversion
+### HandleProcessed with Conversion
 
 The persistence handler always emits conversion events for withdrawals:
 
@@ -277,7 +277,7 @@ func TestWithdrawE2EEventFlow(t *testing.T) {
 - **Wrong User:** Handler logs error, returns validation error
 - **Invalid Amount:** Handler logs error, returns validation error
 
-### Persistence Failures
+### HandleProcessed Failures
 - **Database Error:** Handler logs error, returns error (stops flow)
 - **Transaction Creation Fails:** Handler logs error, returns error
 

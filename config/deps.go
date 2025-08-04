@@ -14,7 +14,7 @@ import (
 type Deps struct {
 	Uow               repository.UnitOfWork
 	CurrencyConverter money.CurrencyConverter
-	CurrencyRegistry  *currency.CurrencyRegistry
+	CurrencyRegistry  *currency.Registry
 	PaymentProvider   provider.PaymentProvider
 	EventBus          eventbus.Bus
 	Logger            *slog.Logger

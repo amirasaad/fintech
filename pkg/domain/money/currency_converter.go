@@ -47,7 +47,11 @@ type ExchangeRate struct {
 
 // ConvertMoney converts a Money value object to the target currency using the converter.
 // Returns a new Money object in the target currency and the conversion info.
-func ConvertMoney(converter CurrencyConverter, m Money, to string) (Money, *common.ConversionInfo, error) {
+func ConvertMoney(
+	converter CurrencyConverter,
+	m Money,
+	to string,
+) (Money, *common.ConversionInfo, error) {
 	convInfo, err := converter.Convert(m.AmountFloat(), m.Currency().String(), to)
 	if err != nil {
 		return Money{}, nil, err

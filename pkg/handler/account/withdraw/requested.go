@@ -14,17 +14,34 @@ import (
 	"github.com/google/uuid"
 )
 
-// RequestedHandler handles WithdrawRequested events by validating and persisting the withdraw.
-// This follows the new event flow pattern: Requested -> RequestedHandler (validate and persist).
-func RequestedHandler(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e events.Event) error {
-	return func(ctx context.Context, e events.Event) error {
-		log := logger.With("handler", "WithdrawRequestedHandler", "event_type", e.Type())
+// HandleRequested handles WithdrawRequested events by validating and persisting the withdraw.
+// This follows the new event flow pattern: Requested -> HandleRequested (validate and persist).
+func HandleRequested(
+	bus eventbus.Bus,
+	uow repository.UnitOfWork,
+	logger *slog.Logger,
+) func(
+	ctx context.Context,
+	e events.Event,
+) error {
+	return func(
+		ctx context.Context,
+		e events.Event,
+	) error {
+		log := logger.With(
+			"handler", "withdraw.HandleRequested",
+			"event_type", e.Type(),
+		)
 		log.Info("🟢 [START] Processing WithdrawRequested event")
 
 		// Type assert to get the withdraw request
 		wr, ok := e.(*events.WithdrawRequested)
 		if !ok {
-			log.Error("❌ [ERROR] Unexpected event type", "expected", "WithdrawRequested", "got", e.Type())
+			log.Error(
+				"❌ [ERROR] Unexpected event type",
+				"expected", "WithdrawRequested",
+				"got", e.Type(),
+			)
 			return fmt.Errorf("unexpected event type: %s", e.Type())
 		}
 
@@ -37,14 +54,20 @@ func RequestedHandler(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.
 
 		// Validate the withdraw request
 		if err := wr.Validate(); err != nil {
-			log.Error("❌ [ERROR] Withdraw validation failed", "error", err)
+			log.Error(
+				"❌ [ERROR] Withdraw validation failed",
+				"error", err,
+			)
 			// Emit failed event
 			failedEvent := events.NewWithdrawFailed(
 				wr,
 				err.Error(),
 			)
 			if err := bus.Emit(ctx, failedEvent); err != nil {
-				log.Error("❌ [ERROR] Failed to emit WithdrawFailed event", "error", err)
+				log.Error(
+					"❌ [ERROR] Failed to emit WithdrawFailed event",
+					"error", err,
+				)
 			}
 			return nil
 		}
@@ -54,14 +77,21 @@ func RequestedHandler(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.
 
 		// Persist the withdraw transaction
 		if err := persistWithdrawTransaction(ctx, uow, wr, txID); err != nil {
-			log.Error("❌ [ERROR] Failed to persist withdraw transaction", "error", err, "transaction_id", txID)
+			log.Error(
+				"❌ [ERROR] Failed to persist withdraw transaction",
+				"error", err,
+				"transaction_id", txID,
+			)
 			// Emit failed event
 			failedEvent := events.NewWithdrawFailed(
 				wr,
 				fmt.Sprintf("failed to persist transaction: %v", err),
 			)
 			if err := bus.Emit(ctx, failedEvent); err != nil {
-				log.Error("❌ [ERROR] Failed to emit WithdrawFailed event", "error", err)
+				log.Error(
+					"❌ [ERROR] Failed to emit WithdrawFailed event",
+					"error", err,
+				)
 			}
 			return nil
 		}
@@ -69,24 +99,39 @@ func RequestedHandler(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.
 		log.Info("✅ [SUCCESS] Withdraw validated and persisted", "transaction_id", txID)
 
 		// Emit CurrencyConversionRequested event
-		conversionEvent := events.NewCurrencyConversionRequested(
+		ccr := events.NewCurrencyConversionRequested(
 			wr.FlowEvent,
+			wr,
 			events.WithConversionAmount(wr.Amount),
 			events.WithConversionTo(currency.Code("USD")),
 		)
 
-		if err := bus.Emit(ctx, conversionEvent); err != nil {
-			log.Error("❌ [ERROR] Failed to emit CurrencyConversionRequested event", "error", err)
-			return fmt.Errorf("failed to emit CurrencyConversionRequested event: %w", err)
+		if err := bus.Emit(ctx, ccr); err != nil {
+			log.Error(
+				"❌ [ERROR] Failed to emit CurrencyConversionRequested event",
+				"error", err,
+			)
+			return fmt.Errorf(
+				"failed to emit CurrencyConversionRequested event: %w", err,
+			)
 		}
 
-		log.Info("📤 [PUBLISHED] CurrencyConversionRequested event", "event_id", conversionEvent.ID)
+		log.Info(
+			"📤 [EMITTED] event",
+			"event_id", ccr.ID,
+			"event_type", ccr.Type(),
+		)
 		return nil
 	}
 }
 
 // persistWithdrawTransaction persists the withdraw transaction to the database
-func persistWithdrawTransaction(ctx context.Context, uow repository.UnitOfWork, wr *events.WithdrawRequested, txID uuid.UUID) error {
+func persistWithdrawTransaction(
+	ctx context.Context,
+	uow repository.UnitOfWork,
+	wr *events.WithdrawRequested,
+	txID uuid.UUID,
+) error {
 	return uow.Do(ctx, func(uow repository.UnitOfWork) error {
 		// Get the transaction repository
 		txRepoAny, err := uow.GetRepository((*transaction.Repository)(nil))

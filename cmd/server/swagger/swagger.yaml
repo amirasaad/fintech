@@ -178,6 +178,7 @@ definitions:
         maxLength: 100
         type: string
     type: object
+host: localhost:3000
 info:
   contact:
     email: fiber@swagger.io
@@ -1007,4 +1008,10 @@ paths:
       summary: Update user
       tags:
       - users
+securityDefinitions:
+  BearerAuth:
+    description: '"Enter your Bearer token in the format: `Bearer {token}`"'
+    in: header
+    name: Authorization
+    type: apiKey
 swagger: "2.0"

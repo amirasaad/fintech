@@ -35,7 +35,11 @@ func NewStubCurrencyConverter() *StubCurrencyConverter {
 	}}
 }
 
-func (s *StubCurrencyConverter) Convert(amount float64, from, to string) (*domain.ConversionInfo, error) {
+func (s *StubCurrencyConverter) Convert(
+	amount float64,
+	from,
+	to string,
+) (*domain.ConversionInfo, error) {
 	rate, exists := s.rates[from][to]
 	if !exists {
 		return nil, domain.ErrUnsupportedCurrencyPair
@@ -49,7 +53,10 @@ func (s *StubCurrencyConverter) Convert(amount float64, from, to string) (*domai
 	}, nil
 }
 
-func (s *StubCurrencyConverter) GetRate(from, to string) (float64, error) {
+func (s *StubCurrencyConverter) GetRate(
+	from,
+	to string,
+) (float64, error) {
 	if from == to {
 		return 1.0, nil
 	}
@@ -60,7 +67,10 @@ func (s *StubCurrencyConverter) GetRate(from, to string) (float64, error) {
 	return rate, nil
 }
 
-func (s *StubCurrencyConverter) IsSupported(from, to string) bool {
+func (s *StubCurrencyConverter) IsSupported(
+	from,
+	to string,
+) bool {
 	if from == to {
 		return true
 	}

@@ -46,12 +46,22 @@ func TestAccount_Transfer(t *testing.T) {
 		{
 			name: "fail: cannot transfer to same account",
 			sourceAccount: func() *account.Account {
-				acc, err := account.New().WithUserID(sameUUID).WithID(sameUUID).WithBalance(100).WithCurrency(usd).Build()
+				acc, err := account.New().
+					WithUserID(sameUUID).
+					WithID(sameUUID).
+					WithBalance(100).
+					WithCurrency(usd).
+					Build()
 				require.NoError(err)
 				return acc
 			}(),
 			destAccount: func() *account.Account {
-				acc, err := account.New().WithUserID(sameUUID).WithID(sameUUID).WithBalance(100).WithCurrency(usd).Build()
+				acc, err := account.New().
+					WithUserID(sameUUID).
+					WithID(sameUUID).
+					WithBalance(100).
+					WithCurrency(usd).
+					Build()
 				require.NoError(err)
 				return acc
 			}(),
@@ -99,12 +109,19 @@ func TestAccount_Transfer(t *testing.T) {
 		{
 			name: "fail: currency mismatch",
 			sourceAccount: func() *account.Account {
-				acc, err := account.New().WithUserID(userA).WithBalance(100).WithCurrency(usd).Build()
+				acc, err := account.New().
+					WithUserID(userA).
+					WithBalance(100).
+					WithCurrency(usd).
+					Build()
 				require.NoError(err)
 				return acc
 			}(),
 			destAccount: func() *account.Account {
-				acc, err := account.New().WithUserID(userB).WithCurrency(currency.EUR).Build()
+				acc, err := account.New().
+					WithUserID(userB).
+					WithCurrency(currency.EUR).
+					Build()
 				require.NoError(err)
 				return acc
 			}(),
@@ -116,11 +133,22 @@ func TestAccount_Transfer(t *testing.T) {
 		{
 			name: "fail: insufficient funds",
 			sourceAccount: func() *account.Account {
-				acc, err := account.New().WithUserID(userA).WithBalance(5).WithCurrency(usd).Build()
+				acc, err := account.New().
+					WithUserID(userA).
+					WithBalance(5).
+					WithCurrency(usd).
+					Build()
 				require.NoError(err)
 				return acc
 			}(),
-			destAccount:  destAccount,
+			destAccount: func() *account.Account {
+				acc, err := account.New().
+					WithUserID(userB).
+					WithCurrency(usd).
+					Build()
+				require.NoError(err)
+				return acc
+			}(),
 			sourceUserID: userA,
 			destUserID:   userB,
 			amount:       money.NewFromData(10, string(usd)),
@@ -131,7 +159,13 @@ func TestAccount_Transfer(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			err := tc.sourceAccount.ValidateTransfer(tc.sourceUserID, tc.destUserID, tc.destAccount, tc.amount)
+			err := tc.sourceAccount.
+				ValidateTransfer(
+					tc.sourceUserID,
+					tc.destUserID,
+					tc.destAccount,
+					tc.amount,
+				)
 			require.ErrorIs(err, tc.expectedErr)
 
 		})

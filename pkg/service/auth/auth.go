@@ -18,31 +18,31 @@ type contextKey string
 
 const userContextKey contextKey = "user"
 
-type AuthStrategy interface {
+type Strategy interface {
 	Login(ctx context.Context, identity, password string) (*domain.User, error)
 	GetCurrentUserID(ctx context.Context) (uuid.UUID, error)
 	GenerateToken(user *domain.User) (string, error)
 }
 
-type AuthService struct {
+type Service struct {
 	uow      repository.UnitOfWork
-	strategy AuthStrategy
+	strategy Strategy
 	logger   *slog.Logger
 }
 
-func NewAuthService(
+func NewService(
 	uow repository.UnitOfWork,
-	strategy AuthStrategy,
+	strategy Strategy,
 	logger *slog.Logger,
-) *AuthService {
-	return &AuthService{uow: uow, strategy: strategy, logger: logger}
+) *Service {
+	return &Service{uow: uow, strategy: strategy, logger: logger}
 }
 
-func NewBasicAuthService(uow repository.UnitOfWork, logger *slog.Logger) *AuthService {
-	return NewAuthService(uow, &BasicAuthStrategy{uow: uow, logger: logger}, logger)
+func NewBasicAuthService(uow repository.UnitOfWork, logger *slog.Logger) *Service {
+	return NewService(uow, &BasicAuthStrategy{uow: uow, logger: logger}, logger)
 }
 
-func (s *AuthService) CheckPasswordHash(
+func (s *Service) CheckPasswordHash(
 	password, hash string,
 ) bool {
 	s.logger.Info("CheckPasswordHash called")
@@ -53,23 +53,29 @@ func (s *AuthService) CheckPasswordHash(
 	return valid
 }
 
-func (s *AuthService) ValidEmail(email string) bool {
+func (s *Service) ValidEmail(email string) bool {
 	s.logger.Info("ValidEmail called", "email", email)
 	return utils.IsEmail(email)
 }
 
-func (s *AuthService) GetCurrentUserId(
+func (s *Service) GetCurrentUserId(
 	token *jwt.Token,
 ) (userID uuid.UUID, err error) {
 	s.logger.Info("GetCurrentUserId called")
-	userID, err = s.strategy.GetCurrentUserID(context.WithValue(context.TODO(), userContextKey, token))
+	userID, err = s.strategy.GetCurrentUserID(
+		context.WithValue(
+			context.TODO(),
+			userContextKey,
+			token,
+		),
+	)
 	if err != nil {
 		s.logger.Error("GetCurrentUserId failed", "error", err)
 	}
 	return
 }
 
-func (s *AuthService) Login(
+func (s *Service) Login(
 	ctx context.Context,
 	identity, password string,
 ) (u *domain.User, err error) {
@@ -88,7 +94,7 @@ func (s *AuthService) Login(
 	return
 }
 
-func (s *AuthService) GenerateToken(user *domain.User) (string, error) {
+func (s *Service) GenerateToken(user *domain.User) (string, error) {
 	s.logger.Info("GenerateToken called", "userID", user.ID)
 	token, err := s.strategy.GenerateToken(user)
 	if err != nil {

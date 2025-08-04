@@ -22,7 +22,7 @@ icon: material/sync
        - **Money Creation**: Constructs the money value object.
        - **Currency Conversion**: Converts currency if needed.
        - **Domain Operation**: Executes the deposit/withdraw/transfer on the domain model.
-       - **Persistence**: Updates the account and creates the transaction in the database.
+       - **HandleProcessed**: Updates the account and creates the transaction in the database.
 
 4. **API Response**
    - The handler serializes the transaction and conversion info (if any) and returns a success response to the client.
@@ -190,9 +190,9 @@ sequenceDiagram
 - **User Notification:** Optionally notify users on status changes (email, websocket, etc.).
 - **Documentation:** Keep this doc and API references up to date as the system evolves.
 
-## 🏦 Business Logic and Persistence (After Mega Refactor)
+## 🏦 Business Logic and HandleProcessed (After Mega Refactor)
 
-- Persistence is now handled by operation-specific handlers:
+- HandleProcessed is now handled by operation-specific handlers:
   - `DepositPersistenceHandler`
   - `WithdrawPersistenceHandler`
   - `TransferPersistenceHandler`

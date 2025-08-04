@@ -3697,7 +3697,7 @@ func NewCurrencyValidator() *CurrencyValidator <span class="cov8" title="1">{
 func (cv *CurrencyValidator) Validate(ctx context.Context, entity registry.Entity) error <span class="cov8" title="1">{
         // Try to convert to CurrencyEntity first
         if currencyEntity, ok := entity.(*CurrencyEntity); ok </span><span class="cov8" title="1">{
-                return validateCurrencyMeta(currencyEntity.Meta())
+                return validateMeta(currencyEntity.Meta())
         }</span>
 
         // If it's not a CurrencyEntity, try to validate using metadata
@@ -3777,8 +3777,8 @@ func (cv *CurrencyValidator) ValidateMetadata(ctx context.Context, metadata map[
         <span class="cov8" title="1">return nil</span>
 }
 
-// validateCurrencyMeta validates currency metadata
-func validateCurrencyMeta(meta CurrencyMeta) error <span class="cov8" title="1">{
+// validateMeta validates currency metadata
+func validateMeta(meta CurrencyMeta) error <span class="cov8" title="1">{
         // Validate currency code format
         if !isValidCurrencyCode(meta.Code) </span><span class="cov8" title="1">{
                 return ErrInvalidCurrencyCode
@@ -3802,15 +3802,15 @@ func validateCurrencyMeta(meta CurrencyMeta) error <span class="cov8" title="1">
         <span class="cov8" title="1">return nil</span>
 }
 
-// IsValidCurrencyFormat returns true if the code is a well-formed ISO 4217 currency code (3 uppercase letters).
-func IsValidCurrencyFormat(code string) bool <span class="cov8" title="1">{
+// IsValidCodeFormat returns true if the code is a well-formed ISO 4217 currency code (3 uppercase letters).
+func IsValidCodeFormat(code string) bool <span class="cov8" title="1">{
         re := regexp.MustCompile(`^[A-Z]{3}$`)
         return re.MatchString(code)
 }</span>
 
 // isValidCurrencyCode checks if a currency code is valid (3 uppercase letters)
 func isValidCurrencyCode(code string) bool <span class="cov8" title="1">{
-        return IsValidCurrencyFormat(code)
+        return IsValidCodeFormat(code)
 }</span>
 
 // CurrencyRegistry provides currency-specific operations using the registry system
@@ -3819,8 +3819,8 @@ type CurrencyRegistry struct {
         ctx      context.Context
 }
 
-// NewCurrencyRegistry creates a new currency registry with default currencies
-func NewCurrencyRegistry(ctx context.Context) (*CurrencyRegistry, error) <span class="cov8" title="1">{
+// NewRegistry creates a new currency registry with default currencies
+func NewRegistry(ctx context.Context) (*CurrencyRegistry, error) <span class="cov8" title="1">{
         // Create registry with currency-specific configuration
         config := registry.RegistryConfig{
                 Name:             "currency-registry",
@@ -3848,8 +3848,8 @@ func NewCurrencyRegistry(ctx context.Context) (*CurrencyRegistry, error) <span c
         <span class="cov8" title="1">return cr, nil</span>
 }
 
-// NewCurrencyRegistryWithPersistence creates a currency registry with persistence
-func NewCurrencyRegistryWithPersistence(ctx context.Context, persistencePath string) (*CurrencyRegistry, error) <span class="cov8" title="1">{
+// NewRegistryWithPersistence creates a currency registry with persistence
+func NewRegistryWithPersistence(ctx context.Context, persistencePath string) (*CurrencyRegistry, error) <span class="cov8" title="1">{
         config := registry.RegistryConfig{
                 Name:              "currency-registry",
                 MaxEntities:       1000,
@@ -3927,7 +3927,7 @@ func (cr *CurrencyRegistry) registerDefaults() error <span class="cov8" title="1
 // Register adds or updates a currency in the registry
 func (cr *CurrencyRegistry) Register(meta CurrencyMeta) error <span class="cov8" title="1">{
         // Validate currency metadata
-        if err := validateCurrencyMeta(meta); err != nil </span><span class="cov8" title="1">{
+        if err := validateMeta(meta); err != nil </span><span class="cov8" title="1">{
                 return fmt.Errorf("validation failed: %w", err)
         }</span>
 
@@ -4122,7 +4122,7 @@ var globalCurrencyRegistry *CurrencyRegistry
 // Initialize global registry
 func init() <span class="cov8" title="1">{
         var err error
-        globalCurrencyRegistry, err = NewCurrencyRegistry(context.Background())
+        globalCurrencyRegistry, err = NewRegistry(context.Background())
         if err != nil </span><span class="cov0" title="0">{
                 panic(fmt.Sprintf("failed to initialize global currency registry: %v", err))</span>
         }
@@ -4170,7 +4170,7 @@ func SearchByRegion(region string) ([]CurrencyMeta, error) <span class="cov0" ti
 }</span>
 
 // Backward compatibility functions (deprecated)
-func RegisterLegacy(code string, meta CurrencyMeta) <span class="cov8" title="1">{
+func Legacy(code string, meta CurrencyMeta) <span class="cov8" title="1">{
         // Convert legacy format to new format
         newMeta := CurrencyMeta{
                 Code:     code,
@@ -4286,8 +4286,8 @@ type Account struct {
         events    []common.Event // buffer for domain events
 }
 
-// IsValidCurrencyFormat returns true if the code is a well-formed ISO 4217 currency code (3 uppercase letters).
-func IsValidCurrencyFormat(code currency.Code) bool <span class="cov0" title="0">{
+// IsValidCodeFormat returns true if the code is a well-formed ISO 4217 currency code (3 uppercase letters).
+func IsValidCodeFormat(code currency.Code) bool <span class="cov0" title="0">{
         re := regexp.MustCompile(`^[A-Z]{3}$`)
         return re.MatchString(string(code))
 }</span>
@@ -4343,7 +4343,7 @@ func (b *Builder) WithUpdatedAt(t time.Time) *Builder <span class="cov0" title="
 
 // Build validates invariants and returns a new Account instance.
 func (b *Builder) Build() (*Account, error) <span class="cov8" title="1">{
-        if !currency.IsValidCurrencyFormat(string(b.currency)) </span><span class="cov0" title="0">{
+        if !currency.IsValidCodeFormat(string(b.currency)) </span><span class="cov0" title="0">{
                 return nil, common.ErrInvalidCurrencyCode
         }</span>
         <span class="cov8" title="1">if b.userID == uuid.Nil </span><span class="cov0" title="0">{
@@ -4755,7 +4755,7 @@ func New(
         if currencyCode == "" </span><span class="cov0" title="0">{
                 currencyCode = currency.Code(currency.DefaultCurrency)
         }</span>
-        <span class="cov8" title="1">if !currency.IsValidCurrencyFormat(string(currencyCode)) </span><span class="cov8" title="1">{
+        <span class="cov8" title="1">if !currency.IsValidCodeFormat(string(currencyCode)) </span><span class="cov8" title="1">{
                 err = common.ErrInvalidCurrencyCode
                 return
         }</span>
@@ -4784,7 +4784,7 @@ func NewMoneyFromSmallestUnit(
         if currencyCode == "" </span><span class="cov0" title="0">{
                 currencyCode = currency.Code(currency.DefaultCurrency)
         }</span>
-        <span class="cov8" title="1">if !currency.IsValidCurrencyFormat(string(currencyCode)) </span><span class="cov8" title="1">{
+        <span class="cov8" title="1">if !currency.IsValidCodeFormat(string(currencyCode)) </span><span class="cov8" title="1">{
                 err = common.ErrInvalidCurrencyCode
                 return
         }</span>
@@ -8387,7 +8387,7 @@ func (s *CurrencyService) GetCurrencyStatistics(ctx context.Context) (map[string
 
 // ValidateCurrencyCode validates a currency code format
 func (s *CurrencyService) ValidateCurrencyCode(ctx context.Context, code string) error <span class="cov8" title="1">{
-        if !currency.IsValidCurrencyFormat(code) </span><span class="cov8" title="1">{
+        if !currency.IsValidCodeFormat(code) </span><span class="cov8" title="1">{
                 return currency.ErrInvalidCurrencyCode
         }</span>
         <span class="cov8" title="1">return nil</span>
@@ -9968,7 +9968,7 @@ func (s *E2ETestSuite) setupApp() <span class="cov0" title="0">{
 
         // Setup currency service
         ctx := context.Background()
-        currencyRegistry, err := currency.NewCurrencyRegistry(ctx)
+        currencyRegistry, err := currency.NewRegistry(ctx)
         s.Require().NoError(err)
 
         // Load currency fixtures

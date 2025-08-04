@@ -10,111 +10,109 @@ import (
 	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/amirasaad/fintech/pkg/repository"
+	"github.com/amirasaad/fintech/pkg/repository/account"
 	"github.com/amirasaad/fintech/pkg/repository/transaction"
-	"github.com/google/uuid"
 )
 
-// RequestedHandler handles TransferRequested events by validating and persisting the transfer.
-// This follows the new event flow pattern: Requested -> RequestedHandler (validate and persist).
-func RequestedHandler(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e events.Event) error {
-	return func(ctx context.Context, e events.Event) error {
-		log := logger.With("handler", "TransferRequestedHandler", "event_type", e.Type())
-		log.Info("🟢 [START] Processing TransferRequested event")
-
-		// Type assert to get the transfer request
-		tr, ok := e.(*events.TransferRequested)
-		if !ok {
-			log.Error("❌ [ERROR] Unexpected event type", "expected", "TransferRequested", "got", e.Type())
-			return fmt.Errorf("unexpected event type: %s", e.Type())
-		}
-
-		log = log.With(
-			"user_id", tr.UserID,
-			"account_id", tr.AccountID,
-			"dest_account_id", tr.DestAccountID,
-			"amount", tr.Amount.String(),
-			"correlation_id", tr.CorrelationID,
+// HandleRequested handles TransferValidatedEvent,
+// creates an initial 'pending' transaction, and triggers conversion.
+func HandleRequested(
+	bus eventbus.Bus,
+	uow repository.UnitOfWork,
+	logger *slog.Logger,
+) func(
+	ctx context.Context,
+	e events.Event,
+) error {
+	return func(
+		ctx context.Context,
+		e events.Event,
+	) error {
+		log := logger.With(
+			"handler", "HandleRequested",
+			"event_type", e.Type(),
 		)
 
-		// Validate the transfer request
+		tr, ok := e.(*events.TransferRequested)
+		if !ok {
+			log.Error(
+				"❌ [DISCARD] Unexpected event type",
+				"event", e,
+			)
+			return fmt.Errorf("unexpected event type: %T", e)
+		}
+		log = log.With("correlation_id", tr.CorrelationID)
+		log.Info("🟢 [START] Received event", "event", tr)
+
 		if err := tr.Validate(); err != nil {
-			log.Error("❌ [ERROR] Transfer validation failed", "error", err)
-			// Emit failed event
-			failedEvent := events.NewTransferFailed(
-				tr.FlowEvent,
-				err.Error(),
+			log.Error(
+				"❌ [DISCARD] Malformed validated event",
+				"error", err,
 			)
-			if err := bus.Emit(ctx, failedEvent); err != nil {
-				log.Error("❌ [ERROR] Failed to emit TransferFailed event", "error", err)
-			}
-			return nil
+			return err
 		}
 
-		// Create transaction ID
-		txID := uuid.New()
-
-		// Persist the transfer transaction
-		if err := persistTransferTransaction(ctx, uow, tr, txID); err != nil {
-			log.Error("❌ [ERROR] Failed to persist transfer transaction", "error", err, "transaction_id", txID)
-			// Emit failed event
-			failedEvent := events.NewTransferFailed(
-				tr.FlowEvent,
-				fmt.Sprintf("failed to persist transaction: %v", err),
-			)
-			if err := bus.Emit(ctx, failedEvent); err != nil {
-				log.Error("❌ [ERROR] Failed to emit TransferFailed event", "error", err)
+		// 2. Persist initial transaction (tx_out) atomically
+		txID := tr.ID
+		var destAccountRead *dto.AccountRead
+		err := uow.Do(ctx, func(uow repository.UnitOfWork) error {
+			repoAny, err := uow.GetRepository((*transaction.Repository)(nil))
+			if err != nil {
+				return fmt.Errorf("failed to get repo: %w", err)
 			}
-			return nil
+
+			txRepo, ok := repoAny.(transaction.Repository)
+			if !ok {
+				return fmt.Errorf("unexpected repo type")
+			}
+			accountRepoAny, err := uow.GetRepository((*account.Repository)(nil))
+			if err != nil {
+				return fmt.Errorf("failed to get account repo: %w", err)
+			}
+			accountRepo, ok := accountRepoAny.(account.Repository)
+			if !ok {
+				return fmt.Errorf("unexpected account repo type")
+			}
+			destAccountRead, err = accountRepo.Get(ctx, tr.DestAccountID)
+			if err != nil {
+				return fmt.Errorf("failed to get destination account: %w", err)
+			}
+			return txRepo.Create(ctx, dto.TransactionCreate{
+				ID:          txID,
+				UserID:      tr.UserID,
+				AccountID:   tr.AccountID,
+				Amount:      tr.Amount.Negate().Amount(),
+				Currency:    tr.Amount.Currency().String(),
+				Status:      "pending",
+				MoneySource: "transfer",
+			})
+		})
+
+		if err != nil {
+			log.Error("❌ [ERROR] Failed to create initial transaction", "error", err)
+			return err
 		}
+		log.Info("✅ [SUCCESS] Initial 'pending' transaction created", "transaction_id", txID)
 
-		log.Info("✅ [SUCCESS] Transfer validated and persisted", "transaction_id", txID)
-
-		// Emit CurrencyConversionRequested event
+		// 3. Emit event to trigger currency conversion
 		ccr := events.NewCurrencyConversionRequested(
 			tr.FlowEvent,
+			tr,
 			events.WithConversionAmount(tr.Amount),
-			events.WithConversionTo(currency.Code("USD")), // This should come from account currency
+			events.WithConversionTo(currency.Code(destAccountRead.Currency)),
 			events.WithConversionTransactionID(txID),
 		)
 
+		log.Info(
+			"📤 [EMIT] Emitting CurrencyConversionRequested",
+			"event", ccr,
+		)
 		if err := bus.Emit(ctx, ccr); err != nil {
-			log.Error("❌ [ERROR] Failed to emit CurrencyConversionRequested event", "error", err)
-			return fmt.Errorf("failed to emit CurrencyConversionRequested event: %w", err)
+			log.Error(
+				"❌ [ERROR] Failed to emit CurrencyConversionRequested",
+				"error", err,
+			)
 		}
-
-		log.Info("📤 [PUBLISHED] CurrencyConversionRequested event", "event_id", ccr.ID)
 		return nil
 	}
-}
-
-// persistTransferTransaction persists the transfer transaction to the database
-func persistTransferTransaction(ctx context.Context, uow repository.UnitOfWork, tr *events.TransferRequested, txID uuid.UUID) error {
-	return uow.Do(ctx, func(uow repository.UnitOfWork) error {
-		// Get the transaction repository
-		txRepoAny, err := uow.GetRepository((*transaction.Repository)(nil))
-		if err != nil {
-			return fmt.Errorf("failed to get transaction repository: %w", err)
-		}
-		txRepo, ok := txRepoAny.(transaction.Repository)
-		if !ok {
-			return fmt.Errorf("failed to get transaction repository: %w", err)
-		}
-
-		// Create the transaction record using DTO
-		txCreate := dto.TransactionCreate{
-			ID:          txID,
-			UserID:      tr.UserID,
-			AccountID:   tr.AccountID,
-			Amount:      tr.Amount.Amount(),
-			Currency:    tr.Amount.Currency().String(),
-			Status:      "created",
-			MoneySource: tr.Source,
-		}
-
-		if err := txRepo.Create(ctx, txCreate); err != nil {
-			return fmt.Errorf("failed to create transaction: %w", err)
-		}
-
-		return nil
-	})
 }

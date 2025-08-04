@@ -8,7 +8,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// --- CurrencyConversionRequested ---
+// CurrencyConversionRequestedOpt --- CurrencyConversionRequested ---
 type CurrencyConversionRequestedOpt func(*CurrencyConversionRequested)
 
 // WithConversionAmount sets the amount for the CurrencyConversionRequested.
@@ -16,50 +16,56 @@ func WithConversionAmount(amount money.Money) CurrencyConversionRequestedOpt {
 	return func(e *CurrencyConversionRequested) { e.Amount = amount }
 }
 
-// WithConversionTo sets the target currency for the CurrencyConversionRequested.
+// WithConversionTo sets the target currency for the
+// CurrencyConversionRequested.
 func WithConversionTo(currency currency.Code) CurrencyConversionRequestedOpt {
 	return func(e *CurrencyConversionRequested) { e.To = currency }
 }
 
-// WithConversionTransactionID sets the transaction ID for the CurrencyConversionRequested.
+// WithConversionTransactionID sets the transaction ID for the
+// CurrencyConversionRequested.
 func WithConversionTransactionID(id uuid.UUID) CurrencyConversionRequestedOpt {
 	return func(e *CurrencyConversionRequested) { e.TransactionID = id }
 }
 
-// NewCurrencyConversionRequested creates a new CurrencyConversionRequested with the given options.
+// NewCurrencyConversionRequested creates a new CurrencyConversionRequested
+// with the given options.
 func NewCurrencyConversionRequested(
-	flow FlowEvent,
+	fe FlowEvent,
+	or Event,
 	opts ...CurrencyConversionRequestedOpt,
 ) *CurrencyConversionRequested {
-	event := &CurrencyConversionRequested{
-		FlowEvent:     flow,
-		TransactionID: uuid.Nil,
+	ccr := &CurrencyConversionRequested{
+		FlowEvent:       fe,
+		OriginalRequest: or,
 	}
+	ccr.ID = uuid.New()
+	ccr.Timestamp = time.Now()
 
 	for _, opt := range opts {
-		opt(event)
+		opt(ccr)
 	}
 
-	return event
+	return ccr
 }
 
-// --- CurrencyConverted ---
+// CurrencyConvertedOpt --- CurrencyConverted ---
 type CurrencyConvertedOpt func(*CurrencyConverted)
 
 // NewCurrencyConverted creates a new CurrencyConverted with the given options.
 func NewCurrencyConverted(
-	flow FlowEvent,
+	ccr *CurrencyConversionRequested,
 	opts ...CurrencyConvertedOpt,
 ) *CurrencyConverted {
-	event := &CurrencyConverted{
-		FlowEvent: flow,
+	cc := &CurrencyConverted{
+		CurrencyConversionRequested: *ccr,
 	}
-	event.ID = uuid.New()
-	event.Timestamp = time.Now()
+	cc.ID = uuid.New()
+	cc.Timestamp = time.Now()
 
 	for _, opt := range opts {
-		opt(event)
+		opt(cc)
 	}
 
-	return event
+	return cc
 }

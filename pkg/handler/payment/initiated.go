@@ -2,6 +2,8 @@ package payment
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log/slog"
 	"sync"
 
@@ -10,43 +12,74 @@ import (
 	"github.com/amirasaad/fintech/pkg/provider"
 )
 
-var processedPaymentInitiation sync.Map // map[string]struct{} for idempotency
+var processedPaymentInitiated sync.Map // map[string]struct{} for idempotency
 
-// Initiated handles DepositBusinessValidatedEvent and initiates payment for deposits.
-func Initiated(bus eventbus.Bus, paymentProvider provider.PaymentProvider, logger *slog.Logger) func(ctx context.Context, e events.Event) error {
+// HandleInitiated handles DepositBusinessValidatedEvent and initiates payment for deposits.
+func HandleInitiated(
+	bus eventbus.Bus,
+	paymentProvider provider.PaymentProvider,
+	logger *slog.Logger,
+) func(
+	ctx context.Context,
+	e events.Event,
+) error {
 	return func(ctx context.Context, e events.Event) error {
-		log := logger.With("handler", "Initiation")
-		evt, ok := e.(*events.PaymentInitiated)
+		log := logger.With(
+			"handler", "payment.HandleInitiated",
+			"event_type", e.Type(),
+		)
+		pi, ok := e.(*events.PaymentInitiated)
 		if !ok {
-			log.Debug("🚫 [SKIP] Skipping: unexpected event type in Initiation", "event", e)
-			return nil
+			log.Error(
+				"🚫 [ERROR] unexpected event type",
+				"event_type", fmt.Sprintf("%T", e),
+			)
+			return errors.New("unexpected event type")
 		}
-		transactionID := evt.TransactionID
+		transactionID := pi.TransactionID
 		idempotencyKey := transactionID.String()
-		if _, already := processedPaymentInitiation.LoadOrStore(idempotencyKey, struct{}{}); already {
-			log.Info("🔁 [SKIP] PaymentInitiatedEvent already emitted for this transaction", "transaction_id", transactionID)
+		if _, already := processedPaymentInitiated.
+			LoadOrStore(
+				idempotencyKey,
+				struct{}{},
+			); already {
+			log.Info(
+				"🔁 [SKIP] PaymentInitiatedEvent already emitted for this transaction",
+				"transaction_id", transactionID,
+			)
 			return nil
 		}
-		log.Info("✅ [SUCCESS] Initiating payment", "transaction_id", transactionID)
+		log.Info(
+			"✅ [SUCCESS] Initiating payment",
+			"transaction_id", transactionID,
+		)
 		// Call payment provider
-		amount := evt.Amount.Amount()
-		currency := evt.Amount.Currency().String()
-		paymentID, err := paymentProvider.InitiatePayment(ctx, evt.UserID, evt.AccountID, amount, currency)
+		amount := pi.Amount.Amount()
+		currency := pi.Amount.Currency().String()
+		paymentID, err := paymentProvider.InitiatePayment(
+			ctx,
+			pi.UserID,
+			pi.AccountID,
+			amount,
+			currency,
+		)
 		if err != nil {
-			log.Error("❌ [ERROR] Payment initiation failed", "error", err)
+			log.Error(
+				"❌ [ERROR] Payment initiation failed",
+				"error", err,
+			)
 			return err
 		}
-		log.Info("📤 [EMIT] Emitting PaymentInitiatedEvent", "transaction_id", transactionID, "payment_id", paymentID)
+		log.Info(
+			"📤 [EMIT] Emitting PaymentInitiatedEvent",
+			"transaction_id", transactionID,
+			"payment_id", paymentID,
+		)
 		// Create a PaymentInitiated event first
-		paymentInitiated := events.NewPaymentInitiated(
-			evt.FlowEvent,
-			events.WithPaymentTransactionID(transactionID),
-			events.WithInitiatedPaymentID(paymentID),
-			events.WithInitiatedPaymentStatus("initiated"),
+		pp := events.NewPaymentProcessed(
+			*pi,
 		)
 
-		// Create PaymentProcessed event
-		paymentInitiatedEvent := events.NewPaymentProcessed(*paymentInitiated)
-		return bus.Emit(ctx, paymentInitiatedEvent)
+		return bus.Emit(ctx, pp)
 	}
 }

@@ -22,8 +22,14 @@ type ExchangeRateService struct {
 	// mu        sync.RWMutex
 }
 
-// NewExchangeRateService creates a new exchange rate service with the given providers, cache, and exchange rate config.
-func NewExchangeRateService(providers []provider.ExchangeRateProvider, cache cache.ExchangeRateCache, logger *slog.Logger, cfg *config.ExchangeRateConfig) *ExchangeRateService {
+// NewExchangeRateService creates a new exchange rate service
+// with the given providers, cache, and exchange rate config.
+func NewExchangeRateService(
+	providers []provider.ExchangeRateProvider,
+	cache cache.ExchangeRateCache,
+	logger *slog.Logger,
+	cfg *config.ExchangeRateConfig,
+) *ExchangeRateService {
 	return &ExchangeRateService{
 		providers: providers,
 		cache:     cache,
@@ -51,7 +57,12 @@ func (s *ExchangeRateService) GetRate(from, to string) (*domain.ExchangeRate, er
 	// Try direct pair in cache
 	if cached, err := s.cache.Get(cacheKey); err == nil && cached != nil {
 		if time.Now().Before(cached.ExpiresAt) {
-			s.logger.Info("Exchange rate retrieved from cache (direct)", "from", from, "to", to, "rate", cached.Rate)
+			s.logger.Info(
+				"Exchange rate retrieved from cache (direct)",
+				"from", from,
+				"to", to,
+				"rate", cached.Rate,
+			)
 			return cached, nil
 		}
 	}
@@ -60,7 +71,12 @@ func (s *ExchangeRateService) GetRate(from, to string) (*domain.ExchangeRate, er
 	reverseKey := fmt.Sprintf("%s:%s", to, from)
 	if cached, err := s.cache.Get(reverseKey); err == nil && cached != nil {
 		if time.Now().Before(cached.ExpiresAt) && cached.Rate != 0 {
-			s.logger.Info("Exchange rate retrieved from cache (reversed)", "from", to, "to", from, "rate", cached.Rate)
+			s.logger.Info(
+				"Exchange rate retrieved from cache (reversed)",
+				"from", to,
+				"to", from,
+				"rate", cached.Rate,
+			)
 			return &domain.ExchangeRate{
 				FromCurrency: from,
 				ToCurrency:   to,
@@ -75,19 +91,30 @@ func (s *ExchangeRateService) GetRate(from, to string) (*domain.ExchangeRate, er
 	// Try providers in order
 	for _, provider := range s.providers {
 		if !provider.IsHealthy() {
-			s.logger.Warn("Provider not healthy, skipping", "provider", provider.Name())
+			s.logger.Warn(
+				"Provider not healthy, skipping",
+				"provider", provider.Name(),
+			)
 			continue
 		}
 
 		rate, err := provider.GetRate(from, to)
 		if err != nil {
-			s.logger.Warn("Failed to get rate from provider", "provider", provider.Name(), "error", err)
+			s.logger.Warn(
+				"Failed to get rate from provider",
+				"provider", provider.Name(),
+				"error", err,
+			)
 			continue
 		}
 
 		// Validate rate
 		if rate.Rate <= 0 || math.IsNaN(rate.Rate) || math.IsInf(rate.Rate, 0) {
-			s.logger.Warn("Invalid rate received from provider", "provider", provider.Name(), "rate", rate.Rate)
+			s.logger.Warn(
+				"Invalid rate received from provider",
+				"provider", provider.Name(),
+				"rate", rate.Rate,
+			)
 			continue
 		}
 
@@ -100,7 +127,13 @@ func (s *ExchangeRateService) GetRate(from, to string) (*domain.ExchangeRate, er
 			}
 		}
 
-		s.logger.Info("Exchange rate retrieved from provider", "provider", provider.Name(), "from", from, "to", to, "rate", rate.Rate)
+		s.logger.Info(
+			"Exchange rate retrieved from provider",
+			"provider", provider.Name(),
+			"from", from,
+			"to", to,
+			"rate", rate.Rate,
+		)
 		return rate, nil
 	}
 
@@ -108,7 +141,10 @@ func (s *ExchangeRateService) GetRate(from, to string) (*domain.ExchangeRate, er
 }
 
 // GetRates retrieves multiple exchange rates efficiently.
-func (s *ExchangeRateService) GetRates(from string, to []string) (map[string]*domain.ExchangeRate, error) {
+func (s *ExchangeRateService) GetRates(
+	from string,
+	to []string,
+) (map[string]*domain.ExchangeRate, error) {
 	results := make(map[string]*domain.ExchangeRate)
 	var missing []string
 
@@ -134,7 +170,11 @@ func (s *ExchangeRateService) GetRates(from string, to []string) (map[string]*do
 
 			rates, err := provider.GetRates(from, missing)
 			if err != nil {
-				s.logger.Warn("Failed to get rates from provider", "provider", provider.Name(), "error", err)
+				s.logger.Warn(
+					"Failed to get rates from provider",
+					"provider", provider.Name(),
+					"error", err,
+				)
 				continue
 			}
 

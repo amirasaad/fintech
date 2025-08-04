@@ -1,13 +1,11 @@
 package events
 
 import (
-	"time"
-
 	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/google/uuid"
 )
 
-// DepositRequsted is emitted after deposit validation and persistence.
+// DepositRequested is emitted after deposit validation and persistence.
 type DepositRequested struct {
 	FlowEvent
 	Amount        money.Money
@@ -15,26 +13,26 @@ type DepositRequested struct {
 	TransactionID uuid.UUID
 }
 
-func (e DepositRequested) Type() string { return "DepositRequested" }
+func (e DepositRequested) Type() string { return EventTypeDepositRequested.String() }
 func (e DepositRequested) Validate() error {
 	return nil
 }
 
 // DepositCurrencyConverted is emitted after currency conversion for deposit.
 type DepositCurrencyConverted struct {
-	DepositRequested
 	CurrencyConverted
-	Timestamp time.Time
 }
 
-func (e DepositCurrencyConverted) Type() string { return "DepositCurrencyConverted" }
+func (e DepositCurrencyConverted) Type() string {
+	return EventTypeDepositCurrencyConverted.String()
+}
 
-// DepositBusinessValidated is emitted after business validation for deposit.
-type DepositBusinessValidated struct {
+// DepositValidated is emitted after business validation for deposit.
+type DepositValidated struct {
 	DepositCurrencyConverted
 }
 
-func (e DepositBusinessValidated) Type() string { return "DepositBusinessValidated" }
+func (e DepositValidated) Type() string { return EventTypeDepositValidated.String() }
 
 // DepositFailed is emitted when a deposit fails.
 type DepositFailed struct {
@@ -42,4 +40,4 @@ type DepositFailed struct {
 	Reason string
 }
 
-func (e DepositFailed) Type() string { return "DepositFailed" }
+func (e DepositFailed) Type() string { return EventTypeDepositFailed.String() }

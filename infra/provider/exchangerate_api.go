@@ -26,7 +26,9 @@ type ExchangeRateAPIProvider struct {
 
 // ExchangeRateAPIResponseV6 represents the v6 response from the ExchangeRate API
 // See: https://www.exchangerate-api.com/docs/standard-requests
-// Example: { "result": "success", "documentation": "...", "terms_of_use": "...", "time_last_update_unix": 1585267200, ... }
+// Example:
+// { "result": "success", "documentation": "...", "terms_of_use": "...",
+// "time_last_update_unix": 1585267200, ... }
 type ExchangeRateAPIResponseV6 struct {
 	Result             string             `json:"result"`
 	Documentation      string             `json:"documentation"`
@@ -42,7 +44,10 @@ type ExchangeRateAPIResponseV6 struct {
 }
 
 // NewExchangeRateAPIProvider creates a new ExchangeRate API provider using config
-func NewExchangeRateAPIProvider(cfg config.ExchangeRateConfig, logger *slog.Logger) *ExchangeRateAPIProvider {
+func NewExchangeRateAPIProvider(
+	cfg config.ExchangeRateConfig,
+	logger *slog.Logger,
+) *ExchangeRateAPIProvider {
 	return &ExchangeRateAPIProvider{
 		apiKey:  cfg.ApiKey,
 		baseURL: cfg.ApiUrl, // Should be like https://v6.exchangerate-api.com/v6
@@ -55,19 +60,33 @@ func NewExchangeRateAPIProvider(cfg config.ExchangeRateConfig, logger *slog.Logg
 }
 
 // FetchAndCacheRates fetches all rates for the base currency and caches them
-func (p *ExchangeRateAPIProvider) FetchAndCacheRates(base string, cache cache.ExchangeRateCache, ttl time.Duration) error {
+func (p *ExchangeRateAPIProvider) FetchAndCacheRates(
+	base string,
+	cache cache.ExchangeRateCache,
+	ttl time.Duration,
+) error {
 	// Check last update before fetching
 	lastUpdate, err := cache.GetLastUpdate(base)
 	if err != nil {
-		p.logger.Warn("Could not check last update for exchange rates", "error", err)
+		p.logger.Warn(
+			"Could not check last update for exchange rates",
+			"error", err,
+		)
 	}
 	if !lastUpdate.IsZero() && time.Since(lastUpdate) < ttl {
-		p.logger.Info("Exchange rates cache is still valid, skipping fetch", "base", base, "lastUpdate", lastUpdate)
+		p.logger.Info(
+			"Exchange rates cache is still valid, skipping fetch",
+			"base", base,
+			"lastUpdate", lastUpdate,
+		)
 		return nil
 	}
 
 	url := fmt.Sprintf("%s/%s/latest/%s", p.baseURL, p.apiKey, base)
-	p.logger.Info("Fetching exchange rates from", "baseUrl", p.baseURL)
+	p.logger.Info(
+		"Fetching exchange rates from",
+		"baseUrl", p.baseURL,
+	)
 
 	resp, err := p.httpClient.Get(url)
 	if err != nil {
@@ -75,7 +94,10 @@ func (p *ExchangeRateAPIProvider) FetchAndCacheRates(base string, cache cache.Ex
 	}
 	defer func() {
 		if cerr := resp.Body.Close(); cerr != nil {
-			p.logger.Warn("Failed to close response body", "error", cerr)
+			p.logger.Warn(
+				"Failed to close response body",
+				"error", cerr,
+			)
 		}
 	}()
 
@@ -105,12 +127,19 @@ func (p *ExchangeRateAPIProvider) FetchAndCacheRates(base string, cache cache.Ex
 			ExpiresAt:    time.Now().Add(ttl),
 		}
 		if err := cache.Set(key, rateObj, ttl); err != nil {
-			p.logger.Warn("Failed to cache exchange rate", "key", key, "error", err)
+			p.logger.Warn(
+				"Failed to cache exchange rate",
+				"key", key,
+				"error", err,
+			)
 		}
 	}
 	// Set last update for this base
 	_ = cache.SetLastUpdate(base, time.Now())
-	p.logger.Info("Exchange rates cached successfully", "base", base, "count", len(apiResp.ConversionRates))
+	p.logger.Info(
+		"Exchange rates cached successfully",
+		"base", base,
+		"count", len(apiResp.ConversionRates))
 	return nil
 }
 
@@ -135,7 +164,10 @@ func (p *ExchangeRateAPIProvider) GetRate(from, to string) (*domain.ExchangeRate
 	}
 	defer func() {
 		if cerr := resp.Body.Close(); cerr != nil {
-			p.logger.Warn("Failed to close response body", "error", cerr)
+			p.logger.Warn(
+				"Failed to close response body",
+				"error", cerr,
+			)
 		}
 	}()
 
@@ -175,7 +207,10 @@ func (p *ExchangeRateAPIProvider) GetRate(from, to string) (*domain.ExchangeRate
 }
 
 // GetRates fetches multiple exchange rates in a single request
-func (p *ExchangeRateAPIProvider) GetRates(from string, to []string) (map[string]*domain.ExchangeRate, error) {
+func (p *ExchangeRateAPIProvider) GetRates(
+	from string,
+	to []string,
+) (map[string]*domain.ExchangeRate, error) {
 	// For this provider, we need to make a single request and extract the rates we need
 	// We'll make a direct request to get all rates for the base currency
 

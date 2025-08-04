@@ -99,7 +99,11 @@ func NewTransactionRepository(db *gorm.DB) repository.TransactionRepository {
 	return &transactionRepository{db: db}
 }
 
-func (r *transactionRepository) Create(transaction *account.Transaction, convInfo *common.ConversionInfo, externalTargetMasked string) error {
+func (r *transactionRepository) Create(
+	transaction *account.Transaction,
+	convInfo *common.ConversionInfo,
+	externalTargetMasked string,
+) error {
 	// Convert domain transaction to GORM model
 	dbTransaction := Transaction{
 		Model: gorm.Model{
@@ -150,14 +154,21 @@ func (r *transactionRepository) Get(
 	balance := money.NewFromData(t.Balance, t.Currency)
 	return account.NewTransactionFromData(
 		t.ID,
-		t.UserID, t.AccountID, amount, balance, account.MoneySource(t.MoneySource), t.CreatedAt), nil
+		t.UserID,
+		t.AccountID,
+		amount,
+		balance,
+		account.MoneySource(t.MoneySource),
+		t.CreatedAt,
+	), nil
 }
 
 func (r *transactionRepository) List(
 	userID, accountID uuid.UUID,
 ) ([]*account.Transaction, error) {
 	var dbTransactions []*Transaction
-	result := r.db.Where("account_id = ? and user_id = ?", accountID, userID).Order("created_at desc").Limit(100).Find(&dbTransactions)
+	result := r.db.Where("account_id = ? and user_id = ?", accountID, userID).
+		Order("created_at desc").Limit(100).Find(&dbTransactions)
 	if result.Error != nil {
 		return nil, result.Error
 	}
@@ -165,12 +176,22 @@ func (r *transactionRepository) List(
 	for _, t := range dbTransactions {
 		amount := money.NewFromData(t.Amount, t.Currency)
 		balance := money.NewFromData(t.Balance, t.Currency)
-		tx = append(tx, account.NewTransactionFromData(t.ID, t.UserID, t.AccountID, amount, balance, account.MoneySource(t.MoneySource), t.CreatedAt))
+		tx = append(tx, account.NewTransactionFromData(
+			t.ID,
+			t.UserID,
+			t.AccountID,
+			amount,
+			balance,
+			account.MoneySource(t.MoneySource),
+			t.CreatedAt,
+		))
 	}
 	return tx, nil
 }
 
-func (r *transactionRepository) GetByPaymentID(paymentID string) (*account.Transaction, error) {
+func (r *transactionRepository) GetByPaymentID(
+	paymentID string,
+) (*account.Transaction, error) {
 	var m Transaction
 	if err := r.db.Where("payment_id = ?", paymentID).First(&m).Error; err != nil {
 		return nil, err
@@ -178,12 +199,14 @@ func (r *transactionRepository) GetByPaymentID(paymentID string) (*account.Trans
 	amount := money.NewFromData(m.Amount, m.Currency)
 	balance := money.NewFromData(m.Balance, m.Currency)
 	return account.NewTransactionFromData(
-			m.ID, m.UserID, m.AccountID,
-			amount,
-			balance,
-			account.MoneySource(m.MoneySource),
-			m.CreatedAt),
-		nil
+		m.ID,
+		m.UserID,
+		m.AccountID,
+		amount,
+		balance,
+		account.MoneySource(m.MoneySource),
+		m.CreatedAt,
+	), nil
 }
 
 func (r *transactionRepository) Update(tx *account.Transaction) error {

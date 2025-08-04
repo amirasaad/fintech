@@ -12,8 +12,13 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-// NewExchangeRateSystem creates a complete exchange rate system with providers, cache, and converter
-func NewExchangeRateSystem(logger *slog.Logger, cfg config.ExchangeRateConfig) (domain.CurrencyConverter, error) {
+// NewExchangeRateSystem creates a complete exchange rate system with providers,
+//
+//	cache, and converter
+func NewExchangeRateSystem(
+	logger *slog.Logger,
+	cfg config.ExchangeRateConfig,
+) (domain.CurrencyConverter, error) {
 	// Create cache
 	var rateCache cache.ExchangeRateCache
 	if cfg.CacheUrl != "" {
@@ -55,7 +60,12 @@ func NewExchangeRateSystem(logger *slog.Logger, cfg config.ExchangeRateConfig) (
 	}
 
 	// Create exchange rate service
-	exchangeRateService := infra_provider.NewExchangeRateService(exchangeRateProviders, rateCache, logger, &cfg)
+	exchangeRateService := infra_provider.NewExchangeRateService(
+		exchangeRateProviders,
+		rateCache,
+		logger,
+		&cfg,
+	)
 
 	// Create fallback converter
 	var fallback domain.CurrencyConverter
@@ -65,7 +75,11 @@ func NewExchangeRateSystem(logger *slog.Logger, cfg config.ExchangeRateConfig) (
 	}
 
 	// Create real currency converter
-	converter := infra_provider.NewRealCurrencyConverter(exchangeRateService, fallback, logger)
+	converter := infra_provider.NewExchangeRateCurrencyConverter(
+		exchangeRateService,
+		fallback,
+		logger,
+	)
 
 	logger.Info("Exchange rate system initialized",
 		"providers", len(exchangeRateProviders),

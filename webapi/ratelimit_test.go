@@ -8,12 +8,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/amirasaad/fintech/app"
 	"github.com/amirasaad/fintech/config"
 	"github.com/amirasaad/fintech/infra/eventbus"
 	infra_provider "github.com/amirasaad/fintech/infra/provider"
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/repository"
+	"github.com/amirasaad/fintech/webapi"
 	"github.com/gofiber/fiber/v2"
 	"github.com/stretchr/testify/assert"
 )
@@ -31,9 +31,9 @@ func TestRateLimit(t *testing.T) {
 	dummyUow := repository.UnitOfWork(nil)
 
 	// Create a dummy currency registry and service
-	dummyRegistry := &currency.CurrencyRegistry{}
+	dummyRegistry := &currency.Registry{}
 
-	app := app.New(config.Deps{
+	app := webapi.SetupApp(config.Deps{
 		Uow:               dummyUow,
 		EventBus:          eventbus.NewWithMemory(slog.Default()),
 		CurrencyConverter: infra_provider.NewStubCurrencyConverter(),
@@ -70,7 +70,13 @@ func TestRateLimit(t *testing.T) {
 		if i < cfg.RateLimit.MaxRequests+1 {
 			assert.Equal(t, fiber.StatusOK, resp.StatusCode, "Expected OK for request %d", i+1)
 		} else {
-			assert.Equal(t, fiber.StatusTooManyRequests, resp.StatusCode, "Expected Too Many Requests for request %d", i+1)
+			assert.Equal(
+				t,
+				fiber.StatusTooManyRequests,
+				resp.StatusCode,
+				"Expected Too Many Requests for request %d",
+				i+1,
+			)
 		}
 	}
 

@@ -11,7 +11,10 @@ import (
 )
 
 // Add appEnv as a parameter for dependency-injected environment
-func NewDBConnection(cnf config.DBConfig, appEnv string) (*gorm.DB, error) {
+func NewDBConnection(
+	cnf config.DBConfig,
+	appEnv string,
+) (*gorm.DB, error) {
 	databaseUrl := cnf.Url
 	if databaseUrl == "" {
 		return nil, errors.New("DATABASE_URL is not set")

@@ -20,6 +20,14 @@ const (
 
 // PaymentProvider is a interface for payment provider
 type PaymentProvider interface {
-	InitiatePayment(ctx context.Context, userID, accountID uuid.UUID, amount int64, currency string) (string, error)
-	GetPaymentStatus(ctx context.Context, paymentID string) (PaymentStatus, error)
+	InitiatePayment(
+		ctx context.Context,
+		userID, accountID uuid.UUID,
+		amount int64,
+		currency string,
+	) (string, error)
+	GetPaymentStatus(
+		ctx context.Context,
+		paymentID string,
+	) (PaymentStatus, error)
 }

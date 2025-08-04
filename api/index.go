@@ -2,11 +2,11 @@ package handler
 
 import (
 	"context"
+	"github.com/amirasaad/fintech/webapi"
 	"log"
 	"log/slog"
 	"net/http"
 
-	"github.com/amirasaad/fintech/app"
 	"github.com/amirasaad/fintech/infra/eventbus"
 
 	"github.com/amirasaad/fintech/config"
@@ -19,7 +19,8 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/adaptor"
 )
 
-// Handler is the main entry point of the application. Think of it like the main() method
+// Handler is the main entry point of the application.
+// Think of it like the main() method
 func Handler(w http.ResponseWriter, r *http.Request) {
 	// This is needed to set the proper request path in `*fiber.Ctx`
 	r.RequestURI = r.URL.String()
@@ -29,7 +30,10 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 
 // building the fiber application
 func handler() http.HandlerFunc {
-	logger := slog.New(slog.NewTextHandler(log.Writer(), &slog.HandlerOptions{Level: slog.LevelDebug}))
+	logHandler := slog.NewTextHandler(log.Writer(), &slog.HandlerOptions{
+		Level: slog.LevelDebug,
+	})
+	logger := slog.New(logHandler)
 	slog.SetDefault(logger)
 	cfg, err := config.LoadAppConfig(logger)
 	if err != nil {
@@ -43,7 +47,7 @@ func handler() http.HandlerFunc {
 	}
 	// Initialize currency registry
 	ctx := context.Background()
-	currencyRegistry, err := currency.NewCurrencyRegistry(ctx)
+	currencyRegistry, err := currency.NewRegistry(ctx)
 	if err != nil {
 		logger.Error("Failed to initialize currency registry", "error", err)
 		log.Fatal(err)
@@ -59,7 +63,7 @@ func handler() http.HandlerFunc {
 	// Create UOW using the shared db
 	uow := infra_repository.NewUoW(db)
 
-	a := app.New(config.Deps{
+	a := webapi.SetupApp(config.Deps{
 		Uow:               uow,
 		EventBus:          eventbus.NewWithMemoryAsync(logger),
 		CurrencyConverter: currencyConverter,

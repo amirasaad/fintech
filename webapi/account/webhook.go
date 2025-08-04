@@ -24,17 +24,26 @@ func PaymentWebhookHandler(svc *account.Service) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		var req PaymentWebhookRequest
 		if err := c.BodyParser(&req); err != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid payload"})
+			return c.Status(fiber.StatusBadRequest).JSON(
+				fiber.Map{"error": "Invalid payload"})
 		}
-		if err := svc.UpdateTransactionStatusByPaymentID(req.PaymentID, req.Status); err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		if err := svc.UpdateTransactionStatusByPaymentID(
+			c.Context(),
+			req.PaymentID,
+			req.Status,
+		); err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(
+				fiber.Map{"error": err.Error()})
 		}
 		return c.SendStatus(fiber.StatusOK)
 	}
 }
 
 // StripeWebhookHandler handles incoming Stripe webhook events.
-func StripeWebhookHandler(eventBus eventbus.Bus, signingSecret string) fiber.Handler {
+func StripeWebhookHandler(
+	eventBus eventbus.Bus,
+	signingSecret string,
+) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		const MaxBodyBytes = int64(65536)
 		request := c.Request()
@@ -60,9 +69,11 @@ func StripeWebhookHandler(eventBus eventbus.Bus, signingSecret string) fiber.Han
 				UserID:    uuid.Nil, // UserID is not available in this context
 				AccountID: uuid.Nil, // AccountID is not available in this context
 			}
-			paymentEvent := events.NewPaymentCompleted(flowEvent, events.WithPaymentID(paymentIntent.ID))
+			paymentEvent := events.NewPaymentCompleted(
+				flowEvent, events.WithPaymentID(paymentIntent.ID))
 			if err := eventBus.Emit(c.Context(), paymentEvent); err != nil {
-				return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+				return c.Status(http.StatusInternalServerError).JSON(
+					fiber.Map{"error": err.Error()})
 			}
 		} else {
 			// For now, ignore other event types

@@ -36,11 +36,24 @@ func TestTransactionRepository_Create(t *testing.T) {
 	accountID := uuid.New()
 	amount, _ := money.New(100, currency.USD)
 	balance, _ := money.New(100, currency.USD)
-	transaction := account.NewTransactionFromData(uuid.New(), userID, accountID, amount, balance, account.MoneySourceInternal, time.Now())
+	transaction := account.NewTransactionFromData(
+		uuid.New(),
+		userID,
+		accountID,
+		amount,
+		balance,
+		account.MoneySourceInternal,
+		time.Now(),
+	)
 
 	mock.ExpectBegin()
 	mock.ExpectQuery(`INSERT INTO "transactions" (.+) VALUES (.+) RETURNING "id"`).
-		// WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg()).
+		// WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(),
+		// sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(),
+		// sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(),
+		// sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(),
+		// sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(),
+		// sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(transaction.ID))
 	mock.ExpectCommit()
 
@@ -49,7 +62,12 @@ func TestTransactionRepository_Create(t *testing.T) {
 
 	mock.ExpectBegin()
 	mock.ExpectQuery(`INSERT INTO "transactions" (.+) VALUES (.+) RETURNING "id"`).
-		// WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg()).
+		// WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(),
+		// sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(),
+		// sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(),
+		// sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(),
+		// sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(),
+		// sqlmock.AnyArg()).
 		WillReturnError(errors.New("create error"))
 	mock.ExpectRollback()
 
@@ -106,9 +124,26 @@ func TestAccountRepository_Get(t *testing.T) {
 	userID := uuid.New()
 	accountID := uuid.New()
 
-	rows := sqlmock.NewRows([]string{"id", "user_id", "created_at", "updated_at", "balance", "currency"}).
-		AddRow(accountID, userID, time.Now().UTC(), time.Now().UTC(), 100, "USD")
-	mock.ExpectQuery(`SELECT \* FROM "accounts" WHERE "accounts"\."id" = \$1 AND "accounts"\."deleted_at" IS NULL ORDER BY "accounts"\."id" LIMIT \$2`).
+	rows := sqlmock.NewRows(
+		[]string{
+			"id", "user_id", "created_at", "updated_at",
+			"balance", "currency",
+		},
+	).AddRow(
+		accountID,
+		userID,
+		time.Now().UTC(),
+		time.Now().UTC(),
+		100,
+		"USD",
+	)
+	mock.ExpectQuery(
+		`SELECT \* FROM "accounts"
+		WHERE "accounts"\."id" = \$1
+		AND "accounts"\."deleted_at" IS NULL
+		ORDER BY "accounts"\."id"
+		LIMIT \$2`,
+	).
 		WithArgs(accountID, 1).WillReturnRows(rows)
 
 	account, err := accRepo.Get(accountID)
@@ -116,8 +151,20 @@ func TestAccountRepository_Get(t *testing.T) {
 	assert.NotNil(account)
 	require.Equal(accountID, account.ID)
 
-	mock.ExpectQuery(`SELECT \* FROM "accounts" WHERE "accounts"\."id" = \$1 AND "accounts"\."deleted_at" IS NULL ORDER BY "accounts"\."id" LIMIT \$2`).
-		WithArgs(sqlmock.AnyArg(), 1).WillReturnError(gorm.ErrRecordNotFound)
+	mock.ExpectQuery(
+		`SELECT \* FROM "accounts"
+		WHERE "accounts"\."id" = \$1
+		AND "accounts"\."deleted_at" IS NULL
+		ORDER BY "accounts"\."id"
+		LIMIT \$2`,
+	).
+		WithArgs(
+			sqlmock.AnyArg(),
+			1,
+		).WillReturnError(
+		gorm.ErrRecordNotFound,
+	)
+
 	account, err = accRepo.Get(uuid.New())
 	require.Error(err)
 	assert.Nil(account)

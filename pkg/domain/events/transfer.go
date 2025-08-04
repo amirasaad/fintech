@@ -18,11 +18,14 @@ type TransferRequested struct {
 	TransactionID uuid.UUID
 }
 
-func (e TransferRequested) Type() string { return "TransferRequested" }
+func (e *TransferRequested) Type() string {
+	return EventTypeTransferRequested.String()
+}
 
 // Validate checks if the event is valid.
 func (e *TransferRequested) Validate() error {
-	if e.AccountID == uuid.Nil || e.UserID == uuid.Nil || e.DestAccountID == uuid.Nil || e.Amount.IsZero() || e.Amount.IsNegative() {
+	if e.AccountID == uuid.Nil || e.UserID == uuid.Nil ||
+		e.DestAccountID == uuid.Nil || e.Amount.IsZero() || e.Amount.IsNegative() {
 		return fmt.Errorf("malformed validated event: %+v", e)
 	}
 	return nil
@@ -30,25 +33,26 @@ func (e *TransferRequested) Validate() error {
 
 // TransferCurrencyConverted is emitted after currency conversion for transfer.
 type TransferCurrencyConverted struct {
-	TransferRequested
 	CurrencyConverted
 }
 
-func (e TransferCurrencyConverted) Type() string { return "TransferCurrencyConverted" }
+func (e TransferCurrencyConverted) Type() string {
+	return EventTypeTransferCurrencyConverted.String()
+}
 
-// TransferBusinessValidated is emitted after business validation for transfer.
-type TransferBusinessValidated struct {
+// TransferValidated is emitted after business validation for transfer.
+type TransferValidated struct {
 	TransferCurrencyConverted
 }
 
-func (e TransferBusinessValidated) Type() string { return "TransferBusinessValidated" }
+func (e TransferValidated) Type() string { return EventTypeTransferValidated.String() }
 
 // TransferCompleted is emitted when transfer is fully completed.
 type TransferCompleted struct {
-	TransferBusinessValidated
+	TransferValidated
 }
 
-func (e TransferCompleted) Type() string { return "TransferCompleted" }
+func (e TransferCompleted) Type() string { return EventTypeTransferCompleted.String() }
 
 // TransferFailed is emitted when transfer fails.
 type TransferFailed struct {
@@ -56,4 +60,6 @@ type TransferFailed struct {
 	Reason string
 }
 
-func (e TransferFailed) Type() string { return "TransferFailed" }
+func (e TransferFailed) Type() string {
+	return EventTypeTransferFailed.String()
+}

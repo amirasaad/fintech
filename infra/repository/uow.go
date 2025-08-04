@@ -52,7 +52,8 @@ func (u *UoW) Do(ctx context.Context, fn func(uow repository.UnitOfWork) error) 
 }
 
 // GetRepository provides generic, type-safe access to repositories using the transaction session.
-// This method is maintained for backward compatibility but is deprecated in favor of type-safe methods.
+// This method is maintained for backward compatibility
+// but is deprecated in favor of type-safe methods.
 //
 // This method is part of UoW to guarantee that all repository operations within a transaction
 // use the same DB session, ensuring atomicity and consistency. It also centralizes repository

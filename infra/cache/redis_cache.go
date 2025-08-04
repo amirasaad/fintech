@@ -20,7 +20,11 @@ type RedisExchangeRateCache struct {
 }
 
 // NewRedisExchangeRateCache creates a new RedisExchangeRateCache.
-func NewRedisExchangeRateCache(addr, password string, db int, prefix string) *RedisExchangeRateCache {
+func NewRedisExchangeRateCache(
+	addr, password string,
+	db int,
+	prefix string,
+) *RedisExchangeRateCache {
 	client := redis.NewClient(&redis.Options{
 		Addr:     addr,
 		Password: password,
@@ -29,8 +33,13 @@ func NewRedisExchangeRateCache(addr, password string, db int, prefix string) *Re
 	return &RedisExchangeRateCache{client: client, prefix: prefix}
 }
 
-// NewRedisExchangeRateCacheWithOptions creates a new RedisExchangeRateCache from redis.Options.
-func NewRedisExchangeRateCacheWithOptions(opt *redis.Options, prefix string, logger *slog.Logger) *RedisExchangeRateCache {
+// NewRedisExchangeRateCacheWithOptions creates a new RedisExchangeRateCache
+// from redis.Options.
+func NewRedisExchangeRateCacheWithOptions(
+	opt *redis.Options,
+	prefix string,
+	logger *slog.Logger,
+) *RedisExchangeRateCache {
 	client := redis.NewClient(opt)
 	return &RedisExchangeRateCache{client: client, prefix: prefix, logger: logger}
 }
@@ -59,7 +68,11 @@ func (r *RedisExchangeRateCache) Get(key string) (*domain.ExchangeRate, error) {
 	return &rate, nil
 }
 
-func (r *RedisExchangeRateCache) Set(key string, rate *domain.ExchangeRate, ttl time.Duration) error {
+func (r *RedisExchangeRateCache) Set(
+	key string,
+	rate *domain.ExchangeRate,
+	ttl time.Duration,
+) error {
 	ctx := context.Background()
 	data, err := json.Marshal(rate)
 	if err != nil {
@@ -93,12 +106,20 @@ func (r *RedisExchangeRateCache) GetLastUpdate(key string) (time.Time, error) {
 		return time.Time{}, nil // not set
 	}
 	if err != nil {
-		r.logger.Error("Redis cache get last update error", "key", key, "error", err)
+		r.logger.Error(
+			"Redis cache get last update error",
+			"key", key,
+			"error", err,
+		)
 		return time.Time{}, err
 	}
 	ts, err := time.Parse(time.RFC3339Nano, val)
 	if err != nil {
-		r.logger.Error("Redis cache parse last update error", "key", key, "error", err)
+		r.logger.Error(
+			"Redis cache parse last update error",
+			"key", key,
+			"error", err,
+		)
 		return time.Time{}, err
 	}
 	return ts, nil
@@ -106,9 +127,18 @@ func (r *RedisExchangeRateCache) GetLastUpdate(key string) (time.Time, error) {
 
 func (r *RedisExchangeRateCache) SetLastUpdate(key string, t time.Time) error {
 	ctx := context.Background()
-	err := r.client.Set(ctx, r.key("last_update:"+key), t.Format(time.RFC3339Nano), 0).Err()
+	err := r.client.Set(
+		ctx,
+		r.key("last_update:"+key),
+		t.Format(time.RFC3339Nano),
+		0,
+	).Err()
 	if err != nil {
-		r.logger.Error("Redis cache set last update error", "key", key, "error", err)
+		r.logger.Error(
+			"Redis cache set last update error",
+			"key", key,
+			"error", err,
+		)
 		return err
 	}
 	r.logger.Debug("Redis cache set last update", "key", key, "timestamp", t)

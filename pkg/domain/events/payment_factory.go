@@ -1,6 +1,10 @@
 package events
 
-import "github.com/google/uuid"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 // PaymentInitiatedOpt is a function that configures a PaymentInitiated
 type PaymentInitiatedOpt func(*PaymentInitiated)
@@ -21,37 +25,44 @@ func WithInitiatedPaymentStatus(status string) PaymentInitiatedOpt {
 }
 
 // WithFlowEvent sets the FlowEvent from an existing FlowEvent
-func WithFlowEvent(flowEvent FlowEvent) PaymentInitiatedOpt {
+func WithFlowEvent(fe FlowEvent) PaymentInitiatedOpt {
 	return func(e *PaymentInitiated) {
-		e.FlowEvent = flowEvent
+		e.FlowEvent = fe
 	}
 }
 
 // NewPaymentInitiated creates a new PaymentInitiated with the given options
-func NewPaymentInitiated(flowEvent FlowEvent, opts ...PaymentInitiatedOpt) *PaymentInitiated {
-	p := &PaymentInitiated{
-		FlowEvent:     flowEvent,
+func NewPaymentInitiated(fe FlowEvent, opts ...PaymentInitiatedOpt) *PaymentInitiated {
+	pi := &PaymentInitiated{
+		FlowEvent:     fe,
 		TransactionID: uuid.Nil,
 		PaymentID:     "",
 		Status:        "initiated",
 	}
 
+	pi.ID = uuid.New()
+	pi.Timestamp = time.Now()
 	for _, opt := range opts {
-		opt(p)
+		opt(pi)
 	}
 
-	return p
+	return pi
 }
 
 type PaymentProcessedOpt func(*PaymentProcessed)
 
 // NewPaymentProcessed creates a new PaymentProcessed with the given parameters
-func NewPaymentProcessed(pi PaymentInitiated, opts ...PaymentProcessedOpt) *PaymentProcessed {
+func NewPaymentProcessed(
+	pi PaymentInitiated,
+	opts ...PaymentProcessedOpt,
+) *PaymentProcessed {
 	// Create base PaymentInitiated with required fields
 	pp := &PaymentProcessed{
 		PaymentInitiated: pi,
 	}
 
+	pp.ID = uuid.New()
+	pp.Timestamp = time.Now()
 	// Apply any additional options
 	for _, opt := range opts {
 		opt(pp)
@@ -75,18 +86,20 @@ func WithCorrelationID(correlationID uuid.UUID) PaymentCompletedOpt {
 
 // NewPaymentCompleted creates a new PaymentCompleted with the given options
 func NewPaymentCompleted(
-	flowEvent FlowEvent,
+	fe FlowEvent,
 	opts ...PaymentCompletedOpt,
 ) *PaymentCompleted {
-	event := &PaymentCompleted{
+	pc := &PaymentCompleted{
 		PaymentInitiated: PaymentInitiated{
-			FlowEvent: flowEvent,
+			FlowEvent: fe,
 		},
 	}
 
+	pc.ID = uuid.New()
+	pc.Timestamp = time.Now()
 	for _, opt := range opts {
-		opt(event)
+		opt(pc)
 	}
 
-	return event
+	return pc
 }

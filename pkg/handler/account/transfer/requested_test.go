@@ -12,9 +12,9 @@ import (
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/amirasaad/fintech/pkg/dto"
-	transferhandler "github.com/amirasaad/fintech/pkg/handler/account/transfer"
+	"github.com/amirasaad/fintech/pkg/handler/account/transfer"
 	"github.com/amirasaad/fintech/pkg/repository"
-	repoaccount "github.com/amirasaad/fintech/pkg/repository/account"
+	"github.com/amirasaad/fintech/pkg/repository/account"
 	"github.com/amirasaad/fintech/pkg/repository/transaction"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -62,21 +62,35 @@ func TestInitialPersistence(t *testing.T) {
 		})
 
 		// Mock the unit of work Do function
-		uow.On("Do", mock.Anything, mock.AnythingOfType("func(repository.UnitOfWork) error")).
+		uow.On(
+			"Do",
+			mock.Anything,
+			mock.AnythingOfType("func(repository.UnitOfWork) error"),
+		).
 			Return(nil).
 			Run(func(args mock.Arguments) {
 				fn := args.Get(1).(func(repository.UnitOfWork) error)
 
 				// Set up repository mocks for this execution
-				uow.On("GetRepository", mock.MatchedBy(func(repoType interface{}) bool {
-					_, isTx := repoType.(*transaction.Repository)
-					return isTx
-				})).Return(txRepo, nil).Once()
+				uow.On(
+					"GetRepository",
+					mock.MatchedBy(func(repoType any) bool {
+						_, isTx := repoType.(*transaction.Repository)
+						return isTx
+					}),
+				).
+					Return(txRepo, nil).
+					Once()
 
-				uow.On("GetRepository", mock.MatchedBy(func(repoType interface{}) bool {
-					_, isAcc := repoType.(*repoaccount.Repository)
-					return isAcc
-				})).Return(accRepo, nil).Once()
+				uow.On(
+					"GetRepository",
+					mock.MatchedBy(func(repoType any) bool {
+						_, isAcc := repoType.(*account.Repository)
+						return isAcc
+					}),
+				).
+					Return(accRepo, nil).
+					Once()
 
 				// Set up account repository expectations
 				accRepo.On("Get", mock.Anything, destAccountID).
@@ -98,9 +112,13 @@ func TestInitialPersistence(t *testing.T) {
 				require.NoError(t, err, "Unexpected error in Do callback")
 			})
 
-		bus.On("Emit", mock.Anything, mock.AnythingOfType("*events.CurrencyConversionRequested")).Return(nil)
+		bus.On(
+			"Emit",
+			mock.Anything,
+			mock.AnythingOfType("*events.CurrencyConversionRequested"),
+		).Return(nil)
 
-		handler := transferhandler.InitialPersistence(bus, uow, logger)
+		handler := transfer.HandleRequested(bus, uow, logger)
 		err := handler(ctx, requestedEvent)
 		assert.NoError(t, err)
 	})
@@ -122,7 +140,11 @@ func TestInitialPersistence(t *testing.T) {
 		}
 
 		// Mock the unit of work to return a repository that returns an error
-		uow.On("Do", mock.Anything, mock.AnythingOfType("func(repository.UnitOfWork) error")).
+		uow.On(
+			"Do",
+			mock.Anything,
+			mock.AnythingOfType("func(repository.UnitOfWork) error"),
+		).
 			Run(func(args mock.Arguments) {
 				t.Log("Running Do callback...")
 				// Get the callback function
@@ -135,14 +157,19 @@ func TestInitialPersistence(t *testing.T) {
 				accRepo := mocks.NewAccountRepository(t)
 
 				// First call to GetRepository is for transaction repository
-				uow.On("GetRepository", mock.MatchedBy(func(repoType interface{}) bool {
-					_, isTx := repoType.(*transaction.Repository)
-					return isTx
-				})).Return(txRepo, nil).Once()
+				uow.On(
+					"GetRepository",
+					mock.MatchedBy(func(repoType interface{}) bool {
+						_, isTx := repoType.(*transaction.Repository)
+						return isTx
+					}),
+				).
+					Return(txRepo, nil).
+					Once()
 
 				// Second call to GetRepository is for account repository
 				uow.On("GetRepository", mock.MatchedBy(func(repoType interface{}) bool {
-					_, isAcc := repoType.(*repoaccount.Repository)
+					_, isAcc := repoType.(*account.Repository)
 					return isAcc
 				})).Return(accRepo, nil).Once()
 
@@ -168,12 +195,12 @@ func TestInitialPersistence(t *testing.T) {
 		// The handler should return an error and not emit any events
 		bus.AssertNotCalled(t, "Emit", mock.Anything, mock.Anything)
 
-		handler := transferhandler.InitialPersistence(bus, uow, logger)
+		handler := transfer.HandleRequested(bus, uow, logger)
 		// Pass the event as a common.Event interface
 		err := handler(ctx, requestedEvent)
 
 		// Verify the error is properly propagated
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "db error")
 
 		// Verify no events were emitted
@@ -215,19 +242,26 @@ func TestInitialPersistence(t *testing.T) {
 				// Second GetRepository call is for the account repository
 				accRepo := mocks.NewAccountRepository(t)
 				uow.On("GetRepository", mock.MatchedBy(func(repoType interface{}) bool {
-					_, isAcc := repoType.(*repoaccount.Repository)
+					_, isAcc := repoType.(*account.Repository)
 					return isAcc
 				})).Return(accRepo, nil).Once()
 
 				// Mock the account repository to return an error when Get is called
-				accRepo.On("Get", mock.Anything, destAccountID).Return((*dto.AccountRead)(nil), errors.New("db error")).Once()
+				accRepo.On(
+					"Get",
+					mock.Anything,
+					destAccountID).
+					Return(
+						nil,
+						errors.New("db error"),
+					).Once()
 
 				// Execute the callback to simulate the actual flow
 				t.Log("Calling the callback function...")
 				fn := args.Get(1).(func(repository.UnitOfWork) error)
 				err := fn(uow)
 				t.Log("Callback returned error:", err)
-				assert.Error(t, err)
+				require.Error(t, err)
 				assert.Contains(t, err.Error(), "failed to get destination account: db error")
 			}).
 			Return(errors.New("db error")) // Return the error from Do
@@ -235,7 +269,7 @@ func TestInitialPersistence(t *testing.T) {
 		// The handler should return an error and not emit any events
 		bus.AssertNotCalled(t, "Emit", mock.Anything, mock.Anything)
 
-		handler := transferhandler.InitialPersistence(bus, uow, logger)
+		handler := transfer.HandleRequested(bus, uow, logger)
 		t.Log("Calling handler...")
 		err := handler(ctx, requestedEvent)
 
@@ -245,7 +279,7 @@ func TestInitialPersistence(t *testing.T) {
 		}
 
 		// Verify the error is properly propagated
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "db error")
 
 		// Verify no events were emitted

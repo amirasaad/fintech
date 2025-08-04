@@ -11,25 +11,33 @@ import (
 )
 
 var (
-	// ErrDepositAmountExceedsMaxSafeInt is returned when a deposit would cause the account balance to overflow.
-	ErrDepositAmountExceedsMaxSafeInt = errors.New("deposit amount exceeds maximum safe integer value")
+	// ErrDepositAmountExceedsMaxSafeInt is returned when a deposit would cause the
+	// account balance to overflow.
+	ErrDepositAmountExceedsMaxSafeInt = errors.New(
+		"deposit amount exceeds maximum safe integer value")
 
 	// ErrTransactionAmountMustBePositive is returned when a transaction amount is not positive.
-	ErrTransactionAmountMustBePositive = errors.New("transaction amount must be positive")
+	ErrTransactionAmountMustBePositive = errors.New(
+		"transaction amount must be positive")
 
-	// ErrInsufficientFunds is returned when an account has insufficient funds for a withdrawal or transfer.
+	// ErrInsufficientFunds is returned when an account has insufficient funds for a
+	// withdrawal or transfer.
 	ErrInsufficientFunds = errors.New("insufficient funds")
 
 	// ErrAccountNotFound is returned when an account cannot be found.
 	ErrAccountNotFound = errors.New("account not found")
 
-	// ErrCannotTransferToSameAccount is returned when a transfer is attempted from an account to itself.
+	// ErrCannotTransferToSameAccount is returned when a transfer
+	// is attempted from an account to itself.
 	ErrCannotTransferToSameAccount = errors.New("cannot transfer to same account")
-	// ErrNilAccount is returned when a nil account is provided to a transfer or other operation.
+	// ErrNilAccount is returned when a nil account
+	// is provided to a transfer or other operation.
 	ErrNilAccount = errors.New("nil account")
-	// ErrNotOwner is returned when a user attempts to perform an action on an account they do not own.
+	// ErrNotOwner is returned when a user attempts to
+	// perform an action on an account they do not own.
 	ErrNotOwner = errors.New("not owner")
-	// ErrCurrencyMismatch is returned when there is a currency mismatch between accounts or transactions.
+	// ErrCurrencyMismatch is returned when there is
+	// a currency mismatch between accounts or transactions.
 	ErrCurrencyMismatch = errors.New("currency mismatch")
 )
 
@@ -65,7 +73,7 @@ type Builder struct {
 func New() *Builder {
 	return &Builder{
 		id:        uuid.New(),
-		currency:  currency.DefaultCurrency,
+		currency:  currency.DefaultCode,
 		createdAt: time.Now(),
 	}
 }
@@ -82,7 +90,8 @@ func (b *Builder) WithUserID(userID uuid.UUID) *Builder {
 	return b
 }
 
-// WithCurrency sets the currency for the account being built. If not set, it defaults to the system's default currency.
+// WithCurrency sets the currency for the account being built.
+// If not set, it defaults to the system's default currency.
 func (b *Builder) WithCurrency(currencyCode currency.Code) *Builder {
 	b.currency = currencyCode
 	return b
@@ -113,7 +122,7 @@ func (b *Builder) WithUpdatedAt(t time.Time) *Builder {
 // such as ensuring a valid currency and a non-nil UserID, before returning the
 // new Account instance.
 func (b *Builder) Build() (*Account, error) {
-	if !currency.IsValidCurrencyFormat(string(b.currency)) {
+	if !currency.IsValidFormat(string(b.currency)) {
 		return nil, common.ErrInvalidCurrencyCode
 	}
 	if !currency.IsSupported(string(b.currency)) {
@@ -209,7 +218,11 @@ func (a *Account) ValidateWithdraw(userID uuid.UUID, amount money.Money) error {
 }
 
 // ValidateTransfer ensures that a funds transfer from this account to another is valid.
-func (a *Account) ValidateTransfer(senderUserID, receiverUserID uuid.UUID, dest *Account, amount money.Money) error {
+func (a *Account) ValidateTransfer(
+	senderUserID, receiverUserID uuid.UUID,
+	dest *Account,
+	amount money.Money,
+) error {
 	if a == nil || dest == nil {
 		return ErrNilAccount
 	}
@@ -222,7 +235,8 @@ func (a *Account) ValidateTransfer(senderUserID, receiverUserID uuid.UUID, dest 
 	if !amount.IsPositive() {
 		return ErrTransactionAmountMustBePositive
 	}
-	if !a.Balance.IsSameCurrency(amount) || !dest.Balance.IsSameCurrency(amount) {
+	if !a.Balance.IsSameCurrency(amount) ||
+		!dest.Balance.IsSameCurrency(amount) {
 		return ErrCurrencyMismatch
 	}
 	hasEnough, err := a.Balance.GreaterThan(amount)

@@ -17,14 +17,14 @@ flowchart TD
         A[API Request] --> B(TransferRequestedEvent);
         B --> C[Validation Handler];
         C --> D(TransferValidatedEvent);
-        D --> E[Initial Persistence Handler];
+        D --> E[Initial HandleProcessed Handler];
         E --> F(ConversionRequestedEvent);
         F --> G[Conversion Handler];
         G --> H(TransferConversionDoneEvent);
         H --> I[Business Validation Handler];
         I --> J(TransferDomainOpDoneEvent);
         I -->|On Failure| K(TransferFailedEvent);
-        J --> L[Final Persistence Handler];
+        J --> L[Final HandleProcessed Handler];
         L --> M(TransferCompletedEvent);
         L -->|On Failure| K;
     end
@@ -40,7 +40,7 @@ flowchart TD
 - **Responsibility:** Performs basic structural validation on the request (e.g., non-nil UUIDs, positive amount). Malformed events are logged and discarded.
 - **Emits:** `TransferValidatedEvent` on success.
 
-### 2. **Initial Persistence Handler**
+### 2. **Initial HandleProcessed Handler**
 
 - **Consumes:** `TransferValidatedEvent`
 - **Responsibility:** Creates the initial outgoing transaction (`tx_out`) with a `pending` status. This provides a durable record of the request early.
@@ -60,7 +60,7 @@ flowchart TD
   - `TransferDomainOpDoneEvent` on success.
   - `TransferFailedEvent` on business rule failure (e.g., insufficient funds).
 
-### 5. **Final Persistence Handler**
+### 5. **Final HandleProcessed Handler**
 
 - **Consumes:** `TransferDomainOpDoneEvent`
 - **Responsibility:** Atomically performs the final state changes:

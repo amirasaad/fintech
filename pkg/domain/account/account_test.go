@@ -94,7 +94,8 @@ func TestValidateTransfer(t *testing.T) {
 
 	// Test case 2: Unauthorized transfer
 	t.Run("unauthorized transfer", func(t *testing.T) {
-		err := sourceAcc.ValidateTransfer(uuid.New(), receiverID, destAcc, amount)
+		err := sourceAcc.ValidateTransfer(
+			uuid.New(), receiverID, destAcc, amount)
 		assert.ErrorIs(t, err, domainaccount.ErrNotOwner)
 	})
 

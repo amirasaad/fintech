@@ -13,7 +13,6 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/amirasaad/fintech/app"
 	"github.com/amirasaad/fintech/config"
 	"github.com/amirasaad/fintech/infra/eventbus"
 	"github.com/amirasaad/fintech/infra/provider"
@@ -22,12 +21,13 @@ import (
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/domain/user"
+	"github.com/amirasaad/fintech/webapi"
 	"github.com/amirasaad/fintech/webapi/common"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-migrate/migrate/v4"
 	migratepostgres "github.com/golang-migrate/migrate/v4/database/postgres"
-	_ "github.com/golang-migrate/migrate/v4/source/file" // required for file-based migrations in tests
+	_ "github.com/golang-migrate/migrate/v4/source/file" // required for file-based migrations
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/suite"
 	"github.com/testcontainers/testcontainers-go"
@@ -115,8 +115,10 @@ func (s *E2ETestSuite) TearDownSuite() {
 	}
 }
 
-// setupApp creates all services and the test app, using Redis as the event bus via testcontainers-go.
+// setupApp creates all services and the test app,
+// using Redis as the event bus via testcontainers-go.
 func (s *E2ETestSuite) setupApp() {
+	s.T().Helper()
 	// Create deps
 	uow := infrarepo.NewUoW(s.db)
 	logger := slog.Default()
@@ -124,12 +126,15 @@ func (s *E2ETestSuite) setupApp() {
 
 	// Setup currency service
 	ctx := context.Background()
-	currencyRegistry, err := currency.NewCurrencyRegistry(ctx)
+	currencyRegistry, err := currency.NewRegistry(ctx)
 	s.Require().NoError(err)
 
 	// Load currency fixtures
 	_, filename, _, _ := runtime.Caller(0)
-	fixturePath := filepath.Join(filepath.Dir(filename), "../../internal/fixtures/currency/meta.csv")
+	fixturePath := filepath.Join(
+		filepath.Dir(filename),
+		"../../internal/fixtures/currency/meta.csv",
+	)
 	metas, err := fixturescurrency.LoadCurrencyMetaCSV(fixturePath)
 	s.Require().NoError(err)
 
@@ -138,14 +143,19 @@ func (s *E2ETestSuite) setupApp() {
 	}
 
 	// Start Redis container
-	redisContainer, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: testcontainers.ContainerRequest{
-			Image:        "redis:7-alpine",
-			ExposedPorts: []string{"6379/tcp"},
-			WaitingFor:   wait.ForListeningPort("6379/tcp").WithStartupTimeout(10 * time.Second),
+	redisContainer, err := testcontainers.GenericContainer(
+		ctx,
+		testcontainers.GenericContainerRequest{
+			ContainerRequest: testcontainers.ContainerRequest{
+				Image:        "redis:7-alpine",
+				ExposedPorts: []string{"6379/tcp"},
+				WaitingFor: wait.ForListeningPort(
+					"6379/tcp",
+				).WithStartupTimeout(10 * time.Second),
+			},
+			Started: true,
 		},
-		Started: true,
-	})
+	)
 	s.Require().NoError(err)
 
 	endpoint, err := redisContainer.Endpoint(ctx, "")
@@ -161,7 +171,7 @@ func (s *E2ETestSuite) setupApp() {
 	})
 
 	// Create test app
-	s.app = app.New(
+	s.app = webapi.SetupApp(
 		config.Deps{
 			CurrencyConverter: currencyConverter,
 			CurrencyRegistry:  currencyRegistry,
@@ -197,7 +207,9 @@ func (s *E2ETestSuite) findEnvTest() (string, error) {
 }
 
 // MakeRequest is a helper for making HTTP requests in tests
-func (s *E2ETestSuite) MakeRequest(method, path, body, token string) *http.Response {
+func (s *E2ETestSuite) MakeRequest(
+	method, path, body, token string,
+) *http.Response {
 	var req *http.Request
 	if body != "" {
 		req = httptest.NewRequest(method, path, bytes.NewBufferString(body))
@@ -210,7 +222,7 @@ func (s *E2ETestSuite) MakeRequest(method, path, body, token string) *http.Respo
 	}
 	resp, err := s.app.Test(req, 1000000)
 	if err != nil {
-		panic(err)
+		s.T().Fatal(err)
 	}
 	return resp
 }
@@ -222,30 +234,34 @@ func (s *E2ETestSuite) CreateTestUser() *domain.User {
 	email := fmt.Sprintf("test_%s@example.com", randomID)
 
 	// Create user via HTTP POST request
-	createUserBody := fmt.Sprintf(`{"username":"%s","email":"%s","password":"password123"}`, username, email)
+	createUserBody := fmt.Sprintf(
+		`{"username":"%s","email":"%s","password":"password123"}`,
+		username,
+		email,
+	)
 	resp := s.MakeRequest("POST", "/user", createUserBody, "")
 
 	if resp.StatusCode != 201 {
-		panic(fmt.Sprintf("Expected 201 Created for user creation, got %d", resp.StatusCode))
+		s.T().Fatalf("Expected 201 Created for user creation, got %d", resp.StatusCode)
 	}
 
 	// Parse response to get the created user
 	var response common.Response
 	err := json.NewDecoder(resp.Body).Decode(&response)
 	if err != nil {
-		panic(err)
+		s.T().Fatal(err)
 	}
 
 	// Extract user data from response
 	if userData, ok := response.Data.(map[string]any); ok {
 		userIDStr, ok := userData["id"].(string)
 		if !ok {
-			panic("User ID should be present in response")
+			s.T().Fatalf("User ID should be present in response")
 		}
 
 		userID, err := uuid.Parse(userIDStr)
 		if err != nil {
-			panic(err)
+			s.T().Fatalf("User ID should be a valid UUID")
 		}
 
 		return &domain.User{
@@ -259,7 +275,7 @@ func (s *E2ETestSuite) CreateTestUser() *domain.User {
 	// Fallback: create user directly
 	testUser, err := user.NewUser(username, email, "password123")
 	if err != nil {
-		panic(err)
+		s.T().Fatalf("Failed to create user: %v", err)
 	}
 	return testUser
 }
@@ -272,7 +288,7 @@ func (s *E2ETestSuite) LoginUser(testUser *domain.User) string {
 	var response common.Response
 	err := json.NewDecoder(resp.Body).Decode(&response)
 	if err != nil {
-		panic(err)
+		s.T().Fatal(err)
 	}
 
 	// Extract token from response
@@ -286,7 +302,7 @@ func (s *E2ETestSuite) LoginUser(testUser *domain.User) string {
 	}
 
 	if token == "" {
-		panic("No token found in response")
+		s.T().Fatalf("No token found in response")
 	}
 	return token
 }

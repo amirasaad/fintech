@@ -13,28 +13,53 @@ import (
 	"github.com/amirasaad/fintech/pkg/repository/account"
 )
 
-// CurrencyConverted performs domain validation after currency conversion for withdrawals.
+// HandleCurrencyConverted performs domain validation after currency conversion for withdrawals.
 // Emits WithdrawBusinessValidated event to trigger payment initiation.
-func CurrencyConverted(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) func(ctx context.Context, e events.Event) error {
+func HandleCurrencyConverted(
+	bus eventbus.Bus,
+	uow repository.UnitOfWork,
+	logger *slog.Logger,
+) func(
+	ctx context.Context,
+	e events.Event,
+) error {
 	return func(ctx context.Context, e events.Event) error {
-		log := logger.With("handler", "CurrencyConverted", "event_type", e.Type())
+		log := logger.With(
+			"handler", "withdraw.CurrencyConverted",
+			"event_type", e.Type(),
+		)
 		log.Info("🟢 [START] Received event", "event", e)
 
 		wce, ok := e.(*events.WithdrawCurrencyConverted)
 		if !ok {
-			log.Debug("🚫 [SKIP] Skipping: unexpected event type in WithdrawCurrencyConverted", "event", e)
+			log.Debug(
+				"🚫 [SKIP] Skipping: unexpected event type in WithdrawCurrencyConverted",
+				"event", e,
+			)
+			return nil
+		}
+
+		wr, ok := wce.OriginalRequest.(*events.WithdrawRequested)
+		if !ok {
+			log.Debug(
+				"🚫 [SKIP] Skipping: unexpected event type in WithdrawCurrencyConverted",
+				"event", e,
+			)
 			return nil
 		}
 
 		log = log.With(
-			"user_id", wce.WithdrawRequested.UserID,
-			"account_id", wce.WithdrawRequested.AccountID,
+			"user_id", wce.UserID,
+			"account_id", wce.AccountID,
 			"transaction_id", wce.TransactionID,
-			"correlation_id", wce.WithdrawRequested.CorrelationID,
+			"correlation_id", wce.CorrelationID,
 		)
 
-		if wce.WithdrawRequested.FlowType != "withdraw" {
-			log.Debug("🚫 [SKIP] Skipping: not a withdraw flow", "flow_type", wce.WithdrawRequested.FlowType)
+		if wce.FlowType != "withdraw" {
+			log.Debug(
+				"🚫 [SKIP] Skipping: not a withdraw flow",
+				"flow_type", wce.FlowType,
+			)
 			return nil
 		}
 
@@ -47,46 +72,61 @@ func CurrencyConverted(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog
 			return errors.New("invalid account repository type")
 		}
 
-		accRead, err := accRepo.Get(ctx, wce.WithdrawRequested.AccountID)
+		accRead, err := accRepo.Get(ctx, wce.AccountID)
 		if err != nil && err != domain.ErrAccountNotFound {
-			log.Error("❌ [ERROR] Failed to get account", "error", err, "account_id", wce.WithdrawRequested.AccountID)
+			log.Error(
+				"❌ [ERROR] Failed to get account",
+				"error", err,
+				"account_id", wce.AccountID,
+			)
 			return err
 		}
 
 		if accRead == nil {
-			log.Error("❌ [ERROR] Account not found", "account_id", wce.WithdrawRequested.AccountID)
+			log.Error(
+				"❌ [ERROR] Account not found",
+				"account_id", wce.AccountID,
+			)
 			return domain.ErrAccountNotFound
 		}
 
 		acc := mapper.MapAccountReadToDomain(accRead)
 
 		// Perform domain validation
-		if err := acc.ValidateWithdraw(wce.WithdrawRequested.UserID, wce.ConvertedAmount); err != nil {
-			log.Error("❌ [ERROR] Domain validation failed",
+		if err := acc.ValidateWithdraw(wce.UserID, wce.ConvertedAmount); err != nil {
+			log.Error(
+				"❌ [ERROR] Domain validation failed",
 				"transaction_id", wce.TransactionID,
 				"error", err,
-				"user_id", wce.WithdrawRequested.UserID,
-				"account_id", wce.WithdrawRequested.AccountID,
-				"amount", wce.ConvertedAmount.String())
+				"user_id", wce.UserID,
+				"account_id", wce.AccountID,
+				"amount", wce.ConvertedAmount.String(),
+			)
 
 			failureEvent := events.NewWithdrawFailed(
-				&wce.WithdrawRequested,
+				wr,
 				err.Error(),
 			)
 			return bus.Emit(ctx, failureEvent)
 		}
 
-		log.Info("✅ [SUCCESS] Domain validation passed, emitting WithdrawBusinessValidated",
-			"user_id", wce.WithdrawRequested.UserID,
-			"account_id", wce.WithdrawRequested.AccountID,
+		log.Info(
+			"✅ [SUCCESS] Domain validation passed, emitting WithdrawBusinessValidated",
+			"user_id", wce.UserID,
+			"account_id", wce.AccountID,
 			"amount", wce.ConvertedAmount.Amount(),
 			"currency", wce.ConvertedAmount.Currency().String(),
-			"correlation_id", wce.WithdrawRequested.CorrelationID)
+			"correlation_id", wce.CorrelationID,
+		)
 
 		// Emit WithdrawBusinessValidated event
-		businessValidatedEvent := events.NewWithdrawBusinessValidated(wce)
+		businessValidatedEvent := events.NewWithdrawValidated(wce)
 
-		log.Info("📤 [EMIT] Emitting WithdrawBusinessValidated", "event", businessValidatedEvent, "correlation_id", wce.WithdrawRequested.CorrelationID.String())
+		log.Info(
+			"📤 [EMIT] Emitting WithdrawBusinessValidated",
+			"event", businessValidatedEvent,
+			"correlation_id", wce.CorrelationID.String(),
+		)
 		return bus.Emit(ctx, businessValidatedEvent)
 	}
 }

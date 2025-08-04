@@ -17,7 +17,8 @@ type AccountRepository interface {
 
 // TransactionRepository defines the interface for transaction data access operations.
 type TransactionRepository interface {
-	Create(transaction *account.Transaction, convInfo *common.ConversionInfo, maskedExternalTarget string) error
+	Create(transaction *account.Transaction, convInfo *common.ConversionInfo,
+		maskedExternalTarget string) error
 	Get(id uuid.UUID) (*account.Transaction, error)
 	List(userID, accountID uuid.UUID) ([]*account.Transaction, error)
 	// GetByPaymentID returns a transaction by its payment provider ID.

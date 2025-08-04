@@ -28,7 +28,10 @@ func (m *MockExchangeRateProvider) GetRate(from, to string) (*domain.ExchangeRat
 	return args.Get(0).(*domain.ExchangeRate), args.Error(1)
 }
 
-func (m *MockExchangeRateProvider) GetRates(from string, to []string) (map[string]*domain.ExchangeRate, error) {
+func (m *MockExchangeRateProvider) GetRates(
+	from string,
+	to []string,
+) (map[string]*domain.ExchangeRate, error) {
 	args := m.Called(from, to)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -49,7 +52,12 @@ func (m *MockExchangeRateProvider) IsHealthy() bool {
 func TestExchangeRateService_GetRate_SameCurrency(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	cfg := &config.ExchangeRateConfig{CacheTTL: time.Minute}
-	service := NewExchangeRateService([]provider.ExchangeRateProvider{}, infra_cache.NewMemoryCache(), logger, cfg)
+	service := NewExchangeRateService(
+		[]provider.ExchangeRateProvider{},
+		infra_cache.NewMemoryCache(),
+		logger,
+		cfg,
+	)
 
 	rate, err := service.GetRate("USD", "USD")
 	require.NoError(t, err)
@@ -71,7 +79,12 @@ func TestExchangeRateService_GetRate_FromCache(t *testing.T) {
 		ToCurrency:   "EUR",
 		Rate:         0.85,
 	}, nil)
-	service := NewExchangeRateService([]provider.ExchangeRateProvider{mockProvider}, cache, logger, cfg)
+	service := NewExchangeRateService(
+		[]provider.ExchangeRateProvider{mockProvider},
+		cache,
+		logger,
+		cfg,
+	)
 
 	// Create a test rate
 	testRate := &domain.ExchangeRate{
@@ -99,7 +112,12 @@ func TestExchangeRateService_GetRate_FromProvider(t *testing.T) {
 	cache := infra_cache.NewMemoryCache()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	cfg := &config.ExchangeRateConfig{CacheTTL: time.Minute}
-	service := NewExchangeRateService([]provider.ExchangeRateProvider{mockProvider}, cache, logger, cfg)
+	service := NewExchangeRateService(
+		[]provider.ExchangeRateProvider{mockProvider},
+		cache,
+		logger,
+		cfg,
+	)
 
 	// Setup mock
 	expectedRate := &domain.ExchangeRate{
@@ -134,7 +152,12 @@ func TestExchangeRateService_GetRate_ProviderUnhealthy(t *testing.T) {
 	cache := infra_cache.NewMemoryCache()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	cfg := &config.ExchangeRateConfig{CacheTTL: time.Minute}
-	service := NewExchangeRateService([]provider.ExchangeRateProvider{mockProvider}, cache, logger, cfg)
+	service := NewExchangeRateService(
+		[]provider.ExchangeRateProvider{mockProvider},
+		cache,
+		logger,
+		cfg,
+	)
 
 	// Setup mock to be unhealthy
 	mockProvider.On("Name").Return("mock-provider")
@@ -154,7 +177,12 @@ func TestExchangeRateService_GetRate_ProviderError(t *testing.T) {
 	cache := infra_cache.NewMemoryCache()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	cfg := &config.ExchangeRateConfig{CacheTTL: time.Minute}
-	service := NewExchangeRateService([]provider.ExchangeRateProvider{mockProvider}, cache, logger, cfg)
+	service := NewExchangeRateService(
+		[]provider.ExchangeRateProvider{mockProvider},
+		cache,
+		logger,
+		cfg,
+	)
 
 	// Setup mock to return error
 	mockProvider.On("Name").Return("mock-provider")
@@ -175,7 +203,12 @@ func TestExchangeRateService_GetRate_InvalidRate(t *testing.T) {
 	cache := infra_cache.NewMemoryCache()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	cfg := &config.ExchangeRateConfig{CacheTTL: time.Minute}
-	service := NewExchangeRateService([]provider.ExchangeRateProvider{mockProvider}, cache, logger, cfg)
+	service := NewExchangeRateService(
+		[]provider.ExchangeRateProvider{mockProvider},
+		cache,
+		logger,
+		cfg,
+	)
 
 	// Setup mock to return invalid rate
 	invalidRate := &domain.ExchangeRate{
@@ -205,7 +238,12 @@ func TestExchangeRateService_GetRates_MultipleCurrencies(t *testing.T) {
 	cache := infra_cache.NewMemoryCache()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	cfg := &config.ExchangeRateConfig{CacheTTL: time.Minute}
-	service := NewExchangeRateService([]provider.ExchangeRateProvider{mockProvider}, cache, logger, cfg)
+	service := NewExchangeRateService(
+		[]provider.ExchangeRateProvider{mockProvider},
+		cache,
+		logger,
+		cfg,
+	)
 
 	// Setup mock
 	expectedRates := map[string]*domain.ExchangeRate{

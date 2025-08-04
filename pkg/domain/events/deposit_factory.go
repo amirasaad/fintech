@@ -36,50 +36,64 @@ func WithDepositTransactionID(id uuid.UUID) DepositRequestedOpt {
 	return func(e *DepositRequested) { e.TransactionID = id }
 }
 
-// NewDepositRequested creates a new DepositRequested event with the given parameters
-func NewDepositRequested(userID, accountID, correlationID uuid.UUID, opts ...DepositRequestedOpt) *DepositRequested {
-	event := &DepositRequested{
+// NewDepositRequested creates a new DepositRequested event with the given
+// parameters
+func NewDepositRequested(
+	userID, accountID, correlationID uuid.UUID,
+	opts ...DepositRequestedOpt,
+) *DepositRequested {
+	dr := &DepositRequested{
 		FlowEvent: FlowEvent{
+			ID:            uuid.New(),
 			FlowType:      "deposit",
 			UserID:        userID,
 			AccountID:     accountID,
 			CorrelationID: correlationID,
+			Timestamp:     time.Now(),
 		},
 		TransactionID: uuid.New(),
 		Amount:        money.Zero(currency.USD),
 	}
-	event.ID = uuid.New()
-	event.Timestamp = time.Now()
 
 	for _, opt := range opts {
-		opt(event)
+		opt(dr)
 	}
 
-	return event
+	return dr
 }
 
 type DepositCurrencyConvertedOpt func(*DepositCurrencyConverted)
 
-// NewDepositCurrencyConverted creates a new DepositCurrencyConverted event with the given parameters
-func NewDepositCurrencyConverted(dcv *CurrencyConverted, opts ...DepositCurrencyConvertedOpt) *DepositCurrencyConverted {
-	event := &DepositCurrencyConverted{
-		CurrencyConverted: *dcv,
+// NewDepositCurrencyConverted creates a new DepositCurrencyConverted event with
+// the given parameters
+func NewDepositCurrencyConverted(
+	cc *CurrencyConverted,
+	opts ...DepositCurrencyConvertedOpt,
+) *DepositCurrencyConverted {
+	de := &DepositCurrencyConverted{
+		CurrencyConverted: *cc,
 	}
+	de.ID = uuid.New()
+	de.Timestamp = time.Now()
 
 	for _, opt := range opts {
-		opt(event)
+		opt(de)
 	}
 
-	return event
+	return de
 }
 
-type DepositBusinessValidatedOpt func(*DepositBusinessValidated)
+type DepositValidatedOpt func(*DepositValidated)
 
-// NewDepositBusinessValidated creates a new DepositBusinessValidated event with the given parameters
-func NewDepositBusinessValidated(dcv *DepositCurrencyConverted) *DepositBusinessValidated {
-	return &DepositBusinessValidated{
+// NewDepositValidated creates a new DepositValidated event with the given parameters
+func NewDepositValidated(dcv *DepositCurrencyConverted) *DepositValidated {
+	dv := &DepositValidated{
 		DepositCurrencyConverted: *dcv,
 	}
+	dv.ID = uuid.New()
+	dv.Timestamp = time.Now()
+
+	return dv
 }
 
 // DepositFailedOpt is a function that configures a DepositFailed
@@ -96,16 +110,20 @@ func WithDepositFailedTransactionID(id uuid.UUID) DepositFailedOpt {
 }
 
 // NewDepositFailed creates a new DepositFailed event with the given parameters
-func NewDepositFailed(requsted DepositRequested, reason string, opts ...DepositFailedOpt) *DepositFailed {
-	failed := &DepositFailed{
-		DepositRequested: requsted,
+func NewDepositFailed(
+	dr *DepositRequested,
+	reason string,
+	opts ...DepositFailedOpt,
+) *DepositFailed {
+	df := &DepositFailed{
+		DepositRequested: *dr,
 		Reason:           reason,
 	}
-	failed.ID = uuid.New()
-	failed.Timestamp = time.Now()
+	df.ID = uuid.New()
+	df.Timestamp = time.Now()
 	for _, opt := range opts {
-		opt(failed)
+		opt(df)
 	}
 
-	return failed
+	return df
 }

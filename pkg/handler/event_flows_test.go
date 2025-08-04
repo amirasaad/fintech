@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/amirasaad/fintech/infra/eventbus"
+	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/google/uuid"
@@ -29,7 +30,7 @@ func TestCompleteEventFlows(t *testing.T) {
 
 	t.Run("deposit flow", func(t *testing.T) {
 		// 1. Create DepositRequested
-		depositReq := events.NewDepositRequested(
+		dr := events.NewDepositRequested(
 			userID,
 			sourceAccountID,
 			correlationID,
@@ -39,42 +40,48 @@ func TestCompleteEventFlows(t *testing.T) {
 
 		// 2. Create CurrencyConverted (simulating conversion)
 		convertedAmount, _ := money.New(90.0, "EUR") // Example conversion
-		convertedEvent := &events.CurrencyConverted{
-			FlowEvent: events.FlowEvent{
-				ID:            uuid.New(),
-				FlowType:      "deposit",
-				UserID:        userID,
-				AccountID:     sourceAccountID,
-				CorrelationID: correlationID,
-			},
-			TransactionID:   depositReq.TransactionID,
+		cc := &events.CurrencyConverted{
+			CurrencyConversionRequested: *events.NewCurrencyConversionRequested(
+				events.FlowEvent{
+					ID:            uuid.New(),
+					FlowType:      "deposit",
+					UserID:        userID,
+					AccountID:     sourceAccountID,
+					CorrelationID: correlationID,
+				},
+				dr,
+				events.WithConversionAmount(amount),
+				events.WithConversionTo(currency.EUR),
+				events.WithConversionTransactionID(dr.TransactionID),
+			),
+			TransactionID:   dr.TransactionID,
 			ConvertedAmount: convertedAmount,
 		}
 
 		// 3. Create DepositCurrencyConverted
-		depositConverted := events.NewDepositCurrencyConverted(convertedEvent, func(dcc *events.DepositCurrencyConverted) {
-			dcc.DepositRequested = *depositReq
-			dcc.Timestamp = time.Now()
-		})
+		depositConverted := events.NewDepositCurrencyConverted(cc)
 
 		// 4. Create DepositBusinessValidated
-		businessValidated := events.NewDepositBusinessValidated(depositConverted)
+		dv := events.NewDepositValidated(depositConverted)
 
 		// 5. Publish and test the flow
-		err := bus.Emit(context.Background(), businessValidated)
+		err := bus.Emit(context.Background(), dv)
 		require.NoError(t, err)
 
 		// Verify the event structure
-		dr := businessValidated.DepositRequested
-		dcc := businessValidated.DepositCurrencyConverted
-		assert.Equal(t, userID, dr.UserID)
-		assert.Equal(t, sourceAccountID, dr.AccountID)
+		or, ok := dv.OriginalRequest.(*events.DepositRequested)
+		if !ok {
+			t.Fatalf("expected DepositRequested, got %T", dv.OriginalRequest)
+		}
+		dcc := dv.DepositCurrencyConverted
+		assert.Equal(t, userID, or.UserID)
+		assert.Equal(t, sourceAccountID, or.AccountID)
 		assert.True(t, dcc.ConvertedAmount.Equals(convertedAmount))
 	})
 
 	t.Run("withdraw flow", func(t *testing.T) {
 		// 1. Create WithdrawRequested
-		withdrawReq := events.NewWithdrawRequested(
+		wr := events.NewWithdrawRequested(
 			userID,
 			sourceAccountID,
 			correlationID,
@@ -84,41 +91,57 @@ func TestCompleteEventFlows(t *testing.T) {
 
 		// 3. Create WithdrawCurrencyConverted
 		convertedAmount, _ := money.New(90.0, "EUR") // Example conversion
-		withdrawConverted := &events.WithdrawCurrencyConverted{
-			WithdrawRequested: *withdrawReq,
-			CurrencyConverted: events.CurrencyConverted{
-				FlowEvent: events.FlowEvent{
+		cc := &events.CurrencyConverted{
+			CurrencyConversionRequested: *events.NewCurrencyConversionRequested(
+				events.FlowEvent{
 					ID:            uuid.New(),
 					FlowType:      "withdraw",
 					UserID:        userID,
 					AccountID:     sourceAccountID,
 					CorrelationID: correlationID,
 				},
-				TransactionID:   withdrawReq.ID,
-				ConvertedAmount: convertedAmount,
-			},
+				wr,
+				events.WithConversionAmount(amount),
+				events.WithConversionTo(currency.EUR),
+				events.WithConversionTransactionID(wr.TransactionID),
+			),
+			ConvertedAmount: convertedAmount,
+			TransactionID:   wr.TransactionID,
 		}
+		wcc := events.NewWithdrawCurrencyConverted(cc)
 
 		// 4. Create WithdrawBusinessValidated
-		businessValidated := &events.WithdrawBusinessValidated{
-			WithdrawCurrencyConverted: *withdrawConverted,
-		}
+		wv := events.NewWithdrawValidated(wcc)
 
 		// 5. Publish and test the flow
-		err := bus.Emit(context.Background(), businessValidated)
+		err := bus.Emit(context.Background(), wv)
 		require.NoError(t, err)
 
 		// Verify the event structure
-		wr := businessValidated.WithdrawRequested
-		wcc := businessValidated.WithdrawCurrencyConverted
-		assert.Equal(t, userID, wr.UserID)
-		assert.Equal(t, sourceAccountID, wr.AccountID)
-		assert.True(t, wcc.ConvertedAmount.Equals(convertedAmount))
+		or, ok := wv.OriginalRequest.(*events.WithdrawRequested)
+		if !ok {
+			t.Fatalf("expected WithdrawRequested, got %T", wv.OriginalRequest)
+		}
+		// wv embeds WithdrawCurrencyConverted, so we can use it directly
+		t.Logf(
+			"Expected converted amount: %+v, Actual converted amount: %+v",
+			convertedAmount,
+			wv.ConvertedAmount,
+		)
+		t.Logf(
+			"Expected amount: %d %s, Actual amount: %d %s",
+			convertedAmount.Amount(),
+			convertedAmount.Currency(),
+			wv.ConvertedAmount.Amount(),
+			wv.ConvertedAmount.Currency(),
+		)
+		assert.True(t, wv.ConvertedAmount.Equals(convertedAmount))
+		assert.Equal(t, sourceAccountID, or.AccountID)
 	})
 
 	t.Run("transfer flow", func(t *testing.T) {
-		// 1. Create TransferRequsted (note the typo in "Requested")
-		transferReq := &events.TransferRequested{
+		// 1. Create TransferRequested
+		tr := &events.TransferRequested{
 			FlowEvent: events.FlowEvent{
 				ID:            uuid.New(),
 				FlowType:      "transfer",
@@ -132,36 +155,41 @@ func TestCompleteEventFlows(t *testing.T) {
 			Timestamp:     time.Now(),
 		}
 
-		// 2. Create TransferCurrencyConverted
+		// 2. Create CurrencyConverted
 		convertedAmount, _ := money.New(90.0, "EUR") // Example conversion
-		transferConverted := &events.TransferCurrencyConverted{
-			TransferRequested: *transferReq,
-			CurrencyConverted: events.CurrencyConverted{
-				FlowEvent: events.FlowEvent{
+		cc := &events.CurrencyConverted{
+			CurrencyConversionRequested: *events.NewCurrencyConversionRequested(
+				events.FlowEvent{
 					ID:            uuid.New(),
 					FlowType:      "transfer",
 					UserID:        userID,
 					AccountID:     sourceAccountID,
 					CorrelationID: correlationID,
 				},
-				TransactionID:   transferReq.TransactionID,
-				ConvertedAmount: convertedAmount,
-			},
+				tr,
+				events.WithConversionAmount(amount),
+				events.WithConversionTo(currency.EUR),
+				events.WithConversionTransactionID(tr.TransactionID),
+			),
+			TransactionID:   tr.TransactionID,
+			ConvertedAmount: convertedAmount,
+			ConversionInfo:  nil,
 		}
 
-		// 3. Create TransferBusinessValidated
-		businessValidated := &events.TransferBusinessValidated{
-			TransferCurrencyConverted: *transferConverted,
-		}
+		// 3. Create TransferCurrencyConverted
+		tc := events.NewTransferCurrencyConverted(cc)
+
+		// 4. Create TransferValidated
+		tv := events.NewTransferBusinessValidated(tc)
 
 		// 4. Publish and test the flow
-		err := bus.Emit(context.Background(), businessValidated)
+		err := bus.Emit(context.Background(), tv)
 		require.NoError(t, err)
 
 		// Verify the event structure
-		assert.Equal(t, userID, businessValidated.CurrencyConverted.UserID)
-		assert.Equal(t, sourceAccountID, businessValidated.CurrencyConverted.AccountID)
-		assert.Equal(t, destAccountID, businessValidated.DestAccountID)
-		assert.True(t, businessValidated.ConvertedAmount.Equals(convertedAmount))
+		assert.Equal(t, userID, tv.UserID)
+		assert.Equal(t, sourceAccountID, tv.AccountID)
+		assert.Equal(t, destAccountID, tv.OriginalRequest.(*events.TransferRequested).DestAccountID)
+		assert.True(t, tv.ConvertedAmount.Equals(convertedAmount))
 	})
 }

@@ -19,7 +19,10 @@ func WithTransferDestAccountID(id uuid.UUID) TransferRequestedOpt {
 	return func(e *TransferRequested) { e.DestAccountID = id }
 }
 
-func NewTransferRequested(userID, accountID, correlationID uuid.UUID, opts ...TransferRequestedOpt) *TransferRequested {
+func NewTransferRequested(
+	userID, accountID, correlationID uuid.UUID,
+	opts ...TransferRequestedOpt,
+) *TransferRequested {
 	event := TransferRequested{
 		FlowEvent: FlowEvent{
 			ID:            uuid.New(),
@@ -40,33 +43,38 @@ func NewTransferRequested(userID, accountID, correlationID uuid.UUID, opts ...Tr
 type TransferCurrencyConvertedOpt func(*TransferCurrencyConverted)
 
 // NewTransferCurrencyConverted creates a new TransferCurrencyConverted event
-func NewTransferCurrencyConverted(tr *TransferRequested, opts ...TransferCurrencyConvertedOpt) *TransferCurrencyConverted {
-	v := &TransferCurrencyConverted{
-		TransferRequested: *tr,
+func NewTransferCurrencyConverted(
+	cc *CurrencyConverted,
+	opts ...TransferCurrencyConvertedOpt,
+) *TransferCurrencyConverted {
+	tr := &TransferCurrencyConverted{
+		CurrencyConverted: *cc,
 	}
-	v.Timestamp = time.Now()
 	for _, opt := range opts {
-		opt(v)
+		opt(tr)
 	}
-	return v
+	return tr
 }
 
-// --- TransferBusinessValidated ---
-type TransferBusinessValidatedOpt func(*TransferBusinessValidated)
+// TransferBusinessValidatedOpt --- TransferBusinessValidated ---
+type TransferBusinessValidatedOpt func(*TransferValidated)
 
 // NewTransferBusinessValidated creates a new TransferBusinessValidated event
-func NewTransferBusinessValidated(tr *TransferCurrencyConverted, opts ...TransferBusinessValidatedOpt) *TransferBusinessValidated {
-	v := &TransferBusinessValidated{
+func NewTransferBusinessValidated(
+	tr *TransferCurrencyConverted,
+	opts ...TransferBusinessValidatedOpt,
+) *TransferValidated {
+	tf := &TransferValidated{
 		TransferCurrencyConverted: *tr,
 	}
-	v.Timestamp = time.Now()
+	tf.Timestamp = time.Now()
 	for _, opt := range opts {
-		opt(v)
+		opt(tf)
 	}
-	return v
+	return tf
 }
 
-// --- TransferFailed ---
+// TransferFailedOpt --- TransferFailed ---
 type TransferFailedOpt func(*TransferFailed)
 
 // WithReason sets the failure reason
@@ -75,23 +83,24 @@ func WithReason(reason string) TransferFailedOpt {
 }
 
 // NewTransferFailed creates a new TransferFailed event
-func NewTransferFailed(flowEvent FlowEvent, reason string, opts ...TransferFailedOpt) *TransferFailed {
-	f := &TransferFailed{
-		TransferRequested: TransferRequested{
-			FlowEvent:     flowEvent,
-			TransactionID: uuid.Nil,
-		},
-		Reason: reason,
+func NewTransferFailed(
+	tr *TransferRequested,
+	reason string,
+	opts ...TransferFailedOpt,
+) *TransferFailed {
+	tf := &TransferFailed{
+		TransferRequested: *tr,
+		Reason:            reason,
 	}
-	f.ID = uuid.New()
-	f.Timestamp = time.Now()
+	tf.ID = uuid.New()
+	tf.Timestamp = time.Now()
 	for _, opt := range opts {
-		opt(f)
+		opt(tf)
 	}
-	return f
+	return tf
 }
 
-// --- TransferCompleted factory ---
+// TransferCompletedOpt --- TransferCompleted factory ---
 type TransferCompletedOpt func(*TransferCompleted)
 
 func WithTransferAmount(m money.Money) TransferCompletedOpt {
@@ -99,16 +108,23 @@ func WithTransferAmount(m money.Money) TransferCompletedOpt {
 }
 
 // NewTransferCompleted creates a new TransferCompleted with the given options
-func NewTransferCompleted(tr *TransferRequested, opts ...TransferCompletedOpt) *TransferCompleted {
-	event := TransferCompleted{
-		TransferBusinessValidated: TransferBusinessValidated{
+func NewTransferCompleted(
+	tr *TransferRequested,
+	opts ...TransferCompletedOpt,
+) *TransferCompleted {
+	tc := &TransferCompleted{
+		TransferValidated: TransferValidated{
 			TransferCurrencyConverted: TransferCurrencyConverted{
-				TransferRequested: *tr,
+				CurrencyConverted: *NewCurrencyConverted(
+					NewCurrencyConversionRequested(tr.FlowEvent, tr),
+				),
 			},
 		},
 	}
+	tc.ID = uuid.New()
+	tc.Timestamp = time.Now()
 	for _, opt := range opts {
-		opt(&event)
+		opt(tc)
 	}
-	return &event
+	return tc
 }

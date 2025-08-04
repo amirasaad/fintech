@@ -36,7 +36,7 @@ func TestEntityInterface(t *testing.T) {
 
 func TestEnhancedRegistry_BasicOperations(t *testing.T) {
 	ctx := context.Background()
-	config := RegistryConfig{
+	config := Config{
 		Name:             "test-registry",
 		EnableEvents:     true,
 		EnableValidation: true,
@@ -97,7 +97,7 @@ func TestEnhancedRegistry_BasicOperations(t *testing.T) {
 
 func TestEnhancedRegistry_WithCache(t *testing.T) {
 	ctx := context.Background()
-	config := RegistryConfig{
+	config := Config{
 		Name:             "test-registry",
 		EnableEvents:     false,
 		EnableValidation: false,
@@ -133,11 +133,18 @@ func TestEnhancedRegistry_WithCache(t *testing.T) {
 	shortCache := NewMemoryCache(time.Millisecond)
 	registry.WithCache(shortCache)
 
-	registry.Register(ctx, entity) //nolint:errcheck
+	err = registry.Register(ctx, entity)
+	if err != nil {
+		t.Fatalf("Failed to register entity: %v", err)
+	}
+
 	time.Sleep(50 * time.Millisecond)
 
 	// Force a Get to trigger possible cleanup
-	_, _ = shortCache.Get(ctx, "test-1")
+	_, foundInCache := shortCache.Get(ctx, "test-1")
+	if !foundInCache {
+		t.Log("Entity not found in cache (expected after expiration)")
+	}
 
 	if shortCache.Size() != 0 {
 		t.Error("Cache should be empty after expiration")
@@ -146,7 +153,7 @@ func TestEnhancedRegistry_WithCache(t *testing.T) {
 
 func TestEnhancedRegistry_WithMetrics(t *testing.T) {
 	ctx := context.Background()
-	config := RegistryConfig{
+	config := Config{
 		Name:             "test-registry",
 		EnableEvents:     false,
 		EnableValidation: false,
@@ -158,9 +165,24 @@ func TestEnhancedRegistry_WithMetrics(t *testing.T) {
 
 	// Perform operations
 	entity := NewBaseEntity("test-1", "Test Entity 1")
-	registry.Register(ctx, entity)     //nolint:errcheck
-	registry.Get(ctx, "test-1")        //nolint:errcheck
-	registry.Unregister(ctx, "test-1") //nolint:errcheck
+
+	// Test Register
+	err := registry.Register(ctx, entity)
+	if err != nil {
+		t.Fatalf("Failed to register entity: %v", err)
+	}
+
+	// Test Get
+	_, err = registry.Get(ctx, "test-1")
+	if err != nil {
+		t.Fatalf("Failed to get entity: %v", err)
+	}
+
+	// Test Unregister
+	err = registry.Unregister(ctx, "test-1")
+	if err != nil {
+		t.Fatalf("Failed to unregister entity: %v", err)
+	}
 
 	// Check metrics
 	stats := metrics.GetStats()
@@ -180,7 +202,7 @@ func TestEnhancedRegistry_WithMetrics(t *testing.T) {
 
 func TestEnhancedRegistry_WithValidation(t *testing.T) {
 	ctx := context.Background()
-	config := RegistryConfig{
+	config := Config{
 		Name:             "test-registry",
 		EnableEvents:     false,
 		EnableValidation: true,
@@ -214,7 +236,7 @@ func TestEnhancedRegistry_WithValidation(t *testing.T) {
 
 func TestEnhancedRegistry_WithEvents(t *testing.T) {
 	ctx := context.Background()
-	config := RegistryConfig{
+	config := Config{
 		Name:             "test-registry",
 		EnableEvents:     true,
 		EnableValidation: false,
@@ -227,12 +249,22 @@ func TestEnhancedRegistry_WithEvents(t *testing.T) {
 	// Create test observer
 	events := make([]string, 0)
 	observer := &testObserver{events: &events}
-	eventBus.Subscribe(observer) //nolint:errcheck
+	err := eventBus.Subscribe(observer)
+	if err != nil {
+		t.Fatalf("Failed to subscribe observer: %v", err)
+	}
 
 	// Perform operations
 	entity := NewBaseEntity("test-1", "Test Entity 1")
-	registry.Register(ctx, entity)     //nolint:errcheck
-	registry.Unregister(ctx, "test-1") //nolint:errcheck
+	err = registry.Register(ctx, entity)
+	if err != nil {
+		t.Fatalf("Failed to register entity: %v", err)
+	}
+
+	err = registry.Unregister(ctx, "test-1")
+	if err != nil {
+		t.Fatalf("Failed to unregister entity: %v", err)
+	}
 
 	// Check events
 	expectedEvents := []string{"registered", "unregistered"}
@@ -249,7 +281,7 @@ func TestEnhancedRegistry_WithEvents(t *testing.T) {
 
 func TestEnhancedRegistry_MetadataOperations(t *testing.T) {
 	ctx := context.Background()
-	config := RegistryConfig{
+	config := Config{
 		Name:             "test-registry",
 		EnableEvents:     false,
 		EnableValidation: false,
@@ -293,7 +325,7 @@ func TestEnhancedRegistry_MetadataOperations(t *testing.T) {
 
 func TestEnhancedRegistry_SearchOperations(t *testing.T) {
 	ctx := context.Background()
-	config := RegistryConfig{
+	config := Config{
 		Name:             "test-registry",
 		EnableEvents:     false,
 		EnableValidation: false,
@@ -350,7 +382,7 @@ func TestRegistryFactory(t *testing.T) {
 	factory := NewRegistryFactory()
 
 	// Test basic creation
-	config := RegistryConfig{
+	config := Config{
 		Name:             "test-registry",
 		EnableEvents:     true,
 		EnableValidation: true,

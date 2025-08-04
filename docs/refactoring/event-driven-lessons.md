@@ -130,7 +130,7 @@ This document captures the key lessons learned during our event-driven architect
 **Pattern**:
 
 ```
-User Request → Validation → Conversion (if needed) → Business Validation → Payment/Domain Op → Persistence
+User Request → Validation → Conversion (if needed) → Business Validation → Payment/Domain Op → HandleProcessed
 ```
 
 **Motivation**:

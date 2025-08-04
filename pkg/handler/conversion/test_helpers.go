@@ -9,10 +9,16 @@ import (
 )
 
 // NewValidConversionRequestedEvent returns a fully valid ConversionRequestedEvent for use in tests.
-func NewValidConversionRequestedEvent(flow events.FlowEvent, transactionID uuid.UUID, amount money.Money, to string) *events.CurrencyConversionRequested {
+func NewValidConversionRequestedEvent(
+	flow events.FlowEvent,
+	transactionID uuid.UUID,
+	amount money.Money,
+	to string,
+) *events.CurrencyConversionRequested {
 	// Create the event using the factory function with options
 	event := events.NewCurrencyConversionRequested(
 		flow,
+		nil,
 		events.WithConversionAmount(amount),
 		events.WithConversionTo(currency.Code(to)),
 		events.WithConversionTransactionID(transactionID),
@@ -22,7 +28,11 @@ func NewValidConversionRequestedEvent(flow events.FlowEvent, transactionID uuid.
 }
 
 // NewValidConversionInfo returns a fully valid ConversionInfo for use in tests.
-func NewValidConversionInfo(originalAmount, convertedAmount float64, originalCurrency, convertedCurrency string, rate float64) *common.ConversionInfo {
+func NewValidConversionInfo(
+	originalAmount, convertedAmount float64,
+	originalCurrency, convertedCurrency string,
+	rate float64,
+) *common.ConversionInfo {
 	return &common.ConversionInfo{
 		OriginalAmount:    originalAmount,
 		OriginalCurrency:  originalCurrency,
