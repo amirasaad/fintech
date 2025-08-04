@@ -19,10 +19,7 @@ func HandleInitiated(
 	bus eventbus.Bus,
 	paymentProvider provider.PaymentProvider,
 	logger *slog.Logger,
-) func(
-	ctx context.Context,
-	e events.Event,
-) error {
+) eventbus.HandlerFunc {
 	return func(ctx context.Context, e events.Event) error {
 		log := logger.With(
 			"handler", "payment.HandleInitiated",

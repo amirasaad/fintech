@@ -3,6 +3,7 @@ package payment
 import (
 	"context"
 	"errors"
+	"github.com/amirasaad/fintech/pkg/eventbus"
 	"log/slog"
 
 	"github.com/amirasaad/fintech/pkg/domain/account"
@@ -20,10 +21,7 @@ import (
 func HandleProcessed(
 	uow repository.UnitOfWork,
 	logger *slog.Logger,
-) func(
-	ctx context.Context,
-	e events.Event,
-) error {
+) eventbus.HandlerFunc {
 	return func(
 		ctx context.Context,
 		e events.Event,
