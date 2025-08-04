@@ -30,11 +30,15 @@ type RateLimitConfig struct {
 	Window      time.Duration `envconfig:"WINDOW" default:"1m"`
 }
 
+//revive:disable
 type Stripe struct {
 	ApiKey        string `envconfig:"API_KEY"`
 	SigningSecret string `envconfig:"SIGNING_SECRET"`
+	SuccessPath   string `envconfig:"SUCCESS_PATH" default:"http://localhost:3000/payment/stripe/success/"`
+	CancelPath    string `envconfig:"CANCEL_PATH" default:"http://localhost:3000/payment/stripe/cancel/"`
 }
 
+//revive:enable
 type PaymentProviders struct {
 	Stripe Stripe `envconfig:"STRIPE"`
 }

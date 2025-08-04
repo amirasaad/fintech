@@ -18,16 +18,32 @@ const (
 	PaymentFailed PaymentStatus = "failed"
 )
 
+// InitiatePaymentParams holds the parameters for the InitiatePayment method.
+type InitiatePaymentParams struct {
+	UserID        uuid.UUID
+	AccountID     uuid.UUID
+	TransactionID uuid.UUID
+	Amount        int64
+	Currency      string
+}
+
+type InitiatePaymentResponse struct {
+	Status PaymentStatus
+}
+
+// GetPaymentStatusParams holds the parameters for the GetPaymentStatus method.
+type GetPaymentStatusParams struct {
+	PaymentID string
+}
+
 // PaymentProvider is a interface for payment provider
 type PaymentProvider interface {
 	InitiatePayment(
 		ctx context.Context,
-		userID, accountID uuid.UUID,
-		amount int64,
-		currency string,
-	) (string, error)
+		params *InitiatePaymentParams,
+	) (*InitiatePaymentResponse, error)
 	GetPaymentStatus(
 		ctx context.Context,
-		paymentID string,
+		params *GetPaymentStatusParams,
 	) (PaymentStatus, error)
 }

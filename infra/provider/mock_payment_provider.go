@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/amirasaad/fintech/pkg/provider"
-	"github.com/google/uuid"
 )
 
 type mockPayment struct {
@@ -41,32 +40,31 @@ func NewMockPaymentProvider() *MockPaymentProvider {
 // InitiatePayment simulates initiating a deposit payment.
 func (m *MockPaymentProvider) InitiatePayment(
 	ctx context.Context,
-	userID, accountID uuid.UUID,
-	amount int64,
-	currency string,
-) (string, error) {
-	paymentID := uuid.New().String()
+	params *provider.InitiatePaymentParams,
+) (*provider.InitiatePaymentResponse, error) {
 	m.mu.Lock()
-	m.payments[paymentID] = &mockPayment{status: provider.PaymentPending}
+	m.payments[params.TransactionID.String()] = &mockPayment{status: provider.PaymentPending}
 	m.mu.Unlock()
 	// Simulate async completion
 	go func() {
 		time.Sleep(2 * time.Second)
 		m.mu.Lock()
-		m.payments[paymentID].status = provider.PaymentCompleted
+		m.payments[params.TransactionID.String()].status = provider.PaymentCompleted
 		m.mu.Unlock()
 	}()
-	return paymentID, nil
+	return &provider.InitiatePaymentResponse{
+		Status: provider.PaymentPending,
+	}, nil
 }
 
 // GetPaymentStatus returns the current status of a payment.
 func (m *MockPaymentProvider) GetPaymentStatus(
 	ctx context.Context,
-	paymentID string,
+	params *provider.GetPaymentStatusParams,
 ) (provider.PaymentStatus, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if p, ok := m.payments[paymentID]; ok {
+	if p, ok := m.payments[params.PaymentID]; ok {
 		return p.status, nil
 	}
 	return provider.PaymentFailed, nil

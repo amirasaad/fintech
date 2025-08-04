@@ -11,8 +11,6 @@ import (
 	"github.com/amirasaad/fintech/pkg/provider"
 	"github.com/google/uuid"
 	"github.com/stripe/stripe-go/v82"
-	"github.com/stripe/stripe-go/v82/checkout/session"
-	"github.com/stripe/stripe-go/v82/paymentintent"
 	"github.com/stripe/stripe-go/v82/webhook"
 )
 
@@ -53,45 +51,48 @@ func NewStripePaymentProvider(
 // InitiatePayment creates a PaymentIntent in Stripe and returns its ID.
 func (s *StripePaymentProvider) InitiatePayment(
 	ctx context.Context,
-	userID, accountID uuid.UUID,
-	amount int64,
-	currency string,
-) (string, error) {
-	params := &stripe.PaymentIntentParams{
-		Amount:   stripe.Int64(int64(amount)),
-		Currency: stripe.String(currency),
-		Metadata: map[string]string{
-			"user_id":    userID.String(),
-			"account_id": accountID.String(),
-		},
-	}
-	pi, err := paymentintent.New(params)
+	params *provider.InitiatePaymentParams,
+) (*provider.InitiatePaymentResponse, error) {
 	log := s.logger.With(
 		"handler", "stripe.InitiatePayment",
-		"user_id", userID,
-		"account_id", accountID,
-		"amount", amount,
-		"currency", currency,
+		"user_id", params.UserID,
+		"account_id", params.AccountID,
+		"amount", params.Amount,
+		"currency", params.Currency,
+	)
+	co, err := s.createCheckoutSession(
+		ctx,
+		params.UserID,
+		params.AccountID,
+		params.Amount,
+		params.Currency,
+		"Payment for deposit",
 	)
 	if err != nil {
 		log.Error(
-			"[ERROR] stripe: failed to create payment intent",
+			"[ERROR] failed to create checkout session",
 			"err", err,
 		)
-		return "", fmt.Errorf("failed to create payment intent: %w", err)
+		return nil,
+			fmt.Errorf("failed to create checkout session: %w", err)
+
 	}
-	return pi.ID, nil
+	log.Info("created checkout session", "checkout_session", co)
+
+	return &provider.InitiatePaymentResponse{
+		Status: provider.PaymentPending,
+	}, nil
 }
 
 // GetPaymentStatus retrieves the status of a PaymentIntent from Stripe.
 func (s *StripePaymentProvider) GetPaymentStatus(
 	ctx context.Context,
-	paymentID string,
+	params *provider.GetPaymentStatusParams,
 ) (provider.PaymentStatus, error) {
-	pi, err := s.client.V1PaymentIntents.Retrieve(ctx, paymentID, nil)
+	pi, err := s.client.V1PaymentIntents.Retrieve(ctx, params.PaymentID, nil)
 	log := s.logger.With(
 		"handler", "stripe.GetPaymentStatus",
-		"payment_id", paymentID,
+		"payment_id", params.PaymentID,
 	)
 	if err != nil {
 		log.Error(
@@ -112,57 +113,65 @@ func (s *StripePaymentProvider) GetPaymentStatus(
 	}
 }
 
-// CreateCheckoutSession creates a new Stripe Checkout Session
-func (s *StripePaymentProvider) CreateCheckoutSession(
+// createCheckoutSession creates a new Stripe Checkout Session
+func (s *StripePaymentProvider) createCheckoutSession(
+	ctx context.Context,
 	userID, accountID uuid.UUID,
 	amount int64,
 	currency string,
-	successPath, cancelPath, description string,
+	description string,
 ) (*CheckoutSession, error) {
-	successURL := s.ensureAbsoluteURL(successPath)
-	cancelURL := s.ensureAbsoluteURL(cancelPath)
+	successURL := s.ensureAbsoluteURL(s.cfg.SuccessPath)
+	cancelURL := s.ensureAbsoluteURL(s.cfg.CancelPath)
 
-	params := &stripe.CheckoutSessionParams{
-		PaymentMethodTypes: stripe.StringSlice([]string{
-			"card",
-		}),
-		LineItems: []*stripe.CheckoutSessionLineItemParams{
-			{
-				PriceData: &stripe.CheckoutSessionLineItemPriceDataParams{
-					Currency: stripe.String(currency),
-					ProductData: &stripe.CheckoutSessionLineItemPriceDataProductDataParams{
-						Name: stripe.String(description),
-					},
-					UnitAmount: stripe.Int64(amount),
-				},
-				Quantity: stripe.Int64(1),
-			},
-		},
-		Mode: stripe.String(stripe.CheckoutSessionModePayment),
-		SuccessURL: stripe.String(
-			fmt.Sprintf("%s?session_id={CHECKOUT_SESSION_ID}",
-				successURL)),
-		CancelURL: stripe.String(cancelURL),
+	params := &stripe.CheckoutSessionCreateParams{
+		PaymentMethodTypes: stripe.StringSlice([]string{"card"}),
+		Mode:               stripe.String(string(stripe.CheckoutSessionModePayment)),
+		SuccessURL:         stripe.String(successURL),
+		CancelURL:          stripe.String(cancelURL),
 		Metadata: map[string]string{
 			"user_id":    userID.String(),
 			"account_id": accountID.String(),
 		},
+		LineItems: []*stripe.CheckoutSessionCreateLineItemParams{{
+			PriceData: &stripe.CheckoutSessionCreateLineItemPriceDataParams{
+				Currency: stripe.String(currency),
+				ProductData: &stripe.CheckoutSessionCreateLineItemPriceDataProductDataParams{
+					Name: stripe.String(description)},
+				UnitAmount: stripe.Int64(amount),
+			},
+			Quantity: stripe.Int64(1),
+		}},
+	}
+	// Create the checkout session parameters
+
+	// Add customer email if available
+	if userEmail, ok := ctx.Value("user_email").(string); ok && userEmail != "" {
+		params.CustomerEmail = stripe.String(userEmail)
 	}
 
-	sess, err := session.New(params)
+	// Create the checkout session using the session package
+	session, err := s.client.V1CheckoutSessions.Create(ctx, params)
 	if err != nil {
 		s.logger.Error(
 			"[ERROR] stripe: failed to create checkout session",
-			"err", err,
+			"error", err,
 		)
 		return nil, fmt.Errorf("failed to create checkout session: %w", err)
 	}
 
+	// Log successful session creation
+	s.logger.Info(
+		"[INFO] stripe: created checkout session",
+		"session_id", session.ID,
+		"url", session.URL,
+	)
+
 	return &CheckoutSession{
-		ID:          sess.ID,
-		URL:         sess.URL,
-		AmountTotal: sess.AmountTotal,
-		Currency:    string(sess.Currency),
+		ID:          session.ID,
+		URL:         session.URL,
+		AmountTotal: session.AmountTotal,
+		Currency:    string(session.Currency),
 	}, nil
 }
 
@@ -200,7 +209,11 @@ func (s *StripePaymentProvider) HandleWebhook(
 		}
 
 		// Get the payment intent details
-		pi, err := paymentintent.Get(session.PaymentIntent.ID, nil)
+		pi, err := s.client.V1PaymentIntents.Retrieve(
+			context.Background(),
+			session.PaymentIntent.ID,
+			nil,
+		)
 		if err != nil {
 			log.Error(
 				"[ERROR] error retrieving payment intent",

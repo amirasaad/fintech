@@ -46,19 +46,19 @@ func HandleInitiated(
 			)
 			return nil
 		}
-		log.Info(
-			"✅ [SUCCESS] Initiating payment",
-			"transaction_id", transactionID,
-		)
+
 		// Call payment provider
 		amount := pi.Amount.Amount()
 		currency := pi.Amount.Currency().String()
-		paymentID, err := paymentProvider.InitiatePayment(
+		payment, err := paymentProvider.InitiatePayment(
 			ctx,
-			pi.UserID,
-			pi.AccountID,
-			amount,
-			currency,
+			&provider.InitiatePaymentParams{
+				UserID:        pi.UserID,
+				AccountID:     pi.AccountID,
+				Amount:        amount,
+				Currency:      currency,
+				TransactionID: transactionID,
+			},
 		)
 		if err != nil {
 			log.Error(
@@ -68,18 +68,10 @@ func HandleInitiated(
 			return err
 		}
 		log.Info(
-			"📤 [EMIT] Emitting PaymentInitiatedEvent",
+			"✅ [SUCCESS] Initiated payment",
 			"transaction_id", transactionID,
-			"payment_id", paymentID,
+			"payment", payment,
 		)
-		// Create a PaymentInitiated event first
-		pp := events.NewPaymentProcessed(
-			*pi,
-			func(pp *events.PaymentProcessed) {
-				pp.PaymentID = paymentID
-			},
-		)
-
-		return bus.Emit(ctx, pp)
+		return nil
 	}
 }
