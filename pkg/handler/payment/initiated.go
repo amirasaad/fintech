@@ -75,6 +75,9 @@ func HandleInitiated(
 		// Create a PaymentInitiated event first
 		pp := events.NewPaymentProcessed(
 			*pi,
+			func(pp *events.PaymentProcessed) {
+				pp.PaymentID = paymentID
+			},
 		)
 
 		return bus.Emit(ctx, pp)

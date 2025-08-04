@@ -4,6 +4,7 @@ package events
 var EventTypes = map[EventType]func() Event{
 	EventTypePaymentInitiated: func() Event { return &PaymentInitiated{} },
 	EventTypePaymentCompleted: func() Event { return &PaymentCompleted{} },
+	EventTypePaymentProcessed: func() Event { return &PaymentProcessed{} },
 	EventTypeDepositRequested: func() Event { return &DepositRequested{} },
 	EventTypeDepositCurrencyConverted: func() Event {
 		return &DepositCurrencyConverted{}
