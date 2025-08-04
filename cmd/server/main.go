@@ -3,10 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/amirasaad/fintech/webapi"
 	"log/slog"
 	"os"
 	"time"
+
+	"github.com/amirasaad/fintech/webapi"
 
 	"github.com/amirasaad/fintech/config"
 	"github.com/amirasaad/fintech/infra"
@@ -103,8 +104,11 @@ func main() {
 		EventBus:          bus,
 		CurrencyConverter: currencyConverter,
 		CurrencyRegistry:  currencyRegistry,
-		Logger:            logger,
-		PaymentProvider:   provider.NewMockPaymentProvider(),
-		Config:            cfg,
+		PaymentProvider: provider.NewStripePaymentProvider(
+			&cfg.PaymentProviders.Stripe,
+			logger,
+		),
+		Config: cfg,
+		Logger: logger,
 	}).Listen(fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)))
 }
