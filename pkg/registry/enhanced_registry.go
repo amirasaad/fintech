@@ -8,23 +8,23 @@ import (
 	"time"
 )
 
-// EnhancedRegistry provides a full-featured registry implementation
-type EnhancedRegistry struct {
+// Enhanced provides a full-featured registry implementation
+type Enhanced struct {
 	config      Config
 	entities    map[string]Entity
 	mu          sync.RWMutex
 	observers   []Observer
 	validator   Validator
 	cache       Cache
-	persistence RegistryPersistence
+	persistence Persistence
 	metrics     Metrics
 	health      Health
 	eventBus    EventBus
 }
 
-// NewEnhancedRegistry creates a new enhanced registry
-func NewEnhancedRegistry(config Config) *EnhancedRegistry {
-	return &EnhancedRegistry{
+// NewEnhanced creates a new enhanced registry
+func NewEnhanced(config Config) *Enhanced {
+	return &Enhanced{
 		config:    config,
 		entities:  make(map[string]Entity),
 		observers: make([]Observer, 0),
@@ -32,43 +32,43 @@ func NewEnhancedRegistry(config Config) *EnhancedRegistry {
 }
 
 // WithValidator sets the validator for the registry
-func (r *EnhancedRegistry) WithValidator(validator Validator) *EnhancedRegistry {
+func (r *Enhanced) WithValidator(validator Validator) *Enhanced {
 	r.validator = validator
 	return r
 }
 
 // WithCache sets the cache for the registry
-func (r *EnhancedRegistry) WithCache(cache Cache) *EnhancedRegistry {
+func (r *Enhanced) WithCache(cache Cache) *Enhanced {
 	r.cache = cache
 	return r
 }
 
 // WithPersistence sets the persistence layer for the registry
-func (r *EnhancedRegistry) WithPersistence(persistence RegistryPersistence) *EnhancedRegistry {
+func (r *Enhanced) WithPersistence(persistence Persistence) *Enhanced {
 	r.persistence = persistence
 	return r
 }
 
 // WithMetrics sets the metrics collector for the registry
-func (r *EnhancedRegistry) WithMetrics(metrics Metrics) *EnhancedRegistry {
+func (r *Enhanced) WithMetrics(metrics Metrics) *Enhanced {
 	r.metrics = metrics
 	return r
 }
 
 // WithHealth sets the health checker for the registry
-func (r *EnhancedRegistry) WithHealth(health Health) *EnhancedRegistry {
+func (r *Enhanced) WithHealth(health Health) *Enhanced {
 	r.health = health
 	return r
 }
 
 // WithEventBus sets the event bus for the registry
-func (r *EnhancedRegistry) WithEventBus(eventBus EventBus) *EnhancedRegistry {
+func (r *Enhanced) WithEventBus(eventBus EventBus) *Enhanced {
 	r.eventBus = eventBus
 	return r
 }
 
 // Register adds or updates an entity in the registry
-func (r *EnhancedRegistry) Register(ctx context.Context, entity Entity) error {
+func (r *Enhanced) Register(ctx context.Context, entity Entity) error {
 	start := time.Now()
 	defer func() {
 		if r.metrics != nil {
@@ -157,7 +157,7 @@ func (r *EnhancedRegistry) Register(ctx context.Context, entity Entity) error {
 }
 
 // Get retrieves an entity by ID
-func (r *EnhancedRegistry) Get(ctx context.Context, id string) (Entity, error) {
+func (r *Enhanced) Get(ctx context.Context, id string) (Entity, error) {
 	start := time.Now()
 	defer func() {
 		if r.metrics != nil {
@@ -202,7 +202,7 @@ func (r *EnhancedRegistry) Get(ctx context.Context, id string) (Entity, error) {
 }
 
 // Unregister removes an entity from the registry
-func (r *EnhancedRegistry) Unregister(ctx context.Context, id string) error {
+func (r *Enhanced) Unregister(ctx context.Context, id string) error {
 	start := time.Now()
 	defer func() {
 		if r.metrics != nil {
@@ -260,7 +260,7 @@ func (r *EnhancedRegistry) Unregister(ctx context.Context, id string) error {
 }
 
 // IsRegistered checks if an entity is registered
-func (r *EnhancedRegistry) IsRegistered(ctx context.Context, id string) bool {
+func (r *Enhanced) IsRegistered(ctx context.Context, id string) bool {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	_, exists := r.entities[id]
@@ -268,7 +268,7 @@ func (r *EnhancedRegistry) IsRegistered(ctx context.Context, id string) bool {
 }
 
 // List returns all entities
-func (r *EnhancedRegistry) List(ctx context.Context) ([]Entity, error) {
+func (r *Enhanced) List(ctx context.Context) ([]Entity, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -280,7 +280,7 @@ func (r *EnhancedRegistry) List(ctx context.Context) ([]Entity, error) {
 }
 
 // ListActive returns all active entities
-func (r *EnhancedRegistry) ListActive(ctx context.Context) ([]Entity, error) {
+func (r *Enhanced) ListActive(ctx context.Context) ([]Entity, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -294,7 +294,7 @@ func (r *EnhancedRegistry) ListActive(ctx context.Context) ([]Entity, error) {
 }
 
 // ListByMetadata returns entities with specific metadata
-func (r *EnhancedRegistry) ListByMetadata(
+func (r *Enhanced) ListByMetadata(
 	ctx context.Context,
 	key, value string,
 ) ([]Entity, error) {
@@ -313,21 +313,21 @@ func (r *EnhancedRegistry) ListByMetadata(
 }
 
 // Count returns the total number of entities
-func (r *EnhancedRegistry) Count(ctx context.Context) (int, error) {
+func (r *Enhanced) Count(ctx context.Context) (int, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	return len(r.entities), nil
 }
 
 // CountActive returns the number of active entities
-func (r *EnhancedRegistry) CountActive(ctx context.Context) (int, error) {
+func (r *Enhanced) CountActive(ctx context.Context) (int, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	return r.countActiveLocked(), nil
 }
 
 // countActiveLocked is a helper method that assumes the lock is already held
-func (r *EnhancedRegistry) countActiveLocked() int {
+func (r *Enhanced) countActiveLocked() int {
 	count := 0
 	for _, entity := range r.entities {
 		if entity.Active() {
@@ -338,7 +338,7 @@ func (r *EnhancedRegistry) countActiveLocked() int {
 }
 
 // GetMetadata retrieves specific metadata for an entity
-func (r *EnhancedRegistry) GetMetadata(ctx context.Context, id, key string) (string, error) {
+func (r *Enhanced) GetMetadata(ctx context.Context, id, key string) (string, error) {
 	entity, err := r.Get(ctx, id)
 	if err != nil {
 		return "", err
@@ -353,7 +353,7 @@ func (r *EnhancedRegistry) GetMetadata(ctx context.Context, id, key string) (str
 }
 
 // SetMetadata sets specific metadata for an entity
-func (r *EnhancedRegistry) SetMetadata(ctx context.Context, id, key, value string) error {
+func (r *Enhanced) SetMetadata(ctx context.Context, id, key, value string) error {
 	entity, err := r.Get(ctx, id)
 	if err != nil {
 		return err
@@ -377,7 +377,7 @@ func (r *EnhancedRegistry) SetMetadata(ctx context.Context, id, key, value strin
 }
 
 // RemoveMetadata removes specific metadata from an entity
-func (r *EnhancedRegistry) RemoveMetadata(ctx context.Context, id, key string) error {
+func (r *Enhanced) RemoveMetadata(ctx context.Context, id, key string) error {
 	entity, err := r.Get(ctx, id)
 	if err != nil {
 		return err
@@ -391,7 +391,7 @@ func (r *EnhancedRegistry) RemoveMetadata(ctx context.Context, id, key string) e
 }
 
 // Activate activates an entity
-func (r *EnhancedRegistry) Activate(ctx context.Context, id string) error {
+func (r *Enhanced) Activate(ctx context.Context, id string) error {
 	entity, err := r.Get(ctx, id)
 	if err != nil {
 		return err
@@ -413,7 +413,7 @@ func (r *EnhancedRegistry) Activate(ctx context.Context, id string) error {
 }
 
 // Deactivate deactivates an entity
-func (r *EnhancedRegistry) Deactivate(ctx context.Context, id string) error {
+func (r *Enhanced) Deactivate(ctx context.Context, id string) error {
 	entity, err := r.Get(ctx, id)
 	if err != nil {
 		return err
@@ -433,7 +433,7 @@ func (r *EnhancedRegistry) Deactivate(ctx context.Context, id string) error {
 }
 
 // Search performs a simple search on entity names
-func (r *EnhancedRegistry) Search(ctx context.Context, query string) ([]Entity, error) {
+func (r *Enhanced) Search(ctx context.Context, query string) ([]Entity, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -447,7 +447,7 @@ func (r *EnhancedRegistry) Search(ctx context.Context, query string) ([]Entity, 
 }
 
 // SearchByMetadata searches entities by metadata
-func (r *EnhancedRegistry) SearchByMetadata(
+func (r *Enhanced) SearchByMetadata(
 	ctx context.Context,
 	metadata map[string]string,
 ) ([]Entity, error) {
@@ -472,14 +472,14 @@ func (r *EnhancedRegistry) SearchByMetadata(
 }
 
 // AddObserver adds an observer to the registry
-func (r *EnhancedRegistry) AddObserver(observer Observer) {
+func (r *Enhanced) AddObserver(observer Observer) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.observers = append(r.observers, observer)
 }
 
 // RemoveObserver removes an observer from the registry
-func (r *EnhancedRegistry) RemoveObserver(observer Observer) {
+func (r *Enhanced) RemoveObserver(observer Observer) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 

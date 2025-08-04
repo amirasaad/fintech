@@ -274,7 +274,7 @@ func NewRegistry(ctx context.Context) (*Registry, error) {
 		CacheTTL:         10 * time.Minute,
 	}
 
-	reg := registry.NewEnhancedRegistry(config)
+	reg := registry.NewEnhanced(config)
 	reg.WithValidator(NewCurrencyValidator())
 	reg.WithCache(registry.NewMemoryCache(10 * time.Minute))
 
@@ -307,7 +307,7 @@ func NewRegistryWithPersistence(
 		AutoSaveInterval:  time.Minute,
 	}
 
-	reg := registry.NewEnhancedRegistry(config)
+	reg := registry.NewEnhanced(config)
 	reg.WithValidator(NewCurrencyValidator())
 	reg.WithCache(registry.NewMemoryCache(10 * time.Minute))
 

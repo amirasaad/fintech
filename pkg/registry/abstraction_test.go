@@ -44,7 +44,7 @@ func TestEnhancedRegistry_BasicOperations(t *testing.T) {
 		CacheTTL:         time.Minute,
 	}
 
-	registry := NewEnhancedRegistry(config)
+	registry := NewEnhanced(config)
 
 	// Test registration
 	entity := NewBaseEntity("test-1", "Test Entity 1")
@@ -103,7 +103,7 @@ func TestEnhancedRegistry_WithCache(t *testing.T) {
 		EnableValidation: false,
 	}
 
-	registry := NewEnhancedRegistry(config)
+	registry := NewEnhanced(config)
 	cache := NewMemoryCache(time.Minute)
 	registry.WithCache(cache)
 
@@ -159,7 +159,7 @@ func TestEnhancedRegistry_WithMetrics(t *testing.T) {
 		EnableValidation: false,
 	}
 
-	registry := NewEnhancedRegistry(config)
+	registry := NewEnhanced(config)
 	metrics := NewSimpleMetrics()
 	registry.WithMetrics(metrics)
 
@@ -208,7 +208,7 @@ func TestEnhancedRegistry_WithValidation(t *testing.T) {
 		EnableValidation: true,
 	}
 
-	registry := NewEnhancedRegistry(config)
+	registry := NewEnhanced(config)
 	validator := NewSimpleValidator()
 	registry.WithValidator(validator)
 
@@ -242,7 +242,7 @@ func TestEnhancedRegistry_WithEvents(t *testing.T) {
 		EnableValidation: false,
 	}
 
-	registry := NewEnhancedRegistry(config)
+	registry := NewEnhanced(config)
 	eventBus := NewSimpleEventBus()
 	registry.WithEventBus(eventBus)
 
@@ -287,7 +287,7 @@ func TestEnhancedRegistry_MetadataOperations(t *testing.T) {
 		EnableValidation: false,
 	}
 
-	registry := NewEnhancedRegistry(config)
+	registry := NewEnhanced(config)
 
 	// Register entity
 	entity := NewBaseEntity("test-1", "Test Entity 1")
@@ -331,7 +331,7 @@ func TestEnhancedRegistry_SearchOperations(t *testing.T) {
 		EnableValidation: false,
 	}
 
-	registry := NewEnhancedRegistry(config)
+	registry := NewEnhanced(config)
 
 	// Register multiple entities
 	entities := []Entity{
@@ -412,7 +412,7 @@ func TestRegistryFactory(t *testing.T) {
 }
 
 func TestRegistryBuilder(t *testing.T) {
-	builder := NewRegistryBuilder()
+	builder := NewBuilder()
 
 	config := builder.
 		WithName("test-registry").

@@ -10,7 +10,7 @@ import (
 type FactoryImpl struct{}
 
 // NewRegistryFactory creates a new registry factory
-func NewRegistryFactory() RegistryFactory {
+func NewRegistryFactory() Factory {
 	return &FactoryImpl{}
 }
 
@@ -19,7 +19,7 @@ func (f *FactoryImpl) Create(
 	ctx context.Context,
 	config Config,
 ) (Provider, error) {
-	registry := NewEnhancedRegistry(config)
+	registry := NewEnhanced(config)
 
 	// Add default implementations if not provided
 	if config.EnableValidation {
@@ -41,9 +41,9 @@ func (f *FactoryImpl) Create(
 func (f *FactoryImpl) CreateWithPersistence(
 	ctx context.Context,
 	config Config,
-	persistence RegistryPersistence,
+	persistence Persistence,
 ) (Provider, error) {
-	registry := NewEnhancedRegistry(config)
+	registry := NewEnhanced(config)
 
 	// Add persistence
 	registry.WithPersistence(persistence)
@@ -79,7 +79,7 @@ func (f *FactoryImpl) CreateWithCache(
 	config Config,
 	cache Cache,
 ) (Provider, error) {
-	registry := NewEnhancedRegistry(config)
+	registry := NewEnhanced(config)
 
 	// Add custom cache
 	registry.WithCache(cache)
@@ -102,7 +102,7 @@ func (f *FactoryImpl) CreateWithMetrics(
 	config Config,
 	metrics Metrics,
 ) (Provider, error) {
-	registry := NewEnhancedRegistry(config)
+	registry := NewEnhanced(config)
 
 	// Add metrics
 	registry.WithMetrics(metrics)
@@ -129,7 +129,7 @@ func (f *FactoryImpl) CreateFullFeatured(
 	ctx context.Context,
 	config Config,
 ) (Provider, error) {
-	registry := NewEnhancedRegistry(config)
+	registry := NewEnhanced(config)
 
 	// Add all implementations
 	registry.WithValidator(NewSimpleValidator())
@@ -167,7 +167,7 @@ func (f *FactoryImpl) CreateForTesting(ctx context.Context) (Provider, error) {
 		CacheTTL:         time.Minute,
 	}
 
-	registry := NewEnhancedRegistry(config)
+	registry := NewEnhanced(config)
 	registry.WithValidator(NewSimpleValidator())
 
 	return registry, nil
@@ -209,7 +209,7 @@ func (f *FactoryImpl) CreateForDevelopment(
 		CacheTTL:         time.Minute,
 	}
 
-	registry := NewEnhancedRegistry(config)
+	registry := NewEnhanced(config)
 	registry.WithValidator(NewSimpleValidator())
 	registry.WithMetrics(NewSimpleMetrics())
 	registry.WithEventBus(NewSimpleEventBus())

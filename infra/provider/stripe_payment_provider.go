@@ -6,9 +6,12 @@ import (
 	"fmt"
 	"log/slog"
 	"net/url"
+	"time"
 
 	"github.com/amirasaad/fintech/config"
+	"github.com/amirasaad/fintech/pkg/checkout"
 	"github.com/amirasaad/fintech/pkg/provider"
+	"github.com/amirasaad/fintech/pkg/registry"
 	"github.com/google/uuid"
 	"github.com/stripe/stripe-go/v82"
 	"github.com/stripe/stripe-go/v82/webhook"
@@ -34,9 +37,10 @@ type PaymentEvent struct {
 
 // StripePaymentProvider implements PaymentProvider using Stripe API.
 type StripePaymentProvider struct {
-	client *stripe.Client
-	cfg    *config.Stripe
-	logger *slog.Logger
+	client          *stripe.Client
+	cfg             *config.Stripe
+	checkoutService *checkout.Service
+	logger          *slog.Logger
 }
 
 // NewStripePaymentProvider creates a new StripePaymentProvider with the given API key and logger.
@@ -45,7 +49,15 @@ func NewStripePaymentProvider(
 	logger *slog.Logger,
 ) *StripePaymentProvider {
 	client := stripe.NewClient(cfg.ApiKey)
-	return &StripePaymentProvider{client: client, cfg: cfg, logger: logger}
+
+	return &StripePaymentProvider{
+		client: client,
+		cfg:    cfg,
+		checkoutService: checkout.NewService(
+			registry.New(),
+		),
+		logger: logger,
+	}
 }
 
 // InitiatePayment creates a PaymentIntent in Stripe and returns its ID.
@@ -78,7 +90,24 @@ func (s *StripePaymentProvider) InitiatePayment(
 
 	}
 	log.Info("created checkout session", "checkout_session", co)
-
+	session, err := s.checkoutService.CreateSession(
+		ctx,
+		co.ID,
+		params.TransactionID,
+		params.UserID,
+		params.AccountID,
+		params.Amount,
+		params.Currency,
+		co.URL,
+		time.Hour*24,
+	)
+	if err != nil {
+		log.Error(
+			"[ERROR] failed to create checkout session",
+			"err", err,
+		)
+	}
+	log.Info("created checkout session", "checkout_session", session)
 	return &provider.InitiatePaymentResponse{
 		Status: provider.PaymentPending,
 	}, nil

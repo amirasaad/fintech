@@ -60,7 +60,7 @@ func CurrencyRegistryExample() {
 		CacheTTL:         10 * time.Minute,
 	}
 
-	registry := NewEnhancedRegistry(config)
+	registry := NewEnhanced(config)
 	registry.WithValidator(NewCurrencyValidator())
 	registry.WithCache(NewMemoryCache(10 * time.Minute))
 
@@ -334,7 +334,7 @@ func CurrencyRegistryWithPersistence() {
 		AutoSaveInterval:  time.Minute,
 	}
 
-	registry := NewEnhancedRegistry(config)
+	registry := NewEnhanced(config)
 	registry.WithValidator(NewCurrencyValidator())
 	registry.WithCache(NewMemoryCache(5 * time.Minute))
 
@@ -359,7 +359,7 @@ func CurrencyRegistryWithPersistence() {
 	// Simulate application restart by creating a new registry
 	fmt.Println("Simulating application restart...")
 
-	newRegistry := NewEnhancedRegistry(config)
+	newRegistry := NewEnhanced(config)
 	newRegistry.WithValidator(NewCurrencyValidator())
 	newRegistry.WithCache(NewMemoryCache(5 * time.Minute))
 
@@ -412,7 +412,7 @@ func CurrencyRegistryWithEvents() {
 		CacheTTL:         5 * time.Minute,
 	}
 
-	registry := NewEnhancedRegistry(config)
+	registry := NewEnhanced(config)
 	registry.WithValidator(NewCurrencyValidator())
 
 	// Create event observer

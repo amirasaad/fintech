@@ -111,8 +111,8 @@ type Validator interface {
 	ValidateMetadata(ctx context.Context, metadata map[string]string) error
 }
 
-// RegistryPersistence defines the interface for registry persistence
-type RegistryPersistence interface {
+// Persistence defines the interface for registry persistence
+type Persistence interface {
 	Save(ctx context.Context, entities []Entity) error
 	Load(ctx context.Context) ([]Entity, error)
 	Delete(ctx context.Context, id string) error
@@ -146,8 +146,8 @@ type Health interface {
 	GetLastError() error
 }
 
-// RegistryFactory defines the interface for creating registry instances
-type RegistryFactory interface {
+// Factory defines the interface for creating registry instances
+type Factory interface {
 	Create(
 		ctx context.Context,
 		config Config,
@@ -155,7 +155,7 @@ type RegistryFactory interface {
 	CreateWithPersistence(
 		ctx context.Context,
 		config Config,
-		persistence RegistryPersistence,
+		persistence Persistence,
 	) (Provider, error)
 	CreateWithCache(
 		ctx context.Context,
@@ -213,8 +213,8 @@ type Builder struct {
 	config Config
 }
 
-// NewRegistryBuilder creates a new registry builder
-func NewRegistryBuilder() *Builder {
+// NewBuilder creates a new registry builder
+func NewBuilder() *Builder {
 	return &Builder{
 		config: Config{
 			EnableEvents:     true,

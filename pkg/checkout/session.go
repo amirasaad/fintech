@@ -146,11 +146,6 @@ func (s *Session) Validate() error {
 	}
 	s.currencyInfo = &currencyInfo
 
-	// Validate amount has correct number of decimal places
-	if s.Amount%int64(currencyInfo.Decimals) != 0 {
-		return fmt.Errorf("amount has too many decimal places for currency %s", s.Currency)
-	}
-
 	return nil
 }
 

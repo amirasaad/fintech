@@ -37,7 +37,7 @@ Authorization: Bearer {{login.response.body.$.data.$.token}}
 
 {
     "amount": 1000,
-    "currency": "JPY",
+    "currency": "EGP",
     "money_source": "Cash"
 }
 
