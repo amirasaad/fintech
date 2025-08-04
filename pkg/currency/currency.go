@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"regexp"
 	"strconv"
 	"time"
@@ -106,9 +107,7 @@ func (c *Entity) Metadata() map[string]string {
 	metadata["updated"] = c.meta.Updated.Format(time.RFC3339)
 
 	// Add custom metadata
-	for k, v := range c.meta.Metadata {
-		metadata[k] = v
-	}
+	maps.Copy(metadata, c.meta.Metadata)
 
 	return metadata
 }
