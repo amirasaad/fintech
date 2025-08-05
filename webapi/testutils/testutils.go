@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -91,7 +92,7 @@ func (s *E2ETestSuite) SetupSuite() {
 	s.Require().NoError(err)
 
 	err = m.Up()
-	if err != nil && err != migrate.ErrNoChange {
+	if err != nil && !errors.Is(err, migrate.ErrNoChange) {
 		s.Require().NoError(err)
 	}
 
@@ -126,7 +127,7 @@ func (s *E2ETestSuite) setupApp() {
 
 	// Setup currency service
 	ctx := context.Background()
-	currencyRegistry, err := currency.NewRegistry(ctx)
+	currencyRegistry, err := currency.New(ctx)
 	s.Require().NoError(err)
 
 	// Load currency fixtures

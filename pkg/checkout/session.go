@@ -28,11 +28,11 @@ type Session struct {
 
 // Service provides high-level operations for managing checkout sessions
 type Service struct {
-	registry *registry.Registry
+	registry registry.Provider
 }
 
 // NewService creates a new checkout service with the given registry
-func NewService(reg *registry.Registry) *Service {
+func NewService(reg registry.Provider) *Service {
 	return &Service{
 		registry: reg,
 	}
@@ -42,6 +42,7 @@ func NewService(reg *registry.Registry) *Service {
 func (s *Service) CreateSession(
 	ctx context.Context,
 	sessionID string,
+	id string,
 	txID uuid.UUID,
 	userID uuid.UUID,
 	accountID uuid.UUID,
@@ -78,38 +79,96 @@ func (s *Service) CreateSession(
 }
 
 // GetSession retrieves a checkout session by ID
-func (s *Service) GetSession(ctx context.Context, id string) (*Session, error) {
-	meta := s.registry.Get(id)
-	if meta.ID == "" {
+func (s *Service) GetSession(
+	ctx context.Context,
+	id string,
+) (*Session, error) {
+	entity, err := s.registry.Get(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("error getting session: %w", err)
+	}
+	if entity == nil {
 		return nil, fmt.Errorf("session not found: %s", id)
+	}
+
+	// Convert registry.Meta to our internal Meta type
+	meta := registry.Meta{
+		ID:       entity.ID(),
+		Name:     entity.Name(),
+		Active:   entity.Active(),
+		Metadata: entity.Metadata(),
 	}
 
 	return s.metaToSession(meta)
 }
 
 // GetSessionByTransactionID retrieves a checkout session by transaction ID
-func (s *Service) GetSessionByTransactionID(ctx context.Context, txID uuid.UUID) (*Session, error) {
-	// List all sessions and find the one with matching transaction ID
-	// Note: This is not efficient for large numbers of sessions
-	for _, id := range s.registry.ListActive() {
-		meta := s.registry.Get(id)
-		if meta.Metadata["transaction_id"] == txID.String() {
-			return s.metaToSession(meta)
-		}
+func (s *Service) GetSessionByTransactionID(
+	ctx context.Context,
+	txID uuid.UUID,
+) (*Session, error) {
+	// Search for session by transaction ID in metadata
+	entities, err := s.registry.ListByMetadata(
+		ctx,
+		"transaction_id",
+		txID.String(),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("error searching for session: %w", err)
 	}
 
-	return nil, fmt.Errorf("no checkout session found for transaction %s", txID)
+	if len(entities) == 0 {
+		return nil, fmt.Errorf("session with transaction ID %s not found", txID)
+	}
+
+	// Convert the first matching entity to our internal Meta type
+	entity := entities[0]
+	meta := registry.Meta{
+		ID:       entity.ID(),
+		Name:     entity.Name(),
+		Active:   entity.Active(),
+		Metadata: entity.Metadata(),
+	}
+
+	return s.metaToSession(meta)
 }
 
 // UpdateStatus updates the status of a checkout session
-func (s *Service) UpdateStatus(ctx context.Context, id, status string) error {
-	session, err := s.GetSession(ctx, id)
+func (s *Service) UpdateStatus(
+	ctx context.Context,
+	id, status string,
+) error {
+	// Get the existing entity
+	entity, err := s.registry.Get(ctx, id)
 	if err != nil {
-		return fmt.Errorf("failed to get session: %w", err)
+		return fmt.Errorf("error getting session: %w", err)
+	}
+	if entity == nil {
+		return fmt.Errorf("session not found: %s", id)
 	}
 
-	session.Status = status
-	return s.saveSession(session)
+	// Update the status in metadata
+	metadata := entity.Metadata()
+	metadata["status"] = status
+
+	// Update the active status based on the new status
+	active := status != "expired" && status != "canceled" && status != "failed"
+
+	// Create a new entity with updated fields
+	updatedEntity := &registry.BaseEntity{
+		BEId:       entity.ID(),
+		BEName:     entity.Name(),
+		BEActive:   active,
+		BEMetadata: metadata,
+	}
+
+	// Save the updated entity
+	err = s.registry.Register(ctx, updatedEntity)
+	if err != nil {
+		return fmt.Errorf("failed to update session status: %w", err)
+	}
+
+	return nil
 }
 
 // Validate checks if the session is valid
@@ -181,27 +240,33 @@ func (s *Session) GetCurrencySymbol() (string, error) {
 
 // saveSession saves the session to the registry
 func (s *Service) saveSession(session *Session) error {
-	meta := registry.Meta{
-		ID:   session.ID,
-		Name: fmt.Sprintf("checkout_session_%s", session.TransactionID.String()),
-		Active: session.Status != "expired" &&
+	// Create a base entity with the session data
+	entity := &registry.BaseEntity{
+		BEId:   session.ID,
+		BEName: fmt.Sprintf("checkout_session_%s", session.TransactionID.String()),
+		BEActive: session.Status != "expired" &&
 			session.Status != "canceled" && session.Status != "failed",
-		Metadata: make(map[string]string),
+		BEMetadata: make(map[string]string),
 	}
 
 	// Add all fields as metadata for searchability
-	meta.Metadata["transaction_id"] = session.TransactionID.String()
-	meta.Metadata["user_id"] = session.UserID.String()
-	meta.Metadata["account_id"] = session.AccountID.String()
-	meta.Metadata["amount"] = fmt.Sprintf("%d", session.Amount)
-	meta.Metadata["currency"] = session.Currency
-	meta.Metadata["status"] = session.Status
-	meta.Metadata["checkout_url"] = session.CheckoutURL
-	meta.Metadata["created_at"] = session.CreatedAt.Format(time.RFC3339)
-	meta.Metadata["expires_at"] = session.ExpiresAt.Format(time.RFC3339)
+	entity.BEMetadata["transaction_id"] = session.TransactionID.String()
+	entity.BEMetadata["user_id"] = session.UserID.String()
+	entity.BEMetadata["account_id"] = session.AccountID.String()
+	entity.BEMetadata["amount"] = fmt.Sprintf("%d", session.Amount)
+	entity.BEMetadata["currency"] = session.Currency
+	entity.BEMetadata["status"] = session.Status
+	entity.BEMetadata["checkout_url"] = session.CheckoutURL
+	entity.BEMetadata["created_at"] = session.CreatedAt.Format(time.RFC3339)
+	entity.BEMetadata["expires_at"] = session.ExpiresAt.Format(time.RFC3339)
 
 	// Store in registry
-	s.registry.Register(session.ID, meta)
+	ctx := context.Background()
+	err := s.registry.Register(ctx, entity)
+	if err != nil {
+		return fmt.Errorf("failed to register session: %w", err)
+	}
+
 	return nil
 }
 

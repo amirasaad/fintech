@@ -2,6 +2,7 @@ package registry
 
 import (
 	"context"
+	"strings"
 	"time"
 )
 
@@ -82,24 +83,35 @@ type EventBus interface {
 
 // Config holds configuration for registry implementations
 type Config struct {
-	// General settings
 	Name             string        `json:"name"`
 	MaxEntities      int           `json:"max_entities"`
 	DefaultTTL       time.Duration `json:"default_ttl"`
 	EnableEvents     bool          `json:"enable_events"`
 	EnableValidation bool          `json:"enable_validation"`
 
-	// Performance settings
-	CacheSize         int           `json:"cache_size"`
-	CacheTTL          time.Duration `json:"cache_ttl"`
-	EnableCompression bool          `json:"enable_compression"`
+	// Cache settings
+	CacheSize int           `json:"cache_size"`
+	CacheTTL  time.Duration `json:"cache_ttl"`
 
-	// Persistence settings
-	EnablePersistence bool          `json:"enable_persistence"`
-	PersistencePath   string        `json:"persistence_path"`
-	AutoSaveInterval  time.Duration `json:"auto_save_interval"`
+	// Redis cache settings
+	RedisURL          string        `json:"redis_url"`            // Redis server URL
+	RedisKeyPrefix    string        `json:"redis_key_prefix"`     // Prefix for Redis keys
+	RedisPoolSize     int           `json:"redis_pool_size"`      // Max connections in pool
+	RedisMinIdleConns int           `json:"redis_min_idle_conns"` // Min idle connections
+	RedisMaxRetries   int           `json:"redis_max_retries"`    // Max retries for commands
+	RedisDialTimeout  time.Duration `json:"redis_dial_timeout"`   // Dial timeout
+	RedisReadTimeout  time.Duration `json:"redis_read_timeout"`   // Read timeout
+	RedisWriteTimeout time.Duration `json:"redis_write_timeout"`  // Write timeout
 
-	// Validation settings
+	// Advanced features
+	EnableCompression bool   `json:"enable_compression"`
+	EnablePersistence bool   `json:"enable_persistence"`
+	PersistencePath   string `json:"persistence_path"`
+
+	// Auto-save settings
+	AutoSaveInterval time.Duration `json:"auto_save_interval"`
+
+	// Metadata validation
 	RequiredMetadata   []string                      `json:"required_metadata"`
 	ForbiddenMetadata  []string                      `json:"forbidden_metadata"`
 	MetadataValidators map[string]func(string) error `json:"-"`
@@ -247,6 +259,66 @@ func (b *Builder) WithDefaultTTL(ttl time.Duration) *Builder {
 func (b *Builder) WithCache(size int, ttl time.Duration) *Builder {
 	b.config.CacheSize = size
 	b.config.CacheTTL = ttl
+	return b
+}
+
+// WithRedis configures Redis cache settings
+func (b *Builder) WithRedis(url string) *Builder {
+	b.config.RedisURL = url
+	// Set sensible defaults for Redis
+	if b.config.RedisKeyPrefix == "" {
+		b.config.RedisKeyPrefix = "registry:"
+	}
+	if b.config.RedisPoolSize == 0 {
+		b.config.RedisPoolSize = 10
+	}
+	if b.config.RedisMinIdleConns == 0 {
+		b.config.RedisMinIdleConns = 5
+	}
+	if b.config.RedisMaxRetries == 0 {
+		b.config.RedisMaxRetries = 3
+	}
+	if b.config.RedisDialTimeout == 0 {
+		b.config.RedisDialTimeout = 5 * time.Second
+	}
+	if b.config.RedisReadTimeout == 0 {
+		b.config.RedisReadTimeout = 3 * time.Second
+	}
+	if b.config.RedisWriteTimeout == 0 {
+		b.config.RedisWriteTimeout = 3 * time.Second
+	}
+	return b
+}
+
+// WithKeyPrefix sets the Redis key prefix for the registry
+func (b *Builder) WithKeyPrefix(prefix string) *Builder {
+	// Ensure prefix ends with a colon if not empty
+	if prefix != "" && !strings.HasSuffix(prefix, ":") {
+		prefix += ":"
+	}
+	b.config.RedisKeyPrefix = prefix
+	return b
+}
+
+// WithRedisAdvanced allows fine-grained Redis configuration
+func (b *Builder) WithRedisAdvanced(
+	url string,
+	prefix string,
+	poolSize int,
+	minIdleConns int,
+	maxRetries int,
+	dialTimeout time.Duration,
+	readTimeout time.Duration,
+	writeTimeout time.Duration,
+) *Builder {
+	b.config.RedisURL = url
+	b.config.RedisKeyPrefix = prefix
+	b.config.RedisPoolSize = poolSize
+	b.config.RedisMinIdleConns = minIdleConns
+	b.config.RedisMaxRetries = maxRetries
+	b.config.RedisDialTimeout = dialTimeout
+	b.config.RedisReadTimeout = readTimeout
+	b.config.RedisWriteTimeout = writeTimeout
 	return b
 }
 

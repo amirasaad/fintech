@@ -25,7 +25,7 @@ func BenchmarkCreateAccount(b *testing.B) {
 		},
 	)
 	accountRepo.EXPECT().Get(mock.Anything, mock.Anything).Return(&dto.AccountRead{}, nil)
-	svc := account.NewService(mocks.NewMockBus(b), uow, slog.Default())
+	svc := account.New(mocks.NewMockBus(b), uow, slog.Default())
 	accountRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
 	userID := uuid.New()
 	b.ResetTimer()

@@ -1,6 +1,7 @@
 package currency
 
 import (
+	"errors"
 	"github.com/amirasaad/fintech/config"
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/middleware"
@@ -428,7 +429,7 @@ func RegisterCurrency(
 		}
 
 		if err = currencySvc.RegisterCurrency(c.Context(), currencyMeta); err != nil {
-			if err == currency.ErrCurrencyExists {
+			if errors.Is(err, currency.ErrCurrencyExists) {
 				return common.ProblemDetailsJSON(
 					c,
 					"Failed to register currency",
@@ -494,7 +495,7 @@ func UnregisterCurrency(currencySvc *currencysvc.Service) fiber.Handler {
 		}
 
 		if err := currencySvc.UnregisterCurrency(c.Context(), code); err != nil {
-			if err == currency.ErrCurrencyNotFound {
+			if errors.Is(err, currency.ErrCurrencyNotFound) {
 				return common.ProblemDetailsJSON(
 					c,
 					"Failed to unregister currency",
@@ -606,7 +607,7 @@ func DeactivateCurrency(currencySvc *currencysvc.Service) fiber.Handler {
 		}
 
 		if err := currencySvc.DeactivateCurrency(c.Context(), code); err != nil {
-			if err == currency.ErrCurrencyNotFound {
+			if errors.Is(err, currency.ErrCurrencyNotFound) {
 				return common.ProblemDetailsJSON(
 					c,
 					"Failed to deactivate currency",

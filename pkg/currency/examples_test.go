@@ -34,11 +34,11 @@ func ExampleGet() {
 }
 
 // ExampleNewRegistry demonstrates creating a custom currency registry
-func ExampleNewRegistry() {
+func ExampleNew() {
 	ctx := context.Background()
 
 	// Create a new registry
-	registry, err := NewRegistry(ctx)
+	registry, err := New(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -109,7 +109,7 @@ func ExampleNewRegistryWithPersistence() {
 // ExampleRegistry_Search demonstrates searching for currencies
 func ExampleRegistry_Search() {
 	ctx := context.Background()
-	registry, err := NewRegistry(ctx)
+	registry, err := New(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -139,7 +139,7 @@ func ExampleRegistry_Search() {
 // ExampleRegistry_SearchByRegion demonstrates searching by region
 func ExampleRegistry_SearchByRegion() {
 	ctx := context.Background()
-	registry, err := NewRegistry(ctx)
+	registry, err := New(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -168,7 +168,7 @@ func ExampleRegistry_SearchByRegion() {
 // ExampleRegistry_Register demonstrates currency lifecycle management
 func ExampleRegistry_Register() {
 	ctx := context.Background()
-	registry, err := NewRegistry(ctx)
+	registry, err := New(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -216,7 +216,7 @@ func ExampleRegistry_Register() {
 // ExampleCurrencyRegistry_Count demonstrates getting currency statistics
 func ExampleRegistry_Count() {
 	ctx := context.Background()
-	registry, err := NewRegistry(ctx)
+	registry, err := New(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -250,7 +250,7 @@ func ExampleRegistry_Count() {
 // ExampleRegistry_Get demonstrates working with currency events
 func ExampleRegistry_Get() {
 	ctx := context.Background()
-	registry, err := NewRegistry(ctx)
+	registry, err := New(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -286,7 +286,7 @@ func ExampleRegistry_Get() {
 // ExampleRegistry_IsSupported demonstrates the caching behavior
 func ExampleRegistry_IsSupported() {
 	ctx := context.Background()
-	registry, err := NewRegistry(ctx)
+	registry, err := New(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -305,7 +305,7 @@ func ExampleRegistry_IsSupported() {
 // ExampleRegistry_ListSupported demonstrates health checking
 func ExampleRegistry_ListSupported() {
 	ctx := context.Background()
-	registry, err := NewRegistry(ctx)
+	registry, err := New(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}

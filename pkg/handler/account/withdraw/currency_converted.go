@@ -73,7 +73,7 @@ func HandleCurrencyConverted(
 		}
 
 		accRead, err := accRepo.Get(ctx, wce.AccountID)
-		if err != nil && err != domain.ErrAccountNotFound {
+		if err != nil && !errors.Is(err, domain.ErrAccountNotFound) {
 			log.Error(
 				"❌ [ERROR] Failed to get account",
 				"error", err,

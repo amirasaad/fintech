@@ -2,12 +2,12 @@ package account
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/amirasaad/fintech/pkg/domain/events"
-
 	"github.com/amirasaad/fintech/pkg/eventbus"
-	"github.com/amirasaad/fintech/pkg/service/account"
+	accountsvc "github.com/amirasaad/fintech/pkg/service/account"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	"github.com/stripe/stripe-go/v82"
@@ -20,22 +20,26 @@ type PaymentWebhookRequest struct {
 }
 
 // PaymentWebhookHandler handles incoming payment webhook callbacks.
-func PaymentWebhookHandler(svc *account.Service) fiber.Handler {
+func PaymentWebhookHandler(svc *accountsvc.Service) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		var req PaymentWebhookRequest
 		if err := c.BodyParser(&req); err != nil {
 			return c.Status(fiber.StatusBadRequest).JSON(
 				fiber.Map{"error": "Invalid payload"})
 		}
-		if err := svc.UpdateTransactionStatusByPaymentID(
-			c.Context(),
-			req.PaymentID,
-			req.Status,
-		); err != nil {
+
+		// Update transaction status by payment ID
+		err := svc.UpdateTransactionStatusByPaymentID( //nolint:staticcheck
+			c.Context(), req.PaymentID, req.Status)
+		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(
-				fiber.Map{"error": err.Error()})
+				fiber.Map{"error": fmt.Sprintf("failed to update transaction: %v", err)})
 		}
-		return c.SendStatus(fiber.StatusOK)
+
+		// The transaction has been updated successfully
+		return c.Status(fiber.StatusOK).JSON(fiber.Map{
+			"message": "Transaction status updated successfully",
+		})
 	}
 }
 

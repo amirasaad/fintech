@@ -22,7 +22,12 @@ type JwtConfig struct {
 }
 
 type RedisConfig struct {
-	URL string `envconfig:"REDIS_URL" default:"redis://localhost:6379/0"`
+	URL          string        `envconfig:"URL" default:"redis://localhost:6379/0"`
+	KeyPrefix    string        `envconfig:"KEY_PREFIX" default:""`
+	PoolSize     int           `envconfig:"POOL_SIZE" default:"10"`
+	DialTimeout  time.Duration `envconfig:"DIAL_TIMEOUT" default:"5s"`
+	ReadTimeout  time.Duration `envconfig:"READ_TIMEOUT" default:"3s"`
+	WriteTimeout time.Duration `envconfig:"WRITE_TIMEOUT" default:"3s"`
 }
 
 type RateLimitConfig struct {

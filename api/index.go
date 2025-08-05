@@ -2,10 +2,11 @@ package handler
 
 import (
 	"context"
-	"github.com/amirasaad/fintech/webapi"
 	"log"
 	"log/slog"
 	"net/http"
+
+	"github.com/amirasaad/fintech/webapi"
 
 	"github.com/amirasaad/fintech/infra/eventbus"
 
@@ -47,7 +48,7 @@ func handler() http.HandlerFunc {
 	}
 	// Initialize currency registry
 	ctx := context.Background()
-	currencyRegistry, err := currency.NewRegistry(ctx)
+	currencyRegistry, err := currency.New(ctx)
 	if err != nil {
 		logger.Error("Failed to initialize currency registry", "error", err)
 		log.Fatal(err)

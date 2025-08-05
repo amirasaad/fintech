@@ -293,7 +293,7 @@ func TestCurrencyRegistry(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("create registry", func(t *testing.T) {
-		registry, err := NewRegistry(ctx)
+		registry, err := New(ctx)
 		require.NoError(t, err)
 		assert.NotNil(t, registry)
 
@@ -313,7 +313,7 @@ func TestCurrencyRegistry(t *testing.T) {
 	})
 
 	t.Run("register new currency", func(t *testing.T) {
-		registry, err := NewRegistry(ctx)
+		registry, err := New(ctx)
 		require.NoError(t, err)
 
 		newCurrency := Meta{
@@ -339,7 +339,7 @@ func TestCurrencyRegistry(t *testing.T) {
 	})
 
 	t.Run("register invalid currency", func(t *testing.T) {
-		registry, err := NewRegistry(ctx)
+		registry, err := New(ctx)
 		require.NoError(t, err)
 
 		invalidCurrency := Meta{
@@ -355,7 +355,7 @@ func TestCurrencyRegistry(t *testing.T) {
 	})
 
 	t.Run("get non-existent currency", func(t *testing.T) {
-		registry, err := NewRegistry(ctx)
+		registry, err := New(ctx)
 		require.NoError(t, err)
 
 		_, err = registry.Get("NONEXISTENT")
@@ -364,7 +364,7 @@ func TestCurrencyRegistry(t *testing.T) {
 	})
 
 	t.Run("list supported currencies", func(t *testing.T) {
-		registry, err := NewRegistry(ctx)
+		registry, err := New(ctx)
 		require.NoError(t, err)
 
 		supported, err := registry.ListSupported()
@@ -383,7 +383,7 @@ func TestCurrencyRegistry(t *testing.T) {
 	})
 
 	t.Run("list all currencies", func(t *testing.T) {
-		registry, err := NewRegistry(ctx)
+		registry, err := New(ctx)
 		require.NoError(t, err)
 
 		all, err := registry.ListAll()
@@ -404,7 +404,7 @@ func TestCurrencyRegistry(t *testing.T) {
 	})
 
 	t.Run("activate and deactivate currency", func(t *testing.T) {
-		registry, err := NewRegistry(ctx)
+		registry, err := New(ctx)
 		require.NoError(t, err)
 
 		// Register a new currency
@@ -434,7 +434,7 @@ func TestCurrencyRegistry(t *testing.T) {
 	})
 
 	t.Run("unregister currency", func(t *testing.T) {
-		registry, err := NewRegistry(ctx)
+		registry, err := New(ctx)
 		require.NoError(t, err)
 
 		// Register a test currency
@@ -462,7 +462,7 @@ func TestCurrencyRegistry(t *testing.T) {
 	})
 
 	t.Run("search currencies", func(t *testing.T) {
-		registry, err := NewRegistry(ctx)
+		registry, err := New(ctx)
 		require.NoError(t, err)
 
 		// Search for "Dollar"
@@ -482,7 +482,7 @@ func TestCurrencyRegistry(t *testing.T) {
 	})
 
 	t.Run("search by region", func(t *testing.T) {
-		registry, err := NewRegistry(ctx)
+		registry, err := New(ctx)
 		require.NoError(t, err)
 
 		// Search for North America
@@ -502,7 +502,7 @@ func TestCurrencyRegistry(t *testing.T) {
 	})
 
 	t.Run("count currencies", func(t *testing.T) {
-		registry, err := NewRegistry(ctx)
+		registry, err := New(ctx)
 		require.NoError(t, err)
 
 		total, err := registry.Count()

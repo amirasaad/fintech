@@ -50,7 +50,7 @@ func TestCreateAccount_Success(t *testing.T) {
 	accountRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Once()
 	accountRepo.EXPECT().Get(mock.Anything, mock.Anything).Return(&dto.AccountRead{}, nil).Once()
 
-	svc := accountsvc.NewService(nil, uow, slog.Default())
+	svc := accountsvc.New(nil, uow, slog.Default())
 	_, err := svc.CreateAccount(context.Background(), dto.AccountCreate{UserID: userID})
 	require.NoError(t, err)
 }
@@ -71,7 +71,7 @@ func TestCreateAccount_RepoError(t *testing.T) {
 		mock.Anything,
 	).Return(errors.New("repo error")).Once()
 
-	svc := accountsvc.NewService(nil, uow, slog.Default())
+	svc := accountsvc.New(nil, uow, slog.Default())
 	gotAccount, err := svc.CreateAccount(context.Background(), dto.AccountCreate{UserID: userID})
 	require.Error(t, err)
 	assert.Empty(t, gotAccount)
@@ -79,7 +79,7 @@ func TestCreateAccount_RepoError(t *testing.T) {
 
 func TestDeposit_PublishesEvent(t *testing.T) {
 	memBus := eventbus.NewWithMemory(slog.Default())
-	svc := accountsvc.NewService(memBus, nil, slog.Default())
+	svc := accountsvc.New(memBus, nil, slog.Default())
 
 	var called bool
 
@@ -114,7 +114,7 @@ func TestDeposit_PublishesEvent(t *testing.T) {
 
 func TestWithdraw_PublishesEvent(t *testing.T) {
 	memBus := eventbus.NewWithMemory(slog.Default())
-	svc := accountsvc.NewService(memBus, nil, slog.Default())
+	svc := accountsvc.New(memBus, nil, slog.Default())
 	userID := uuid.New()
 	accountID := uuid.New()
 	var publishedEvents []events.Event
@@ -153,7 +153,7 @@ func TestTransfer_PublishesEvent(t *testing.T) {
 	amount := 25.0
 	currency := "USD"
 
-	svc := accountsvc.NewService(memBus, nil, slog.Default())
+	svc := accountsvc.New(memBus, nil, slog.Default())
 	var publishedEvents []events.Event
 	memBus.Register(
 		events.EventTypeTransferRequested,
@@ -204,7 +204,7 @@ func TestGetAccount_Success(t *testing.T) {
 	).Once()
 	accountRepo.EXPECT().Get(accountID).Return(account, nil).Once()
 
-	svc := accountsvc.NewService(nil, uow, slog.Default())
+	svc := accountsvc.New(nil, uow, slog.Default())
 	gotAccount, err := svc.GetAccount(userID, accountID)
 	require.NoError(t, err)
 	assert.NotNil(t, gotAccount)
@@ -224,7 +224,7 @@ func TestGetAccount_NotFound(t *testing.T) {
 	).Once()
 	accountRepo.EXPECT().Get(accountID).Return(nil, accountdomain.ErrAccountNotFound).Once()
 
-	svc := accountsvc.NewService(nil, uow, slog.Default())
+	svc := accountsvc.New(nil, uow, slog.Default())
 	gotAccount, err := svc.GetAccount(userID, accountID)
 	require.Error(t, err)
 	assert.Nil(t, gotAccount)
@@ -244,7 +244,7 @@ func TestGetAccount_Unauthorized(t *testing.T) {
 	).Once()
 	accountRepo.EXPECT().Get(accountID).Return(nil, user.ErrUserUnauthorized).Once()
 
-	svc := accountsvc.NewService(nil, uow, slog.Default())
+	svc := accountsvc.New(nil, uow, slog.Default())
 	gotAccount, err := svc.GetAccount(userID, accountID)
 	require.Error(t, err)
 	assert.Nil(t, gotAccount)
@@ -286,7 +286,7 @@ func TestGetTransactions_Success(t *testing.T) {
 	accountRepo.EXPECT().Get(accountID).Return(account, nil).Once()
 	transactionRepo.EXPECT().List(userID, accountID).Return(txs, nil).Once()
 
-	svc := accountsvc.NewService(nil, uow, slog.Default())
+	svc := accountsvc.New(nil, uow, slog.Default())
 	gotTxs, err := svc.GetTransactions(userID, accountID)
 	require.NoError(t, err)
 	assert.Equal(t, txs, gotTxs)
@@ -323,7 +323,7 @@ func TestGetTransactions_Error(t *testing.T) {
 		accountID,
 	).Return(nil, errors.New("list error")).Once()
 
-	svc := accountsvc.NewService(nil, uow, slog.Default())
+	svc := accountsvc.New(nil, uow, slog.Default())
 	txs, err := svc.GetTransactions(userID, accountID)
 	require.Error(t, err)
 	assert.Nil(t, txs)
@@ -341,7 +341,7 @@ func TestGetTransactions_UoWFactoryError(t *testing.T) {
 		},
 	)
 
-	svc := accountsvc.NewService(nil, uow, slog.Default())
+	svc := accountsvc.New(nil, uow, slog.Default())
 	_, err := svc.GetTransactions(uuid.New(), uuid.New())
 	require.Error(t, err)
 }
@@ -362,7 +362,7 @@ func TestGetBalance_Success(t *testing.T) {
 	err := acc.ValidateDeposit(userID, balanceMoney)
 	require.NoError(t, err)
 	accountRepo.EXPECT().Get(acc.ID).Return(acc, nil)
-	_, _ = accountsvc.NewService(nil, uow, slog.Default()).GetBalance(userID, acc.ID)
+	_, _ = accountsvc.New(nil, uow, slog.Default()).GetBalance(userID, acc.ID)
 
 }
 
@@ -388,7 +388,7 @@ func TestGetBalance_NotFound(t *testing.T) {
 		accountdomain.ErrAccountNotFound,
 	)
 
-	balance, err := accountsvc.NewService(
+	balance, err := accountsvc.New(
 		nil,
 		uow,
 		slog.Default(),

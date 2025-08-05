@@ -3,6 +3,7 @@ package registry
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -19,6 +20,12 @@ func (f *FactoryImpl) Create(
 	ctx context.Context,
 	config Config,
 ) (Provider, error) {
+	// If Redis URL is provided, use Redis cache
+	if config.RedisURL != "" {
+		return f.CreateWithRedisCache(ctx, config, config.RedisURL)
+	}
+
+	// Otherwise, use in-memory cache
 	registry := NewEnhanced(config)
 
 	// Add default implementations if not provided
@@ -94,6 +101,32 @@ func (f *FactoryImpl) CreateWithCache(
 	}
 
 	return registry, nil
+}
+
+// CreateWithRedisCache creates a registry with Redis cache
+func (f *FactoryImpl) CreateWithRedisCache(
+	ctx context.Context,
+	config Config,
+	redisURL string,
+) (Provider, error) {
+	// Create Redis client
+	redisClient, err := NewRedisClient(redisURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create Redis client: %w", err)
+	}
+
+	// Set default key prefix if not specified
+	keyPrefix := config.RedisKeyPrefix
+	if keyPrefix == "" {
+		keyPrefix = "registry:"
+	} else if keyPrefix != "" && !strings.HasSuffix(keyPrefix, ":") {
+		keyPrefix += ":"
+	}
+
+	// Create Redis cache with TTL and key prefix from config
+	redisCache := NewRedisCache(redisClient, keyPrefix, config.CacheTTL)
+
+	return f.CreateWithCache(ctx, config, redisCache)
 }
 
 // CreateWithMetrics creates a registry with metrics

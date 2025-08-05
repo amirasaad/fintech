@@ -23,11 +23,28 @@ type mockPayment struct {
 // simulating a real-world async flow.
 //
 // See pkg/service/account/account.go for example usage.
-//
 // For production, use a real provider and event-driven confirmation.
 type MockPaymentProvider struct {
 	mu       sync.Mutex
 	payments map[string]*mockPayment
+}
+
+// UpdatePaymentStatus updates the payment status in the mock provider.
+func (m *MockPaymentProvider) UpdatePaymentStatus(
+	ctx context.Context,
+	i *provider.UpdatePaymentStatusParams,
+) error {
+	// TODO implement me
+	panic("implement me")
+}
+
+// HandleWebhook handles payment webhook events
+func (m *MockPaymentProvider) HandleWebhook(
+	payload []byte,
+	signature string,
+) (*provider.PaymentEvent, error) {
+	// TODO: implement me
+	panic("implement me")
 }
 
 // NewMockPaymentProvider creates a new instance of MockPaymentProvider.
@@ -43,7 +60,9 @@ func (m *MockPaymentProvider) InitiatePayment(
 	params *provider.InitiatePaymentParams,
 ) (*provider.InitiatePaymentResponse, error) {
 	m.mu.Lock()
-	m.payments[params.TransactionID.String()] = &mockPayment{status: provider.PaymentPending}
+	m.payments[params.TransactionID.String()] = &mockPayment{
+		status: provider.PaymentPending,
+	}
 	m.mu.Unlock()
 	// Simulate async completion
 	go func() {

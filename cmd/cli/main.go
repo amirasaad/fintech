@@ -77,7 +77,7 @@ func main() {
 		Logger: logger,
 	})
 
-	scv := account.NewService(
+	scv := account.New(
 		bus,
 		uow,
 		logger,

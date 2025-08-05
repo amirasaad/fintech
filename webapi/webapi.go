@@ -40,7 +40,7 @@ func SetupApp(deps config.Deps) *fiber.App {
 	})
 
 	// Build services
-	accountSvc := accountsvc.NewService(deps.EventBus, deps.Uow, deps.Logger)
+	accountSvc := accountsvc.New(deps.EventBus, deps.Uow, deps.Logger)
 	userSvc := usersvc.NewService(deps.Uow, deps.Logger)
 	authStrategy := authsvc.NewJWTAuthStrategy(deps.Uow, deps.Config.Jwt, deps.Logger)
 	authSvc := authsvc.NewService(deps.Uow, authStrategy, deps.Logger)
@@ -99,6 +99,12 @@ func SetupApp(deps config.Deps) *fiber.App {
 	)
 
 	// Payment event processor for Stripe webhooks
+	app.Post(
+		"/api/v1/webhooks/stripe",
+		StripeWebhookHandler(deps.PaymentProvider),
+	)
+
+	// Legacy webhook endpoints (keep for backward compatibility)
 	stripeSigningSecret := deps.Config.PaymentProviders.Stripe.SigningSecret
 	app.Post(
 		"/payments/stripe/webhook",

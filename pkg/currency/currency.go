@@ -262,8 +262,25 @@ type Registry struct {
 	ctx      context.Context
 }
 
-// NewRegistry creates a new currency registry with default currencies
-func NewRegistry(ctx context.Context) (*Registry, error) {
+// New creates a new currency registry with default currencies
+// If redisURL is provided, it will use Redis for caching
+// The function accepts optional parameters in this order: redisURL, keyPrefix
+func New(ctx context.Context, params ...string) (*Registry, error) {
+	var redisURL, keyPrefix string
+
+	// Parse parameters
+	switch len(params) {
+	case 0:
+		// No parameters
+	case 1:
+		// Only redisURL provided
+		redisURL = params[0]
+	default:
+		// Both redisURL and keyPrefix provided
+		redisURL = params[0]
+		keyPrefix = params[1]
+	}
+
 	// Create registry with currency-specific configuration
 	config := registry.Config{
 		Name:             "currency-registry",
@@ -274,9 +291,39 @@ func NewRegistry(ctx context.Context) (*Registry, error) {
 		CacheTTL:         10 * time.Minute,
 	}
 
-	reg := registry.NewEnhanced(config)
-	reg.WithValidator(NewCurrencyValidator())
-	reg.WithCache(registry.NewMemoryCache(10 * time.Minute))
+	var reg registry.Provider
+	var err error
+
+	// Use Redis if URL is provided
+	if redisURL != "" {
+		// Create registry builder with Redis settings
+		builder := registry.NewBuilder().
+			WithName(config.Name).
+			WithMaxEntities(config.MaxEntities).
+			WithRedis(redisURL).
+			WithCache(100, 10*time.Minute) // Cache size and TTL
+
+		// Set custom key prefix if provided
+		if keyPrefix != "" {
+			builder = builder.WithKeyPrefix(keyPrefix)
+		}
+
+		// Get the config with Redis settings
+		config = builder.Build()
+
+		// Create registry with Redis cache
+		factory := registry.NewRegistryFactory()
+		reg, err = factory.Create(ctx, config)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create Redis-backed registry: %w", err)
+		}
+	} else {
+		// Fall back to in-memory cache
+		enhanced := registry.NewEnhanced(config)
+		enhanced.WithValidator(NewCurrencyValidator())
+		enhanced.WithCache(registry.NewMemoryCache(10 * time.Minute))
+		reg = enhanced
+	}
 
 	cr := &Registry{
 		registry: reg,
@@ -292,8 +339,9 @@ func NewRegistry(ctx context.Context) (*Registry, error) {
 }
 
 // NewRegistryWithPersistence creates a currency registry with persistence
+// If redisURL is provided, it will use Redis for caching
 func NewRegistryWithPersistence(
-	ctx context.Context, persistencePath string,
+	ctx context.Context, persistencePath string, redisURL ...string,
 ) (*Registry, error) {
 	config := registry.Config{
 		Name:              "currency-registry",
@@ -305,36 +353,66 @@ func NewRegistryWithPersistence(
 		EnablePersistence: true,
 		PersistencePath:   persistencePath,
 		AutoSaveInterval:  time.Minute,
+		RedisKeyPrefix:    "currency",
 	}
 
-	reg := registry.NewEnhanced(config)
-	reg.WithValidator(NewCurrencyValidator())
-	reg.WithCache(registry.NewMemoryCache(10 * time.Minute))
+	var reg registry.Provider
+	var err error
 
-	// Add persistence
-	persistence := registry.NewFilePersistence(persistencePath)
-	reg.WithPersistence(persistence)
+	// Use Redis if URL is provided
+	if len(redisURL) > 0 && redisURL[0] != "" {
+		// Configure Redis settings
+		builder := registry.NewBuilder().
+			WithName(config.Name).
+			WithMaxEntities(config.MaxEntities).
+			WithRedis(redisURL[0]).
+			WithCache(100, 10*time.Minute).               // Cache size and TTL
+			WithPersistence(persistencePath, time.Minute) // Auto-save interval
+
+		// Get the config with Redis settings
+		config = builder.Build()
+
+		// Create registry with Redis cache and persistence
+		factory := registry.NewRegistryFactory()
+		reg, err = factory.CreateWithPersistence(
+			ctx,
+			config,
+			registry.NewFilePersistence(persistencePath),
+		)
+		if err != nil {
+			return nil, fmt.Errorf(
+				"failed to create Redis-backed registry with persistence: %w",
+				err,
+			)
+		}
+	} else {
+		// Fall back to in-memory cache with file persistence
+		enhanced := registry.NewEnhanced(config)
+		enhanced.WithValidator(NewCurrencyValidator())
+		enhanced.WithCache(registry.NewMemoryCache(10 * time.Minute))
+
+		// Add persistence
+		persistence := registry.NewFilePersistence(persistencePath)
+		enhanced.WithPersistence(persistence)
+		reg = enhanced
+
+		// Load existing entities
+		if entities, err := persistence.Load(ctx); err == nil {
+			for _, entity := range entities {
+				if err := reg.Register(ctx, entity); err != nil {
+					return nil, fmt.Errorf("failed to load entity %s: %w", entity.ID(), err)
+				}
+			}
+		}
+	}
 
 	cr := &Registry{
 		registry: reg,
 		ctx:      ctx,
 	}
 
-	// Load existing currencies from persistence
-	entities, err := persistence.Load(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load currencies from persistence: %w", err)
-	}
-
-	// Register loaded currencies
-	for _, entity := range entities {
-		if err := reg.Register(ctx, entity); err != nil {
-			return nil, fmt.Errorf("failed to register loaded currency: %w", err)
-		}
-	}
-
-	// If no currencies were loaded, register defaults
-	if len(entities) == 0 {
+	// Only register defaults if no entities were loaded
+	if count, _ := reg.Count(ctx); count == 0 {
 		if err := cr.registerDefaults(); err != nil {
 			return nil, fmt.Errorf("failed to register default currencies: %w", err)
 		}
@@ -576,16 +654,56 @@ func (cr *Registry) GetRegistry() registry.Provider {
 // Global currency registry instance
 var globalCurrencyRegistry *Registry
 
-// Initialize global registry
-func init() {
+// GetGlobalRegistry returns the global currency registry instance.
+// Make sure to call InitializeGlobalRegistry first to initialize the registry.
+func GetGlobalRegistry() *Registry {
+	if globalCurrencyRegistry == nil {
+		// Fallback to in-memory cache if not initialized
+		var err error
+		globalCurrencyRegistry, err = New(context.Background())
+		if err != nil {
+			// This should not happen as NewRegistry only fails with invalid Redis URL
+			panic(fmt.Sprintf("failed to initialize fallback currency registry: %v", err))
+		}
+	}
+	return globalCurrencyRegistry
+}
+
+// InitializeGlobalRegistry initializes the global currency registry
+// with optional Redis configuration.
+// If redisURL is provided, it will be used to configure Redis caching.
+// If keyPrefix is provided, it will be used as the Redis key prefix.
+// If redisURL is empty, an in-memory cache will be used.
+//
+// This function should be called during application startup.
+func InitializeGlobalRegistry(ctx context.Context, redisURL ...string) error {
 	var err error
-	globalCurrencyRegistry, err = NewRegistry(context.Background())
+	if len(redisURL) > 0 && redisURL[0] != "" {
+		// Initialize with Redis cache and optional key prefix
+		if len(redisURL) > 1 {
+			globalCurrencyRegistry, err = New(ctx, redisURL[0], redisURL[1])
+		} else {
+			globalCurrencyRegistry, err = New(ctx, redisURL[0])
+		}
+	} else {
+		// Initialize with in-memory cache
+		globalCurrencyRegistry, err = New(ctx)
+	}
+	return err
+}
+
+// Initialize global registry with in-memory cache as fallback
+func init() {
+	// Initialize with background context and in-memory cache by default
+	// This ensures the global registry is always available, even if not explicitly initialized
+	var err error
+	globalCurrencyRegistry, err = New(context.Background())
 	if err != nil {
 		panic(fmt.Sprintf("failed to initialize global currency registry: %v", err))
 	}
 }
 
-// Global convenience functions with error handling
+// Register Global convenience functions with error handling
 func Register(meta Meta) error {
 	return globalCurrencyRegistry.Register(meta)
 }
@@ -626,7 +744,7 @@ func SearchByRegion(region string) ([]Meta, error) {
 	return globalCurrencyRegistry.SearchByRegion(region)
 }
 
-// Backward compatibility functions (deprecated)
+// Legacy Backward compatibility functions (deprecated)
 func Legacy(code string, meta Meta) {
 	// Convert legacy format to new format
 	newMeta := Meta{

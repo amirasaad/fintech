@@ -102,7 +102,7 @@ func (r *RedisExchangeRateCache) Delete(key string) error {
 func (r *RedisExchangeRateCache) GetLastUpdate(key string) (time.Time, error) {
 	ctx := context.Background()
 	val, err := r.client.Get(ctx, r.key("last_update:"+key)).Result()
-	if err == redis.Nil {
+	if errors.Is(err, redis.Nil) {
 		return time.Time{}, nil // not set
 	}
 	if err != nil {
