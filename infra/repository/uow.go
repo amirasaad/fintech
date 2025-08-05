@@ -6,9 +6,11 @@ import (
 
 	repoaccount "github.com/amirasaad/fintech/infra/repository/account"
 	repotransaction "github.com/amirasaad/fintech/infra/repository/transaction"
+	repouser "github.com/amirasaad/fintech/infra/repository/user"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/amirasaad/fintech/pkg/repository/account"
 	"github.com/amirasaad/fintech/pkg/repository/transaction"
+	"github.com/amirasaad/fintech/pkg/repository/user"
 	"gorm.io/gorm"
 )
 
@@ -21,19 +23,26 @@ import (
 // - Prevents accidental use of the wrong DB session (which would break transactionality).
 // - Is idiomatic for Go UoW patterns and easy to mock in tests.
 type UoW struct {
-	db *gorm.DB
-	tx *gorm.DB
-
-	// Direct repository instances for type-safe access
-	accountRepo     repository.AccountRepository
-	transactionRepo repository.TransactionRepository
-	userRepo        repository.UserRepository
+	db      *gorm.DB
+	tx      *gorm.DB
+	repoMap map[any]func(*gorm.DB) any
 }
 
 // NewUoW creates a new UoW for the given *gorm.DB.
 func NewUoW(db *gorm.DB) *UoW {
 	return &UoW{
 		db: db,
+		repoMap: map[any]func(db *gorm.DB) any{
+			(*account.Repository)(nil): func(db *gorm.DB) any {
+				return repoaccount.New(db)
+			},
+			(*transaction.Repository)(nil): func(db *gorm.DB) any {
+				return repotransaction.New(db)
+			},
+			(*user.Repository)(nil): func(db *gorm.DB) any {
+				return repouser.New(db)
+			},
+		},
 	}
 }
 
@@ -41,11 +50,8 @@ func NewUoW(db *gorm.DB) *UoW {
 func (u *UoW) Do(ctx context.Context, fn func(uow repository.UnitOfWork) error) error {
 	return u.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		txnUow := &UoW{
-			db:              u.db,
-			tx:              tx,
-			accountRepo:     NewAccountRepository(tx),
-			transactionRepo: NewTransactionRepository(tx),
-			userRepo:        NewUserRepository(tx),
+			db: u.db,
+			tx: tx,
 		}
 		return fn(txnUow)
 	})
@@ -58,7 +64,7 @@ func (u *UoW) Do(ctx context.Context, fn func(uow repository.UnitOfWork) error) 
 // This method is part of UoW to guarantee that all repository operations within a transaction
 // use the same DB session, ensuring atomicity and consistency. It also centralizes repository
 // construction and makes testing and extension easier.
-func (u *UoW) GetRepository(repoType interface{}) (any, error) {
+func (u *UoW) GetRepository(repoType any) (any, error) {
 	// Use transaction DB if available, otherwise use main DB
 	dbToUse := u.tx
 	if dbToUse == nil {
@@ -66,88 +72,10 @@ func (u *UoW) GetRepository(repoType interface{}) (any, error) {
 	}
 
 	// Create repositories on-demand for backward compatibility and CQRS
-	switch repoType {
-	case (*repository.AccountRepository)(nil):
-		return NewAccountRepository(dbToUse), nil
-	case (*repository.TransactionRepository)(nil):
-		return NewTransactionRepository(dbToUse), nil
-	case (*repository.UserRepository)(nil):
-		return NewUserRepository(dbToUse), nil
-	// --- CQRS-style repositories ---
-	case (*account.Repository)(nil):
-		return repoaccount.New(dbToUse), nil
-	case (*transaction.Repository)(nil):
-		return repotransaction.New(dbToUse), nil
-	default:
-		return nil, fmt.Errorf("unsupported repository type: %T", repoType)
+	if repo, ok := u.repoMap[repoType]; ok {
+		return repo(dbToUse), nil
 	}
+	return nil, fmt.Errorf(
+		"unsupported repository type: %T, "+
+			"please register it in the UoW constructor", repoType)
 }
-
-// Type-safe repository access methods (preferred approach)
-
-// AccountRepository returns the account repository bound to the current transaction
-func (u *UoW) AccountRepository() (repository.AccountRepository, error) {
-	if u.accountRepo != nil {
-		return u.accountRepo, nil
-	}
-
-	// Create repository on-demand if not already created
-	dbToUse := u.tx
-	if dbToUse == nil {
-		dbToUse = u.db
-	}
-
-	u.accountRepo = NewAccountRepository(dbToUse)
-	return u.accountRepo, nil
-}
-
-// TransactionRepository returns the transaction repository bound to the current transaction
-func (u *UoW) TransactionRepository() (repository.TransactionRepository, error) {
-	if u.transactionRepo != nil {
-		return u.transactionRepo, nil
-	}
-
-	// Create repository on-demand if not already created
-	dbToUse := u.tx
-	if dbToUse == nil {
-		dbToUse = u.db
-	}
-
-	u.transactionRepo = NewTransactionRepository(dbToUse)
-	return u.transactionRepo, nil
-}
-
-// UserRepository returns the user repository bound to the current transaction
-func (u *UoW) UserRepository() (repository.UserRepository, error) {
-	if u.userRepo != nil {
-		return u.userRepo, nil
-	}
-
-	// Create repository on-demand if not already created
-	dbToUse := u.tx
-	if dbToUse == nil {
-		dbToUse = u.db
-	}
-
-	u.userRepo = NewUserRepository(dbToUse)
-	return u.userRepo, nil
-}
-
-// ---
-// Sample mock for tests:
-//
-// type MockUnitOfWork struct {
-//     DoFunc func(ctx context.Context, fn func(uow UnitOfWork) error) error
-//     GetRepositoryFunc func(repoType any) (any, error)
-// }
-//
-// func (m *MockUnitOfWork) Do(ctx context.Context, fn func(uow UnitOfWork) error) error {
-//     if m.DoFunc != nil { return m.DoFunc(ctx, fn) }
-//     return fn(m)
-// }
-// func (m *MockUnitOfWork) GetRepository(repoType any) (any, error) {
-//     if m.GetRepositoryFunc != nil {
-//         return m.GetRepositoryFunc(repoType)
-//     }
-//     return nil, nil
-// }

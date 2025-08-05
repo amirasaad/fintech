@@ -2,7 +2,7 @@ package user
 
 import (
 	"github.com/amirasaad/fintech/config"
-	"github.com/amirasaad/fintech/pkg/domain/user"
+	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/middleware"
 	authsvc "github.com/amirasaad/fintech/pkg/service/auth"
 	usersvc "github.com/amirasaad/fintech/pkg/service/user"
@@ -140,11 +140,9 @@ func UpdateUser(
 			return common.ProblemDetailsJSON(c, "Forbidden", nil,
 				"You are not allowed to update this user", fiber.StatusUnauthorized)
 		}
-		err = userSvc.UpdateUser(c.Context(), id.String(),
-			func(u *user.User) error {
-				u.Names = input.Names
-				return nil
-			})
+		err = userSvc.UpdateUser(c.Context(), id.String(), &dto.UserUpdate{
+			Names: &input.Names,
+		})
 		if err != nil {
 			// Generic error for update failure
 			return common.ProblemDetailsJSON(c, "Invalid credentials", nil,

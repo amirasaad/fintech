@@ -36,7 +36,7 @@ func TestHandleProcessed(t *testing.T) {
 
 	t.Run("successfully persists payment ID", func(t *testing.T) {
 		// Setup
-		uow := mocks.NewMockUnitOfWork(t)
+		uow := mocks.NewUnitOfWork(t)
 
 		transactionID := uuid.New()
 		paymentID := "pm_12345"
@@ -102,7 +102,7 @@ func TestHandleProcessed(t *testing.T) {
 
 	t.Run("handles unexpected event type gracefully", func(t *testing.T) {
 		// Setup
-		uow := mocks.NewMockUnitOfWork(t)
+		uow := mocks.NewUnitOfWork(t)
 
 		// Use a different event type
 		// Create a simple implementation of the events.Event interface
@@ -120,7 +120,7 @@ func TestHandleProcessed(t *testing.T) {
 
 	t.Run("handles_repository_error", func(t *testing.T) {
 		// Setup
-		uow := mocks.NewMockUnitOfWork(t)
+		uow := mocks.NewUnitOfWork(t)
 
 		transactionID := uuid.New()
 		paymentID := "pm_12345"

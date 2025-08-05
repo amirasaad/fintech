@@ -15,7 +15,7 @@ func FuzzNewUser(f *testing.F) {
 					r, username, email, password)
 			}
 		}()
-		user, err := NewUser(username, email, password)
+		user, err := New(username, email, password)
 		if err == nil {
 			if user.Username == "" || user.Email == "" {
 				t.Errorf("User has empty username or email: username=%q, email=%q",

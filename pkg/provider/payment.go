@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+
 	"github.com/google/uuid"
 )
 
@@ -62,13 +63,9 @@ type PaymentProvider interface {
 		ctx context.Context,
 		params *InitiatePaymentParams,
 	) (*InitiatePaymentResponse, error)
-	GetPaymentStatus(
-		ctx context.Context,
-		params *GetPaymentStatusParams,
-	) (PaymentStatus, error)
 	HandleWebhook(
+		ctx context.Context,
 		payload []byte,
 		signature string,
 	) (*PaymentEvent, error)
-	UpdatePaymentStatus(ctx context.Context, i *UpdatePaymentStatusParams) error
 }

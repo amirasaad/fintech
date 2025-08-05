@@ -16,7 +16,7 @@ import (
 
 func BenchmarkCreateAccount(b *testing.B) {
 	require := require.New(b)
-	uow := mocks.NewMockUnitOfWork(b)
+	uow := mocks.NewUnitOfWork(b)
 	accountRepo := mocks.NewAccountRepository(b)
 	uow.EXPECT().GetRepository(mock.Anything).Return(accountRepo, nil)
 	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).RunAndReturn(
@@ -25,7 +25,7 @@ func BenchmarkCreateAccount(b *testing.B) {
 		},
 	)
 	accountRepo.EXPECT().Get(mock.Anything, mock.Anything).Return(&dto.AccountRead{}, nil)
-	svc := account.New(mocks.NewMockBus(b), uow, slog.Default())
+	svc := account.New(mocks.NewBus(b), uow, slog.Default())
 	accountRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
 	userID := uuid.New()
 	b.ResetTimer()

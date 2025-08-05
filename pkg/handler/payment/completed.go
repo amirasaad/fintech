@@ -2,17 +2,22 @@ package payment
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 
-	"github.com/amirasaad/fintech/pkg/domain/events"
-
 	"github.com/amirasaad/fintech/pkg/domain/account"
+	"github.com/amirasaad/fintech/pkg/domain/events"
+	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/amirasaad/fintech/pkg/mapper"
 	"github.com/amirasaad/fintech/pkg/repository"
 	repoaccount "github.com/amirasaad/fintech/pkg/repository/account"
+	repotransaction "github.com/amirasaad/fintech/pkg/repository/transaction"
 )
+
+// Define custom error for invalid repository type
+var ErrInvalidRepositoryType = errors.New("invalid repository type")
 
 // HandleCompleted handles PaymentCompletedEvent,
 // updates the transaction status in the DB, and publishes a follow-up event if needed.
@@ -45,15 +50,44 @@ func HandleCompleted(
 			return nil
 		}
 		err := uow.Do(ctx, func(uow repository.UnitOfWork) error {
-			repo, err := uow.TransactionRepository()
+			// Get transaction repository
+			txRepoAny, err := uow.GetRepository((*repotransaction.Repository)(nil))
 			if err != nil {
 				log.Error(
-					"❌ [ERROR] failed to get transaction repo",
+					"❌ [ERROR] failed to get transaction repository",
 					"error", err,
 				)
 				return err
 			}
-			tx, err := repo.GetByPaymentID(pc.PaymentID)
+			txRepo, ok := txRepoAny.(repotransaction.Repository)
+			if !ok {
+				log.Error(
+					"❌ [ERROR] invalid transaction repository type",
+					"type", txRepoAny,
+				)
+				return ErrInvalidRepositoryType
+			}
+
+			// Get account repository
+			accRepoAny, err := uow.GetRepository((*repoaccount.Repository)(nil))
+			if err != nil {
+				log.Error(
+					"❌ [ERROR] failed to get account repository",
+					"error", err,
+				)
+				return err
+			}
+			accRepo, ok := accRepoAny.(repoaccount.Repository)
+			if !ok {
+				log.Error(
+					"❌ [ERROR] invalid account repository type",
+					"type", accRepoAny,
+				)
+				return ErrInvalidRepositoryType
+			}
+
+			// Get transaction by payment ID
+			tx, err := txRepo.GetByPaymentID(ctx, pc.PaymentID)
 			if err != nil {
 				log.Error(
 					"❌ [ERROR] failed to get transaction by payment ID",
@@ -67,30 +101,31 @@ func HandleCompleted(
 				"user_id", tx.UserID,
 				"payment_id", pc.PaymentID,
 			)
+			// Update transaction status to completed
 			oldStatus := tx.Status
-			tx.Status = account.TransactionStatusCompleted
-			if err = repo.Update(tx); err != nil {
+			status := string(account.TransactionStatusCompleted)
+			tx.Status = status
+
+			// Update transaction in the database
+			update := dto.TransactionUpdate{
+				Status: &status,
+			}
+
+			if err = txRepo.Update(ctx, tx.ID, update); err != nil {
 				log.Error(
 					"❌ [ERROR] failed to update transaction status",
 					"error", err,
 				)
 				return err
 			}
+
 			log.Info(
 				"✅ [SUCCESS] transaction status updated",
 				"old_status", oldStatus,
 				"new_status", tx.Status,
 			)
+
 			// Update account balance after payment completion
-			repoAny, err := uow.GetRepository((*repoaccount.Repository)(nil))
-			if err != nil {
-				log.Error(
-					"❌ [ERROR] failed to get account repo",
-					"error", err,
-				)
-				return err
-			}
-			accRepo := repoAny.(repoaccount.Repository)
 			acc, err := accRepo.Get(ctx, tx.AccountID)
 			if err != nil {
 				log.Error(
@@ -99,8 +134,22 @@ func HandleCompleted(
 				)
 				return err
 			}
+
+			// Convert to domain model to use money operations
 			domainAcc := mapper.MapAccountReadToDomain(acc)
-			newBalance, err := domainAcc.Balance.Add(tx.Amount)
+
+			// Create money object for transaction amount
+			txMoney, err := money.New(tx.Amount, domainAcc.Balance.Currency())
+			if err != nil {
+				log.Error(
+					"❌ [ERROR] failed to create money object for transaction amount",
+					"error", err,
+				)
+				return err
+			}
+
+			// Calculate new balance
+			newBalance, err := domainAcc.Balance.Add(txMoney)
 			if err != nil {
 				log.Error(
 					"❌ [ERROR] failed to add transaction amount to balance",
@@ -108,6 +157,8 @@ func HandleCompleted(
 				)
 				return err
 			}
+
+			// Update account balance
 			f64Balance := newBalance.AmountFloat()
 			if err := accRepo.Update(
 				ctx,
@@ -120,6 +171,7 @@ func HandleCompleted(
 				)
 				return err
 			}
+
 			log.Info(
 				"✅ [SUCCESS] account balance updated",
 				"account_id", acc.ID,

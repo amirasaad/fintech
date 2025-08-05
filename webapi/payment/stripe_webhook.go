@@ -1,4 +1,4 @@
-package webapi
+package payment
 
 import (
 	"encoding/json"
@@ -35,7 +35,7 @@ func StripeWebhookHandler(
 		}
 
 		// Process the webhook event
-		event, err := paymentProvider.HandleWebhook(payload, signature)
+		event, err := paymentProvider.HandleWebhook(c.Context(), payload, signature)
 		if err != nil {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error": fmt.Sprintf("Error processing webhook: %v", err),

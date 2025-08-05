@@ -17,7 +17,6 @@ import (
 	"github.com/amirasaad/fintech/pkg/checkout"
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/registry"
-	"github.com/amirasaad/fintech/pkg/service/account"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/log"
 )
@@ -216,9 +215,9 @@ func main() {
 		CurrencyConverter: currencyConverter,
 		CurrencyRegistry:  currencyRegistry,
 		PaymentProvider: provider.NewStripePaymentProvider(
+			bus,
 			&cfg.PaymentProviders.Stripe,
 			checkout.NewService(checkoutRegistry),
-			account.New(bus, uow, logger),
 			logger,
 		),
 		Config: cfg,

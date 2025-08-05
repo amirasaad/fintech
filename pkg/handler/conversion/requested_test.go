@@ -39,8 +39,8 @@ func TestConversionHandler(t *testing.T) {
 			t *testing.T,
 		) {
 			// Setup
-			bus := mocks.NewMockBus(t)
-			mockConverter := mocks.NewMockCurrencyConverter(t)
+			bus := mocks.NewBus(t)
+			mockConverter := mocks.NewCurrencyConverter(t)
 			mockFactory := &MockEventFactory{}
 
 			userID := uuid.New()
@@ -111,8 +111,8 @@ func TestConversionHandler(t *testing.T) {
 
 	t.Run("handles unexpected event type gracefully", func(t *testing.T) {
 		// Setup
-		bus := mocks.NewMockBus(t)
-		mockConverter := mocks.NewMockCurrencyConverter(t)
+		bus := mocks.NewBus(t)
+		mockConverter := mocks.NewCurrencyConverter(t)
 
 		// Use a different event type
 		event := events.DepositRequested{}
@@ -135,8 +135,8 @@ func TestConversionHandler(t *testing.T) {
 
 	t.Run("handles conversion error", func(t *testing.T) {
 		// Setup
-		bus := mocks.NewMockBus(t)
-		mockConverter := mocks.NewMockCurrencyConverter(t)
+		bus := mocks.NewBus(t)
+		mockConverter := mocks.NewCurrencyConverter(t)
 
 		userID := uuid.New()
 		accountID := uuid.New()
@@ -192,8 +192,8 @@ func TestConversionHandler(t *testing.T) {
 
 	t.Run("handles unknown flow type", func(t *testing.T) {
 		// Setup
-		bus := mocks.NewMockBus(t)
-		mockConverter := mocks.NewMockCurrencyConverter(t)
+		bus := mocks.NewBus(t)
+		mockConverter := mocks.NewCurrencyConverter(t)
 
 		userID := uuid.New()
 		accountID := uuid.New()

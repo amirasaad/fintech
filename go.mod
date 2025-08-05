@@ -3,7 +3,6 @@ module github.com/amirasaad/fintech
 go 1.24.4
 
 require (
-	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/fatih/color v1.18.0
 	github.com/go-playground/validator/v10 v10.27.0

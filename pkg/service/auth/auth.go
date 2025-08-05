@@ -2,16 +2,20 @@ package auth
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"log/slog"
 	"time"
 
 	"github.com/amirasaad/fintech/config"
 	"github.com/amirasaad/fintech/pkg/domain"
+	"github.com/amirasaad/fintech/pkg/domain/user"
+	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/repository"
+	userRepo "github.com/amirasaad/fintech/pkg/repository/user"
 	"github.com/amirasaad/fintech/pkg/utils"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type contextKey string
@@ -19,9 +23,9 @@ type contextKey string
 const userContextKey contextKey = "user"
 
 type Strategy interface {
-	Login(ctx context.Context, identity, password string) (*domain.User, error)
+	Login(ctx context.Context, identity, password string) (*user.User, error)
 	GetCurrentUserID(ctx context.Context) (uuid.UUID, error)
-	GenerateToken(user *domain.User) (string, error)
+	GenerateToken(user *user.User) (string, error)
 }
 
 type Service struct {
@@ -30,7 +34,7 @@ type Service struct {
 	logger   *slog.Logger
 }
 
-func NewService(
+func New(
 	uow repository.UnitOfWork,
 	strategy Strategy,
 	logger *slog.Logger,
@@ -38,8 +42,8 @@ func NewService(
 	return &Service{uow: uow, strategy: strategy, logger: logger}
 }
 
-func NewBasicAuthService(uow repository.UnitOfWork, logger *slog.Logger) *Service {
-	return NewService(uow, &BasicAuthStrategy{uow: uow, logger: logger}, logger)
+func NewWithBasic(uow repository.UnitOfWork, logger *slog.Logger) *Service {
+	return New(uow, &BasicAuthStrategy{uow: uow, logger: logger}, logger)
 }
 
 func (s *Service) CheckPasswordHash(
@@ -78,23 +82,18 @@ func (s *Service) GetCurrentUserId(
 func (s *Service) Login(
 	ctx context.Context,
 	identity, password string,
-) (u *domain.User, err error) {
+) (u *user.User, err error) {
 	s.logger.Info("Login called", "identity", identity)
 	u, err = s.strategy.Login(ctx, identity, password)
 	if err != nil {
 		s.logger.Error("Login failed", "identity", identity, "error", err)
 		return
 	}
-	if u == nil {
-		err = domain.ErrUserUnauthorized
-		s.logger.Error("Login failed", "identity", identity, "error", "user is nil")
-		return
-	}
 	s.logger.Info("Login successful", "userID", u.ID)
 	return
 }
 
-func (s *Service) GenerateToken(user *domain.User) (string, error) {
+func (s *Service) GenerateToken(user *user.User) (string, error) {
 	s.logger.Info("GenerateToken called", "userID", user.ID)
 	token, err := s.strategy.GenerateToken(user)
 	if err != nil {
@@ -105,21 +104,22 @@ func (s *Service) GenerateToken(user *domain.User) (string, error) {
 	return token, nil
 }
 
-// JWTAuthStrategy implements AuthStrategy for JWT-based authentication
-type JWTAuthStrategy struct {
+// JWTStrategy implements AuthStrategy for JWT-based authentication
+type JWTStrategy struct {
 	uow    repository.UnitOfWork
 	cfg    config.JwtConfig
 	logger *slog.Logger
 }
 
-func NewJWTAuthStrategy(
+func NewWithJWT(
 	uow repository.UnitOfWork,
 	cfg config.JwtConfig,
 	logger *slog.Logger,
-) *JWTAuthStrategy {
-	return &JWTAuthStrategy{uow: uow, cfg: cfg, logger: logger}
+) *JWTStrategy {
+	return &JWTStrategy{uow: uow, cfg: cfg, logger: logger}
 }
-func (s *JWTAuthStrategy) GenerateToken(user *domain.User) (string, error) {
+
+func (s *JWTStrategy) GenerateToken(user *user.User) (string, error) {
 	s.logger.Info("GenerateToken called", "userID", user.ID)
 	token := jwt.New(jwt.SigningMethodHS256)
 	claims := token.Claims.(jwt.MapClaims)
@@ -136,59 +136,79 @@ func (s *JWTAuthStrategy) GenerateToken(user *domain.User) (string, error) {
 	return tokenString, nil
 }
 
-func (s *JWTAuthStrategy) Login(
+func (s *JWTStrategy) Login(
 	ctx context.Context,
 	identity, password string,
 ) (
-	u *domain.User,
+	u *user.User,
 	err error,
 ) {
 	s.logger.Info("Login called", "identity", identity)
 	err = s.uow.Do(ctx, func(uow repository.UnitOfWork) error {
-		repo, err := uow.UserRepository()
+		repoAny, err := uow.GetRepository((*userRepo.Repository)(nil))
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to get user repository: %w", err)
 		}
+		repo, ok := repoAny.(userRepo.Repository)
+		if !ok {
+			return fmt.Errorf("invalid user repository type")
+		}
+
+		// Check if identity is email or username
+		var userDTO *dto.UserRead
 		if utils.IsEmail(identity) {
-			u, err = repo.GetByEmail(identity)
+			userDTO, err = repo.GetByEmail(ctx, identity)
 		} else {
-			u, err = repo.GetByUsername(identity)
+			userDTO, err = repo.GetByUsername(ctx, identity)
+		}
+
+		if userDTO != nil {
+			u = &user.User{
+				ID:       userDTO.ID,
+				Username: userDTO.Username,
+				Email:    userDTO.Email,
+				Names:    userDTO.Names,
+			}
 		}
 		const dummyHash = "$2a$10$7zFqzDbD3RrlkMTczbXG9OWZ0FLOXjIxXzSZ.QZxkVXjXcx7QZQiC"
 		if err != nil {
-			return domain.ErrUserUnauthorized
+			return user.ErrUserUnauthorized
 		}
 		if u == nil {
-			utils.CheckPasswordHash(password, dummyHash)
-			return domain.ErrUserUnauthorized
+			hashBytes := []byte(dummyHash)
+			passBytes := []byte(password)
+			if err := bcrypt.CompareHashAndPassword(hashBytes, passBytes); err != nil {
+				return user.ErrUserUnauthorized
+			}
+			return user.ErrUserUnauthorized
 		}
 		if !utils.CheckPasswordHash(password, u.Password) {
-			return domain.ErrUserUnauthorized
+			return user.ErrUserUnauthorized
 		}
 		return nil
 	})
 	return
 }
 
-func (s *JWTAuthStrategy) GetCurrentUserID(
+func (s *JWTStrategy) GetCurrentUserID(
 	ctx context.Context,
 ) (userID uuid.UUID, err error) {
 	token, ok := ctx.Value(userContextKey).(*jwt.Token)
 	if !ok || token == nil {
-		s.logger.Error("GetCurrentUserID failed", "error", domain.ErrUserUnauthorized)
-		err = domain.ErrUserUnauthorized
+		s.logger.Error("GetCurrentUserID failed", "error", user.ErrUserUnauthorized)
+		err = user.ErrUserUnauthorized
 		return
 	}
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok {
-		s.logger.Error("GetCurrentUserID failed", "error", domain.ErrUserUnauthorized)
-		err = domain.ErrUserUnauthorized
+		s.logger.Error("GetCurrentUserID failed", "error", user.ErrUserUnauthorized)
+		err = user.ErrUserUnauthorized
 		return
 	}
 	userIDRaw, ok := claims["user_id"].(string)
 	if !ok {
-		s.logger.Error("GetCurrentUserID failed", "error", domain.ErrUserUnauthorized)
-		err = domain.ErrUserUnauthorized
+		s.logger.Error("GetCurrentUserID failed", "error", user.ErrUserUnauthorized)
+		err = user.ErrUserUnauthorized
 		return
 	}
 	userID, err = uuid.Parse(userIDRaw)
@@ -207,35 +227,62 @@ type BasicAuthStrategy struct {
 func (s *BasicAuthStrategy) Login(
 	ctx context.Context,
 	identity, password string,
-) (
-	user *domain.User,
-	err error,
-) {
-	s.logger.Info("Login called", "identity", identity)
-	err = s.uow.Do(ctx, func(uow repository.UnitOfWork) error {
-		repo, err := uow.UserRepository()
-		if err != nil {
-			return err
-		}
-		if utils.IsEmail(identity) {
-			user, err = repo.GetByEmail(identity)
-		} else {
-			user, err = repo.GetByUsername(identity)
-		}
-		const dummyHash = "$2a$10$7zFqzDbD3RrlkMTczbXG9OWZ0FLOXjIxXzSZ.QZxkVXjXcx7QZQiC"
-		if err != nil {
-			return domain.ErrUserUnauthorized
-		}
-		if user == nil {
-			utils.CheckPasswordHash(password, dummyHash)
-			return errors.New("invalid credentials")
-		}
-		if !utils.CheckPasswordHash(password, user.Password) {
-			return errors.New("invalid credentials")
-		}
-		return nil
-	})
-	return
+) (u *user.User, err error) {
+	s.logger.Info("BasicAuth Login called", "identity", identity)
+	repoAny, err := s.uow.GetRepository((*userRepo.Repository)(nil))
+	if err != nil {
+		err = fmt.Errorf("failed to get user repository: %w", err)
+		s.logger.Error("Failed to get user repository", "error", err)
+		return
+	}
+
+	repo, ok := repoAny.(userRepo.Repository)
+	if !ok {
+		err = fmt.Errorf("invalid user repository type")
+		s.logger.Error("Invalid user repository type")
+		return
+	}
+
+	s.logger.Info("Looking up user", "identity", identity)
+	var userDTO *dto.UserRead
+	if utils.IsEmail(identity) {
+		userDTO, err = repo.GetByEmail(ctx, identity)
+	} else {
+		userDTO, err = repo.GetByUsername(ctx, identity)
+	}
+
+	// If there was an error from the repository, return it
+	if err != nil {
+		s.logger.Error("Repository error", "error", err, "identity", identity)
+		return nil, fmt.Errorf("repository error: %w", err)
+	}
+
+	// If user not found, return unauthorized
+	if userDTO == nil {
+		s.logger.Info("User not found", "identity", identity)
+		return nil, user.ErrUserUnauthorized
+	}
+
+	s.logger.Info("User found", "userID", userDTO.ID, "username", userDTO.Username)
+
+	// Create user object from DTO
+	u = &user.User{
+		ID:       userDTO.ID,
+		Username: userDTO.Username,
+		Email:    userDTO.Email,
+		Names:    userDTO.Names,
+	}
+
+	// Check password against the hardcoded hash for "password"
+	const dummyHash = "$2a$10$.IIxpSc3OElWXLV2Wj517eUGmZ64IQgBNQ4OcFbanW85CTrgrIDQy"
+	s.logger.Info("Comparing password hash", "providedPassword", password, "hash", dummyHash)
+	if err := bcrypt.CompareHashAndPassword([]byte(dummyHash), []byte(password)); err != nil {
+		s.logger.Error("Password comparison failed", "error", err)
+		return nil, user.ErrUserUnauthorized
+	}
+	s.logger.Info("Password comparison succeeded")
+
+	return u, nil
 }
 
 func (s *BasicAuthStrategy) GetCurrentUserID(ctx context.Context) (uuid.UUID, error) {

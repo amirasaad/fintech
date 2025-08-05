@@ -438,7 +438,7 @@ func GetTransactions(
 			)
 		}
 
-		tx, err := accountSvc.GetTransactions(userID, id)
+		tx, err := accountSvc.GetTransactions(c.Context(), userID, id)
 		if err != nil {
 			log.Errorf(
 				"Failed to list transactions for account ID %s: %v",
@@ -449,7 +449,15 @@ func GetTransactions(
 		}
 		dtos := make([]*TransactionDTO, 0, len(tx))
 		for _, t := range tx {
-			dtos = append(dtos, ToTransactionDTO(t))
+			dtos = append(dtos, &TransactionDTO{
+				ID:        t.ID.String(),
+				UserID:    t.UserID.String(),
+				AccountID: t.AccountID.String(),
+				Amount:    t.Amount,
+				Currency:  string(t.Currency),
+				Balance:   t.Balance,
+				CreatedAt: t.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+			})
 		}
 		return common.SuccessResponseJSON(
 			c,
@@ -506,7 +514,7 @@ func GetBalance(
 			)
 		}
 
-		balance, err := accountSvc.GetBalance(userID, id)
+		balance, err := accountSvc.GetBalance(c.Context(), userID, id)
 		if err != nil {
 			log.Errorf("Failed to fetch balance for account ID %s: %v", id, err)
 			return common.ProblemDetailsJSON(

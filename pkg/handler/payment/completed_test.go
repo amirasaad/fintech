@@ -20,8 +20,8 @@ func (m *mockEvent) Type() string { return "mockEvent" }
 func TestCompletedHandler(t *testing.T) {
 	ctx := context.Background()
 	logger := slog.Default()
-	bus := mocks.NewMockBus(t)
-	mUow := mocks.NewMockUnitOfWork(t)
+	bus := mocks.NewBus(t)
+	mUow := mocks.NewUnitOfWork(t)
 
 	validEvent := events.NewPaymentCompleted(
 		events.FlowEvent{

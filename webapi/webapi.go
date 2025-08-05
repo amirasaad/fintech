@@ -20,6 +20,7 @@ import (
 	authweb "github.com/amirasaad/fintech/webapi/auth"
 	"github.com/amirasaad/fintech/webapi/common"
 	currencyweb "github.com/amirasaad/fintech/webapi/currency"
+	"github.com/amirasaad/fintech/webapi/payment"
 	userweb "github.com/amirasaad/fintech/webapi/user"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/limiter"
@@ -41,9 +42,9 @@ func SetupApp(deps config.Deps) *fiber.App {
 
 	// Build services
 	accountSvc := accountsvc.New(deps.EventBus, deps.Uow, deps.Logger)
-	userSvc := usersvc.NewService(deps.Uow, deps.Logger)
-	authStrategy := authsvc.NewJWTAuthStrategy(deps.Uow, deps.Config.Jwt, deps.Logger)
-	authSvc := authsvc.NewService(deps.Uow, authStrategy, deps.Logger)
+	userSvc := usersvc.New(deps.Uow, deps.Logger)
+	authStrategy := authsvc.NewWithJWT(deps.Uow, deps.Config.Jwt, deps.Logger)
+	authSvc := authsvc.New(deps.Uow, authStrategy, deps.Logger)
 	currencySvc := currencysvc.NewService(deps.CurrencyRegistry, deps.Logger)
 
 	app := fiber.New(fiber.Config{
@@ -101,13 +102,7 @@ func SetupApp(deps config.Deps) *fiber.App {
 	// Payment event processor for Stripe webhooks
 	app.Post(
 		"/api/v1/webhooks/stripe",
-		StripeWebhookHandler(deps.PaymentProvider, deps.EventBus),
-	)
-
-	// Legacy webhook endpoint (keep for backward compatibility)
-	app.Post(
-		"/webhook/payment",
-		accountweb.PaymentWebhookHandler(accountSvc),
+		payment.StripeWebhookHandler(deps.PaymentProvider, deps.EventBus),
 	)
 
 	accountweb.Routes(app, accountSvc, authSvc, deps.Config)

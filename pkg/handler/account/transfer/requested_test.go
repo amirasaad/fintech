@@ -36,8 +36,8 @@ func TestInitialPersistence(t *testing.T) {
 	validAmount, _ := money.New(100, "USD")
 
 	t.Run("successfully persists and emits event", func(t *testing.T) {
-		bus := mocks.NewMockBus(t)
-		uow := mocks.NewMockUnitOfWork(t)
+		bus := mocks.NewBus(t)
+		uow := mocks.NewUnitOfWork(t)
 		txRepo := mocks.NewTransactionRepository(t)
 		accRepo := mocks.NewAccountRepository(t)
 
@@ -124,8 +124,8 @@ func TestInitialPersistence(t *testing.T) {
 	})
 
 	t.Run("emits_failed_event_for_repository_error", func(t *testing.T) {
-		bus := mocks.NewMockBus(t)
-		uow := mocks.NewMockUnitOfWork(t)
+		bus := mocks.NewBus(t)
+		uow := mocks.NewUnitOfWork(t)
 
 		// Create a validated event
 		requestedEvent := &events.TransferRequested{
@@ -208,8 +208,8 @@ func TestInitialPersistence(t *testing.T) {
 	})
 
 	t.Run("returns error when repository fails to get repository", func(t *testing.T) {
-		bus := mocks.NewMockBus(t)
-		uow := mocks.NewMockUnitOfWork(t)
+		bus := mocks.NewBus(t)
+		uow := mocks.NewUnitOfWork(t)
 
 		// Create a fully valid TransferValidatedEvent with all required fields
 		transactionID := uuid.New()

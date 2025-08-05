@@ -82,7 +82,7 @@ func main() {
 		uow,
 		logger,
 	)
-	authSvc := auth.NewBasicAuthService(uow, logger)
+	authSvc := auth.NewWithBasic(uow, logger)
 
 	cliApp(scv, authSvc)
 }
@@ -227,7 +227,7 @@ func handleCreateAccount(
 		return
 	}
 
-	balance, err := scv.GetBalance(userID, a.ID)
+	balance, err := scv.GetBalance(context.Background(), userID, a.ID)
 	if err != nil {
 		fmt.Println(errorMsg("Error fetching a balance:"), err)
 		return
@@ -256,7 +256,12 @@ func handleDeposit(
 		return
 	}
 
-	err = scv.Deposit(context.Background(), commands.Deposit{})
+	err = scv.Deposit(context.Background(), commands.Deposit{
+		UserID:    userID,
+		AccountID: uuid.MustParse(accountID),
+		Amount:    amount,
+		Currency:  "USD",
+	})
 	if err != nil {
 		fmt.Println(errorMsg("Error depositing:"), err)
 		return
@@ -332,7 +337,7 @@ func handleBalance(
 	}
 
 	accountID := args[1]
-	balance, err := scv.GetBalance(userID, uuid.MustParse(accountID))
+	balance, err := scv.GetBalance(context.Background(), userID, uuid.MustParse(accountID))
 	if err != nil {
 		fmt.Println(errorMsg("Error fetching balance:"), err)
 		return

@@ -29,24 +29,6 @@ type MockPaymentProvider struct {
 	payments map[string]*mockPayment
 }
 
-// UpdatePaymentStatus updates the payment status in the mock provider.
-func (m *MockPaymentProvider) UpdatePaymentStatus(
-	ctx context.Context,
-	i *provider.UpdatePaymentStatusParams,
-) error {
-	// TODO implement me
-	panic("implement me")
-}
-
-// HandleWebhook handles payment webhook events
-func (m *MockPaymentProvider) HandleWebhook(
-	payload []byte,
-	signature string,
-) (*provider.PaymentEvent, error) {
-	// TODO: implement me
-	panic("implement me")
-}
-
 // NewMockPaymentProvider creates a new instance of MockPaymentProvider.
 func NewMockPaymentProvider() *MockPaymentProvider {
 	return &MockPaymentProvider{
@@ -76,15 +58,12 @@ func (m *MockPaymentProvider) InitiatePayment(
 	}, nil
 }
 
-// GetPaymentStatus returns the current status of a payment.
-func (m *MockPaymentProvider) GetPaymentStatus(
+// HandleWebhook handles payment webhook events
+func (m *MockPaymentProvider) HandleWebhook(
 	ctx context.Context,
-	params *provider.GetPaymentStatusParams,
-) (provider.PaymentStatus, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if p, ok := m.payments[params.PaymentID]; ok {
-		return p.status, nil
-	}
-	return provider.PaymentFailed, nil
+	payload []byte,
+	signature string,
+) (*provider.PaymentEvent, error) {
+	// TODO: implement me
+	panic("implement me")
 }

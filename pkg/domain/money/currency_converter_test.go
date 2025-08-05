@@ -42,7 +42,7 @@ func TestCurrencyConversion(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			converter := mocks.NewMockCurrencyConverter(t)
+			converter := mocks.NewCurrencyConverter(t)
 			var err error
 			if test.wantErr {
 				err = errors.New("test error")

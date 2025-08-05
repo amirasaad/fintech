@@ -12,6 +12,8 @@ type TransactionRead struct {
 	UserID    uuid.UUID // User who owns the transaction
 	AccountID uuid.UUID // Account associated with the transaction
 	Amount    float64   // Transaction amount (use string for high precision if needed)
+	Currency  string    // Transaction currency
+	Balance   float64   // Account balance after transaction
 	Status    string    // Transaction status (e.g., completed, pending)
 	PaymentID string    // External payment provider ID
 	CreatedAt time.Time // Timestamp of transaction creation

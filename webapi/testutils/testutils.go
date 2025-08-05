@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -120,9 +121,12 @@ func (s *E2ETestSuite) TearDownSuite() {
 // using Redis as the event bus via testcontainers-go.
 func (s *E2ETestSuite) setupApp() {
 	s.T().Helper()
-	// Create deps
+	// Create deps with debug logging
 	uow := infrarepo.NewUoW(s.db)
-	logger := slog.Default()
+	// Enable debug logging
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelDebug,
+	}))
 	currencyConverter := provider.NewStubCurrencyConverter()
 
 	// Setup currency service
@@ -243,6 +247,10 @@ func (s *E2ETestSuite) CreateTestUser() *domain.User {
 	resp := s.MakeRequest("POST", "/user", createUserBody, "")
 
 	if resp.StatusCode != 201 {
+		// Read the response body for more details
+		body, _ := io.ReadAll(resp.Body)
+		s.T().Logf("User creation failed with status %d.", resp.StatusCode)
+		s.T().Logf("Response body: %s", string(body))
 		s.T().Fatalf("Expected 201 Created for user creation, got %d", resp.StatusCode)
 	}
 
@@ -274,7 +282,7 @@ func (s *E2ETestSuite) CreateTestUser() *domain.User {
 	}
 
 	// Fallback: create user directly
-	testUser, err := user.NewUser(username, email, "password123")
+	testUser, err := user.New(username, email, "password123")
 	if err != nil {
 		s.T().Fatalf("Failed to create user: %v", err)
 	}

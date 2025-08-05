@@ -1,4 +1,4 @@
-package infrarepo // import alias for infra/repository/transaction
+package transaction // import alias for infra/repository/transaction
 
 import (
 	"context"
@@ -8,8 +8,6 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
-
-	"github.com/amirasaad/fintech/infra/repository/model"
 )
 
 type repository struct {
@@ -40,7 +38,7 @@ func (r *repository) Update(
 	return r.db.WithContext(
 		ctx,
 	).Model(
-		&model.Transaction{},
+		&Transaction{},
 	).Where(
 		"id = ?",
 		id,
@@ -59,7 +57,7 @@ func (r *repository) PartialUpdate(
 	return r.db.WithContext(
 		ctx,
 	).Model(
-		&model.Transaction{},
+		&Transaction{},
 	).Where(
 		"id = ?",
 		id,
@@ -91,7 +89,7 @@ func (r *repository) Get(
 	ctx context.Context,
 	id uuid.UUID,
 ) (*dto.TransactionRead, error) {
-	var tx model.Transaction
+	var tx Transaction
 	if err := r.db.WithContext(
 		ctx,
 	).First(
@@ -109,7 +107,7 @@ func (r *repository) GetByPaymentID(
 	ctx context.Context,
 	paymentID string,
 ) (*dto.TransactionRead, error) {
-	var tx model.Transaction
+	var tx Transaction
 	if err := r.db.WithContext(
 		ctx,
 	).Where(
@@ -128,7 +126,7 @@ func (r *repository) ListByUser(
 	ctx context.Context,
 	userID uuid.UUID,
 ) ([]*dto.TransactionRead, error) {
-	var txs []model.Transaction
+	var txs []Transaction
 	if err := r.db.WithContext(
 		ctx,
 	).Where(
@@ -151,7 +149,7 @@ func (r *repository) ListByAccount(
 	ctx context.Context,
 	accountID uuid.UUID,
 ) ([]*dto.TransactionRead, error) {
-	var txs []model.Transaction
+	var txs []Transaction
 	if err := r.db.WithContext(
 		ctx,
 	).Where(
@@ -171,8 +169,8 @@ func (r *repository) ListByAccount(
 
 // --- Mappers ---
 
-func mapCreateDTOToModel(create dto.TransactionCreate) model.Transaction {
-	return model.Transaction{
+func mapCreateDTOToModel(create dto.TransactionCreate) Transaction {
+	return Transaction{
 		ID:          create.ID,
 		UserID:      create.UserID,
 		AccountID:   create.AccountID,
@@ -205,7 +203,7 @@ func mapUpdateDTOToModel(update dto.TransactionUpdate) map[string]any {
 	return updates
 }
 
-func mapModelToReadDTO(tx *model.Transaction) *dto.TransactionRead {
+func mapModelToReadDTO(tx *Transaction) *dto.TransactionRead {
 	return &dto.TransactionRead{
 		ID:        tx.ID,
 		UserID:    tx.UserID,

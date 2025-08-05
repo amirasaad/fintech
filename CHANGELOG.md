@@ -1,3 +1,5 @@
+# CHANGELOG
+
 ## v1.1.0 (2025-08-05)
 
 ### BREAKING CHANGE

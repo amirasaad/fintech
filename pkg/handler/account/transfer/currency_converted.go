@@ -54,7 +54,7 @@ func HandleCurrencyConverted(
 		)
 
 		// 2. Get account repository
-		repoAny, err := uow.GetRepository((*repository.AccountRepository)(nil))
+		repoAny, err := uow.GetRepository((*account.Repository)(nil))
 		if err != nil {
 			log.Error(
 				"❌ [ERROR] Failed to get account repository",

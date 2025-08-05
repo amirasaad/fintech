@@ -4,17 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/stripe/stripe-go/v82/webhook"
 	"log/slog"
 	"maps"
 	"net/url"
 	"time"
 
+	"github.com/stripe/stripe-go/v82/webhook"
+
 	"github.com/amirasaad/fintech/config"
 	"github.com/amirasaad/fintech/pkg/checkout"
-	"github.com/amirasaad/fintech/pkg/dto"
+	"github.com/amirasaad/fintech/pkg/domain/events"
+	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/amirasaad/fintech/pkg/provider"
-	"github.com/amirasaad/fintech/pkg/service/account"
 	"github.com/google/uuid"
 	"github.com/stripe/stripe-go/v82"
 )
@@ -30,10 +31,10 @@ type CheckoutSession struct {
 
 // StripePaymentProvider implements PaymentProvider using Stripe API.
 type StripePaymentProvider struct {
+	bus             eventbus.Bus
 	client          *stripe.Client
 	cfg             *config.Stripe
 	checkoutService *checkout.Service
-	accountService  *account.Service
 	logger          *slog.Logger
 }
 
@@ -41,18 +42,18 @@ type StripePaymentProvider struct {
 // API key, registry, and logger. The registry parameter is used for storing
 // checkout session data.
 func NewStripePaymentProvider(
+	bus eventbus.Bus,
 	cfg *config.Stripe,
 	checkoutService *checkout.Service,
-	accountService *account.Service,
 	logger *slog.Logger,
 ) *StripePaymentProvider {
 	client := stripe.NewClient(cfg.ApiKey)
 
 	return &StripePaymentProvider{
+		bus:             bus,
 		client:          client,
 		cfg:             cfg,
 		checkoutService: checkoutService,
-		accountService:  accountService,
 		logger:          logger,
 	}
 }
@@ -82,7 +83,7 @@ func (s *StripePaymentProvider) InitiatePayment(
 	)
 	if err != nil {
 		log.Error(
-			"[ERROR] failed to create checkout session",
+			"❌ Failed to create checkout session",
 			"error", err,
 		)
 		return nil, fmt.Errorf("failed to create checkout session: %w", err)
@@ -103,15 +104,20 @@ func (s *StripePaymentProvider) InitiatePayment(
 	)
 	if err != nil {
 		log.Error(
-			"[ERROR] failed to create checkout session record",
+			"❌ Failed to create checkout session record",
 			"error", err,
 		)
-		return nil, fmt.Errorf("failed to create checkout session record: %w", err)
+		return nil, fmt.Errorf(
+			"failed to create checkout session record: %w", err)
 	}
 
-	log.Info("Successfully created checkout session",
-		"checkout_session_id", co.ID,
+	log.Info(
+		"🛒 Creating checkout session",
+		"user_id", params.UserID,
+		"account_id", params.AccountID,
 		"transaction_id", params.TransactionID,
+		"amount", params.Amount,
+		"currency", params.Currency,
 	)
 
 	// Note: We're using the transaction ID as the payment ID to maintain consistency
@@ -123,59 +129,9 @@ func (s *StripePaymentProvider) InitiatePayment(
 	}, nil
 }
 
-// UpdatePaymentStatus updates the status of a payment in the system and
-// updates account balance if completed. It retrieves the status of a
-// PaymentIntent from Stripe and updates the corresponding transaction.
-func (s *StripePaymentProvider) UpdatePaymentStatus(
-	ctx context.Context,
-	params *provider.UpdatePaymentStatusParams,
-) error {
-	log := s.logger.With(
-		"handler", "stripe.UpdatePaymentStatus",
-		"transaction_id", params.TransactionID,
-		"payment_id", params.PaymentID,
-		"status", params.Status,
-	)
-
-	// Get the session by transaction ID
-	session, err := s.checkoutService.GetSessionByTransactionID(ctx, params.TransactionID)
-	if err != nil {
-		log.Error("Failed to get checkout session by transaction ID", "error", err)
-		return fmt.Errorf("failed to get checkout session: %w", err)
-	}
-
-	// Update the checkout session status
-	if err = s.checkoutService.UpdateStatus(ctx, session.ID, string(params.Status)); err != nil {
-		log.Error("Failed to update checkout session status", "error", err)
-		return fmt.Errorf("failed to update checkout session status: %w", err)
-	}
-
-	// Update the transaction status using the transaction ID
-	status := string(params.Status)
-	updateTx := dto.TransactionUpdate{Status: &status}
-
-	if err = s.accountService.UpdateTransaction(
-		ctx,
-		params.TransactionID,
-		updateTx,
-	); err != nil {
-		log.Error(
-			"Failed to update transaction status and account balance",
-			"error", err,
-			"transaction_id", params.TransactionID,
-		)
-		return fmt.Errorf("failed to update transaction status: %w", err)
-	}
-
-	log.Info("Successfully updated transaction status and account balance",
-		"transaction_id", params.TransactionID,
-	)
-
-	return nil
-}
-
 // HandleWebhook handles Stripe webhook events
 func (s *StripePaymentProvider) HandleWebhook(
+	ctx context.Context,
 	payload []byte,
 	signature string,
 ) (*provider.PaymentEvent, error) {
@@ -191,27 +147,33 @@ func (s *StripePaymentProvider) HandleWebhook(
 	)
 
 	if err != nil {
-		log.Error("Error verifying webhook signature", "error", err)
+		log.Error(
+			"❌ Invalid webhook signature",
+			"error", err,
+		)
 		return nil, fmt.Errorf("error verifying webhook signature: %w", err)
 	}
 	log = log.With(
 		"event_type", event.Type,
 		"event_id", event.ID)
-	log.Info("Processing webhook event")
+	log.Info(
+		"📥 Handling webhook event",
+		"type", event.Type,
+	)
 
 	// Handle different event types
 	switch event.Type {
 	case "checkout.session.completed":
-		return s.handleCheckoutSessionCompleted(event, log)
+		return s.handleCheckoutSessionCompleted(ctx, event, log)
 
 	case "checkout.session.expired":
-		return s.handleCheckoutSessionExpired(event, log)
+		return s.handleCheckoutSessionExpired(ctx, event, log)
 
 	case "payment_intent.succeeded":
-		return s.handlePaymentIntentSucceeded(event, log)
+		return s.handlePaymentIntentSucceeded(ctx, event, log)
 
 	case "payment_intent.payment_failed":
-		return s.handlePaymentIntentFailed(event, log)
+		return s.handlePaymentIntentFailed(ctx, event, log)
 
 	default:
 		log.Info("Unhandled event type")
@@ -228,10 +190,14 @@ func (s *StripePaymentProvider) GetPaymentStatus(
 		"handler", "stripe.GetPaymentStatus",
 		"payment_id", params.PaymentID,
 	)
+	log.Info(
+		"🔍 Getting payment status",
+		"payment_id", params.PaymentID,
+	)
 	if err != nil {
 		log.Error(
-			"[ERROR] stripe: failed to get payment intent",
-			"err", err,
+			"❌ Failed to get payment intent",
+			"error", err,
 		)
 		return provider.PaymentFailed, fmt.Errorf("failed to get payment intent: %w", err)
 	}
@@ -297,7 +263,7 @@ func (s *StripePaymentProvider) createCheckoutSession(
 	session, err := s.client.V1CheckoutSessions.Create(ctx, params)
 	if err != nil {
 		s.logger.Error(
-			"[ERROR] stripe: failed to create checkout session",
+			"❌ stripe: failed to create checkout session",
 			"error", err,
 		)
 		return nil, fmt.Errorf("failed to create checkout session: %w", err)
@@ -305,7 +271,7 @@ func (s *StripePaymentProvider) createCheckoutSession(
 
 	// Log successful session creation
 	s.logger.Info(
-		"[INFO] stripe: created checkout session",
+		"✅ Created checkout session",
 		"session_id", session.ID,
 		"url", session.URL,
 	)
@@ -332,13 +298,18 @@ func (s *StripePaymentProvider) createCheckoutSession(
 
 // handleCheckoutSessionCompleted handles the checkout.session.completed event
 func (s *StripePaymentProvider) handleCheckoutSessionCompleted(
+	ctx context.Context,
 	event stripe.Event,
 	log *slog.Logger,
 ) (*provider.PaymentEvent, error) {
 	var session stripe.CheckoutSession
 	if err := json.Unmarshal(event.Data.Raw, &session); err != nil {
-		log.Error("Error parsing checkout.session.completed", "error", err)
-		return nil, fmt.Errorf("error parsing checkout.session.completed: %w", err)
+		log.Error(
+			"❌ Error parsing checkout.session.completed",
+			"error", err,
+		)
+		return nil, fmt.Errorf(
+			"error parsing checkout.session.completed: %w", err)
 	}
 
 	log = log.With(
@@ -349,7 +320,11 @@ func (s *StripePaymentProvider) handleCheckoutSessionCompleted(
 	// Get transaction ID from metadata
 	transactionID, err := uuid.Parse(session.Metadata["transaction_id"])
 	if err != nil {
-		log.Error("Invalid transaction_id in metadata", "error", err, "metadata", session.Metadata)
+		log.Error(
+			"❌ Invalid transaction_id in metadata",
+			"error", err,
+			"metadata", session.Metadata,
+		)
 		return nil, fmt.Errorf("invalid transaction_id in metadata: %w", err)
 	}
 
@@ -359,7 +334,8 @@ func (s *StripePaymentProvider) handleCheckoutSessionCompleted(
 		session.ID,
 		"completed",
 	); err != nil {
-		log.Error("Error updating checkout session status to completed",
+		log.Error(
+			"❌ Error updating checkout session status to completed",
 			"error", err,
 			"transaction_id", transactionID,
 		)
@@ -373,20 +349,29 @@ func (s *StripePaymentProvider) handleCheckoutSessionCompleted(
 		nil,
 	)
 	if err != nil {
-		log.Error("Error retrieving payment intent", "error", err)
+		log.Error(
+			"❌ Error retrieving payment intent",
+			"error", err,
+		)
 		return nil, fmt.Errorf("error retrieving payment intent: %w", err)
 	}
 
 	// Get the user ID and account ID from metadata
 	userID, err := uuid.Parse(session.Metadata["user_id"])
 	if err != nil {
-		log.Error("Invalid user_id in metadata", "error", err)
+		log.Error(
+			"❌ Invalid user_id in metadata",
+			"error", err,
+		)
 		return nil, fmt.Errorf("invalid user_id in metadata: %w", err)
 	}
 
 	accountID, err := uuid.Parse(session.Metadata["account_id"])
 	if err != nil {
-		log.Error("Invalid account_id in metadata", "error", err)
+		log.Error(
+			"❌ Invalid account_id in metadata",
+			"error", err,
+		)
 		return nil, fmt.Errorf("invalid account_id in metadata: %w", err)
 	}
 
@@ -394,29 +379,25 @@ func (s *StripePaymentProvider) handleCheckoutSessionCompleted(
 	metadata := make(map[string]string)
 	maps.Copy(metadata, session.Metadata)
 
-	// Update the transaction status and payment ID using the transaction ID from metadata
-	status := string(provider.PaymentCompleted)
-	paymentID := session.PaymentIntent.ID
-
-	updateTx := dto.TransactionUpdate{
-		Status:    &status,
-		PaymentID: &paymentID, // Set the payment ID from the payment intent
-	}
-
-	if err := s.accountService.UpdateTransaction(
-		context.Background(),
-		transactionID,
-		updateTx,
+	if err := s.bus.Emit(
+		ctx,
+		events.NewPaymentCompleted(
+			events.FlowEvent{
+				ID:     transactionID,
+				UserID: userID,
+			},
+			events.WithPaymentID(pi.ID),
+		),
 	); err != nil {
-		log.Error("Failed to update transaction status",
+		log.Error(
+			"❌ Error emitting payment completed event",
 			"error", err,
-			"transaction_id", transactionID,
-			"checkout_session_id", session.ID,
 		)
-		return nil, fmt.Errorf("failed to update transaction status: %w", err)
+		return nil, fmt.Errorf("error emitting payment completed event: %w", err)
 	}
 
-	log.Info("Checkout session and transaction updated successfully",
+	log.Info(
+		"✅ Checkout session and transaction updated successfully",
 		"transaction_id", transactionID,
 		"checkout_session_id", session.ID,
 	)
@@ -434,13 +415,18 @@ func (s *StripePaymentProvider) handleCheckoutSessionCompleted(
 
 // handleCheckoutSessionExpired handles the checkout.session.expired event
 func (s *StripePaymentProvider) handleCheckoutSessionExpired(
+	ctx context.Context,
 	event stripe.Event,
 	log *slog.Logger,
 ) (*provider.PaymentEvent, error) {
 	var session stripe.CheckoutSession
 	if err := json.Unmarshal(event.Data.Raw, &session); err != nil {
-		log.Error("Error parsing checkout.session.expired", "error", err)
-		return nil, fmt.Errorf("error parsing checkout.session.expired: %w", err)
+		log.Error(
+			"❌ Error parsing checkout.session.expired",
+			"error", err,
+		)
+		return nil, fmt.Errorf(
+			"error parsing checkout.session.expired: %w", err)
 	}
 
 	log = log.With(
@@ -451,42 +437,30 @@ func (s *StripePaymentProvider) handleCheckoutSessionExpired(
 	// Get transaction ID from metadata
 	transactionID, err := uuid.Parse(session.Metadata["transaction_id"])
 	if err != nil {
-		log.Error("Invalid transaction_id in metadata", "error", err, "metadata", session.Metadata)
+		log.Error(
+			"❌ Invalid transaction_id in metadata",
+			"error", err,
+			"metadata", session.Metadata,
+		)
 		return nil, fmt.Errorf("invalid transaction_id in metadata: %w", err)
 	}
 
 	// Update the checkout session status to expired
 	if err := s.checkoutService.UpdateStatus(
-		context.Background(),
+		ctx,
 		session.ID,
 		"expired",
 	); err != nil {
-		log.Error("Error updating checkout session status to expired",
+		log.Error(
+			"❌ Error updating checkout session status to expired",
 			"error", err,
 			"transaction_id", transactionID,
 		)
 		return nil, fmt.Errorf("error updating session status: %w", err)
 	}
 
-	// Update the transaction status to expired using the transaction ID from metadata
-	status := "expired"
-	updateTx := dto.TransactionUpdate{
-		Status: &status,
-	}
-
-	if err := s.accountService.UpdateTransaction(
-		context.Background(),
-		transactionID,
-		updateTx,
-	); err != nil {
-		log.Error("Failed to update transaction status to expired",
-			"error", err,
-			"transaction_id", transactionID,
-		)
-		return nil, fmt.Errorf("failed to update transaction status: %w", err)
-	}
-
-	log.Info("Checkout session and transaction updated to expired",
+	log.Info(
+		"⏰ Checkout session and transaction updated to expired",
 		"transaction_id", transactionID,
 	)
 	return nil, nil
@@ -494,10 +468,14 @@ func (s *StripePaymentProvider) handleCheckoutSessionExpired(
 
 // handlePaymentIntentSucceeded handles the payment_intent.succeeded event
 func (s *StripePaymentProvider) handlePaymentIntentSucceeded(
+	ctx context.Context,
 	event stripe.Event, log *slog.Logger) (*provider.PaymentEvent, error) {
 	var paymentIntent stripe.PaymentIntent
 	if err := json.Unmarshal(event.Data.Raw, &paymentIntent); err != nil {
-		log.Error("Error parsing payment_intent.succeeded", "error", err)
+		log.Error(
+			"❌ Error parsing payment_intent.succeeded",
+			"error", err,
+		)
 		return nil, fmt.Errorf("error parsing payment_intent.succeeded: %w", err)
 	}
 
@@ -505,19 +483,23 @@ func (s *StripePaymentProvider) handlePaymentIntentSucceeded(
 
 	// Get the payment intent details
 	pi, err := s.client.V1PaymentIntents.Retrieve(
-		context.Background(),
+		ctx,
 		paymentIntent.ID,
 		nil,
 	)
 	if err != nil {
-		log.Error("Error retrieving payment intent", "error", err)
+		log.Error(
+			"❌ Error retrieving payment intent",
+			"error", err,
+		)
 		return nil, fmt.Errorf("error retrieving payment intent: %w", err)
 	}
 
 	// Get the user ID, account ID, and transaction ID from metadata
 	userID, err := uuid.Parse(paymentIntent.Metadata["user_id"])
 	if err != nil {
-		log.Error("Invalid user_id in metadata",
+		log.Error(
+			"❌ Invalid user_id in metadata",
 			"error", err,
 			"metadata", paymentIntent.Metadata,
 		)
@@ -526,16 +508,19 @@ func (s *StripePaymentProvider) handlePaymentIntentSucceeded(
 
 	accountID, err := uuid.Parse(paymentIntent.Metadata["account_id"])
 	if err != nil {
-		log.Error("Invalid account_id in metadata",
+		log.Error(
+			"❌ Invalid account_id in metadata",
 			"error", err,
 			"metadata", paymentIntent.Metadata,
 		)
 		return nil, fmt.Errorf("invalid account_id in metadata: %w", err)
 	}
 
-	transactionID, err := uuid.Parse(paymentIntent.Metadata["transaction_id"])
+	transactionID, err := uuid.Parse(
+		paymentIntent.Metadata["transaction_id"])
 	if err != nil {
-		log.Error("Invalid transaction_id in metadata",
+		log.Error(
+			"❌ Invalid transaction_id in metadata",
 			"error", err,
 			"metadata", paymentIntent.Metadata,
 		)
@@ -546,25 +531,31 @@ func (s *StripePaymentProvider) handlePaymentIntentSucceeded(
 	metadata := make(map[string]string)
 	maps.Copy(metadata, paymentIntent.Metadata)
 
+	log.Info(
+		"💰 Handling payment_intent.succeeded event",
+		"payment_intent_id", paymentIntent.ID,
+	)
+
 	// Update the transaction status using the transaction ID from metadata
-	status := string(provider.PaymentCompleted)
-	updateTx := dto.TransactionUpdate{
-		Status: &status,
-	}
-
-	if err := s.accountService.UpdateTransaction(
-		context.Background(),
-		transactionID,
-		updateTx,
-	); err != nil {
-		log.Error("Failed to update transaction status",
+	if err := s.bus.Emit(ctx, events.NewPaymentCompleted(
+		events.FlowEvent{
+			ID:            transactionID,
+			UserID:        userID,
+			AccountID:     accountID,
+			FlowType:      "payment",
+			CorrelationID: uuid.New(),
+		},
+		events.WithPaymentID(pi.ID),
+	)); err != nil {
+		log.Error(
+			"❌ Error emitting payment completed event",
 			"error", err,
-			"transaction_id", transactionID,
 		)
-		return nil, fmt.Errorf("failed to update transaction status: %w", err)
+		return nil, fmt.Errorf("error emitting payment completed event: %w", err)
 	}
 
-	log.Info("Payment intent processed and transaction updated successfully",
+	log.Info(
+		"✅ Payment intent processed and transaction updated successfully",
 		"transaction_id", transactionID,
 		"payment_id", paymentIntent.ID,
 	)
@@ -582,11 +573,16 @@ func (s *StripePaymentProvider) handlePaymentIntentSucceeded(
 
 // handlePaymentIntentFailed handles the payment_intent.payment_failed event
 func (s *StripePaymentProvider) handlePaymentIntentFailed(
+	ctx context.Context,
 	event stripe.Event, log *slog.Logger) (*provider.PaymentEvent, error) {
 	var paymentIntent stripe.PaymentIntent
 	if err := json.Unmarshal(event.Data.Raw, &paymentIntent); err != nil {
-		log.Error("Error parsing payment_intent.payment_failed", "error", err)
-		return nil, fmt.Errorf("error parsing payment_intent.payment_failed: %w", err)
+		log.Error(
+			"❌ Error parsing payment_intent.payment_failed",
+			"error", err,
+		)
+		return nil, fmt.Errorf(
+			"error parsing payment_intent.payment_failed: %w", err)
 	}
 
 	log = log.With("payment_intent_id", paymentIntent.ID)
@@ -598,14 +594,18 @@ func (s *StripePaymentProvider) handlePaymentIntentFailed(
 		nil,
 	)
 	if err != nil {
-		log.Error("Error retrieving payment intent", "error", err)
+		log.Error(
+			"❌ Error retrieving payment intent",
+			"error", err,
+		)
 		return nil, fmt.Errorf("error retrieving payment intent: %w", err)
 	}
 
 	// Get the user ID, account ID, and transaction ID from metadata
 	userID, err := uuid.Parse(paymentIntent.Metadata["user_id"])
 	if err != nil {
-		log.Error("Invalid user_id in metadata",
+		log.Error(
+			"❌ Invalid user_id in metadata",
 			"error", err,
 			"metadata", paymentIntent.Metadata,
 		)
@@ -614,16 +614,19 @@ func (s *StripePaymentProvider) handlePaymentIntentFailed(
 
 	accountID, err := uuid.Parse(paymentIntent.Metadata["account_id"])
 	if err != nil {
-		log.Error("Invalid account_id in metadata",
+		log.Error(
+			"❌ Invalid account_id in metadata",
 			"error", err,
 			"metadata", paymentIntent.Metadata,
 		)
 		return nil, fmt.Errorf("invalid account_id in metadata: %w", err)
 	}
 
-	transactionID, err := uuid.Parse(paymentIntent.Metadata["transaction_id"])
+	transactionID, err := uuid.Parse(
+		paymentIntent.Metadata["transaction_id"])
 	if err != nil {
-		log.Error("Invalid transaction_id in metadata",
+		log.Error(
+			"❌ Invalid transaction_id in metadata",
 			"error", err,
 			"metadata", paymentIntent.Metadata,
 		)
@@ -634,25 +637,25 @@ func (s *StripePaymentProvider) handlePaymentIntentFailed(
 	metadata := make(map[string]string)
 	maps.Copy(metadata, paymentIntent.Metadata)
 
-	// Update the transaction status to failed using the transaction ID from metadata
-	status := string(provider.PaymentFailed)
-	updateTx := dto.TransactionUpdate{
-		Status: &status,
-	}
-
-	if err := s.accountService.UpdateTransaction(
-		context.Background(),
-		transactionID,
-		updateTx,
-	); err != nil {
-		log.Error("Failed to update transaction status to failed",
+	if err := s.bus.Emit(ctx, events.NewPaymentFailed(
+		events.FlowEvent{
+			ID:            transactionID,
+			UserID:        userID,
+			AccountID:     accountID,
+			FlowType:      "payment",
+			CorrelationID: uuid.New(),
+		},
+		events.WithFailedPaymentID(pi.ID),
+	)); err != nil {
+		log.Error(
+			"❌ Error emitting payment failed event",
 			"error", err,
-			"transaction_id", transactionID,
 		)
-		return nil, fmt.Errorf("failed to update transaction status: %w", err)
+		return nil, fmt.Errorf("error emitting payment failed event: %w", err)
 	}
 
-	log.Info("Payment intent failed and transaction updated",
+	log.Info(
+		"✅ Payment intent failed and transaction updated",
 		"transaction_id", transactionID,
 		"payment_id", paymentIntent.ID,
 	)

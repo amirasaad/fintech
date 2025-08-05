@@ -3,10 +3,8 @@ package account
 import (
 	"context"
 
-	"github.com/amirasaad/fintech/infra/repository/model"
 	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/amirasaad/fintech/pkg/dto"
-	repo "github.com/amirasaad/fintech/pkg/repository/account"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -15,9 +13,9 @@ type repository struct {
 	db *gorm.DB
 }
 
-// NewRepository creates a new CQRS-style account repository
+// New creates a new CQRS-style account repository
 // using the provided *gorm.DB.
-func New(db *gorm.DB) repo.Repository {
+func New(db *gorm.DB) *repository {
 	return &repository{db: db}
 }
 
@@ -37,7 +35,7 @@ func (r *repository) Update(
 	update dto.AccountUpdate,
 ) error {
 	updates := mapUpdateDTOToModel(update)
-	return r.db.WithContext(ctx).Model(&model.Account{}).Where("id = ?", id).Updates(updates).Error
+	return r.db.WithContext(ctx).Model(&Account{}).Where("id = ?", id).Updates(updates).Error
 }
 
 // Get implements account.Repository.
@@ -45,7 +43,7 @@ func (r *repository) Get(
 	ctx context.Context,
 	id uuid.UUID,
 ) (*dto.AccountRead, error) {
-	var acct model.Account
+	var acct Account
 	if err := r.db.WithContext(ctx).First(&acct, "id = ?", id).Error; err != nil {
 		return nil, err
 	}
@@ -57,7 +55,7 @@ func (r *repository) ListByUser(
 	ctx context.Context,
 	userID uuid.UUID,
 ) ([]*dto.AccountRead, error) {
-	var accts []model.Account
+	var accts []Account
 	if err := r.db.WithContext(ctx).Where("user_id = ?", userID).Find(&accts).Error; err != nil {
 		return nil, err
 	}
@@ -69,8 +67,8 @@ func (r *repository) ListByUser(
 }
 
 // mapCreateDTOToModel maps AccountCreate DTO to GORM model.
-func mapCreateDTOToModel(create dto.AccountCreate) model.Account {
-	return model.Account{
+func mapCreateDTOToModel(create dto.AccountCreate) Account {
+	return Account{
 		ID:       create.ID,
 		UserID:   create.UserID,
 		Balance:  0,
@@ -93,7 +91,7 @@ func mapUpdateDTOToModel(update dto.AccountUpdate) map[string]any {
 }
 
 // mapModelToDTO maps a GORM model to a read-optimized DTO.
-func mapModelToDTO(acct *model.Account) *dto.AccountRead {
+func mapModelToDTO(acct *Account) *dto.AccountRead {
 	bal := money.NewFromData(acct.Balance, acct.Currency)
 	return &dto.AccountRead{
 		ID:        acct.ID,

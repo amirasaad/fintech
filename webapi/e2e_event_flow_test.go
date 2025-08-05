@@ -146,7 +146,11 @@ func (s *E2EFlowsTestSuite) TestTransferE2E() {
 		accountBody,
 		token,
 	)
+	b, _ := io.ReadAll(resp.Body)
+	s.T().Logf("Account creation response body: %s", string(b))
+
 	s.Require().Equal(http.StatusCreated, resp.StatusCode)
+	s.T().Logf("Account creation response: %s", resp.Status)
 	var accountResp1 map[string]interface{}
 	_ = json.NewDecoder(
 		resp.Body,

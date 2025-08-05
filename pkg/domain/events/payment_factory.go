@@ -103,3 +103,31 @@ func NewPaymentCompleted(
 
 	return pc
 }
+
+// PaymentFailedOpt is a function that configures a PaymentFailedEvent
+type PaymentFailedOpt func(*PaymentFailed)
+
+// WithPaymentID sets the payment ID for the PaymentFailedEvent
+func WithFailedPaymentID(paymentID string) PaymentFailedOpt {
+	return func(e *PaymentFailed) { e.PaymentID = paymentID }
+}
+
+// NewPaymentFailed creates a new PaymentFailed with the given options
+func NewPaymentFailed(
+	fe FlowEvent,
+	opts ...PaymentFailedOpt,
+) *PaymentFailed {
+	pf := &PaymentFailed{
+		PaymentInitiated: PaymentInitiated{
+			FlowEvent: fe,
+		},
+	}
+
+	pf.ID = uuid.New()
+	pf.Timestamp = time.Now()
+	for _, opt := range opts {
+		opt(pf)
+	}
+
+	return pf
+}
