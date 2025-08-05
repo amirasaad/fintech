@@ -1,3 +1,37 @@
+## v2.0.0 (2025-08-05)
+
+### Feat
+
+- add Stripe webhook handler and improve error handling
+- **checkout**: add session service for managing checkout sessions
+- **payment**: add PaymentProcessed event type and set paymentID
+- **stripe**: add checkout session and webhook handling
+- **eventbus**: add redis based eventbus and refactor events streaming
+
+### Fix
+
+- **mkdocs**: remove python tags from mkdocs.yml
+- **transfer**: update persistence handler tests to match event emission behavior
+- add idempotency check for conversion persistence handler
+- prevent DepositConversionDoneEvent emission to avoid event cycle
+
+### Refactor
+
+- update Stripe webhook handler to use event bus
+- ⚰️ remove dead code
+- **registry**: rename registry types and functions for consistency
+- **currency**: use maps.Copy for metadata copying
+- **payment**: improve payment provider interface and stripe implementation
+- **payment**: simplify handler function signatures to use eventbus.HandlerFunc
+- **events**: standardize event types and handlers
+- **eventbus**: migrate event type definitions to pkg/domain/events/types.go and update event bus implementations
+- update event handling and fix type safety issues
+- **event-bus**: ♻️ enhance MemoryRegistryEventBus with logger and improve event processing
+- ♻️ update service dependencies to use event bus and unit of work for improved architecture
+- **event-driven**: ♻️ major event handler and flow refactor: simplify, modularize, and improve test coverage (#19)
+- deposit event flow with simplified handlers and idempotency
+- payment initiation to separate deposit and withdraw handlers
+
 ## v2.0.0 (2025-07-23)
 
 ### BREAKING CHANGE
