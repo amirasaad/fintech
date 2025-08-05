@@ -3,14 +3,20 @@ package webapi
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 
+	"github.com/amirasaad/fintech/pkg/domain/events"
+	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/amirasaad/fintech/pkg/provider"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 )
 
 // StripeWebhookHandler handles incoming Stripe webhook events
-func StripeWebhookHandler(paymentProvider provider.PaymentProvider) fiber.Handler {
+func StripeWebhookHandler(
+	paymentProvider provider.PaymentProvider,
+	eventBus eventbus.Bus,
+) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		// Get the signature from the request headers
 		signature := c.Get("Stripe-Signature")
@@ -58,34 +64,63 @@ func StripeWebhookHandler(paymentProvider provider.PaymentProvider) fiber.Handle
 				return c.SendStatus(fiber.StatusOK)
 			}
 
-			// Update the payment record based on the event status
-			switch event.Status {
-			case provider.PaymentCompleted:
-				// Update the payment record as completed
-				updateParams := &provider.UpdatePaymentStatusParams{
-					TransactionID: transactionID,
-					PaymentID:     event.ID,
-					Status:        provider.PaymentCompleted,
-				}
-				err = paymentProvider.UpdatePaymentStatus(
-					c.Context(),
-					updateParams,
-				)
-			case provider.PaymentFailed:
-				// Update the payment record as failed
-				updateParams := &provider.UpdatePaymentStatusParams{
-					TransactionID: transactionID,
-					PaymentID:     event.ID,
-					Status:        provider.PaymentFailed,
-				}
-				err = paymentProvider.UpdatePaymentStatus(
-					c.Context(),
-					updateParams,
-				)
+			// Get user ID and account ID from metadata if available
+			userID, _ := uuid.Parse(event.Metadata["user_id"])
+			accountID, _ := uuid.Parse(event.Metadata["account_id"])
+
+			// Create flow event with correlation ID set to transaction ID
+			flowEvent := events.FlowEvent{
+				ID:            uuid.New(),
+				FlowType:      "payment",
+				UserID:        userID,
+				AccountID:     accountID,
+				CorrelationID: transactionID,
+				Timestamp:     time.Now().UTC(),
 			}
 
-			if err != nil {
-				c.Locals("error", fmt.Sprintf("Error updating payment status: %v", err))
+			// Create payment initiated event
+			paymentInitiated := events.NewPaymentInitiated(
+				flowEvent,
+				events.WithPaymentTransactionID(transactionID),
+				events.WithInitiatedPaymentID(event.ID),
+				events.WithInitiatedPaymentStatus(string(event.Status)),
+			)
+
+			// Emit appropriate event based on payment status
+			switch event.Status {
+			case provider.PaymentCompleted:
+				// Emit payment completed event
+				completedEvent := &events.PaymentCompleted{
+					PaymentInitiated: *paymentInitiated,
+				}
+				if err := eventBus.Emit(c.Context(), completedEvent); err != nil {
+					errMsg := fmt.Sprintf("Failed to emit payment completed event: %v", err)
+					c.Locals("error", errMsg)
+				}
+
+			case provider.PaymentFailed:
+				// Emit payment failed event
+				failedEvent := &events.PaymentFailed{
+					PaymentInitiated: *paymentInitiated,
+					Reason:           "Payment failed",
+				}
+				if err := eventBus.Emit(c.Context(), failedEvent); err != nil {
+					errMsg := fmt.Sprintf("Failed to emit payment failed event: %v", err)
+					c.Locals("error", errMsg)
+				}
+
+			default:
+				// For other statuses, just emit the payment processed event
+				processedEvent := &events.PaymentProcessed{
+					PaymentInitiated: *paymentInitiated,
+				}
+				if err := eventBus.Emit(c.Context(), processedEvent); err != nil {
+					errMsg := fmt.Sprintf(
+						"Failed to emit payment processed event: %v",
+						err,
+					)
+					c.Locals("error", errMsg)
+				}
 			}
 		}
 
@@ -95,7 +130,11 @@ func StripeWebhookHandler(paymentProvider provider.PaymentProvider) fiber.Handle
 }
 
 // StripeWebhookRoutes sets up the Stripe webhook routes
-func StripeWebhookRoutes(app *fiber.App, paymentProvider provider.PaymentProvider) {
+func StripeWebhookRoutes(
+	app *fiber.App,
+	paymentProvider provider.PaymentProvider,
+	eventBus eventbus.Bus,
+) {
 	// Webhook endpoint for Stripe events
-	app.Post("/api/v1/webhooks/stripe", StripeWebhookHandler(paymentProvider))
+	app.Post("/api/v1/webhooks/stripe", StripeWebhookHandler(paymentProvider, eventBus))
 }

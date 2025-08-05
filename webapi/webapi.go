@@ -101,16 +101,10 @@ func SetupApp(deps config.Deps) *fiber.App {
 	// Payment event processor for Stripe webhooks
 	app.Post(
 		"/api/v1/webhooks/stripe",
-		StripeWebhookHandler(deps.PaymentProvider),
+		StripeWebhookHandler(deps.PaymentProvider, deps.EventBus),
 	)
 
-	// Legacy webhook endpoints (keep for backward compatibility)
-	stripeSigningSecret := deps.Config.PaymentProviders.Stripe.SigningSecret
-	app.Post(
-		"/payments/stripe/webhook",
-		accountweb.StripeWebhookHandler(deps.EventBus, stripeSigningSecret),
-	)
-
+	// Legacy webhook endpoint (keep for backward compatibility)
 	app.Post(
 		"/webhook/payment",
 		accountweb.PaymentWebhookHandler(accountSvc),
