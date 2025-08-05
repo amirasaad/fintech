@@ -1,5 +1,9 @@
 ## v2.0.0 (2025-08-05)
 
+### BREAKING CHANGE
+
+- Deposit API and service now require a money_source argument
+
 ### Feat
 
 - add Stripe webhook handler and improve error handling
@@ -7,6 +11,19 @@
 - **payment**: add PaymentProcessed event type and set paymentID
 - **stripe**: add checkout session and webhook handling
 - **eventbus**: add redis based eventbus and refactor events streaming
+- 🎯 implement Stripe webhook integration with event-driven payment processing (#18)
+- stripe integration (#17)
+- **core**: ✨ event-driven payments, strict balance invariants, and handler refactor (#15)
+- **account**: 🎉 add extensible money source, external target masking, and refactor account operations (#14)
+- **currency**: finalize robust multi-currency conversion with domain-driven precision and schema alignment (#11)
+- **infra**: add Redis support for exchange rate caching
+- **currency**: add USD and EUR constants
+feat(common): add common types and errors
+feat(money): implement money value object with currency support
+feat(account): implement account and transaction with builder pattern
+feat(user): implement user domain model
+- **api**: add swagger documentation for all endpoints (#6)
+- add cli interface  (#4)
 
 ### Fix
 
@@ -14,6 +31,17 @@
 - **transfer**: update persistence handler tests to match event emission behavior
 - add idempotency check for conversion persistence handler
 - prevent DepositConversionDoneEvent emission to avoid event cycle
+- **webapi**: validate currency codes in account operations
+- **money**: replace custom error with common.ErrInvalidDecimalPlaces
+Use common error type for invalid decimal places validation in money conversion.
+- **account**: update account creation to use builder pattern
+- host swagger.yaml
+- base url swagger.json
+- base url for swagger
+- **cli**: use parsed account ID for balance check
+- **account**: remove logging from Deposit method
+- **account**: add rollback when account not found in Deposit
+- Update Go version, fix OpenAPI schema, and refactor error handling (#2)
 
 ### Refactor
 
@@ -31,58 +59,6 @@
 - **event-driven**: ♻️ major event handler and flow refactor: simplify, modularize, and improve test coverage (#19)
 - deposit event flow with simplified handlers and idempotency
 - payment initiation to separate deposit and withdraw handlers
-
-## v2.0.0 (2025-07-23)
-
-### BREAKING CHANGE
-
-- Deposit API and service now require a money_source argument
-
-### Feat
-
-- **eventbus**: introduce MemoryRegistryEventBus for enhanced event handling
-- enhance event-driven architecture with new event types and handlers
-- 🎯 implement Stripe webhook integration with event-driven payment processing (#18)
-- stripe integration (#17)
-- **core**: ✨ event-driven payments, strict balance invariants, and handler refactor (#15)
-- **account**: 🎉 add extensible money source, external target masking, and refactor account operations (#14)
-- **currency**: finalize robust multi-currency conversion with domain-driven precision and schema alignment (#11)
-- **infra**: add Redis support for exchange rate caching
-- **currency**: add USD and EUR constants
-feat(common): add common types and errors
-feat(money): implement money value object with currency support
-feat(account): implement account and transaction with builder pattern
-feat(user): implement user domain model
-- **api**: add swagger documentation for all endpoints (#6)
-- add cli interface  (#4)
-
-### Fix
-
-- workflow
-- **config**: remove required tag from SigningSecret in Stripe struct
-- add idempotency checks to deposit and payment handlers
-- add idempotency check for conversion persistence handler
-- prevent DepositConversionDoneEvent emission to avoid event cycle
-- **webapi**: validate currency codes in account operations
-- **money**: replace custom error with common.ErrInvalidDecimalPlaces
-Use common error type for invalid decimal places validation in money conversion.
-- **account**: update account creation to use builder pattern
-- host swagger.yaml
-- base url swagger.json
-- base url for swagger
-- **cli**: use parsed account ID for balance check
-- **account**: remove logging from Deposit method
-- **account**: add rollback when account not found in Deposit
-- Update Go version, fix OpenAPI schema, and refactor error handling (#2)
-
-### Refactor
-
-- ♻️ update event-driven architecture and test improvements
-- **transfer**: ✨ implement layered event-driven transfer flow
-- deposit event flow with simplified handlers and idempotency
-- payment initiation to separate deposit and withdraw handlers
-- **eventbus**: update event handling methods and improve event cycle detection
-- **events**: rename EventType method to Type for consistency across event interfaces
 - Account Service Refactoring and Test Organization Improvements (#13)
 - reorganize codebase structure and extract DTOs to separate files (#12)
 - **auth**: improve unauthorized error handling
