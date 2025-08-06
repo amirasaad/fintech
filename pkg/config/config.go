@@ -81,23 +81,6 @@ type AppConfig struct {
 	Fee              FeeConfig          `envconfig:"FEE"`
 }
 
-func maskApiKey(key string) string {
-	if len(key) <= 6 {
-		return "****"
-	}
-	return key[:2] + "****" + key[len(key)-4:]
-}
-
-func maskApiKeyInUrl(url string) string {
-	// Mask /v6/<key> in path
-	re := regexp.MustCompile(`(v6/)[^/]+`)
-	masked := re.ReplaceAllString(url, `${1}[MASKED]`)
-	// Mask api_key in query string
-	qre := regexp.MustCompile(`([?&]api_key=)[^&]+`)
-	masked = qre.ReplaceAllString(masked, `${1}[MASKED]`)
-	return masked
-}
-
 func LoadAppConfig(logger *slog.Logger, envFilePath ...string) (*AppConfig, error) {
 	var err error
 	if len(envFilePath) > 0 && envFilePath[0] != "" {
@@ -125,4 +108,21 @@ func LoadAppConfig(logger *slog.Logger, envFilePath ...string) (*AppConfig, erro
 		"rate_limit_window", cfg.RateLimit.Window,
 	)
 	return &cfg, nil
+}
+
+func maskApiKey(key string) string {
+	if len(key) <= 6 {
+		return "****"
+	}
+	return key[:2] + "****" + key[len(key)-4:]
+}
+
+func maskApiKeyInUrl(url string) string {
+	// Mask /v6/<key> in path
+	re := regexp.MustCompile(`(v6/)[^/]+`)
+	masked := re.ReplaceAllString(url, `${1}[MASKED]`)
+	// Mask api_key in query string
+	qre := regexp.MustCompile(`([?&]api_key=)[^&]+`)
+	masked = qre.ReplaceAllString(masked, `${1}[MASKED]`)
+	return masked
 }
