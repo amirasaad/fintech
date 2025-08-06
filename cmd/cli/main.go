@@ -12,12 +12,12 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/amirasaad/fintech/config"
 	"github.com/amirasaad/fintech/infra"
 	"github.com/amirasaad/fintech/infra/eventbus"
 	infra_repository "github.com/amirasaad/fintech/infra/repository"
 	"github.com/amirasaad/fintech/pkg/app"
 	"github.com/amirasaad/fintech/pkg/commands"
+	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/service/account"
 	"github.com/amirasaad/fintech/pkg/service/auth"

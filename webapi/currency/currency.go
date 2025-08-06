@@ -2,7 +2,7 @@ package currency
 
 import (
 	"errors"
-	"github.com/amirasaad/fintech/config"
+	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/middleware"
 	authsvc "github.com/amirasaad/fintech/pkg/service/auth"

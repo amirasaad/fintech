@@ -10,8 +10,8 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/amirasaad/fintech/config"
 	"github.com/amirasaad/fintech/pkg/app"
+	"github.com/amirasaad/fintech/pkg/config"
 	accountsvc "github.com/amirasaad/fintech/pkg/service/account"
 	authsvc "github.com/amirasaad/fintech/pkg/service/auth"
 	currencysvc "github.com/amirasaad/fintech/pkg/service/currency"

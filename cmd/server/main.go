@@ -3,13 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
+	config2 "github.com/amirasaad/fintech/pkg/config"
 	"log/slog"
 	"os"
 	"time"
 
 	"github.com/amirasaad/fintech/webapi"
 
-	"github.com/amirasaad/fintech/config"
 	"github.com/amirasaad/fintech/infra"
 	"github.com/amirasaad/fintech/infra/eventbus"
 	"github.com/amirasaad/fintech/infra/provider"
@@ -90,7 +90,7 @@ func main() {
 	slog.SetDefault(logger)
 
 	// Load application configuration
-	cfg, err := config.LoadAppConfig(logger)
+	cfg, err := config2.LoadAppConfig(logger)
 	if err != nil {
 		logger.Error("Failed to load application configuration", "error", err)
 		log.Fatal(err)
@@ -209,7 +209,7 @@ func main() {
 		"Starting fintech server",
 		"port", ":3000",
 		"redis_configured", cfg.Redis.URL != "")
-	log.Fatal(webapi.SetupApp(config.Deps{
+	log.Fatal(webapi.SetupApp(config2.Deps{
 		Uow:               uow,
 		EventBus:          bus,
 		CurrencyConverter: currencyConverter,

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	config2 "github.com/amirasaad/fintech/pkg/config"
 	"io"
 	"log/slog"
 	"net/http"
@@ -15,7 +16,6 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/amirasaad/fintech/config"
 	"github.com/amirasaad/fintech/infra/eventbus"
 	"github.com/amirasaad/fintech/infra/provider"
 	infrarepo "github.com/amirasaad/fintech/infra/repository"
@@ -45,7 +45,7 @@ type E2ETestSuite struct {
 	pgContainer *tcpostgres.PostgresContainer
 	db          *gorm.DB
 	app         *fiber.App
-	cfg         *config.AppConfig
+	cfg         *config2.AppConfig
 }
 
 // BeforeEachTest runs before each test in the E2ETestSuite. It enables parallel test execution.
@@ -100,7 +100,7 @@ func (s *E2ETestSuite) SetupSuite() {
 	// Load config
 	cfgPath, err := s.findEnvTest()
 	s.Require().NoError(err)
-	s.cfg, err = config.LoadAppConfig(slog.Default(), cfgPath)
+	s.cfg, err = config2.LoadAppConfig(slog.Default(), cfgPath)
 	s.Require().NoError(err)
 	s.cfg.DB.Url = dsn
 
@@ -177,7 +177,7 @@ func (s *E2ETestSuite) setupApp() {
 
 	// Create test app
 	s.app = webapi.SetupApp(
-		config.Deps{
+		config2.Deps{
 			CurrencyConverter: currencyConverter,
 			CurrencyRegistry:  currencyRegistry,
 			Uow:               uow,

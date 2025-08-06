@@ -1,7 +1,7 @@
 package middleware
 
 import (
-	"github.com/amirasaad/fintech/config"
+	"github.com/amirasaad/fintech/pkg/config"
 	jwtware "github.com/gofiber/contrib/jwt"
 	"github.com/gofiber/fiber/v2"
 )

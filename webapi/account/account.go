@@ -1,8 +1,8 @@
 package account
 
 import (
-	"github.com/amirasaad/fintech/config"
 	"github.com/amirasaad/fintech/pkg/commands"
+	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/middleware"

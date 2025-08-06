@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/amirasaad/fintech/pkg/config"
 	"log/slog"
 	"maps"
 	"net/url"
@@ -12,7 +13,6 @@ import (
 
 	"github.com/stripe/stripe-go/v82/webhook"
 
-	"github.com/amirasaad/fintech/config"
 	"github.com/amirasaad/fintech/pkg/checkout"
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/account"

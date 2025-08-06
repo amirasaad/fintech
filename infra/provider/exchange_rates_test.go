@@ -1,12 +1,12 @@
 package provider
 
 import (
+	"github.com/amirasaad/fintech/pkg/config"
 	"io"
 	"log/slog"
 	"testing"
 	"time"
 
-	"github.com/amirasaad/fintech/config"
 	infra_cache "github.com/amirasaad/fintech/infra/cache"
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/provider"

@@ -2,13 +2,13 @@ package webapi_test
 
 import (
 	"bytes"
+	config2 "github.com/amirasaad/fintech/pkg/config"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
-	"github.com/amirasaad/fintech/config"
 	"github.com/amirasaad/fintech/infra/eventbus"
 	infra_provider "github.com/amirasaad/fintech/infra/provider"
 	"github.com/amirasaad/fintech/pkg/currency"
@@ -20,8 +20,8 @@ import (
 
 func TestRateLimit(t *testing.T) {
 	// Create app with stricter rate limits for testing
-	cfg := &config.AppConfig{
-		RateLimit: config.RateLimitConfig{
+	cfg := &config2.AppConfig{
+		RateLimit: config2.RateLimitConfig{
 			MaxRequests: 5,
 			Window:      1 * time.Second,
 		},
@@ -33,7 +33,7 @@ func TestRateLimit(t *testing.T) {
 	// Create a dummy currency registry and service
 	dummyRegistry := &currency.Registry{}
 
-	app := webapi.SetupApp(config.Deps{
+	app := webapi.SetupApp(config2.Deps{
 		Uow:               dummyUow,
 		EventBus:          eventbus.NewWithMemory(slog.Default()),
 		CurrencyConverter: infra_provider.NewStubCurrencyConverter(),

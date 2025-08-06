@@ -3,10 +3,10 @@ package auth
 import (
 	"context"
 	"fmt"
+	"github.com/amirasaad/fintech/pkg/config"
 	"log/slog"
 	"time"
 
-	"github.com/amirasaad/fintech/config"
 	"github.com/amirasaad/fintech/pkg/domain"
 	domainuser "github.com/amirasaad/fintech/pkg/domain/user"
 	"github.com/amirasaad/fintech/pkg/dto"

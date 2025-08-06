@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"github.com/amirasaad/fintech/pkg/config"
 	"log"
 	"log/slog"
 	"net/http"
@@ -11,7 +12,6 @@ import (
 
 	"github.com/amirasaad/fintech/infra/eventbus"
 
-	"github.com/amirasaad/fintech/config"
 	"github.com/amirasaad/fintech/infra"
 	"github.com/amirasaad/fintech/infra/provider"
 	"github.com/amirasaad/fintech/pkg/checkout"

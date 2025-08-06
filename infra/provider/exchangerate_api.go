@@ -3,12 +3,12 @@ package provider
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/amirasaad/fintech/pkg/config"
 	"io"
 	"log/slog"
 	"net/http"
 	"time"
 
-	"github.com/amirasaad/fintech/config"
 	"github.com/amirasaad/fintech/pkg/cache"
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/provider"

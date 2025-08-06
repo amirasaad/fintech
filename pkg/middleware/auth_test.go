@@ -1,13 +1,13 @@
 package middleware
 
 import (
+	"github.com/amirasaad/fintech/pkg/config"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"errors"
 
-	"github.com/amirasaad/fintech/config"
 	"github.com/gofiber/fiber/v2"
 )
 

@@ -3,11 +3,11 @@ package auth_test
 import (
 	"context"
 	"errors"
+	"github.com/amirasaad/fintech/pkg/config"
 	"testing"
 
 	"log/slog"
 
-	"github.com/amirasaad/fintech/config"
 	"github.com/amirasaad/fintech/internal/fixtures/mocks"
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/dto"
