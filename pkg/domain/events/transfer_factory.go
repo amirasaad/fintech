@@ -15,6 +15,11 @@ func WithTransferRequestedAmount(m money.Money) TransferRequestedOpt {
 	return func(e *TransferRequested) { e.Amount = m }
 }
 
+// WithTransferFee sets the transfer fee
+func WithTransferFee(fee int64) TransferRequestedOpt {
+	return func(e *TransferRequested) { e.Fee = fee }
+}
+
 func WithTransferDestAccountID(id uuid.UUID) TransferRequestedOpt {
 	return func(e *TransferRequested) { e.DestAccountID = id }
 }

@@ -20,6 +20,7 @@ type WithdrawRequested struct {
 	ExternalWalletAddress string
 	Timestamp             time.Time
 	PaymentID             string // Added for payment provider integration
+	Fee                   int64
 }
 
 func (e *WithdrawRequested) Type() string {

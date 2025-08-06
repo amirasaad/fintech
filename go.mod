@@ -2,6 +2,8 @@ module github.com/amirasaad/fintech
 
 go 1.24.4
 
+replace github.com/amirasaad/fintech/pkg/domain/account/fee => ./pkg/domain/account/fee
+
 require (
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/fatih/color v1.18.0

@@ -14,7 +14,7 @@ type repository struct {
 	db *gorm.DB
 }
 
-// NewRepository creates a new CQRS-style transaction repository using the provided *gorm.DB.
+// New creates a new CQRS-style transaction repository using the provided *gorm.DB.
 func New(db *gorm.DB) repo.Repository {
 	return &repository{db: db}
 }
@@ -186,8 +186,20 @@ func mapUpdateDTOToModel(update dto.TransactionUpdate) map[string]any {
 	if update.Status != nil {
 		updates["status"] = *update.Status
 	}
+	if update.Amount != nil {
+		updates["amount"] = *update.Amount
+	}
+	if update.Currency != nil {
+		updates["currency"] = *update.Currency
+	}
+	if update.Balance != nil {
+		updates["balance"] = *update.Balance
+	}
 	if update.PaymentID != nil {
 		updates["payment_id"] = *update.PaymentID
+	}
+	if update.Fee != nil {
+		updates["fee"] = *update.Fee
 	}
 	if update.ConversionRate != nil {
 		updates["conversion_rate"] = update.ConversionRate

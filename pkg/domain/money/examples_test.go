@@ -188,17 +188,17 @@ func ExampleMoney_AmountFloat() {
 	// JPY amount float: 1000
 }
 
-// ExampleNewMoneyFromSmallestUnit demonstrates creating money from smallest unit
-func ExampleNewMoneyFromSmallestUnit() {
+// ExampleNewFromSmallestUnit demonstrates creating money from smallest unit
+func ExampleNewFromSmallestUnit() {
 	// Create USD money from cents (smallest unit)
-	usdMoney, err := NewMoneyFromSmallestUnit(10050, currency.USD) // 100.50 USD
+	usdMoney, err := NewFromSmallestUnit(10050, currency.USD) // 100.50 USD
 	if err != nil {
 		log.Fatal(err)
 	}
 	fmt.Printf("USD from cents: %s\n", usdMoney.String())
 
 	// Create JPY money from yen (smallest unit)
-	jpyMoney, err := NewMoneyFromSmallestUnit(1000, currency.Code("JPY")) // 1000 JPY
+	jpyMoney, err := NewFromSmallestUnit(1000, currency.Code("JPY")) // 1000 JPY
 	if err != nil {
 		log.Fatal(err)
 	}

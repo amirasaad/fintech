@@ -3,7 +3,6 @@ package account
 import (
 	"time"
 
-	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/google/uuid"
 )
@@ -48,21 +47,14 @@ type ExternalTarget struct {
 // single ledger entry.
 // It acts as a value object within the domain.
 type Transaction struct {
-	ID             uuid.UUID
-	UserID         uuid.UUID
-	AccountID      uuid.UUID
-	Amount         money.Money
-	Balance        money.Money // A snapshot of the account balance at the time of the transaction.
-	MoneySource    MoneySource // The origin of the funds (e.g., Cash, BankAccount, Stripe).
-	Status         TransactionStatus
-	ExternalTarget ExternalTarget
-	PaymentID      string // The external payment provider's ID for webhook correlation.
-	CreatedAt      time.Time
-	// TargetCurrency specifies the currency the account is credited in,
-	// which is crucial for multi-currency deposits.
-	TargetCurrency string
-	// ConversionInfo holds details about a transaction.
-	ConversionInfo *common.ConversionInfo
+	ID          uuid.UUID
+	UserID      uuid.UUID
+	AccountID   uuid.UUID
+	Amount      money.Money
+	Balance     money.Money // A snapshot of the account balance at the time of the transaction.
+	MoneySource MoneySource // The origin of the funds (e.g., Cash, BankAccount, Stripe).
+	Status      TransactionStatus
+	CreatedAt   time.Time
 }
 
 // NewTransactionFromData creates a Transaction instance from raw data.

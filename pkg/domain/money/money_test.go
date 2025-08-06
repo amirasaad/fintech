@@ -190,7 +190,7 @@ func TestMoney_PrecisionEdgeCases(t *testing.T) {
 
 func TestNewMoneyFromSmallestUnit(t *testing.T) {
 	t.Run("USD from cents", func(t *testing.T) {
-		m, err := money.NewMoneyFromSmallestUnit(10050, "USD") // 100.50 USD
+		m, err := money.NewFromSmallestUnit(10050, "USD") // 100.50 USD
 		require.NoError(t, err)
 		assert.Equal(t, int64(10050), m.Amount())
 		assert.Equal(t, "USD", string(m.Currency()))
@@ -198,7 +198,7 @@ func TestNewMoneyFromSmallestUnit(t *testing.T) {
 	})
 
 	t.Run("JPY from yen", func(t *testing.T) {
-		money, err := money.NewMoneyFromSmallestUnit(1000, "JPY") // 1000 JPY
+		money, err := money.NewFromSmallestUnit(1000, "JPY") // 1000 JPY
 		require.NoError(t, err)
 		assert.Equal(t, int64(1000), money.Amount())
 		assert.Equal(t, "JPY", string(money.Currency()))
@@ -206,7 +206,7 @@ func TestNewMoneyFromSmallestUnit(t *testing.T) {
 	})
 
 	t.Run("Invalid currency", func(t *testing.T) {
-		_, err := money.NewMoneyFromSmallestUnit(100, "INVALID")
+		_, err := money.NewFromSmallestUnit(100, "INVALID")
 		require.Error(t, err)
 		assert.ErrorIs(t, err, common.ErrInvalidCurrencyCode)
 	})

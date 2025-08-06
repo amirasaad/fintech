@@ -108,8 +108,8 @@ func HandleCompleted(
 				return fmt.Errorf("could not add to dest balance: %w", err)
 			}
 
-			newSourceBalance := newSourceMoney.AmountFloat()
-			newDestBalance := newDestMoney.AmountFloat()
+			newSourceBalance := newSourceMoney.Amount()
+			newDestBalance := newDestMoney.Amount()
 
 			if err := accRepo.Update(
 				ctx,

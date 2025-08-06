@@ -62,6 +62,10 @@ type ExchangeRateConfig struct {
 	CacheUrl          string        `envconfig:"CACHE_URL"`
 }
 
+type FeeConfig struct {
+	ServiceFeePercentage float64 `envconfig:"SERVICE_FEE_PERCENTAGE" default:"0.01"`
+}
+
 type AppConfig struct {
 	Env              string             `envconfig:"APP_ENV" default:"development"`
 	Scheme           string             `envconfig:"APP_SCHEME" default:"https"`
@@ -74,6 +78,7 @@ type AppConfig struct {
 	Redis            RedisConfig        `envconfig:"REDIS"`
 	RateLimit        RateLimitConfig    `envconfig:"RATE_LIMIT"`
 	PaymentProviders PaymentProviders   `envconfig:"PAYMENT_PROVIDER"`
+	Fee              FeeConfig          `envconfig:"FEE"`
 }
 
 func maskApiKey(key string) string {

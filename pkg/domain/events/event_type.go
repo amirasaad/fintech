@@ -30,6 +30,9 @@ const (
 	EventTypeTransferCompleted         EventType = "Transfer.Completed"
 	EventTypeTransferFailed            EventType = "Transfer.Failed"
 
+	// Fee events
+	EventTypeFeesCalculated EventType = "Fees.Calculated"
+
 	// Currency conversion events
 	EventTypeCurrencyConversionRequested EventType = "CurrencyConversion.Requested"
 	EventTypeCurrencyConverted           EventType = "CurrencyConversion.Converted"

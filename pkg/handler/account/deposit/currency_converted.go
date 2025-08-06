@@ -32,7 +32,7 @@ func HandleCurrencyConverted(
 
 		dcc, ok := e.(*events.DepositCurrencyConverted)
 		if !ok {
-			log.Debug(
+			log.Warn(
 				"🚫 [SKIP] Skipping: unexpected event type",
 				"event", e,
 			)
@@ -49,7 +49,7 @@ func HandleCurrencyConverted(
 		accRepoAny, err := uow.GetRepository((*account.Repository)(nil))
 		if err != nil {
 			log.Error(
-				"❌ [ERROR] Failed to get account repository",
+				"Failed to get account repository",
 				"error", err,
 			)
 			return err
@@ -58,7 +58,7 @@ func HandleCurrencyConverted(
 		if !ok {
 			err = errors.New("invalid account repository type")
 			log.Error(
-				"❌ [ERROR] Invalid account repository type",
+				"Invalid account repository type",
 				"type", accRepoAny,
 				"error", err,
 			)
@@ -83,32 +83,28 @@ func HandleCurrencyConverted(
 
 		// Check if OriginalRequest is nil
 		if dcc.OriginalRequest == nil {
-			err = errors.New("original request is missing")
-			log.Error(
-				"❌ [ERROR] Original request is missing",
-				"error", err,
-				"event_details", fmt.Sprintf("%+v", dcc),
+			log.Warn(
+				"[SKIP] Original request is missing",
+				"event_id", dcc.ID,
 			)
-			return err
+			return nil
 		}
 
 		// Type assert the OriginalRequest to DepositRequested
 		dr, ok := dcc.OriginalRequest.(*events.DepositRequested)
 		if !ok {
-			err = fmt.Errorf("unexpected original request type: %T", dcc.OriginalRequest)
-			log.Error(
-				"❌ [ERROR] Unexpected original request type",
-				"error", err,
+			log.Warn(
+				"[SKIP] Unexpected original request type",
 				"original_request_type", fmt.Sprintf("%T", dcc.OriginalRequest),
 			)
-			return err
+			return nil
 		}
 
 		// Get the account
 		accRead, err := accRepo.Get(ctx, accountID)
 		if err != nil {
-			log.Error(
-				"❌ [ERROR] Failed to get account",
+			log.Warn(
+				"Failed to get account",
 				"error", err,
 				"account_id", accountID,
 			)
@@ -118,14 +114,14 @@ func HandleCurrencyConverted(
 
 		// Perform domain validation
 		if err := acc.ValidateDeposit(userID, dcc.ConvertedAmount); err != nil {
-			log.Error(
-				"❌ [ERROR] Domain validation failed",
+			log.Warn(
+				"Domain validation failed",
 				"error", err,
 			)
 			// Create the failed event
 			failedEvent := events.NewDepositFailed(dr, err.Error())
 			_ = bus.Emit(ctx, failedEvent)
-			return err
+			return nil
 		}
 
 		dv := events.NewDepositValidated(dcc)
@@ -135,11 +131,12 @@ func HandleCurrencyConverted(
 		)
 
 		if err := bus.Emit(ctx, dv); err != nil {
-			log.Error(
-				"❌ [ERROR] Failed to emit",
+			log.Warn(
+				"Failed to emit",
 				"event_type", dv.Type(),
 				"error", err,
 			)
+			return fmt.Errorf("failed to emit %s: %w", dv.Type(), err)
 		}
 		pi := events.NewPaymentInitiated(dcc.FlowEvent, func(pi *events.PaymentInitiated) {
 			pi.TransactionID = dcc.TransactionID
@@ -149,15 +146,16 @@ func HandleCurrencyConverted(
 			pi.CorrelationID = dcc.CorrelationID
 		})
 		log.Info(
-			"🟢 [SUCCESS] Emitting",
+			"Emitting",
 			"event_type", pi.Type(),
 		)
 		if err := bus.Emit(ctx, pi); err != nil {
-			log.Error(
-				"❌ [ERROR] Failed to emit",
+			log.Warn(
+				"Failed to emit",
 				"event_type", pi.Type(),
 				"error", err,
 			)
+			return fmt.Errorf("failed to emit %s: %w", pi.Type(), err)
 		}
 		return nil
 	}

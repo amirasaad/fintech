@@ -131,7 +131,7 @@ func (b *Builder) Build() (*Account, error) {
 	if b.userID == uuid.Nil {
 		return nil, errors.New("userID is required")
 	}
-	bal, err := money.NewMoneyFromSmallestUnit(b.balance, b.currency)
+	bal, err := money.NewFromSmallestUnit(b.balance, b.currency)
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +149,7 @@ func (a *Account) Currency() currency.Code {
 }
 
 func (a *Account) SetCurrency(c currency.Code) error {
-	newBalance, err := money.NewMoneyFromSmallestUnit(a.Balance.Amount(), c)
+	newBalance, err := money.NewFromSmallestUnit(a.Balance.Amount(), c)
 	if err != nil {
 		return err
 	}

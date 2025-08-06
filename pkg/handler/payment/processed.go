@@ -3,10 +3,12 @@ package payment
 import (
 	"context"
 	"errors"
-	"github.com/amirasaad/fintech/pkg/eventbus"
+	"fmt"
 	"log/slog"
+	"strings"
 
-	"github.com/amirasaad/fintech/pkg/domain/account"
+	"github.com/amirasaad/fintech/pkg/eventbus"
+
 	"github.com/amirasaad/fintech/pkg/domain/events"
 
 	"github.com/amirasaad/fintech/pkg/dto"
@@ -30,12 +32,12 @@ func HandleProcessed(
 			"handler", "HandleProcessed",
 			"event_type", e.Type(),
 		)
-		log.Info("🟢 [START] Received event", "event", e)
+		log.Info("🟢 [START] event received")
 
 		pp, ok := e.(*events.PaymentProcessed)
 		if !ok {
 			log.Error(
-				"❌ [ERROR] Unexpected event type for payment persistence",
+				"Unexpected event type for payment persistence",
 				"event", e,
 			)
 			return errors.New("unexpected event type")
@@ -47,76 +49,81 @@ func HandleProcessed(
 			"payment_id", pp.PaymentID)
 
 		// Update the transaction with payment ID
-		if err := uow.Do(ctx, func(uow repository.UnitOfWork) error {
+		err := uow.Do(ctx, func(uow repository.UnitOfWork) error {
 			txRepoAny, err := uow.GetRepository((*transaction.Repository)(nil))
 			if err != nil {
 				log.Error(
-					"❌ [ERROR] Failed to get transaction repo",
+					"Failed to get transaction repo",
 					"error", err,
 				)
-				return err
+				return fmt.Errorf("failed to get transaction repo: %w", err)
 			}
+
 			txRepo, ok := txRepoAny.(transaction.Repository)
 			if !ok {
+				err := fmt.Errorf("failed to retrieve transaction repository type")
 				log.Error(
-					"❌ [ERROR] Failed to retrieve repo type",
-				)
-				return errors.New("failed to retrieve repo type")
-			}
-
-			// Check if the transaction already has a payment ID before updating
-			tx, err := txRepo.Get(ctx, pp.TransactionID)
-			if err != nil {
-				log.Error(
-					"❌ [ERROR] Failed to get transaction before update",
+					"Failed to retrieve repo type",
 					"error", err,
 				)
 				return err
 			}
-			if tx.PaymentID != "" {
-				log.Warn(
-					"🚫 [SKIP] duplicate emission detected: transaction already has payment ID",
-					"transaction_id", pp.TransactionID,
-					"existing_payment_id", tx.PaymentID,
-				)
-				return errors.New("transaction already has payment ID")
+
+			transactionID := pp.TransactionID
+			if transactionID == uuid.Nil && strings.HasPrefix(pp.PaymentID, "pi_") {
+				tx, err := txRepo.GetByPaymentID(ctx, pp.PaymentID)
+				if err != nil {
+					log.Error(
+						"Failed to get transaction by payment ID",
+						"payment_id", pp.PaymentID,
+						"error", err,
+					)
+					return fmt.Errorf("failed to get transaction by payment ID: %w", err)
+				}
+				transactionID = tx.ID
 			}
 
-			status := string(account.TransactionStatusPending)
-			if err = txRepo.Update(ctx, pp.TransactionID, dto.TransactionUpdate{
-				PaymentID: &pp.PaymentID,
+			if transactionID == uuid.Nil {
+				err := fmt.Errorf("no transaction ID provided and could not find by payment ID")
+				log.Error(
+					"Failed to get transaction before update",
+					"error", err,
+				)
+				return err
+			}
+
+			status := "processed"
+			if err = txRepo.Update(ctx, transactionID, dto.TransactionUpdate{
 				Status:    &status,
+				PaymentID: &pp.PaymentID,
 			}); err != nil {
 				log.Error(
-					"❌ [ERROR] Failed to update transaction with payment ID",
+					"Failed to update transaction with payment ID",
+					"transaction_id", transactionID,
+					"payment_id", pp.PaymentID,
 					"error", err,
 				)
-				return err
+				return fmt.Errorf("failed to update transaction: %w", err)
 			}
 
 			log.Info(
-				"✅ [SUCCESS] Transaction updated with payment ID",
-				"transaction_id", pp.TransactionID,
+				"Transaction updated with payment ID",
+				"transaction_id", transactionID,
 				"payment_id", pp.PaymentID,
 			)
 
-			// Guard: Only emit if TransactionID is valid and no cycle will occur
-			if pp.TransactionID == uuid.Nil {
-				log.Error(
-					"❌ [ERROR] Transaction ID is nil, aborting emission",
-					"event", pp,
-				)
-				return errors.New("invalid transaction ID")
-			}
-
+			log.Info("✅ [SUCCESS] event processed")
 			return nil
-		}); err != nil {
+		})
+
+		if err != nil {
 			log.Error(
-				"❌ [ERROR] Payment persistence failed",
+				"Uow.Do failed",
 				"error", err,
 			)
 			return err
 		}
+		log.Info("✅ [SUCCESS] event processed")
 		return nil
 	}
 }

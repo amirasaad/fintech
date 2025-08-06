@@ -7,13 +7,17 @@ import (
 	"log/slog"
 	"maps"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/stripe/stripe-go/v82/webhook"
 
 	"github.com/amirasaad/fintech/config"
 	"github.com/amirasaad/fintech/pkg/checkout"
+	"github.com/amirasaad/fintech/pkg/currency"
+	"github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/domain/events"
+	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/amirasaad/fintech/pkg/provider"
 	"github.com/google/uuid"
@@ -83,10 +87,11 @@ func (s *StripePaymentProvider) InitiatePayment(
 	)
 	if err != nil {
 		log.Error(
-			"❌ Failed to create checkout session",
+			"failed to create checkout session",
 			"error", err,
 		)
-		return nil, fmt.Errorf("failed to create checkout session: %w", err)
+		return nil, fmt.Errorf(
+			"failed to create checkout session: %w", err)
 	}
 
 	// Create internal checkout session record
@@ -104,7 +109,7 @@ func (s *StripePaymentProvider) InitiatePayment(
 	)
 	if err != nil {
 		log.Error(
-			"❌ Failed to create checkout session record",
+			"failed to create checkout session record",
 			"error", err,
 		)
 		return nil, fmt.Errorf(
@@ -129,88 +134,37 @@ func (s *StripePaymentProvider) InitiatePayment(
 	}, nil
 }
 
-// HandleWebhook handles Stripe webhook events
+// HandleWebhook handles Stripe webhook events using a handler map.
 func (s *StripePaymentProvider) HandleWebhook(
 	ctx context.Context,
 	payload []byte,
 	signature string,
 ) (*provider.PaymentEvent, error) {
-	// Verify the webhook signature
-	// Create a logger with event context
-	log := s.logger.With(
-		"handler", "stripe.HandleWebhook",
-	)
-	event, err := webhook.ConstructEvent(
-		payload,
-		signature,
-		s.cfg.SigningSecret,
-	)
-
+	log := s.logger.With("handler", "stripe.HandleWebhook")
+	event, err := webhook.ConstructEvent(payload, signature, s.cfg.SigningSecret)
 	if err != nil {
-		log.Error(
-			"❌ Invalid webhook signature",
-			"error", err,
-		)
+		log.Error("invalid webhook signature", "error", err)
 		return nil, fmt.Errorf("error verifying webhook signature: %w", err)
 	}
-	log = log.With(
-		"event_type", event.Type,
-		"event_id", event.ID)
-	log.Info(
-		"📥 Handling webhook event",
-		"type", event.Type,
-	)
+	log = log.With("event_type", event.Type, "event_id", event.ID)
+	log.Info("📥 Handling webhook event", "type", event.Type)
 
-	// Handle different event types
-	switch event.Type {
-	case "checkout.session.completed":
-		return s.handleCheckoutSessionCompleted(ctx, event, log)
-
-	case "checkout.session.expired":
-		return s.handleCheckoutSessionExpired(ctx, event, log)
-
-	case "payment_intent.succeeded":
-		return s.handlePaymentIntentSucceeded(ctx, event, log)
-
-	case "payment_intent.payment_failed":
-		return s.handlePaymentIntentFailed(ctx, event, log)
-
-	default:
-		log.Info("Unhandled event type")
-		return nil, nil
+	handlers := map[string]func(
+		context.Context,
+		stripe.Event,
+		*slog.Logger,
+	) (*provider.PaymentEvent, error){
+		"checkout.session.completed":    s.handleCheckoutSessionCompleted,
+		"checkout.session.expired":      s.handleCheckoutSessionExpired,
+		"payment_intent.succeeded":      s.handlePaymentIntentSucceeded,
+		"payment_intent.payment_failed": s.handlePaymentIntentFailed,
+		"charge.succeeded":              s.handleChargeSucceeded,
 	}
-}
-
-func (s *StripePaymentProvider) GetPaymentStatus(
-	ctx context.Context,
-	params *provider.GetPaymentStatusParams,
-) (provider.PaymentStatus, error) {
-	pi, err := s.client.V1PaymentIntents.Retrieve(ctx, params.PaymentID, nil)
-	log := s.logger.With(
-		"handler", "stripe.GetPaymentStatus",
-		"payment_id", params.PaymentID,
-	)
-	log.Info(
-		"🔍 Getting payment status",
-		"payment_id", params.PaymentID,
-	)
-	if err != nil {
-		log.Error(
-			"❌ Failed to get payment intent",
-			"error", err,
-		)
-		return provider.PaymentFailed, fmt.Errorf("failed to get payment intent: %w", err)
+	if handler, ok := handlers[string(event.Type)]; ok {
+		return handler(ctx, event, log)
 	}
-	switch pi.Status {
-	case stripe.PaymentIntentStatusSucceeded:
-		return provider.PaymentCompleted, nil
-	case stripe.PaymentIntentStatusProcessing,
-		stripe.PaymentIntentStatusRequiresPaymentMethod,
-		stripe.PaymentIntentStatusRequiresConfirmation:
-		return provider.PaymentPending, nil
-	default:
-		return provider.PaymentFailed, nil
-	}
+	log.Info("Unhandled event type")
+	return nil, nil
 }
 
 // createCheckoutSession creates a new Stripe Checkout Session
@@ -263,7 +217,7 @@ func (s *StripePaymentProvider) createCheckoutSession(
 	session, err := s.client.V1CheckoutSessions.Create(ctx, params)
 	if err != nil {
 		s.logger.Error(
-			"❌ stripe: failed to create checkout session",
+			"failed to create checkout session",
 			"error", err,
 		)
 		return nil, fmt.Errorf("failed to create checkout session: %w", err)
@@ -305,111 +259,61 @@ func (s *StripePaymentProvider) handleCheckoutSessionCompleted(
 	var session stripe.CheckoutSession
 	if err := json.Unmarshal(event.Data.Raw, &session); err != nil {
 		log.Error(
-			"❌ Error parsing checkout.session.completed",
+			"parsing checkout.session.completed",
 			"error", err,
 		)
 		return nil, fmt.Errorf(
-			"error parsing checkout.session.completed: %w", err)
+			"error parsing checkout.pi.completed: %w", err)
 	}
 
 	log = log.With(
 		"checkout_session_id", session.ID,
 		"payment_intent_id", session.PaymentIntent.ID,
 	)
-
-	// Get transaction ID from metadata
-	transactionID, err := uuid.Parse(session.Metadata["transaction_id"])
+	se, err := s.checkoutService.GetSession(ctx, session.ID)
 	if err != nil {
-		log.Error(
-			"❌ Invalid transaction_id in metadata",
-			"error", err,
-			"metadata", session.Metadata,
-		)
-		return nil, fmt.Errorf("invalid transaction_id in metadata: %w", err)
+		return nil, err
 	}
-
-	// Update the checkout session status with transaction context
-	if err := s.checkoutService.UpdateStatus(
-		context.Background(),
-		session.ID,
-		"completed",
-	); err != nil {
-		log.Error(
-			"❌ Error updating checkout session status to completed",
-			"error", err,
-			"transaction_id", transactionID,
-		)
-		return nil, fmt.Errorf("error updating session status: %w", err)
-	}
-
-	// Get the payment intent details
-	pi, err := s.client.V1PaymentIntents.Retrieve(
-		context.Background(),
-		session.PaymentIntent.ID,
-		nil,
-	)
-	if err != nil {
-		log.Error(
-			"❌ Error retrieving payment intent",
-			"error", err,
-		)
-		return nil, fmt.Errorf("error retrieving payment intent: %w", err)
-	}
-
-	// Get the user ID and account ID from metadata
-	userID, err := uuid.Parse(session.Metadata["user_id"])
-	if err != nil {
-		log.Error(
-			"❌ Invalid user_id in metadata",
-			"error", err,
-		)
-		return nil, fmt.Errorf("invalid user_id in metadata: %w", err)
-	}
-
-	accountID, err := uuid.Parse(session.Metadata["account_id"])
-	if err != nil {
-		log.Error(
-			"❌ Invalid account_id in metadata",
-			"error", err,
-		)
-		return nil, fmt.Errorf("invalid account_id in metadata: %w", err)
-	}
-
-	// Create metadata map from session metadata
-	metadata := make(map[string]string)
-	maps.Copy(metadata, session.Metadata)
 
 	if err := s.bus.Emit(
 		ctx,
-		events.NewPaymentCompleted(
-			events.FlowEvent{
-				ID:     transactionID,
-				UserID: userID,
+		events.NewPaymentProcessed(
+			*events.NewPaymentInitiated(
+				events.FlowEvent{
+					ID:            uuid.New(),
+					UserID:        se.UserID,
+					AccountID:     se.AccountID,
+					FlowType:      "payment",
+					CorrelationID: uuid.New(),
+				},
+			), func(pp *events.PaymentProcessed) {
+				pp.TransactionID = se.TransactionID
+				pp.PaymentID = session.PaymentIntent.ID
+				log.Info("Emitting ", "event_type", pp.Type())
 			},
-			events.WithPaymentID(pi.ID),
 		),
 	); err != nil {
 		log.Error(
-			"❌ Error emitting payment completed event",
+			"error emitting payment processed event",
 			"error", err,
 		)
-		return nil, fmt.Errorf("error emitting payment completed event: %w", err)
+		return nil, fmt.Errorf("error emitting payment processed event: %w", err)
 	}
 
 	log.Info(
-		"✅ Checkout session and transaction updated successfully",
-		"transaction_id", transactionID,
+		"✅ Checkout pi and transaction updated successfully",
+		"transaction_id", se.TransactionID,
 		"checkout_session_id", session.ID,
+		"payment_intent_id", session.PaymentIntent.ID,
 	)
 
 	return &provider.PaymentEvent{
-		ID:        pi.ID,
+		ID:        session.PaymentIntent.ID,
 		Status:    provider.PaymentCompleted,
-		Amount:    pi.Amount,
-		Currency:  string(pi.Currency),
-		UserID:    userID,
-		AccountID: accountID,
-		Metadata:  metadata,
+		Amount:    session.PaymentIntent.Amount,
+		Currency:  string(session.Currency),
+		UserID:    se.UserID,
+		AccountID: se.AccountID,
 	}, nil
 }
 
@@ -422,7 +326,7 @@ func (s *StripePaymentProvider) handleCheckoutSessionExpired(
 	var session stripe.CheckoutSession
 	if err := json.Unmarshal(event.Data.Raw, &session); err != nil {
 		log.Error(
-			"❌ Error parsing checkout.session.expired",
+			"parsing checkout.session.expired",
 			"error", err,
 		)
 		return nil, fmt.Errorf(
@@ -438,7 +342,7 @@ func (s *StripePaymentProvider) handleCheckoutSessionExpired(
 	transactionID, err := uuid.Parse(session.Metadata["transaction_id"])
 	if err != nil {
 		log.Error(
-			"❌ Invalid transaction_id in metadata",
+			"invalid transaction_id in metadata",
 			"error", err,
 			"metadata", session.Metadata,
 		)
@@ -452,7 +356,7 @@ func (s *StripePaymentProvider) handleCheckoutSessionExpired(
 		"expired",
 	); err != nil {
 		log.Error(
-			"❌ Error updating checkout session status to expired",
+			"updating checkout session status to expired",
 			"error", err,
 			"transaction_id", transactionID,
 		)
@@ -469,106 +373,211 @@ func (s *StripePaymentProvider) handleCheckoutSessionExpired(
 // handlePaymentIntentSucceeded handles the payment_intent.succeeded event
 func (s *StripePaymentProvider) handlePaymentIntentSucceeded(
 	ctx context.Context,
-	event stripe.Event, log *slog.Logger) (*provider.PaymentEvent, error) {
-	var paymentIntent stripe.PaymentIntent
-	if err := json.Unmarshal(event.Data.Raw, &paymentIntent); err != nil {
-		log.Error(
-			"❌ Error parsing payment_intent.succeeded",
-			"error", err,
-		)
+	event stripe.Event,
+	log *slog.Logger,
+) (
+	*provider.PaymentEvent,
+	error,
+) {
+	var pi stripe.PaymentIntent
+	if err := json.Unmarshal(event.Data.Raw, &pi); err != nil {
+		log.Error("parsing payment_intent.succeeded", "error", err)
 		return nil, fmt.Errorf("error parsing payment_intent.succeeded: %w", err)
 	}
+	log = log.With("payment_intent_id", pi.ID)
 
-	log = log.With("payment_intent_id", paymentIntent.ID)
-
-	// Get the payment intent details
-	pi, err := s.client.V1PaymentIntents.Retrieve(
-		ctx,
-		paymentIntent.ID,
-		nil,
-	)
+	// Retrieve the expanded PaymentIntent with balance transaction
+	fullPI, err := s.client.V1PaymentIntents.
+		Retrieve(ctx, pi.ID, &stripe.PaymentIntentRetrieveParams{
+			Params: stripe.Params{
+				Expand: []*string{stripe.String("latest_charge.balance_transaction")},
+			},
+		})
 	if err != nil {
-		log.Error(
-			"❌ Error retrieving payment intent",
-			"error", err,
+		log.Error("retrieving expanded payment intent", "error", err)
+		return nil, fmt.Errorf("error retrieving expanded payment intent: %w", err)
+	}
+	pi = *fullPI
+
+	// Log Stripe fee and net info if available
+	var feeAmount int64
+	var feeCurrency string
+	if pi.LatestCharge != nil && pi.LatestCharge.BalanceTransaction != nil {
+		bt := pi.LatestCharge.BalanceTransaction
+		log.Info("📊 Stripe balance transaction info",
+			"fee", bt.Fee,
+			"net", bt.Net,
+			"currency", bt.Currency,
+			"fee_details", bt.FeeDetails,
 		)
-		return nil, fmt.Errorf("error retrieving payment intent: %w", err)
+		feeAmount = bt.Fee
+		feeCurrency = strings.ToUpper(string(bt.Currency))
+	} else {
+		log.Warn("⚠️ Balance transaction not available via expand")
 	}
 
-	// Get the user ID, account ID, and transaction ID from metadata
-	userID, err := uuid.Parse(paymentIntent.Metadata["user_id"])
+	s.logStripeFeeInfo(log, &pi)
+
+	parsedMeta, err := s.parseAndValidateMetadata(pi.Metadata, log)
 	if err != nil {
-		log.Error(
-			"❌ Invalid user_id in metadata",
-			"error", err,
-			"metadata", paymentIntent.Metadata,
-		)
-		return nil, fmt.Errorf("invalid user_id in metadata: %w", err)
+		return nil, err
+	}
+	metadata := s.copyMetadata(pi.Metadata)
+
+	log.Info("💰 Handling payment_intent.succeeded event", "payment_intent_id", pi.ID)
+
+	fee, err := s.parseProviderFeeAmount(feeAmount, feeCurrency, log)
+	if err != nil {
+		return nil, err
 	}
 
-	accountID, err := uuid.Parse(paymentIntent.Metadata["account_id"])
-	if err != nil {
-		log.Error(
-			"❌ Invalid account_id in metadata",
-			"error", err,
-			"metadata", paymentIntent.Metadata,
-		)
-		return nil, fmt.Errorf("invalid account_id in metadata: %w", err)
-	}
-
-	transactionID, err := uuid.Parse(
-		paymentIntent.Metadata["transaction_id"])
-	if err != nil {
-		log.Error(
-			"❌ Invalid transaction_id in metadata",
-			"error", err,
-			"metadata", paymentIntent.Metadata,
-		)
-		return nil, fmt.Errorf("invalid transaction_id in metadata: %w", err)
-	}
-
-	// Create metadata map from payment intent metadata
-	metadata := make(map[string]string)
-	maps.Copy(metadata, paymentIntent.Metadata)
-
-	log.Info(
-		"💰 Handling payment_intent.succeeded event",
-		"payment_intent_id", paymentIntent.ID,
-	)
-
-	// Update the transaction status using the transaction ID from metadata
-	if err := s.bus.Emit(ctx, events.NewPaymentCompleted(
-		events.FlowEvent{
-			ID:            transactionID,
-			UserID:        userID,
-			AccountID:     accountID,
-			FlowType:      "payment",
-			CorrelationID: uuid.New(),
-		},
-		events.WithPaymentID(pi.ID),
-	)); err != nil {
-		log.Error(
-			"❌ Error emitting payment completed event",
-			"error", err,
-		)
+	pc := s.buildPaymentCompletedEventPayload(&pi, parsedMeta, fee, log)
+	if err := s.bus.Emit(ctx, pc); err != nil {
+		log.Error("error emitting payment completed event", "error", err)
 		return nil, fmt.Errorf("error emitting payment completed event: %w", err)
 	}
 
-	log.Info(
-		"✅ Payment intent processed and transaction updated successfully",
-		"transaction_id", transactionID,
-		"payment_id", paymentIntent.ID,
-	)
+	log.Info("✅ Payment intent processed and transaction updated successfully",
+		"transaction_id", parsedMeta.TransactionID, "payment_id", pi.ID)
 
 	return &provider.PaymentEvent{
 		ID:        pi.ID,
 		Status:    provider.PaymentCompleted,
 		Amount:    pi.Amount,
 		Currency:  string(pi.Currency),
-		UserID:    userID,
-		AccountID: accountID,
+		UserID:    parsedMeta.UserID,
+		AccountID: parsedMeta.AccountID,
 		Metadata:  metadata,
 	}, nil
+}
+
+// logStripeFeeInfo logs Stripe fee-related info.
+func (s *StripePaymentProvider) logStripeFeeInfo(log *slog.Logger, pi *stripe.PaymentIntent) {
+	log.Info("Stripe fees",
+		"amount_received", pi.AmountReceived,
+		"amount_details", pi.AmountDetails,
+		"application_fee", pi.ApplicationFeeAmount,
+		"currency", pi.Currency,
+	)
+}
+
+// metadataInfo holds parsed metadata fields.
+type metadataInfo struct {
+	UserID        uuid.UUID
+	AccountID     uuid.UUID
+	TransactionID uuid.UUID
+	Currency      string
+}
+
+// parseAndValidateMetadata extracts and validates required fields from metadata.
+func (s *StripePaymentProvider) parseAndValidateMetadata(
+	meta map[string]string,
+	log *slog.Logger,
+) (*metadataInfo, error) {
+	userID, err := uuid.Parse(meta["user_id"])
+	if err != nil {
+		log.Error(
+			"invalid user_id in metadata",
+			"error", err,
+			"metadata", meta,
+		)
+		return nil, fmt.Errorf("invalid user_id in metadata: %w", err)
+	}
+	accountID, err := uuid.Parse(meta["account_id"])
+	if err != nil {
+		log.Error(
+			"invalid account_id in metadata",
+			"error", err,
+			"metadata", meta,
+		)
+		return nil, fmt.Errorf("invalid account_id in metadata: %w", err)
+	}
+	transactionID, err := uuid.Parse(meta["transaction_id"])
+	if err != nil {
+		log.Error(
+			"invalid transaction_id in metadata",
+			"error", err,
+			"metadata", meta,
+		)
+		return nil, fmt.Errorf(
+			"invalid transaction_id in metadata: %w", err)
+	}
+	currencyCode := meta["currency"]
+	return &metadataInfo{
+		UserID:        userID,
+		AccountID:     accountID,
+		TransactionID: transactionID,
+		Currency:      currencyCode,
+	}, nil
+}
+
+// copyMetadata creates a copy of the metadata map.
+func (s *StripePaymentProvider) copyMetadata(
+	meta map[string]string,
+) map[string]string {
+	copied := make(map[string]string)
+	maps.Copy(copied, meta)
+	return copied
+}
+
+// parseProviderFeeAmount parses the provider fee amount.
+func (s *StripePaymentProvider) parseProviderFeeAmount(
+	feeAmount int64,
+	cur string,
+	log *slog.Logger,
+) (money.Money, error) {
+	fee, err := money.NewFromSmallestUnit(
+		feeAmount,
+		currency.Code(cur),
+	)
+	if err != nil {
+		log.Error("error creating money from smallest unit", "error", err)
+		return money.Money{}, fmt.Errorf("error creating money from smallest unit: %w", err)
+	}
+	return fee, nil
+}
+
+// buildPaymentCompletedEventPayload builds the arguments for bus.Emit for PaymentCompleted.
+func (s *StripePaymentProvider) buildPaymentCompletedEventPayload(
+	pi *stripe.PaymentIntent,
+	meta *metadataInfo,
+	feeAmount money.Money,
+	log *slog.Logger,
+) *events.PaymentCompleted {
+	amount, err := s.parseAmount(pi.AmountReceived, pi.Currency, log)
+	return events.NewPaymentCompleted(
+		events.FlowEvent{
+			ID:            meta.TransactionID,
+			UserID:        meta.UserID,
+			AccountID:     meta.AccountID,
+			FlowType:      "payment",
+			CorrelationID: uuid.New(),
+		},
+		events.WithPaymentID(pi.ID),
+		events.WithProviderFee(account.Fee{
+			Amount: feeAmount,
+			Type:   account.FeeProvider,
+		}),
+		func(pc *events.PaymentCompleted) {
+			pc.TransactionID = meta.TransactionID
+			pc.Amount = amount
+			if err != nil {
+				log.Error("error creating money from smallest unit", "error", err)
+			}
+		},
+	)
+}
+
+// parseAmount parses the received amount and currency into a Money value.
+func (s *StripePaymentProvider) parseAmount(
+	amount int64,
+	currencyCode stripe.Currency,
+	log *slog.Logger,
+) (money.Money, error) {
+	return money.NewFromSmallestUnit(
+		amount,
+		currency.Code(strings.ToUpper(string(currencyCode))),
+	)
 }
 
 // handlePaymentIntentFailed handles the payment_intent.payment_failed event
@@ -578,7 +587,7 @@ func (s *StripePaymentProvider) handlePaymentIntentFailed(
 	var paymentIntent stripe.PaymentIntent
 	if err := json.Unmarshal(event.Data.Raw, &paymentIntent); err != nil {
 		log.Error(
-			"❌ Error parsing payment_intent.payment_failed",
+			"error parsing payment_intent.payment_failed",
 			"error", err,
 		)
 		return nil, fmt.Errorf(
@@ -595,7 +604,7 @@ func (s *StripePaymentProvider) handlePaymentIntentFailed(
 	)
 	if err != nil {
 		log.Error(
-			"❌ Error retrieving payment intent",
+			"error retrieving payment intent",
 			"error", err,
 		)
 		return nil, fmt.Errorf("error retrieving payment intent: %w", err)
@@ -605,7 +614,7 @@ func (s *StripePaymentProvider) handlePaymentIntentFailed(
 	userID, err := uuid.Parse(paymentIntent.Metadata["user_id"])
 	if err != nil {
 		log.Error(
-			"❌ Invalid user_id in metadata",
+			"invalid user_id in metadata",
 			"error", err,
 			"metadata", paymentIntent.Metadata,
 		)
@@ -615,7 +624,7 @@ func (s *StripePaymentProvider) handlePaymentIntentFailed(
 	accountID, err := uuid.Parse(paymentIntent.Metadata["account_id"])
 	if err != nil {
 		log.Error(
-			"❌ Invalid account_id in metadata",
+			"invalid account_id in metadata",
 			"error", err,
 			"metadata", paymentIntent.Metadata,
 		)
@@ -626,7 +635,7 @@ func (s *StripePaymentProvider) handlePaymentIntentFailed(
 		paymentIntent.Metadata["transaction_id"])
 	if err != nil {
 		log.Error(
-			"❌ Invalid transaction_id in metadata",
+			"invalid transaction_id in metadata",
 			"error", err,
 			"metadata", paymentIntent.Metadata,
 		)
@@ -648,7 +657,7 @@ func (s *StripePaymentProvider) handlePaymentIntentFailed(
 		events.WithFailedPaymentID(pi.ID),
 	)); err != nil {
 		log.Error(
-			"❌ Error emitting payment failed event",
+			"error emitting payment failed event",
 			"error", err,
 		)
 		return nil, fmt.Errorf("error emitting payment failed event: %w", err)
@@ -688,4 +697,33 @@ func (s *StripePaymentProvider) ensureAbsoluteURL(path string) string {
 	}
 
 	return path
+}
+
+func (s *StripePaymentProvider) handleChargeSucceeded(
+	ctx context.Context,
+	event stripe.Event,
+	logger *slog.Logger,
+) (
+	*provider.PaymentEvent,
+	error,
+) {
+	var charge stripe.Charge
+	if err := json.Unmarshal(event.Data.Raw, &charge); err != nil {
+		logger.Error(
+			"error parsing charge.succeeded",
+			"error", err,
+		)
+		return nil, fmt.Errorf(
+			"error parsing charge.succeeded: %w", err)
+	}
+	bt, err := s.client.V1BalanceTransactions.Retrieve(ctx, charge.BalanceTransaction.ID, nil)
+	if err != nil {
+		return nil, err
+
+	}
+	logger = logger.With("charge_id", charge.ID, "balance_transaction_id", bt.ID)
+
+	// Get the charge details
+	logger.Info("✅ Charge succeeded", ", charge_id", charge.ID)
+	return nil, nil
 }

@@ -3,7 +3,6 @@ package conversion
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 
@@ -32,25 +31,29 @@ func HandleCurrencyConverted(
 
 		cc, ok := e.(*events.CurrencyConverted)
 		if !ok {
-			log.Error("[ERROR] unexpected event",
+			log.Warn("unexpected event",
 				"event", e,
 				"event_type", fmt.Sprintf("%T", e),
 			)
-			return errors.New("unexpected event type")
+			// return nil to skip processing
+			return nil
 		}
 
 		// Validate TransactionID
 		if cc.TransactionID == uuid.Nil {
-			log.Error("❌ [ERROR] TransactionID is nil in CurrencyConverted event")
-			return errors.New("invalid transaction ID")
+			log.Warn("TransactionID is nil in CurrencyConverted event")
+			return nil
 		}
 
-		log.Info("💾 [PROGRESS] persisting conversion data", "transaction_id", cc.TransactionID)
+		log.Info(
+			"💾 [PROGRESS] persisting conversion data",
+			"transaction_id", cc.TransactionID,
+		)
 
 		// Validate that we have the required data before persisting
 		if cc.ConversionInfo == nil {
-			log.Error("❌ [ERROR] ConversionInfo is nil, cannot persist conversion data")
-			return errors.New("conversion info is nil")
+			log.Warn("ConversionInfo is nil, cannot persist conversion data")
+			return nil
 		}
 
 		// Persist conversion result (stubbed for now)
@@ -59,20 +62,28 @@ func HandleCurrencyConverted(
 			if err != nil {
 				return err
 			}
+			// Create money object for transaction amount
+			amount := cc.ConvertedAmount.Amount()
+			currency := cc.ConvertedAmount.Currency().String()
 			transactionRepo := transactionRepoAny.(transaction.Repository)
 			return transactionRepo.Update(ctx, cc.TransactionID, dto.TransactionUpdate{
 				OriginalAmount:   &cc.ConversionInfo.OriginalAmount,
-				ConvertedAmount:  &cc.ConversionInfo.ConvertedAmount,
+				Amount:           &amount,
+				Currency:         &currency,
 				OriginalCurrency: &cc.ConversionInfo.OriginalCurrency,
 				TargetCurrency:   &cc.ConversionInfo.ConvertedCurrency,
 				ConversionRate:   &cc.ConversionInfo.ConversionRate,
 			})
 		}); err != nil {
-			log.Error("❌ [ERROR] Failed to persist conversion data", "error", err)
+			log.Error("Failed to persist conversion data", "error", err)
 			return err
 		}
 
-		log.Info("✅ [SUCCESS] conversion persisted", "transaction_id", cc.TransactionID)
+		log.Info(
+			"✅ [SUCCESS] conversion persisted",
+			"transaction_id", cc.TransactionID,
+		)
 		return nil
+		// TODO: apply conversion fee
 	}
 }

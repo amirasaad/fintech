@@ -42,6 +42,7 @@ func NewWithRedis(
 		return nil, err
 	}
 	bus := createRedisEventBus(client, logger)
+	bus.StartDLQRetryWorkersFromEventTypes(context.Background())
 	return bus, nil
 }
 
@@ -379,23 +380,7 @@ func (b *RedisEventBus) processMessage(ctx context.Context, group string, msg re
 	evt := constructor()
 
 	// Special handling for events with custom JSON unmarshaling
-	var err error
-	switch evtType {
-	case events.EventTypeCurrencyConversionRequested:
-		if ccr, ok := evt.(*events.CurrencyConversionRequested); ok {
-			err = json.Unmarshal(env.Payload, ccr)
-		} else {
-			err = json.Unmarshal(env.Payload, evt)
-		}
-	case events.EventTypeCurrencyConverted:
-		if cc, ok := evt.(*events.CurrencyConverted); ok {
-			err = json.Unmarshal(env.Payload, cc)
-		} else {
-			err = json.Unmarshal(env.Payload, evt)
-		}
-	default:
-		err = json.Unmarshal(env.Payload, evt)
-	}
+	err := json.Unmarshal(env.Payload, evt)
 
 	if err != nil {
 		b.logger.Error(
@@ -446,7 +431,9 @@ func (b *RedisEventBus) processMessage(ctx context.Context, group string, msg re
 }
 
 // getHandlers retrieves a copy of the handlers for a given event type.
-func (b *RedisEventBus) getHandlers(eventType events.EventType) []eventbus.HandlerFunc {
+func (b *RedisEventBus) getHandlers(
+	eventType events.EventType,
+) []eventbus.HandlerFunc {
 	b.handlersMtx.RLock()
 	defer b.handlersMtx.RUnlock()
 
@@ -550,4 +537,69 @@ func (b *RedisEventBus) logDLQResult(
 			"values", values,
 		)
 	}
+}
+func (b *RedisEventBus) StartDLQRetryWorkersFromEventTypes(ctx context.Context) {
+
+	for eventType := range events.EventTypes {
+		stream := streamNameFor(eventType)
+		dlq := dlqStreamName(eventType)
+
+		// Retry worker reads from DLQ and re-publishes to original stream
+		if err := b.retryDLQ(ctx, dlq, stream, 10); err != nil {
+			b.logger.Error(
+				"failed to retry DLQ messages",
+				"error", err,
+				"dlq", dlq,
+				"stream", stream,
+			)
+		}
+	}
+}
+
+func (b *RedisEventBus) retryDLQ(
+	ctx context.Context,
+	dlqStream,
+	originalStream string,
+	count int64,
+) error {
+	entries, err := b.client.XRangeN(
+		ctx,
+		dlqStream,
+		"-",
+		"+",
+		count,
+	).Result()
+	if err != nil {
+		return fmt.Errorf("failed reading from DLQ: %w", err)
+	}
+
+	for _, entry := range entries {
+		data := entry.Values["event"]
+		if data == nil {
+			continue
+		}
+
+		if _, err := b.client.XAdd(ctx, &redis.XAddArgs{
+			Stream: originalStream,
+			Values: map[string]any{"event": data},
+		}).Result(); err != nil {
+			return fmt.Errorf("failed retrying DLQ event: %w", err)
+		}
+
+		// Delete the message from the DLQ after retry
+		if _, err := b.client.XDel(ctx, dlqStream, entry.ID).Result(); err != nil {
+			b.logger.Error(
+				"failed to delete retried message from DLQ",
+				"error", err,
+				"msg_id", entry.ID,
+			)
+		}
+	}
+	b.logger.Info(
+		"✅ Successfully retried %d",
+		"count", count,
+		"dlq_stream", dlqStream,
+		"original_stream", originalStream,
+	)
+	return nil
 }

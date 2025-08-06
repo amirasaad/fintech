@@ -99,12 +99,12 @@ func New(
 	return
 }
 
-// NewMoneyFromSmallestUnit creates a new Money object from the smallest currency unit.
+// NewFromSmallestUnit creates a new Money object from the smallest currency unit.
 // Invariants enforced:
 //   - Currency code must be valid ISO 4217 (3 uppercase letters).
 //
 // Returns Money or an error if any invariant is violated.
-func NewMoneyFromSmallestUnit(
+func NewFromSmallestUnit(
 	amount int64,
 	currencyCode currency.Code,
 ) (

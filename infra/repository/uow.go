@@ -71,11 +71,18 @@ func (u *UoW) GetRepository(repoType any) (any, error) {
 		dbToUse = u.db
 	}
 
-	// Create repositories on-demand for backward compatibility and CQRS
-	if repo, ok := u.repoMap[repoType]; ok {
-		return repo(dbToUse), nil
+	switch repoType {
+	case (*account.Repository)(nil):
+		return repoaccount.New(dbToUse), nil
+	case (*transaction.Repository)(nil):
+		return repotransaction.New(dbToUse), nil
+	case (*user.Repository)(nil):
+		return repouser.New(dbToUse), nil
+	default:
+		if repo, ok := u.repoMap[repoType]; ok {
+			return repo(dbToUse), nil
+		}
+		return nil, fmt.Errorf(
+			"unsupported repository type: %T, ", repoType)
 	}
-	return nil, fmt.Errorf(
-		"unsupported repository type: %T, "+
-			"please register it in the UoW constructor", repoType)
 }

@@ -29,7 +29,7 @@ type AccountCreate struct {
 
 // AccountUpdate is a DTO for updating one or more fields of an account.
 type AccountUpdate struct {
-	Balance *float64 // Optional balance update
-	Status  *string  // Optional status update
+	Balance *int64  // Optional balance update
+	Status  *string // Optional status update
 	// Add more fields as needed for partial updates
 }

@@ -12,6 +12,7 @@ import (
 	"github.com/amirasaad/fintech/pkg/handler/account/transfer"
 	"github.com/amirasaad/fintech/pkg/handler/account/withdraw"
 	"github.com/amirasaad/fintech/pkg/handler/conversion"
+	"github.com/amirasaad/fintech/pkg/handler/fees"
 	"github.com/amirasaad/fintech/pkg/handler/payment"
 	"github.com/amirasaad/fintech/pkg/provider"
 	"github.com/amirasaad/fintech/pkg/repository"
@@ -106,6 +107,14 @@ func SetupBus(deps Dependencies) {
 		events.EventTypePaymentCompleted,
 		payment.HandleCompleted(
 			bus,
+			deps.Uow,
+			deps.Logger,
+		),
+	)
+
+	bus.Register(
+		events.EventTypeFeesCalculated,
+		fees.HandleCalculated(
 			deps.Uow,
 			deps.Logger,
 		),

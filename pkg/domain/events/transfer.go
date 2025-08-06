@@ -16,6 +16,7 @@ type TransferRequested struct {
 	DestAccountID uuid.UUID
 	Timestamp     time.Time
 	TransactionID uuid.UUID
+	Fee           int64
 }
 
 func (e *TransferRequested) Type() string {

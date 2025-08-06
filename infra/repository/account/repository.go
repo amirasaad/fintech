@@ -99,8 +99,5 @@ func mapModelToDTO(acct *Account) *dto.AccountRead {
 		Balance:   bal.AmountFloat(),
 		Currency:  bal.Currency().String(),
 		CreatedAt: acct.CreatedAt,
-
-		// Status: acct.Status, // Uncomment if Status exists in model.Account
-		// Add more fields as needed
 	}
 }

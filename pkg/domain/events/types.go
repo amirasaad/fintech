@@ -31,4 +31,6 @@ var EventTypes = map[EventType]func() Event{
 	EventTypeCurrencyConversionFailed: func() Event {
 		return &CurrencyConversionFailed{}
 	},
+
+	EventTypeFeesCalculated: func() Event { return &FeesCalculated{} },
 }
