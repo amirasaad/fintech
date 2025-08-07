@@ -2,11 +2,13 @@ package handler
 
 import (
 	"context"
-	"github.com/amirasaad/fintech/pkg/config"
 	"log"
 	"log/slog"
 	"net/http"
 	"time"
+
+	"github.com/amirasaad/fintech/pkg/app"
+	"github.com/amirasaad/fintech/pkg/config"
 
 	"github.com/amirasaad/fintech/webapi"
 
@@ -150,7 +152,7 @@ func handler() http.HandlerFunc {
 		"Starting fintech server",
 		"port", ":3000",
 		"redis_configured", cfg.Redis.URL != "")
-	a := webapi.SetupApp(config.Deps{
+	a := webapi.SetupApp(app.New(app.Deps{
 		Uow:               uow,
 		EventBus:          bus,
 		CurrencyConverter: currencyConverter,
@@ -161,7 +163,6 @@ func handler() http.HandlerFunc {
 			checkout.NewService(checkoutRegistry),
 			logger),
 		Logger: logger,
-		Config: cfg,
-	})
+	}, cfg))
 	return adaptor.FiberApp(a)
 }

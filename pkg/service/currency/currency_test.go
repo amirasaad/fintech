@@ -23,7 +23,7 @@ func TestCurrencyService(t *testing.T) {
 		registry, err := currency.New(ctx)
 		require.NoError(err)
 
-		service := currencysvc.NewService(registry, slog.Default())
+		service := currencysvc.New(registry, slog.Default())
 		assert.NotNil(service)
 		assert.Equal(registry, service.GetRegistry())
 	})
@@ -32,7 +32,7 @@ func TestCurrencyService(t *testing.T) {
 		registry, err := currency.New(ctx)
 		require.NoError(err)
 
-		service := currencysvc.NewService(registry, slog.Default())
+		service := currencysvc.New(registry, slog.Default())
 
 		// Test getting existing currency
 		usd, err := service.GetCurrency(ctx, "USD")
@@ -51,7 +51,7 @@ func TestCurrencyService(t *testing.T) {
 		registry, err := currency.New(ctx)
 		require.NoError(err)
 
-		service := currencysvc.NewService(registry, slog.Default())
+		service := currencysvc.New(registry, slog.Default())
 
 		supported, err := service.ListSupportedCurrencies(ctx)
 		require.NoError(err)
@@ -66,7 +66,7 @@ func TestCurrencyService(t *testing.T) {
 		registry, err := currency.New(ctx)
 		require.NoError(err)
 
-		service := currencysvc.NewService(registry, slog.Default())
+		service := currencysvc.New(registry, slog.Default())
 
 		all, err := service.ListAllCurrencies(ctx)
 		require.NoError(err)
@@ -89,7 +89,7 @@ func TestCurrencyService(t *testing.T) {
 		registry, err := currency.New(ctx)
 		require.NoError(err)
 
-		service := currencysvc.NewService(registry, slog.Default())
+		service := currencysvc.New(registry, slog.Default())
 
 		newCurrency := currency.Meta{
 			Code:     "TST",
@@ -117,7 +117,7 @@ func TestCurrencyService(t *testing.T) {
 		registry, err := currency.New(ctx)
 		require.NoError(err)
 
-		service := currencysvc.NewService(registry, slog.Default())
+		service := currencysvc.New(registry, slog.Default())
 
 		// Register a test currency first
 		testCurrency := currency.Meta{
@@ -147,7 +147,7 @@ func TestCurrencyService(t *testing.T) {
 		registry, err := currency.New(ctx)
 		require.NoError(err)
 
-		service := currencysvc.NewService(registry, slog.Default())
+		service := currencysvc.New(registry, slog.Default())
 
 		// Register a currency as inactive
 		currency := currency.Meta{
@@ -179,7 +179,7 @@ func TestCurrencyService(t *testing.T) {
 		registry, err := currency.New(ctx)
 		require.NoError(err)
 
-		service := currencysvc.NewService(registry, slog.Default())
+		service := currencysvc.New(registry, slog.Default())
 
 		// Search for "Dollar"
 		results, err := service.SearchCurrencies(ctx, "Dollar")
@@ -201,7 +201,7 @@ func TestCurrencyService(t *testing.T) {
 		registry, err := currency.New(ctx)
 		require.NoError(err)
 
-		service := currencysvc.NewService(registry, slog.Default())
+		service := currencysvc.New(registry, slog.Default())
 
 		// Search for North America
 		results, err := service.SearchCurrenciesByRegion(ctx, "North America")
@@ -223,7 +223,7 @@ func TestCurrencyService(t *testing.T) {
 		registry, err := currency.New(ctx)
 		require.NoError(err)
 
-		service := currencysvc.NewService(registry, slog.Default())
+		service := currencysvc.New(registry, slog.Default())
 
 		stats, err := service.GetCurrencyStatistics(ctx)
 		require.NoError(err)
@@ -249,7 +249,7 @@ func TestCurrencyService(t *testing.T) {
 		registry, err := currency.New(ctx)
 		require.NoError(err)
 
-		service := currencysvc.NewService(registry, slog.Default())
+		service := currencysvc.New(registry, slog.Default())
 
 		// Valid codes
 		validCodes := []string{"USD", "EUR", "GBP", "JPY", "CAD"}
@@ -270,7 +270,7 @@ func TestCurrencyService(t *testing.T) {
 		registry, err := currency.New(ctx)
 		require.NoError(err)
 
-		service := currencysvc.NewService(registry, slog.Default())
+		service := currencysvc.New(registry, slog.Default())
 
 		defaultCurrency, err := service.GetDefaultCurrency(ctx)
 		require.NoError(err)
@@ -284,7 +284,7 @@ func TestCurrencyService(t *testing.T) {
 		registry, err := currency.New(ctx)
 		require.NoError(err)
 
-		service := currencysvc.NewService(registry, slog.Default())
+		service := currencysvc.New(registry, slog.Default())
 
 		// Test supported currency
 		assert.True(service.IsCurrencySupported(ctx, "USD"))

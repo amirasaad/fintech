@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/amirasaad/fintech/pkg/app"
 	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/domain/money"
 	"gorm.io/gorm"
@@ -85,7 +86,7 @@ func run() error {
 		"port", ":3000",
 		"redis_configured", cfg.Redis.URL != "")
 
-	return webapi.SetupApp(config.Deps{
+	return webapi.SetupApp(app.New(app.Deps{
 		Uow:               uow,
 		EventBus:          bus,
 		CurrencyConverter: currencyConverter,
@@ -96,9 +97,9 @@ func run() error {
 			checkout.NewService(checkoutRegistry),
 			logger,
 		),
-		Config: cfg,
 		Logger: logger,
-	}).Listen(fmt.Sprintf("%s:%d", cfg.Host, cfg.Port))
+	}, cfg)).Listen(
+		fmt.Sprintf("%s:%d", cfg.Host, cfg.Port))
 }
 
 func setupLogger() *slog.Logger {

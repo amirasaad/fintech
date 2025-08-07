@@ -2,15 +2,17 @@ package webapi_test
 
 import (
 	"bytes"
-	config2 "github.com/amirasaad/fintech/pkg/config"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
+	config2 "github.com/amirasaad/fintech/pkg/config"
+
 	"github.com/amirasaad/fintech/infra/eventbus"
 	infra_provider "github.com/amirasaad/fintech/infra/provider"
+	"github.com/amirasaad/fintech/pkg/app"
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/amirasaad/fintech/webapi"
@@ -33,15 +35,14 @@ func TestRateLimit(t *testing.T) {
 	// Create a dummy currency registry and service
 	dummyRegistry := &currency.Registry{}
 
-	app := webapi.SetupApp(config2.Deps{
+	app := webapi.SetupApp(app.New(app.Deps{
 		Uow:               dummyUow,
 		EventBus:          eventbus.NewWithMemory(slog.Default()),
 		CurrencyConverter: infra_provider.NewStubCurrencyConverter(),
 		CurrencyRegistry:  dummyRegistry,
 		PaymentProvider:   infra_provider.NewMockPaymentProvider(),
 		Logger:            slog.Default(),
-		Config:            cfg,
-	})
+	}, cfg))
 
 	// Helper function to make requests
 	makeRequest := func(method, path, body, token string) *http.Response {

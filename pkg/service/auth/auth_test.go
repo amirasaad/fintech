@@ -3,8 +3,9 @@ package auth_test
 import (
 	"context"
 	"errors"
-	"github.com/amirasaad/fintech/pkg/config"
 	"testing"
+
+	"github.com/amirasaad/fintech/pkg/config"
 
 	"log/slog"
 
@@ -160,7 +161,7 @@ func TestGetCurrentUserId_InvalidToken(t *testing.T) {
 	t.Parallel()
 	uow := mocks.NewUnitOfWork(t)
 	logger := slog.Default()
-	jwtStrategy := authsvc.NewWithJWT(uow, config.JwtConfig{}, logger)
+	jwtStrategy := authsvc.NewJWTStrategy(uow, config.JwtConfig{}, logger)
 	s := authsvc.New(uow, jwtStrategy, logger)
 	token := &jwt.Token{}
 	_, err := s.GetCurrentUserId(token)
@@ -171,7 +172,7 @@ func TestGetCurrentUserId_MissingClaim(t *testing.T) {
 	t.Parallel()
 	uow := mocks.NewUnitOfWork(t)
 	logger := slog.Default()
-	jwtStrategy := authsvc.NewWithJWT(uow, config.JwtConfig{}, logger)
+	jwtStrategy := authsvc.NewJWTStrategy(uow, config.JwtConfig{}, logger)
 	s := authsvc.New(uow, jwtStrategy, logger)
 	token := jwt.New(jwt.SigningMethodHS256)
 	_, err := s.GetCurrentUserId(token)

@@ -71,23 +71,16 @@ func main() {
 	// Create UOW factory using the shared db
 	uow := infra_repository.NewUoW(db)
 	bus := eventbus.NewWithMemoryAsync(logger)
-	app.SetupBus(app.Dependencies{
-		Bus:    bus,
-		Uow:    uow,
-		Logger: logger,
-	})
+	app := app.New(app.Deps{
+		EventBus: bus,
+		Uow:      uow,
+		Logger:   logger,
+	}, cfg)
 
-	scv := account.New(
-		bus,
-		uow,
-		logger,
-	)
-	authSvc := auth.NewWithBasic(uow, logger)
-
-	cliApp(scv, authSvc)
+	cliApp(app)
 }
 
-func cliApp(scv *account.Service, authSvc *auth.Service) {
+func cliApp(app *app.App) {
 	reader := bufio.NewReader(os.Stdin)
 	banner := color.New(color.FgCyan, color.Bold).SprintFunc()
 	prompt := color.New(color.FgGreen, color.Bold).SprintFunc()
@@ -105,7 +98,7 @@ func cliApp(scv *account.Service, authSvc *auth.Service) {
 	`))
 
 	for {
-		if !handleLogin(reader, prompt, errorMsg, successMsg, authSvc) {
+		if !handleLogin(reader, prompt, errorMsg, successMsg, app.AuthService) {
 			continue
 		}
 
@@ -128,7 +121,7 @@ func cliApp(scv *account.Service, authSvc *auth.Service) {
 			continue
 		}
 
-		handleCommand(args, scv, errorMsg, successMsg)
+		handleCommand(args, app.AccountService, errorMsg, successMsg)
 	}
 }
 

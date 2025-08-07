@@ -14,8 +14,11 @@ type Service struct {
 	logger   *slog.Logger
 }
 
-// NewService creates a new currency service
-func NewService(registry *currency.Registry, logger *slog.Logger) *Service {
+// New creates a new currency service
+func New(
+	registry *currency.Registry,
+	logger *slog.Logger,
+) *Service {
 	return &Service{
 		registry: registry,
 		logger:   logger,

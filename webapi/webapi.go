@@ -11,11 +11,6 @@ import (
 	"strings"
 
 	"github.com/amirasaad/fintech/pkg/app"
-	"github.com/amirasaad/fintech/pkg/config"
-	accountsvc "github.com/amirasaad/fintech/pkg/service/account"
-	authsvc "github.com/amirasaad/fintech/pkg/service/auth"
-	currencysvc "github.com/amirasaad/fintech/pkg/service/currency"
-	usersvc "github.com/amirasaad/fintech/pkg/service/user"
 	accountweb "github.com/amirasaad/fintech/webapi/account"
 	authweb "github.com/amirasaad/fintech/webapi/auth"
 	"github.com/amirasaad/fintech/webapi/common"
@@ -29,30 +24,18 @@ import (
 )
 
 // SetupApp Initialize Fiber with custom configuration
-func SetupApp(deps config.Deps) *fiber.App {
-	// Setup Bus
-	// Configure the event bus with all handlers
-	app.SetupBus(app.Dependencies{
-		Bus:               deps.EventBus,
-		Uow:               deps.Uow,
-		Logger:            deps.Logger,
-		CurrencyConverter: deps.CurrencyConverter,
-		PaymentProvider:   deps.PaymentProvider,
-	})
+func SetupApp(app *app.App) *fiber.App {
+	accountSvc := app.AccountService
+	userSvc := app.UserService
+	authSvc := app.AuthService
+	currencySvc := app.CurrencyService
 
-	// Build services
-	accountSvc := accountsvc.New(deps.EventBus, deps.Uow, deps.Logger)
-	userSvc := usersvc.New(deps.Uow, deps.Logger)
-	authStrategy := authsvc.NewWithJWT(deps.Uow, deps.Config.Jwt, deps.Logger)
-	authSvc := authsvc.New(deps.Uow, authStrategy, deps.Logger)
-	currencySvc := currencysvc.NewService(deps.CurrencyRegistry, deps.Logger)
-
-	app := fiber.New(fiber.Config{
+	fiberApp := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			return common.ProblemDetailsJSON(c, "Internal Server Error", err)
 		},
 	})
-	app.Get("/swagger/*", swagger.New(swagger.Config{
+	fiberApp.Get("/swagger/*", swagger.New(swagger.Config{
 		TryItOutEnabled:      true,
 		WithCredentials:      true,
 		PersistAuthorization: true,
@@ -62,9 +45,9 @@ func SetupApp(deps config.Deps) *fiber.App {
 	// Configure rate limiting middleware
 	// Uses X-Forwarded-For header when behind a proxy
 	// Falls back to X-Real-IP or direct IP if needed
-	app.Use(limiter.New(limiter.Config{
-		Max:        deps.Config.RateLimit.MaxRequests,
-		Expiration: deps.Config.RateLimit.Window,
+	fiberApp.Use(limiter.New(limiter.Config{
+		Max:        app.Config.RateLimit.MaxRequests,
+		Expiration: app.Config.RateLimit.Window,
 		KeyGenerator: func(c *fiber.Ctx) string {
 			// Use X-Forwarded-For header if available (for load balancers/proxies)
 			// Fall back to X-Real-IP, then to direct IP
@@ -89,10 +72,10 @@ func SetupApp(deps config.Deps) *fiber.App {
 			)
 		},
 	}))
-	app.Use(recover.New())
+	fiberApp.Use(recover.New())
 
 	// Health check endpoint
-	app.Get(
+	fiberApp.Get(
 		"/",
 		func(c *fiber.Ctx) error {
 			return c.SendString("FinTech API is running! 🚀")
@@ -100,14 +83,14 @@ func SetupApp(deps config.Deps) *fiber.App {
 	)
 
 	// Payment event processor for Stripe webhooks
-	app.Post(
+	fiberApp.Post(
 		"/api/v1/webhooks/stripe",
-		payment.StripeWebhookHandler(deps.PaymentProvider),
+		payment.StripeWebhookHandler(app.Deps.PaymentProvider),
 	)
 
-	accountweb.Routes(app, accountSvc, authSvc, deps.Config)
-	userweb.Routes(app, userSvc, authSvc, deps.Config)
-	authweb.Routes(app, authSvc)
-	currencyweb.Routes(app, currencySvc, authSvc, deps.Config)
-	return app
+	accountweb.Routes(fiberApp, accountSvc, authSvc, app.Config)
+	userweb.Routes(fiberApp, userSvc, authSvc, app.Config)
+	authweb.Routes(fiberApp, authSvc)
+	currencyweb.Routes(fiberApp, currencySvc, authSvc, app.Config)
+	return fiberApp
 }

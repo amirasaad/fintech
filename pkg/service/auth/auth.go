@@ -3,9 +3,10 @@ package auth
 import (
 	"context"
 	"fmt"
-	"github.com/amirasaad/fintech/pkg/config"
 	"log/slog"
 	"time"
+
+	"github.com/amirasaad/fintech/pkg/config"
 
 	"github.com/amirasaad/fintech/pkg/domain"
 	domainuser "github.com/amirasaad/fintech/pkg/domain/user"
@@ -42,8 +43,19 @@ func New(
 	return &Service{uow: uow, strategy: strategy, logger: logger}
 }
 
-func NewWithBasic(uow repository.UnitOfWork, logger *slog.Logger) *Service {
+func NewWithBasic(
+	uow repository.UnitOfWork,
+	logger *slog.Logger,
+) *Service {
 	return New(uow, &BasicAuthStrategy{uow: uow, logger: logger}, logger)
+}
+
+func NewWithJWT(
+	uow repository.UnitOfWork,
+	cfg config.JwtConfig,
+	logger *slog.Logger,
+) *Service {
+	return New(uow, &JWTStrategy{uow: uow, cfg: cfg, logger: logger}, logger)
 }
 
 func (s *Service) CheckPasswordHash(
@@ -111,7 +123,7 @@ type JWTStrategy struct {
 	logger *slog.Logger
 }
 
-func NewWithJWT(
+func NewJWTStrategy(
 	uow repository.UnitOfWork,
 	cfg config.JwtConfig,
 	logger *slog.Logger,
@@ -223,6 +235,13 @@ func (s *JWTStrategy) GetCurrentUserID(
 type BasicAuthStrategy struct {
 	uow    repository.UnitOfWork
 	logger *slog.Logger
+}
+
+func NewBasicAuthStrategy(
+	uow repository.UnitOfWork,
+	logger *slog.Logger,
+) *BasicAuthStrategy {
+	return &BasicAuthStrategy{uow: uow, logger: logger}
 }
 
 func (s *BasicAuthStrategy) Login(
