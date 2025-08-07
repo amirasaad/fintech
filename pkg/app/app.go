@@ -41,7 +41,16 @@ func New(deps Deps, config *config.AppConfig) *App {
 	}
 	app.setupEventBus()
 
-	app.AuthService = auth.NewWithJWT(deps.Uow, app.Config.Jwt, deps.Logger)
+	authMap := map[string]func() *auth.Service{
+		"jwt": func() *auth.Service {
+			return auth.NewWithJWT(deps.Uow, app.Config.Jwt, deps.Logger)
+		},
+	}
+	if authFactory, ok := authMap[app.Config.Auth.Strategy]; ok {
+		app.AuthService = authFactory()
+	} else {
+		app.AuthService = auth.NewWithBasic(deps.Uow, deps.Logger)
+	}
 	app.UserService = user.New(deps.Uow, deps.Logger)
 	app.AccountService = account.New(deps.EventBus, deps.Uow, deps.Logger)
 	app.CurrencyService = currencyScv.New(deps.CurrencyRegistry, deps.Logger)

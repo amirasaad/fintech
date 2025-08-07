@@ -14,7 +14,7 @@ type DBConfig struct {
 }
 
 type AuthConfig struct {
-	Strategy string `envconfig:"STRATEGY" default:"jwt"`
+	Strategy string `envconfig:"STRATEGY" default:"jwt oneof(jwt, basic)"`
 }
 type JwtConfig struct {
 	Secret string        `envconfig:"SECRET_KEY" required:"true"`

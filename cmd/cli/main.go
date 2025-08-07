@@ -56,7 +56,6 @@ func main() {
 	if *verbose {
 		logger.Info("Configuration loaded successfully",
 			"database_url", cfg.DB.Url,
-			"jwt_expiry", cfg.Auth,
 			"exchange_rate_api_configured", cfg.Exchange.ApiKey != "")
 	}
 
@@ -67,6 +66,8 @@ func main() {
 		_, _ = color.New(color.FgRed).Fprintln(os.Stderr, "Failed to initialize database:", err)
 		return
 	}
+	// override auth
+	cfg.Auth.Strategy = "basic"
 
 	// Create UOW factory using the shared db
 	uow := infra_repository.NewUoW(db)
