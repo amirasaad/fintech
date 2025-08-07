@@ -179,7 +179,7 @@ func (s *E2ETestSuite) setupApp() {
 
 	// Create test app
 	s.app = webapi.SetupApp(app.New(
-		app.Deps{
+		&app.Deps{
 			CurrencyConverter: currencyConverter,
 			CurrencyRegistry:  currencyRegistry,
 			Uow:               uow,
@@ -279,7 +279,7 @@ func (s *E2ETestSuite) CreateTestUser() *domain.User {
 			ID:       userID,
 			Username: username,
 			Email:    email,
-			Password: "password123",
+			Password: "password123", // This is not the hashed password
 		}
 	}
 
@@ -293,7 +293,7 @@ func (s *E2ETestSuite) CreateTestUser() *domain.User {
 
 // LoginUser makes an actual HTTP request to login and returns the JWT token
 func (s *E2ETestSuite) LoginUser(testUser *domain.User) string {
-	loginBody := fmt.Sprintf(`{"identity":"%s","password":"password123"}`, testUser.Email)
+	loginBody := fmt.Sprintf(`{"identity":"%s","password":"%s"}`, testUser.Email, testUser.Password)
 	resp := s.MakeRequest("POST", "/auth/login", loginBody, "")
 
 	var response common.Response

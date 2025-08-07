@@ -26,7 +26,7 @@ type Deps struct {
 }
 
 type App struct {
-	Deps            Deps
+	Deps            *Deps
 	Config          *config.AppConfig
 	AuthService     *auth.Service
 	UserService     *user.Service
@@ -34,7 +34,7 @@ type App struct {
 	CurrencyService *currencyScv.Service
 }
 
-func New(deps Deps, config *config.AppConfig) *App {
+func New(deps *Deps, config *config.AppConfig) *App {
 	app := &App{
 		Deps:   deps,
 		Config: config,

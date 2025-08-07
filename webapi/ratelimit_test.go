@@ -35,7 +35,7 @@ func TestRateLimit(t *testing.T) {
 	// Create a dummy currency registry and service
 	dummyRegistry := &currency.Registry{}
 
-	app := webapi.SetupApp(app.New(app.Deps{
+	app := webapi.SetupApp(app.New(&app.Deps{
 		Uow:               dummyUow,
 		EventBus:          eventbus.NewWithMemory(slog.Default()),
 		CurrencyConverter: infra_provider.NewStubCurrencyConverter(),

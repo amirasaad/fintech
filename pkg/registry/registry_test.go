@@ -157,7 +157,6 @@ func TestRegistry_Metadata(t *testing.T) {
 }
 
 func TestGlobalFunctions(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 
 	// Reset global registry to ensure clean state
@@ -195,7 +194,6 @@ func TestGlobalFunctions(t *testing.T) {
 }
 
 func TestRegistry_ThreadSafety(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 
 	registry := New()
@@ -227,7 +225,6 @@ func TestRegistry_ThreadSafety(t *testing.T) {
 }
 
 func TestGlobalRegistry_ThreadSafety(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 
 	var wg sync.WaitGroup
