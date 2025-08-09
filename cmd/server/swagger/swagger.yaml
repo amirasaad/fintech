@@ -56,7 +56,7 @@ definitions:
       errors:
         description: 'Optional: additional error details'
       instance:
-        description: URI reference that identifies the specific occurrence
+        description: URI reference
         type: string
       status:
         description: HTTP status code
@@ -79,7 +79,7 @@ definitions:
         description: HTTP status code
         type: integer
     type: object
-  currency.CurrencyMeta:
+  currency.Meta:
     properties:
       active:
         type: boolean
@@ -195,8 +195,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: Creates a new account for the authenticated user. You can specify
-        the currency for the account. Returns the created account details.
+      description: Creates a new account for the authenticated user.
       produces:
       - application/json
       responses:
@@ -229,8 +228,7 @@ paths:
     get:
       consumes:
       - application/json
-      description: Retrieves the current balance for the specified account. Returns
-        the balance amount and currency.
+      description: Retrieves the current balance for the specified account.
       parameters:
       - description: Account ID
         in: path
@@ -270,7 +268,6 @@ paths:
       consumes:
       - application/json
       description: Adds funds to the specified account. Specify the amount, currency,
-        and optional money source. Returns the transaction details.
       parameters:
       - description: Account ID
         in: path
@@ -315,8 +312,7 @@ paths:
     get:
       consumes:
       - application/json
-      description: Retrieves a list of transactions for the specified account. Returns
-        an array of transaction details.
+      description: Retrieves a list of transactions for the specified account.
       parameters:
       - description: Account ID
         in: path
@@ -355,9 +351,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: Transfers a specified amount from one account to another. Specify
-        the source and destination account IDs, amount, and currency. Returns the
-        transaction details.
+      description: Transfers a specified amount from one account to another.
       parameters:
       - description: Source Account ID
         in: path
@@ -406,8 +400,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: Withdraws a specified amount from the user's account. Specify the
-        amount and currency. Returns the transaction details.
+      description: Withdraws a specified amount from the user's account.
       parameters:
       - description: Account ID
         in: path
@@ -465,7 +458,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/currency.CurrencyMeta'
+            $ref: '#/definitions/currency.Meta'
         "400":
           description: Bad Request
           schema:
@@ -524,7 +517,7 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/currency.CurrencyMeta'
+            $ref: '#/definitions/currency.Meta'
         "400":
           description: Bad Request
           schema:
@@ -666,7 +659,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/currency.CurrencyMeta'
+            $ref: '#/definitions/currency.Meta'
         "500":
           description: Internal Server Error
           schema:
@@ -692,7 +685,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/currency.CurrencyMeta'
+              $ref: '#/definitions/currency.Meta'
             type: array
         "400":
           description: Bad Request
@@ -723,7 +716,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/currency.CurrencyMeta'
+              $ref: '#/definitions/currency.Meta'
             type: array
         "400":
           description: Bad Request
@@ -814,6 +807,32 @@ paths:
       summary: User login
       tags:
       - auth
+  /checkout/sessions/pending:
+    get:
+      consumes:
+      - application/json
+      description: Retrieves a list of pending checkout sessions for the authenticated
+        user.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Pending sessions fetched
+          schema:
+            $ref: '#/definitions/common.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/common.ProblemDetails'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/common.ProblemDetails'
+      security:
+      - Bearer: []
+      summary: Get pending checkout sessions
+      tags:
+      - checkout
   /currency:
     get:
       consumes:
