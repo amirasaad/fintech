@@ -17,6 +17,7 @@ import (
 
 	"github.com/amirasaad/fintech/pkg/app"
 	"github.com/amirasaad/fintech/pkg/config"
+	"github.com/amirasaad/fintech/pkg/registry"
 
 	"github.com/amirasaad/fintech/infra/eventbus"
 	"github.com/amirasaad/fintech/infra/provider"
@@ -180,12 +181,13 @@ func (s *E2ETestSuite) setupApp() {
 	// Create test app
 	s.app = webapi.SetupApp(app.New(
 		&app.Deps{
-			CurrencyConverter: currencyConverter,
-			CurrencyRegistry:  currencyRegistry,
-			Uow:               uow,
-			PaymentProvider:   provider.NewMockPaymentProvider(),
-			EventBus:          eventBus,
-			Logger:            logger,
+			CurrencyConverter:        currencyConverter,
+			CurrencyRegistry:         currencyRegistry,
+			Uow:                      uow,
+			PaymentProvider:          provider.NewMockPaymentProvider(),
+			CheckoutRegistryProvider: registry.NewCachedRegistry(10, time.Minute),
+			EventBus:                 eventBus,
+			Logger:                   logger,
 		},
 		s.cfg,
 	))
