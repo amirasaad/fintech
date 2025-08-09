@@ -8,7 +8,7 @@ import (
 	"github.com/amirasaad/fintech/infra/provider"
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain"
-	"github.com/amirasaad/fintech/pkg/domain/money"
+	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 

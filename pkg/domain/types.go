@@ -3,8 +3,8 @@ package domain
 import (
 	"github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/domain/common"
-	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/amirasaad/fintech/pkg/domain/user"
+	"github.com/amirasaad/fintech/pkg/money"
 )
 
 // Type aliases for backward compatibility

@@ -319,9 +319,9 @@ func New(ctx context.Context, params ...string) (*Registry, error) {
 		}
 	} else {
 		// Fall back to in-memory cache
-		enhanced := registry.NewEnhanced(config)
-		enhanced.WithValidator(NewCurrencyValidator())
-		enhanced.WithCache(registry.NewMemoryCache(10 * time.Minute))
+		enhanced := registry.NewEnhanced(config).
+			WithValidator(NewCurrencyValidator()).
+			WithCache(registry.NewMemoryCache(10 * time.Minute))
 		reg = enhanced
 	}
 

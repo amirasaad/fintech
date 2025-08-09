@@ -5,7 +5,7 @@ import (
 
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/common"
-	"github.com/amirasaad/fintech/pkg/domain/money"
+	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

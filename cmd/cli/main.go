@@ -42,7 +42,7 @@ func main() {
 	}
 
 	// Load application configuration
-	cfg, err := config.LoadAppConfig(logger)
+	cfg, err := config.Load()
 	if err != nil {
 		_, _ = color.New(
 			color.FgRed,

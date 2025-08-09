@@ -9,9 +9,8 @@ import (
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/eventbus"
+	"github.com/amirasaad/fintech/pkg/handler/common"
 	"github.com/amirasaad/fintech/pkg/repository"
-	"github.com/amirasaad/fintech/pkg/repository/account"
-	"github.com/amirasaad/fintech/pkg/repository/transaction"
 )
 
 // HandleRequested handles TransferValidatedEvent,
@@ -56,22 +55,14 @@ func HandleRequested(
 		txID := tr.ID
 		var destAccountRead *dto.AccountRead
 		err := uow.Do(ctx, func(uow repository.UnitOfWork) error {
-			repoAny, err := uow.GetRepository((*transaction.Repository)(nil))
+			txRepo, err := common.GetTransactionRepository(uow, log)
 			if err != nil {
 				return fmt.Errorf("failed to get repo: %w", err)
 			}
 
-			txRepo, ok := repoAny.(transaction.Repository)
-			if !ok {
-				return fmt.Errorf("unexpected repo type")
-			}
-			accountRepoAny, err := uow.GetRepository((*account.Repository)(nil))
+			accountRepo, err := common.GetAccountRepository(uow, log)
 			if err != nil {
 				return fmt.Errorf("failed to get account repo: %w", err)
-			}
-			accountRepo, ok := accountRepoAny.(account.Repository)
-			if !ok {
-				return fmt.Errorf("unexpected account repo type")
 			}
 			destAccountRead, err = accountRepo.Get(ctx, tr.DestAccountID)
 			if err != nil {

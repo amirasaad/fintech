@@ -9,7 +9,7 @@ import (
 
 	"github.com/amirasaad/fintech/pkg/currency"
 	domainaccount "github.com/amirasaad/fintech/pkg/domain/account"
-	"github.com/amirasaad/fintech/pkg/domain/money"
+	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

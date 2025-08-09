@@ -9,7 +9,6 @@ import (
 	userrepo "github.com/amirasaad/fintech/pkg/repository/user"
 
 	"github.com/amirasaad/fintech/internal/fixtures/mocks"
-	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/dto"
 	authsvc "github.com/amirasaad/fintech/pkg/service/auth"
 	"github.com/google/uuid"
@@ -41,11 +40,11 @@ func BenchmarkLogin_Success(b *testing.B) {
 	authStrategy.EXPECT().Login(
 		mock.Anything,
 		"user@example.com",
-		"password").Return(&domain.User{
-		ID:       u.ID,
-		Username: u.Username,
-		Email:    u.Email,
-		Password: string(hash),
+		"password").Return(&dto.UserRead{
+		ID:             u.ID,
+		Username:       u.Username,
+		Email:          u.Email,
+		HashedPassword: string(hash),
 	}, nil).Maybe()
 	s := authsvc.New(uow, authStrategy, slog.Default())
 

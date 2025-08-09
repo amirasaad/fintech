@@ -6,7 +6,6 @@ import (
 	"log/slog"
 
 	"github.com/amirasaad/fintech/pkg/domain/events"
-	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/amirasaad/fintech/pkg/handler/account/deposit"
 	"github.com/amirasaad/fintech/pkg/handler/account/transfer"
@@ -14,6 +13,7 @@ import (
 	"github.com/amirasaad/fintech/pkg/handler/conversion"
 	"github.com/amirasaad/fintech/pkg/handler/fees"
 	"github.com/amirasaad/fintech/pkg/handler/payment"
+	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/amirasaad/fintech/pkg/repository"
 )
 

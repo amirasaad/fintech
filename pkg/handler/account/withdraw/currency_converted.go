@@ -8,9 +8,9 @@ import (
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/eventbus"
+	"github.com/amirasaad/fintech/pkg/handler/common"
 	"github.com/amirasaad/fintech/pkg/mapper"
 	"github.com/amirasaad/fintech/pkg/repository"
-	"github.com/amirasaad/fintech/pkg/repository/account"
 )
 
 // HandleCurrencyConverted performs domain validation after currency conversion for withdrawals.
@@ -33,7 +33,7 @@ func HandleCurrencyConverted(
 		wce, ok := e.(*events.WithdrawCurrencyConverted)
 		if !ok {
 			log.Debug(
-				"🚫 [SKIP] Skipping: unexpected event type in WithdrawCurrencyConverted",
+				"🚫 skipping: unexpected event type in WithdrawCurrencyConverted",
 				"event", e,
 			)
 			return nil
@@ -42,7 +42,7 @@ func HandleCurrencyConverted(
 		wr, ok := wce.OriginalRequest.(*events.WithdrawRequested)
 		if !ok {
 			log.Debug(
-				"🚫 [SKIP] Skipping: unexpected event type in WithdrawCurrencyConverted",
+				"🚫 skipping: unexpected event type in WithdrawCurrencyConverted",
 				"event", e,
 			)
 			return nil
@@ -57,25 +57,21 @@ func HandleCurrencyConverted(
 
 		if wce.FlowType != "withdraw" {
 			log.Debug(
-				"🚫 [SKIP] Skipping: not a withdraw flow",
+				"🚫 skipping: not a withdraw flow",
 				"flow_type", wce.FlowType,
 			)
 			return nil
 		}
 
-		accRepoAny, err := uow.GetRepository((*account.Repository)(nil))
+		accRepo, err := common.GetAccountRepository(uow, log)
 		if err != nil {
-			return err
-		}
-		accRepo, ok := accRepoAny.(account.Repository)
-		if !ok {
 			return errors.New("invalid account repository type")
 		}
 
 		accRead, err := accRepo.Get(ctx, wce.AccountID)
 		if err != nil && !errors.Is(err, domain.ErrAccountNotFound) {
 			log.Error(
-				"❌ [ERROR] Failed to get account",
+				"failed to get account",
 				"error", err,
 				"account_id", wce.AccountID,
 			)
@@ -84,18 +80,25 @@ func HandleCurrencyConverted(
 
 		if accRead == nil {
 			log.Error(
-				"❌ [ERROR] Account not found",
+				"account not found",
 				"account_id", wce.AccountID,
 			)
 			return domain.ErrAccountNotFound
 		}
 
-		acc := mapper.MapAccountReadToDomain(accRead)
+		acc, err := mapper.MapAccountReadToDomain(accRead)
+		if err != nil {
+			log.Error(
+				"failed to map account read to domain",
+				"error", err,
+			)
+			return err
+		}
 
 		// Perform domain validation
 		if err := acc.ValidateWithdraw(wce.UserID, wce.ConvertedAmount); err != nil {
 			log.Error(
-				"❌ [ERROR] Domain validation failed",
+				"domain validation failed",
 				"transaction_id", wce.TransactionID,
 				"error", err,
 				"user_id", wce.UserID,

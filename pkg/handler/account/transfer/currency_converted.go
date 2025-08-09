@@ -7,9 +7,9 @@ import (
 
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/eventbus"
+	"github.com/amirasaad/fintech/pkg/handler/common"
 	"github.com/amirasaad/fintech/pkg/mapper"
 	"github.com/amirasaad/fintech/pkg/repository"
-	"github.com/amirasaad/fintech/pkg/repository/account"
 )
 
 // HandleCurrencyConverted performs domain validation after currency conversion for transfers.
@@ -40,7 +40,7 @@ func HandleCurrencyConverted(
 		tcc, ok := e.(*events.TransferCurrencyConverted)
 		if !ok {
 			log.Error(
-				"❌ [DISCARD] Unexpected event type",
+				"unexpected event type",
 				"event", e,
 			)
 			return fmt.Errorf("unexpected event type: %T", e)
@@ -54,20 +54,10 @@ func HandleCurrencyConverted(
 		)
 
 		// 2. Get account repository
-		repoAny, err := uow.GetRepository((*account.Repository)(nil))
+		accRepo, err := common.GetAccountRepository(uow, log)
 		if err != nil {
 			log.Error(
-				"❌ [ERROR] Failed to get account repository",
-				"error", err,
-			)
-			return err
-		}
-
-		accRepo, ok := repoAny.(account.Repository)
-		if !ok {
-			err = fmt.Errorf("unexpected repository type")
-			log.Error(
-				"❌ [ERROR] Unexpected repository type",
+				"failed to get account repository",
 				"error", err,
 			)
 			return err
@@ -77,7 +67,7 @@ func HandleCurrencyConverted(
 		sourceAccDto, err := accRepo.Get(ctx, tcc.AccountID)
 		if err != nil {
 			log.Warn(
-				"❌ [BUSINESS] Source account not found",
+				"source account not found",
 				"account_id", tcc.AccountID,
 				"error", err,
 			)
@@ -88,13 +78,20 @@ func HandleCurrencyConverted(
 		}
 
 		// Map DTO to domain model
-		sourceAcc := mapper.MapAccountReadToDomain(sourceAccDto)
+		sourceAcc, err := mapper.MapAccountReadToDomain(sourceAccDto)
+		if err != nil {
+			log.Error(
+				"failed to map account read to domain",
+				"error", err,
+			)
+			return fmt.Errorf("failed to map account read to domain: %w", err)
+		}
 
 		// Get TransferRequested fields once
 		tr, ok := tcc.OriginalRequest.(*events.TransferRequested)
 		if !ok {
 			log.Error(
-				"❌ [DISCARD] Unexpected event type",
+				"unexpected event type",
 				"event", tcc.OriginalRequest,
 			)
 			return fmt.Errorf("unexpected event type: %T", tcc.OriginalRequest)
@@ -107,7 +104,7 @@ func HandleCurrencyConverted(
 			tcc.ConvertedAmount,
 		); err != nil {
 			log.Warn(
-				"❌ [BUSINESS] Domain validation failed",
+				"domain validation failed",
 				"reason", err,
 			)
 			return bus.Emit(ctx, events.NewTransferFailed(

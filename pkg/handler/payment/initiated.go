@@ -28,7 +28,7 @@ func HandleInitiated(
 		pi, ok := e.(*events.PaymentInitiated)
 		if !ok {
 			log.Error(
-				"🚫 [ERROR] unexpected event type",
+				"unexpected event type",
 				"event_type", fmt.Sprintf("%T", e),
 			)
 			return errors.New("unexpected event type")
@@ -62,7 +62,7 @@ func HandleInitiated(
 		)
 		if err != nil {
 			log.Error(
-				"❌ [ERROR] Payment initiation failed",
+				"Payment initiation failed",
 				"error", err,
 			)
 			return err

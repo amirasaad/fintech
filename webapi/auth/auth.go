@@ -58,7 +58,7 @@ func Login(authSvc *authsvc.Service) fiber.Handler {
 				fiber.StatusUnauthorized,
 			)
 		}
-		token, err := authSvc.GenerateToken(user)
+		token, err := authSvc.GenerateToken(c.Context(), user)
 		if err != nil {
 			return common.ProblemDetailsJSON(
 				c,

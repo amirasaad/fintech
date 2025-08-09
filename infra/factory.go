@@ -1,8 +1,9 @@
 package infra
 
 import (
-	"github.com/amirasaad/fintech/pkg/config"
 	"log/slog"
+
+	"github.com/amirasaad/fintech/pkg/config"
 
 	infra_cache "github.com/amirasaad/fintech/infra/cache"
 	infra_provider "github.com/amirasaad/fintech/infra/provider"
@@ -17,7 +18,7 @@ import (
 //	cache, and converter
 func NewExchangeRateSystem(
 	logger *slog.Logger,
-	cfg config.ExchangeRateConfig,
+	cfg config.ExchangeRate,
 ) (domain.CurrencyConverter, error) {
 	// Create cache
 	var rateCache cache.ExchangeRateCache

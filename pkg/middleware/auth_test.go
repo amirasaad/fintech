@@ -1,10 +1,11 @@
 package middleware
 
 import (
-	"github.com/amirasaad/fintech/pkg/config"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/amirasaad/fintech/pkg/config"
 
 	"errors"
 
@@ -13,7 +14,7 @@ import (
 
 func TestProtected_Unauthorized(t *testing.T) {
 	app := fiber.New()
-	app.Use(JwtProtected(config.JwtConfig{}))
+	app.Use(JwtProtected(&config.Jwt{}))
 	app.Get("/", func(c *fiber.Ctx) error { return c.SendStatus(fiber.StatusOK) })
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)

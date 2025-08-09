@@ -22,8 +22,8 @@ import (
 
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/account"
-	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/amirasaad/fintech/pkg/dto"
+	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/amirasaad/fintech/pkg/repository"
 	repoaccount "github.com/amirasaad/fintech/pkg/repository/account"
 	"github.com/google/uuid"

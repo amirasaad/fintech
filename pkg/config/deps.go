@@ -4,8 +4,8 @@ import (
 	"log/slog"
 
 	"github.com/amirasaad/fintech/pkg/currency"
-	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/amirasaad/fintech/pkg/eventbus"
+	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/amirasaad/fintech/pkg/provider"
 	"github.com/amirasaad/fintech/pkg/repository"
 )
@@ -18,5 +18,5 @@ type Deps struct {
 	PaymentProvider   provider.PaymentProvider
 	EventBus          eventbus.Bus
 	Logger            *slog.Logger
-	Config            *AppConfig
+	Config            *App
 }

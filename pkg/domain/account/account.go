@@ -6,7 +6,7 @@ import (
 
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/common"
-	"github.com/amirasaad/fintech/pkg/domain/money"
+	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/google/uuid"
 )
 
@@ -26,6 +26,9 @@ var (
 
 	// ErrAccountNotFound is returned when an account cannot be found.
 	ErrAccountNotFound = errors.New("account not found")
+
+	// ErrTransactionNotFound is returned when a transaction cannot be found.
+	ErrTransactionNotFound = errors.New("transaction not found")
 
 	// ErrCannotTransferToSameAccount is returned when a transfer
 	// is attempted from an account to itself.

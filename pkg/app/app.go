@@ -5,8 +5,8 @@ import (
 
 	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/currency"
-	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/amirasaad/fintech/pkg/eventbus"
+	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/amirasaad/fintech/pkg/provider"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/amirasaad/fintech/pkg/service/account"
@@ -27,26 +27,26 @@ type Deps struct {
 
 type App struct {
 	Deps            *Deps
-	Config          *config.AppConfig
+	Config          *config.App
 	AuthService     *auth.Service
 	UserService     *user.Service
 	AccountService  *account.Service
 	CurrencyService *currencyScv.Service
 }
 
-func New(deps *Deps, config *config.AppConfig) *App {
+func New(deps *Deps, cfg *config.App) *App {
 	app := &App{
 		Deps:   deps,
-		Config: config,
+		Config: cfg,
 	}
 	app.setupEventBus()
 
 	authMap := map[string]func() *auth.Service{
 		"jwt": func() *auth.Service {
-			return auth.NewWithJWT(deps.Uow, app.Config.Jwt, deps.Logger)
+			return auth.NewWithJWT(deps.Uow, cfg.Auth.Jwt, deps.Logger)
 		},
 	}
-	if authFactory, ok := authMap[app.Config.Auth.Strategy]; ok {
+	if authFactory, ok := authMap[cfg.Auth.Strategy]; ok {
 		app.AuthService = authFactory()
 	} else {
 		app.AuthService = auth.NewWithBasic(deps.Uow, deps.Logger)

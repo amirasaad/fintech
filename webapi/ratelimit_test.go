@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	config2 "github.com/amirasaad/fintech/pkg/config"
+	"github.com/amirasaad/fintech/pkg/config"
 
 	"github.com/amirasaad/fintech/infra/eventbus"
 	infra_provider "github.com/amirasaad/fintech/infra/provider"
@@ -22,12 +22,14 @@ import (
 
 func TestRateLimit(t *testing.T) {
 	// Create app with stricter rate limits for testing
-	cfg := &config2.AppConfig{
-		RateLimit: config2.RateLimitConfig{
-			MaxRequests: 5,
-			Window:      1 * time.Second,
+	cfg := &config.App{
+		RateLimit: &config.RateLimit{},
+		Auth: &config.Auth{
+			Jwt: &config.Jwt{},
 		},
 	}
+	cfg.RateLimit.MaxRequests = 5
+	cfg.RateLimit.Window = 1 * time.Second
 
 	// Provide dummy services for required arguments
 	dummyUow := repository.UnitOfWork(nil)

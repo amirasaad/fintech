@@ -2,21 +2,18 @@ package payment
 
 import (
 	"context"
-	"errors"
 	"log/slog"
 
 	"github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/eventbus"
+	"github.com/amirasaad/fintech/pkg/handler/common"
 	"github.com/amirasaad/fintech/pkg/mapper"
 	"github.com/amirasaad/fintech/pkg/repository"
-	repoaccount "github.com/amirasaad/fintech/pkg/repository/account"
-	repotransaction "github.com/amirasaad/fintech/pkg/repository/transaction"
 )
 
 // ErrInvalidRepositoryType Define custom error for invalid repository type
-var ErrInvalidRepositoryType = errors.New("invalid repository type")
 
 // HandleCompleted handles PaymentCompletedEvent,
 // updates the transaction status in the DB, and publishes a follow-up event if needed.
@@ -54,40 +51,16 @@ func HandleCompleted(
 			"payment_id", pc.PaymentID,
 			"transaction_id", pc.TransactionID,
 		)
-		err := uow.Do(ctx, func(uow repository.UnitOfWork) error {
-			accRepoAny, err := uow.GetRepository((*repoaccount.Repository)(nil))
+		if err := uow.Do(ctx, func(uow repository.UnitOfWork) error {
+			accRepo, err := common.GetAccountRepository(uow, log)
 			if err != nil {
-				log.Error(
-					"failed to get account repository",
-					"error", err,
-				)
 				return err
 			}
-			accRepo, ok := accRepoAny.(repoaccount.Repository)
-			if !ok {
-				log.Error(
-					"invalid account repository type",
-					"type", accRepoAny,
-				)
-				return ErrInvalidRepositoryType
-			}
-			txRepoAny, err := uow.GetRepository((*repotransaction.Repository)(nil))
+			txRepo, err := common.GetTransactionRepository(uow, log)
 			if err != nil {
-				log.Error(
-					"failed to get transaction repository",
-					"error", err,
-				)
+				log.Error("failed to get transaction repository", "error", err)
 				return err
 			}
-			txRepo, ok := txRepoAny.(repotransaction.Repository)
-			if !ok {
-				log.Error(
-					"invalid transaction repository type",
-					"type", txRepoAny,
-				)
-				return ErrInvalidRepositoryType
-			}
-
 			tx, err := txRepo.GetByPaymentID(ctx, pc.PaymentID)
 			if err != nil {
 				log.Error(
@@ -108,7 +81,14 @@ func HandleCompleted(
 				)
 				return err
 			}
-			domainAcc := mapper.MapAccountReadToDomain(acc)
+			domainAcc, err := mapper.MapAccountReadToDomain(acc)
+			if err != nil {
+				log.Error(
+					"failed to map account to domain",
+					"error", err,
+				)
+				return err
+			}
 
 			// Log provider fee details before calculation
 			log.Info("💸 Provider fee details",
@@ -189,10 +169,9 @@ func HandleCompleted(
 				"balance", domainAcc.Balance,
 			)
 			return nil
-		})
-		if err != nil {
+		}); err != nil {
 			log.Error(
-				"transaction failed",
+				"uow.Do failed",
 				"error", err,
 			)
 			return err

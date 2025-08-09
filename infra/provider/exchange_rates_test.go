@@ -1,11 +1,12 @@
 package provider
 
 import (
-	"github.com/amirasaad/fintech/pkg/config"
 	"io"
 	"log/slog"
 	"testing"
 	"time"
+
+	"github.com/amirasaad/fintech/pkg/config"
 
 	infra_cache "github.com/amirasaad/fintech/infra/cache"
 	"github.com/amirasaad/fintech/pkg/domain"
@@ -51,7 +52,7 @@ func (m *MockExchangeRateProvider) IsHealthy() bool {
 
 func TestExchangeRateService_GetRate_SameCurrency(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	cfg := &config.ExchangeRateConfig{CacheTTL: time.Minute}
+	cfg := &config.ExchangeRate{CacheTTL: time.Minute}
 	service := NewExchangeRateService(
 		[]provider.ExchangeRateProvider{},
 		infra_cache.NewMemoryCache(),
@@ -70,7 +71,7 @@ func TestExchangeRateService_GetRate_SameCurrency(t *testing.T) {
 func TestExchangeRateService_GetRate_FromCache(t *testing.T) {
 	cache := infra_cache.NewMemoryCache()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	cfg := &config.ExchangeRateConfig{CacheTTL: time.Minute}
+	cfg := &config.ExchangeRate{CacheTTL: time.Minute}
 	mockProvider := &MockExchangeRateProvider{}
 	mockProvider.On("Name").Return("test-provider")
 	mockProvider.On("IsHealthy").Return(true)
@@ -111,7 +112,7 @@ func TestExchangeRateService_GetRate_FromProvider(t *testing.T) {
 	mockProvider := new(MockExchangeRateProvider)
 	cache := infra_cache.NewMemoryCache()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	cfg := &config.ExchangeRateConfig{CacheTTL: time.Minute}
+	cfg := &config.ExchangeRate{CacheTTL: time.Minute}
 	service := NewExchangeRateService(
 		[]provider.ExchangeRateProvider{mockProvider},
 		cache,
@@ -151,7 +152,7 @@ func TestExchangeRateService_GetRate_ProviderUnhealthy(t *testing.T) {
 	mockProvider := new(MockExchangeRateProvider)
 	cache := infra_cache.NewMemoryCache()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	cfg := &config.ExchangeRateConfig{CacheTTL: time.Minute}
+	cfg := &config.ExchangeRate{CacheTTL: time.Minute}
 	service := NewExchangeRateService(
 		[]provider.ExchangeRateProvider{mockProvider},
 		cache,
@@ -176,7 +177,7 @@ func TestExchangeRateService_GetRate_ProviderError(t *testing.T) {
 	mockProvider := new(MockExchangeRateProvider)
 	cache := infra_cache.NewMemoryCache()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	cfg := &config.ExchangeRateConfig{CacheTTL: time.Minute}
+	cfg := &config.ExchangeRate{CacheTTL: time.Minute}
 	service := NewExchangeRateService(
 		[]provider.ExchangeRateProvider{mockProvider},
 		cache,
@@ -202,7 +203,7 @@ func TestExchangeRateService_GetRate_InvalidRate(t *testing.T) {
 	mockProvider := new(MockExchangeRateProvider)
 	cache := infra_cache.NewMemoryCache()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	cfg := &config.ExchangeRateConfig{CacheTTL: time.Minute}
+	cfg := &config.ExchangeRate{CacheTTL: time.Minute}
 	service := NewExchangeRateService(
 		[]provider.ExchangeRateProvider{mockProvider},
 		cache,
@@ -237,7 +238,7 @@ func TestExchangeRateService_GetRates_MultipleCurrencies(t *testing.T) {
 	mockProvider := new(MockExchangeRateProvider)
 	cache := infra_cache.NewMemoryCache()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	cfg := &config.ExchangeRateConfig{CacheTTL: time.Minute}
+	cfg := &config.ExchangeRate{CacheTTL: time.Minute}
 	service := NewExchangeRateService(
 		[]provider.ExchangeRateProvider{mockProvider},
 		cache,

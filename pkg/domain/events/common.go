@@ -6,15 +6,6 @@ import (
 	"github.com/google/uuid"
 )
 
-type FlowEvent struct {
-	ID            uuid.UUID
-	FlowType      string
-	UserID        uuid.UUID
-	AccountID     uuid.UUID
-	CorrelationID uuid.UUID
-	Timestamp     time.Time
-}
-
 // Validator defines an interface for objects that can be validated.
 type Validator interface {
 	Validate() error
@@ -26,4 +17,14 @@ type Event interface {
 	// Type returns string of the event type.
 	// This is used for type-safe event registration and dispatching.
 	Type() string
+}
+
+// FlowEvent represents common event properties shared by all flow events.
+type FlowEvent struct {
+	ID            uuid.UUID
+	FlowType      string
+	UserID        uuid.UUID
+	AccountID     uuid.UUID
+	CorrelationID uuid.UUID
+	Timestamp     time.Time
 }

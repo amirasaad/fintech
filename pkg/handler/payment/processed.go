@@ -5,15 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"strings"
 
 	"github.com/amirasaad/fintech/pkg/eventbus"
+	"github.com/amirasaad/fintech/pkg/handler/common"
 
 	"github.com/amirasaad/fintech/pkg/domain/events"
 
 	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/repository"
-	"github.com/amirasaad/fintech/pkg/repository/transaction"
 	"github.com/google/uuid"
 )
 
@@ -37,7 +36,7 @@ func HandleProcessed(
 		pp, ok := e.(*events.PaymentProcessed)
 		if !ok {
 			log.Error(
-				"Unexpected event type for payment persistence",
+				"Unexpected event type for payment processed",
 				"event", e,
 			)
 			return errors.New("unexpected event type")
@@ -50,7 +49,7 @@ func HandleProcessed(
 
 		// Update the transaction with payment ID
 		err := uow.Do(ctx, func(uow repository.UnitOfWork) error {
-			txRepoAny, err := uow.GetRepository((*transaction.Repository)(nil))
+			txRepo, err := common.GetTransactionRepository(uow, log)
 			if err != nil {
 				log.Error(
 					"Failed to get transaction repo",
@@ -59,32 +58,22 @@ func HandleProcessed(
 				return fmt.Errorf("failed to get transaction repo: %w", err)
 			}
 
-			txRepo, ok := txRepoAny.(transaction.Repository)
-			if !ok {
-				err := fmt.Errorf("failed to retrieve transaction repository type")
-				log.Error(
-					"Failed to retrieve repo type",
-					"error", err,
-				)
-				return err
-			}
-
 			transactionID := pp.TransactionID
-			if transactionID == uuid.Nil && strings.HasPrefix(pp.PaymentID, "pi_") {
-				tx, err := txRepo.GetByPaymentID(ctx, pp.PaymentID)
-				if err != nil {
+			if transactionID == uuid.Nil {
+				tx, getErr := txRepo.GetByPaymentID(ctx, pp.PaymentID)
+				if getErr != nil {
 					log.Error(
 						"Failed to get transaction by payment ID",
 						"payment_id", pp.PaymentID,
-						"error", err,
+						"error", getErr,
 					)
-					return fmt.Errorf("failed to get transaction by payment ID: %w", err)
+					return fmt.Errorf("failed to get transaction by payment ID: %w", getErr)
 				}
 				transactionID = tx.ID
 			}
 
 			if transactionID == uuid.Nil {
-				err := fmt.Errorf("no transaction ID provided and could not find by payment ID")
+				err = fmt.Errorf("no transaction ID provided and could not find by payment ID")
 				log.Error(
 					"Failed to get transaction before update",
 					"error", err,
@@ -111,8 +100,6 @@ func HandleProcessed(
 				"transaction_id", transactionID,
 				"payment_id", pp.PaymentID,
 			)
-
-			log.Info("✅ [SUCCESS] event processed")
 			return nil
 		})
 

@@ -7,7 +7,7 @@ import (
 )
 
 // JwtProtected protect routes
-func JwtProtected(cfg config.JwtConfig) fiber.Handler {
+func JwtProtected(cfg *config.Jwt) fiber.Handler {
 	return jwtware.New(jwtware.Config{
 		SigningKey:   jwtware.SigningKey{Key: []byte(cfg.Secret)},
 		ErrorHandler: jwtError,

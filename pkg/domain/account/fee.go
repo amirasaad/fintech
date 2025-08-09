@@ -1,6 +1,6 @@
 package account
 
-import "github.com/amirasaad/fintech/pkg/domain/money"
+import "github.com/amirasaad/fintech/pkg/money"
 
 // FeeType represents the type of fee.
 type FeeType string

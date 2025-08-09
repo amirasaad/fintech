@@ -3,11 +3,12 @@ package provider
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/amirasaad/fintech/pkg/config"
 	"io"
 	"log/slog"
 	"net/http"
 	"time"
+
+	"github.com/amirasaad/fintech/pkg/config"
 
 	"github.com/amirasaad/fintech/pkg/cache"
 	"github.com/amirasaad/fintech/pkg/domain"
@@ -45,7 +46,7 @@ type ExchangeRateAPIResponseV6 struct {
 
 // NewExchangeRateAPIProvider creates a new ExchangeRate API provider using config
 func NewExchangeRateAPIProvider(
-	cfg config.ExchangeRateConfig,
+	cfg config.ExchangeRate,
 	logger *slog.Logger,
 ) *ExchangeRateAPIProvider {
 	return &ExchangeRateAPIProvider{

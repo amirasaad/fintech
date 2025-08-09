@@ -14,6 +14,7 @@ type AccountRead struct {
 	Currency  string
 	Status    string    // Account status (e.g., active, closed)
 	CreatedAt time.Time // Timestamp of account creation
+	UpdatedAt time.Time // Timestamp of last update
 	// Add more fields as needed for queries
 }
 

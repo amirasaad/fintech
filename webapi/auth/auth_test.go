@@ -79,5 +79,5 @@ func (s *AuthTestSuite) TestLoginRoute_ServiceError() {
 }
 
 func TestAuthTestSuite(t *testing.T) {
-	suite.Run(t, new(testutils.E2ETestSuite))
+	suite.Run(t, new(AuthTestSuite))
 }

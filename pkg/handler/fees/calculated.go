@@ -5,14 +5,10 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/amirasaad/fintech/pkg/eventbus"
-
 	"github.com/amirasaad/fintech/pkg/domain/events"
-	"github.com/amirasaad/fintech/pkg/dto"
-	"github.com/amirasaad/fintech/pkg/mapper"
+	"github.com/amirasaad/fintech/pkg/eventbus"
+	"github.com/amirasaad/fintech/pkg/handler/common"
 	"github.com/amirasaad/fintech/pkg/repository"
-	repoaccount "github.com/amirasaad/fintech/pkg/repository/account"
-	repotransaction "github.com/amirasaad/fintech/pkg/repository/transaction"
 )
 
 // HandleCalculated handles FeesCalculated events.
@@ -34,89 +30,49 @@ func HandleCalculated(
 		// Type assert to get the FeesCalculated event
 		fc, ok := e.(*events.FeesCalculated)
 		if !ok {
-			log.Error("unexpected event type")
-			return fmt.Errorf("unexpected event type: %s", e.Type())
+			err := fmt.Errorf("unexpected event type: %s", e.Type())
+			log.Error("unexpected event type", "error", err)
+			return err
 		}
+
 		log = log.With(
 			"transaction_id", fc.TransactionID,
 			"event_id", fc.ID,
+			"fee_amount", fc.Fee.Amount,
 		)
 
-		return uow.Do(ctx, func(uow repository.UnitOfWork) error {
+		if err := uow.Do(ctx, func(uow repository.UnitOfWork) error {
 			// Get transaction repository
-			txRepoAny, err := uow.GetRepository((*repotransaction.Repository)(nil))
+			txRepo, err := common.GetTransactionRepository(uow, log)
 			if err != nil {
-				log.Error("failed to get transaction repository", "error", err)
-				return err
-			}
-			txRepo, ok := txRepoAny.(repotransaction.Repository)
-			if !ok {
-				log.Error("invalid transaction repository type", "type", txRepoAny)
-				return fmt.Errorf("invalid transaction repository type")
+				log.Error(
+					"failed to get transaction repository", "error", err)
+				return fmt.Errorf("failed to get transaction repository: %w", err)
 			}
 
 			// Get account repository
-			accRepoAny, err := uow.GetRepository((*repoaccount.Repository)(nil))
-			if err != nil {
-				log.Error("failed to get account repository", "error", err)
-				return err
-			}
-			accRepo, ok := accRepoAny.(repoaccount.Repository)
-			if !ok {
-				log.Error("invalid account repository type", "type", accRepoAny)
-				return fmt.Errorf("invalid account repository type")
-			}
-
-			// Get the transaction
-			tx, err := txRepo.Get(ctx, fc.TransactionID)
-			if err != nil {
-				log.Error("failed to get transaction", "error", err)
-				return err
-			}
-			i64TotalFee := fc.Fee.Amount.Amount()
-			updateTx := dto.TransactionUpdate{Fee: &i64TotalFee}
-			if err = txRepo.Update(ctx, tx.ID, updateTx); err != nil {
-				log.Error("failed to update transaction with fees", "error", err)
-				return err
-			}
-
-			// Deduct fees from account balance
-			acc, err := accRepo.Get(ctx, tx.AccountID)
-			if err != nil {
-				log.Error("failed to get account", "error", err)
-				return err
-			}
-
-			// Convert to domain model to use money operations
-			domainAcc := mapper.MapAccountReadToDomain(acc)
-			newBalance, err := domainAcc.Balance.Subtract(fc.Fee.Amount)
+			accRepo, err := common.GetAccountRepository(uow, log)
 			if err != nil {
 				log.Error(
-					"failed to subtract fee",
-					"fee", fc.Fee.Amount,
-				)
-				return err
-			}
-			i64Balance := newBalance.Amount()
-			if err := accRepo.Update(
-				ctx,
-				acc.ID,
-				dto.AccountUpdate{Balance: &i64Balance},
-			); err != nil {
-				log.Error(
-					"failed to update account balance with fees",
-					"error", err,
-				)
-				return err
+					"failed to get account repository", "error", err)
+				return fmt.Errorf("failed to get account repository: %w", err)
 			}
 
-			log.Info(
-				"✅ Fees calculated and deducted",
-				"transaction_id", fc.TransactionID,
-				"total_fee", fc.Fee.Amount,
-				"new_account_balance", i64Balance,
-			)
+			// Create fee calculator and apply fees
+			calculator := NewFeeCalculator(txRepo, accRepo, log)
+			if err := calculator.ApplyFees(ctx, fc.TransactionID, fc.Fee); err != nil {
+				log.Error("failed to apply fees", "error", err)
+				return fmt.Errorf("failed to apply fees: %w", err)
+			}
+
+			log.Info("✅ Successfully processed fee calculation")
 			return nil
-		})
+		}); err != nil {
+			log.Error("failed to process FeesCalculated event", "error", err)
+			return err
+		}
+
+		log.Info("🟢 [END] Processing FeesCalculated event")
+		return nil
 	}
 }

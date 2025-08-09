@@ -1,7 +1,7 @@
 package events
 
 import (
-	"github.com/amirasaad/fintech/pkg/domain/money"
+	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/google/uuid"
 )
 

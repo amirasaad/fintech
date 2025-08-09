@@ -1,19 +1,19 @@
 package mapper
 
 import (
+	"fmt"
+
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/account"
-	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/amirasaad/fintech/pkg/dto"
-	"github.com/charmbracelet/log"
+	"github.com/amirasaad/fintech/pkg/money"
 )
 
 // MapAccountReadToDomain maps a dto.AccountRead to a domain Account.
-func MapAccountReadToDomain(dto *dto.AccountRead) *account.Account {
+func MapAccountReadToDomain(dto *dto.AccountRead) (*account.Account, error) {
 	balance, err := money.New(dto.Balance, currency.Code(dto.Currency))
 	if err != nil {
-		log.Warn("error creating money from dto fallback to default", "error", err)
-		return nil
+		return nil, fmt.Errorf("error creating money from dto: %w", err)
 	}
 	acc, err := account.New().
 		WithID(dto.ID).
@@ -21,10 +21,10 @@ func MapAccountReadToDomain(dto *dto.AccountRead) *account.Account {
 		WithBalance(balance.Amount()).
 		WithCurrency(balance.Currency()).
 		WithCreatedAt(dto.CreatedAt).
-		WithUpdatedAt(dto.CreatedAt).
+		WithUpdatedAt(dto.UpdatedAt).
 		Build()
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("error creating account from dto: %w", err)
 	}
-	return acc
+	return acc, nil
 }

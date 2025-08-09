@@ -1,3 +1,10 @@
+// Package money provides functionality for handling monetary values.
+//
+// It is a value object that represents a monetary value in a specific currency.
+// Invariants:
+//   - Amount is always stored in the smallest currency unit (e.g., cents for USD).
+//   - Currency code must be valid ISO 4217 (3 uppercase letters).
+//   - All arithmetic operations require matching currencies.
 package money
 
 import (
@@ -59,8 +66,24 @@ func Zero(cur currency.Code) Money {
 	}
 }
 
+// Must creates a Money object from the given amount and currency code.
+// Invariants enforced:
+//   - Currency code must be valid ISO 4217 (3 uppercase letters).
+//   - Amount must not have more decimal places than allowed by the currency.
+//   - Amount is converted to the smallest currency unit.
+//
+// Panics if any invariant is violated.
+func Must(amount float64, currencyCode currency.Code) Money {
+	money, err := New(amount, currencyCode)
+	if err != nil {
+		panic(err)
+	}
+	return money
+}
+
 // NewFromData creates a Money object from raw data (used for DB hydration).
 // This bypasses invariants and should only be used for repository hydration or tests.
+// Deprecated: use NewFromSmallestUnit instead.
 func NewFromData(amount int64, cc string) Money {
 	return Money{
 		amount:   amount,

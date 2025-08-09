@@ -4,12 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/amirasaad/fintech/pkg/config"
 	"log/slog"
 	"maps"
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/amirasaad/fintech/pkg/config"
 
 	"github.com/stripe/stripe-go/v82/webhook"
 
@@ -17,8 +18,8 @@ import (
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/domain/events"
-	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/amirasaad/fintech/pkg/eventbus"
+	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/amirasaad/fintech/pkg/provider"
 	"github.com/google/uuid"
 	"github.com/stripe/stripe-go/v82"
@@ -275,23 +276,30 @@ func (s *StripePaymentProvider) handleCheckoutSessionCompleted(
 		return nil, err
 	}
 
+	amount, err := s.parseAmount(session.AmountSubtotal, session.Currency, log)
+	if err != nil {
+		log.Error(
+			"error parsing amount",
+			"error", err,
+		)
+		return nil, fmt.Errorf("error parsing amount: %w", err)
+	}
+
 	if err := s.bus.Emit(
 		ctx,
 		events.NewPaymentProcessed(
-			*events.NewPaymentInitiated(
-				events.FlowEvent{
-					ID:            uuid.New(),
-					UserID:        se.UserID,
-					AccountID:     se.AccountID,
-					FlowType:      "payment",
-					CorrelationID: uuid.New(),
-				},
-			), func(pp *events.PaymentProcessed) {
+			&events.FlowEvent{
+				ID:            uuid.New(),
+				UserID:        se.UserID,
+				AccountID:     se.AccountID,
+				FlowType:      "payment",
+				CorrelationID: uuid.New(),
+			}, func(pp *events.PaymentProcessed) {
 				pp.TransactionID = se.TransactionID
 				pp.PaymentID = session.PaymentIntent.ID
 				log.Info("Emitting ", "event_type", pp.Type())
 			},
-		),
+		).WithAmount(amount).WithPaymentID(session.PaymentIntent.ID),
 	); err != nil {
 		log.Error(
 			"error emitting payment processed event",
@@ -546,7 +554,7 @@ func (s *StripePaymentProvider) buildPaymentCompletedEventPayload(
 ) *events.PaymentCompleted {
 	amount, err := s.parseAmount(pi.AmountReceived, pi.Currency, log)
 	return events.NewPaymentCompleted(
-		events.FlowEvent{
+		&events.FlowEvent{
 			ID:            meta.TransactionID,
 			UserID:        meta.UserID,
 			AccountID:     meta.AccountID,
@@ -647,7 +655,7 @@ func (s *StripePaymentProvider) handlePaymentIntentFailed(
 	maps.Copy(metadata, paymentIntent.Metadata)
 
 	if err := s.bus.Emit(ctx, events.NewPaymentFailed(
-		events.FlowEvent{
+		&events.FlowEvent{
 			ID:            transactionID,
 			UserID:        userID,
 			AccountID:     accountID,

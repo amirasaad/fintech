@@ -47,7 +47,7 @@ type E2ETestSuite struct {
 	pgContainer *tcpostgres.PostgresContainer
 	db          *gorm.DB
 	app         *fiber.App
-	cfg         *config.AppConfig
+	cfg         *config.App
 }
 
 // BeforeEachTest runs before each test in the E2ETestSuite. It enables parallel test execution.
@@ -100,9 +100,9 @@ func (s *E2ETestSuite) SetupSuite() {
 	}
 
 	// Load config
-	cfgPath, err := s.findEnvTest()
+	envTest, err := s.findEnvTest()
 	s.Require().NoError(err)
-	s.cfg, err = config.LoadAppConfig(slog.Default(), cfgPath)
+	s.cfg, err = config.Load(envTest)
 	s.Require().NoError(err)
 	s.cfg.DB.Url = dsn
 
@@ -270,8 +270,8 @@ func (s *E2ETestSuite) CreateTestUser() *domain.User {
 			s.T().Fatalf("User ID should be present in response")
 		}
 
-		userID, err := uuid.Parse(userIDStr)
-		if err != nil {
+		userID, parseErr := uuid.Parse(userIDStr)
+		if parseErr != nil {
 			s.T().Fatalf("User ID should be a valid UUID")
 		}
 
@@ -279,7 +279,7 @@ func (s *E2ETestSuite) CreateTestUser() *domain.User {
 			ID:       userID,
 			Username: username,
 			Email:    email,
-			Password: "password123", // This is not the hashed password
+			Password: "password123",
 		}
 	}
 
@@ -310,8 +310,11 @@ func (s *E2ETestSuite) LoginUser(testUser *domain.User) string {
 		}
 	} else if dataMap, ok := response.Data.(map[string]string); ok {
 		token = dataMap["token"]
+	} else if tokenString, ok := response.Data.(string); ok {
+		token = tokenString
 	}
 
+	s.T().Logf("Extracted token: %s", token)
 	if token == "" {
 		s.T().Fatalf("No token found in response")
 	}

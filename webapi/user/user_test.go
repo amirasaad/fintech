@@ -143,5 +143,5 @@ func (s *UserTestSuite) TestDeleteUserVariants() {
 }
 
 func TestUserTestSuite(t *testing.T) {
-	suite.Run(t, new(testutils.E2ETestSuite))
+	suite.Run(t, new(UserTestSuite))
 }

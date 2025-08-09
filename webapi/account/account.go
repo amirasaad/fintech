@@ -31,36 +31,36 @@ func Routes(
 	app *fiber.App,
 	accountSvc *accountsvc.Service,
 	authSvc *authsvc.Service,
-	cfg *config.AppConfig,
+	cfg *config.App,
 ) {
 	app.Post(
 		"/account",
-		middleware.JwtProtected(cfg.Jwt),
+		middleware.JwtProtected(cfg.Auth.Jwt),
 		CreateAccount(accountSvc, authSvc),
 	)
 	app.Post(
 		"/account/:id/deposit",
-		middleware.JwtProtected(cfg.Jwt),
+		middleware.JwtProtected(cfg.Auth.Jwt),
 		Deposit(accountSvc, authSvc),
 	)
 	app.Post(
 		"/account/:id/withdraw",
-		middleware.JwtProtected(cfg.Jwt),
+		middleware.JwtProtected(cfg.Auth.Jwt),
 		Withdraw(accountSvc, authSvc),
 	)
 	app.Post(
 		"/account/:id/transfer",
-		middleware.JwtProtected(cfg.Jwt),
+		middleware.JwtProtected(cfg.Auth.Jwt),
 		Transfer(accountSvc, authSvc),
 	)
 	app.Get(
 		"/account/:id/balance",
-		middleware.JwtProtected(cfg.Jwt),
+		middleware.JwtProtected(cfg.Auth.Jwt),
 		GetBalance(accountSvc, authSvc),
 	)
 	app.Get(
 		"/account/:id/transactions",
-		middleware.JwtProtected(cfg.Jwt),
+		middleware.JwtProtected(cfg.Auth.Jwt),
 		GetTransactions(accountSvc, authSvc),
 	)
 }

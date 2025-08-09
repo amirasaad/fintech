@@ -1,27 +1,23 @@
 package config
 
 import (
-	"log/slog"
-	"regexp"
 	"time"
-
-	"github.com/joho/godotenv"
-	"github.com/kelseyhightower/envconfig"
 )
 
-type DBConfig struct {
+type DB struct {
 	Url string `envconfig:"URL"`
 }
 
-type AuthConfig struct {
-	Strategy string `envconfig:"STRATEGY" default:"jwt oneof(jwt, basic)"`
-}
-type JwtConfig struct {
-	Secret string        `envconfig:"SECRET_KEY" required:"true"`
+type Jwt struct {
+	Secret string        `envconfig:"SECRET" required:"true"`
 	Expiry time.Duration `envconfig:"EXPIRY" default:"24h"`
 }
+type Auth struct {
+	Strategy string `envconfig:"STRATEGY" default:"jwt oneof(jwt, basic)"`
+	Jwt      *Jwt   `envconfig:"JWT"`
+}
 
-type RedisConfig struct {
+type Redis struct {
 	URL          string        `envconfig:"URL" default:"redis://localhost:6379/0"`
 	KeyPrefix    string        `envconfig:"KEY_PREFIX" default:""`
 	PoolSize     int           `envconfig:"POOL_SIZE" default:"10"`
@@ -30,7 +26,7 @@ type RedisConfig struct {
 	WriteTimeout time.Duration `envconfig:"WRITE_TIMEOUT" default:"3s"`
 }
 
-type RateLimitConfig struct {
+type RateLimit struct {
 	MaxRequests int           `envconfig:"MAX_REQUESTS" default:"100"`
 	Window      time.Duration `envconfig:"WINDOW" default:"1m"`
 }
@@ -45,10 +41,10 @@ type Stripe struct {
 
 //revive:enable
 type PaymentProviders struct {
-	Stripe Stripe `envconfig:"STRIPE"`
+	Stripe *Stripe `envconfig:"STRIPE"`
 }
 
-type ExchangeRateConfig struct {
+type ExchangeRate struct {
 	ApiKey            string        `envconfig:"API_KEY"`
 	ApiUrl            string        `envconfig:"API_URL" default:""`
 	CacheTTL          time.Duration `envconfig:"CACHE_TTL" default:"15m"`
@@ -62,67 +58,32 @@ type ExchangeRateConfig struct {
 	CacheUrl          string        `envconfig:"CACHE_URL"`
 }
 
-type FeeConfig struct {
+type Fee struct {
 	ServiceFeePercentage float64 `envconfig:"SERVICE_FEE_PERCENTAGE" default:"0.01"`
 }
 
-type AppConfig struct {
-	Env              string             `envconfig:"APP_ENV" default:"development"`
-	Scheme           string             `envconfig:"APP_SCHEME" default:"https"`
-	Host             string             `envconfig:"APP_HOST" default:"localhost"`
-	Port             int                `envconfig:"APP_PORT" default:"3000"`
-	DB               DBConfig           `envconfig:"DATABASE"`
-	Auth             AuthConfig         `envconfig:"AUTH"`
-	Jwt              JwtConfig          `envconfig:"JWT"`
-	Exchange         ExchangeRateConfig `envconfig:"EXCHANGE_RATE"`
-	Redis            RedisConfig        `envconfig:"REDIS"`
-	RateLimit        RateLimitConfig    `envconfig:"RATE_LIMIT"`
-	PaymentProviders PaymentProviders   `envconfig:"PAYMENT_PROVIDER"`
-	Fee              FeeConfig          `envconfig:"FEE"`
+type Log struct {
+	Level      string `envconfig:"LEVEL" default:"info"`
+	Format     string `envconfig:"FORMAT" default:"json"`
+	TimeFormat string `envconfig:"TIME_FORMAT" default:"2006-01-02 15:04:05"`
+	Prefix     string `envconfig:"PREFIX" default:"[fintech]"`
 }
 
-func LoadAppConfig(logger *slog.Logger, envFilePath ...string) (*AppConfig, error) {
-	var err error
-	if len(envFilePath) > 0 && envFilePath[0] != "" {
-		err = godotenv.Load(envFilePath[0])
-	} else {
-		err = godotenv.Load()
-	}
-
-	if err != nil {
-		logger.Warn("No .env file found or specified, using system environment variables")
-	} else {
-		logger.Info("Environment variables loaded from .env file")
-	}
-	var cfg AppConfig
-	if err := envconfig.Process("", &cfg); err != nil {
-		return nil, err
-	}
-	logger.Info("App config loaded",
-		"db", cfg.DB.Url,
-		"jwt_expiry", cfg.Jwt.Expiry,
-		"exchange_cache_ttl", cfg.Exchange.CacheTTL,
-		"exchange_api_url", maskApiKeyInUrl(cfg.Exchange.ApiUrl),
-		"exchange_api_key", maskApiKey(cfg.Exchange.ApiKey),
-		"rate_limit_max_requests", cfg.RateLimit.MaxRequests,
-		"rate_limit_window", cfg.RateLimit.Window,
-	)
-	return &cfg, nil
+type Server struct {
+	Scheme string `envconfig:"SCHEME" default:"http"`
+	Host   string `envconfig:"HOST" default:"localhost"`
+	Port   int    `envconfig:"PORT" default:"3000"`
 }
 
-func maskApiKey(key string) string {
-	if len(key) <= 6 {
-		return "****"
-	}
-	return key[:2] + "****" + key[len(key)-4:]
-}
-
-func maskApiKeyInUrl(url string) string {
-	// Mask /v6/<key> in path
-	re := regexp.MustCompile(`(v6/)[^/]+`)
-	masked := re.ReplaceAllString(url, `${1}[MASKED]`)
-	// Mask api_key in query string
-	qre := regexp.MustCompile(`([?&]api_key=)[^&]+`)
-	masked = qre.ReplaceAllString(masked, `${1}[MASKED]`)
-	return masked
+type App struct {
+	Env              string            `envconfig:"APP_ENV" default:"development"`
+	Server           *Server           `envconfig:"SERVER"`
+	Log              *Log              `envconfig:"LOG"`
+	DB               *DB               `envconfig:"DATABASE"`
+	Auth             *Auth             `envconfig:"AUTH"`
+	Exchange         *ExchangeRate     `envconfig:"EXCHANGE_RATE"`
+	Redis            *Redis            `envconfig:"REDIS"`
+	RateLimit        *RateLimit        `envconfig:"RATE_LIMIT"`
+	PaymentProviders *PaymentProviders `envconfig:"PAYMENT_PROVIDER"`
+	Fee              *Fee              `envconfig:"FEE"`
 }

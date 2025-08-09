@@ -19,15 +19,15 @@ func Routes(
 	app *fiber.App,
 	userSvc *usersvc.Service,
 	authSvc *authsvc.Service,
-	cfg *config.AppConfig,
+	cfg *config.App,
 ) {
-	app.Get("/user/:id", middleware.JwtProtected(cfg.Jwt), GetUser(userSvc))
+	app.Get("/user/:id", middleware.JwtProtected(cfg.Auth.Jwt), GetUser(userSvc))
 	app.Post("/user", CreateUser(userSvc))
 	app.Put("/user/:id",
-		middleware.JwtProtected(cfg.Jwt),
+		middleware.JwtProtected(cfg.Auth.Jwt),
 		UpdateUser(userSvc, authSvc))
 	app.Delete("/user/:id",
-		middleware.JwtProtected(cfg.Jwt),
+		middleware.JwtProtected(cfg.Auth.Jwt),
 		DeleteUser(userSvc, authSvc))
 }
 
@@ -49,16 +49,33 @@ func GetUser(userSvc *usersvc.Service) fiber.Handler {
 		id, err := uuid.Parse(c.Params("id"))
 		if err != nil {
 			log.Errorf("Invalid user ID: %v", err)
-			return common.ProblemDetailsJSON(c, "Invalid user ID", err,
-				"User ID must be a valid UUID", fiber.StatusBadRequest)
+			return common.ProblemDetailsJSON(
+				c,
+				"Invalid user ID",
+				err,
+				"User ID must be a valid UUID",
+				fiber.StatusBadRequest,
+			)
 		}
-		user, err := userSvc.GetUser(c.Context(), id.String())
+		user, err := userSvc.GetUser(
+			c.Context(),
+			id.String(),
+		)
 		if err != nil || user == nil {
 			// Generic error for not found to prevent user enumeration
-			return common.ProblemDetailsJSON(c, "Invalid credentials", nil,
-				fiber.StatusUnauthorized)
+			return common.ProblemDetailsJSON(
+				c,
+				"Invalid credentials",
+				nil,
+				fiber.StatusUnauthorized,
+			)
 		}
-		return common.SuccessResponseJSON(c, fiber.StatusOK, "User found", user)
+		return common.SuccessResponseJSON(
+			c,
+			fiber.StatusOK,
+			"User found",
+			user,
+		)
 	}
 }
 
@@ -82,15 +99,27 @@ func CreateUser(userSvc *usersvc.Service) fiber.Handler {
 			return err // error response already written
 		}
 		if len(input.Password) > 72 {
-			return common.ProblemDetailsJSON(c, "Invalid request body", nil,
-				"Password too long")
+			return common.ProblemDetailsJSON(c,
+				"Invalid request body",
+				nil,
+				"Password too long",
+				fiber.StatusBadRequest)
 		}
-		user, err := userSvc.CreateUser(c.Context(), input.Username, input.Email,
+		user, err := userSvc.CreateUser(
+			c.Context(),
+			input.Username,
+			input.Email,
 			input.Password)
 		if err != nil {
-			return common.ProblemDetailsJSON(c, "Couldn't create user", err)
+			return common.ProblemDetailsJSON(
+				c,
+				"Couldn't create user",
+				err, fiber.StatusInternalServerError)
 		}
-		return common.SuccessResponseJSON(c, fiber.StatusCreated, "Created user",
+		return common.SuccessResponseJSON(
+			c,
+			fiber.StatusCreated,
+			"Created user",
 			user)
 	}
 }
@@ -122,13 +151,20 @@ func UpdateUser(
 		id, err := uuid.Parse(c.Params("id"))
 		if err != nil {
 			log.Errorf("Invalid user ID: %v", err)
-			return common.ProblemDetailsJSON(c, "Invalid user ID", err,
-				"User ID must be a valid UUID", fiber.StatusBadRequest)
+			return common.ProblemDetailsJSON(
+				c,
+				"Invalid user ID",
+				err,
+				"User ID must be a valid UUID",
+				fiber.StatusBadRequest,
+			)
 		}
 		token, ok := c.Locals("user").(*jwt.Token)
 		if !ok {
-			return common.ProblemDetailsJSON(c, "Unauthorized", nil,
-				"missing user context", fiber.StatusUnauthorized)
+			return common.ProblemDetailsJSON(
+				c,
+				"Unauthorized", nil,
+				fiber.StatusUnauthorized)
 		}
 		userID, err := authSvc.GetCurrentUserId(token)
 		if err != nil {
@@ -138,24 +174,33 @@ func UpdateUser(
 		}
 		if id != userID {
 			return common.ProblemDetailsJSON(c, "Forbidden", nil,
-				"You are not allowed to update this user", fiber.StatusUnauthorized)
+				fiber.StatusUnauthorized)
 		}
 		err = userSvc.UpdateUser(c.Context(), id.String(), &dto.UserUpdate{
 			Names: &input.Names,
 		})
 		if err != nil {
 			// Generic error for update failure
-			return common.ProblemDetailsJSON(c, "Invalid credentials", nil,
-				fiber.StatusUnauthorized)
+			return common.ProblemDetailsJSON(
+				c,
+				"Unauthorized",
+				nil,
+				"missing user context", fiber.StatusUnauthorized)
 		}
 		// Get the updated user to return in response
 		updatedUser, err := userSvc.GetUser(c.Context(), id.String())
 		if err != nil || updatedUser == nil {
-			return common.ProblemDetailsJSON(c, "Invalid credentials", nil,
+			return common.ProblemDetailsJSON(
+				c,
+				"Unauthorized",
+				nil,
 				fiber.StatusUnauthorized)
 		}
-		return common.SuccessResponseJSON(c, fiber.StatusOK,
-			"User updated successfully", updatedUser)
+		return common.SuccessResponseJSON(
+			c,
+			fiber.StatusOK,
+			"User updated successfully",
+			updatedUser)
 	}
 }
 
@@ -211,6 +256,7 @@ func DeleteUser(
 				c,
 				"Unauthorized",
 				nil,
+				"missing user context",
 				fiber.StatusUnauthorized,
 			)
 		}
@@ -219,13 +265,48 @@ func DeleteUser(
 				c,
 				"Forbidden",
 				nil,
-				"You are not allowed to update this user",
+				"You are not allowed to delete this user",
 				fiber.StatusUnauthorized,
 			)
 		}
-		if isValid, err := userSvc.ValidUser(c.Context(), id.String(),
-			input.Password); err != nil || !isValid {
+		// Retrieve user to get email for password validation
+		user, err := userSvc.GetUser(c.Context(), id.String())
+		if err != nil {
+			log.Errorf("Error getting user for password validation: %v", err)
+			return common.ProblemDetailsJSON(
+				c,
+				"Invalid credentials",
+				err,
+				"Internal server error during user validation",
+				fiber.StatusInternalServerError,
+			)
+		}
+		if user == nil {
+			return common.ProblemDetailsJSON(
+				c,
+				"Invalid credentials",
+				nil,
+				"User not found",
+				fiber.StatusUnauthorized,
+			)
+		}
+
+		if isValid, validErr := userSvc.ValidUser(
+			c.Context(),
+			user.Email,
+			input.Password,
+		); validErr != nil || !isValid {
 			// If this is a DB/internal error, return 500
+			if !isValid {
+				return common.ProblemDetailsJSON(
+					c,
+					"Invalid credentials",
+					nil,
+					"Invalid username or password",
+					fiber.StatusUnauthorized,
+				)
+			}
+			// If err is not nil, it's an internal server error during validation
 			return common.ProblemDetailsJSON(
 				c,
 				"Failed to validate user",
@@ -237,8 +318,9 @@ func DeleteUser(
 		if err != nil {
 			return common.ProblemDetailsJSON(
 				c,
-				"Failed to delete user",
+				"Couldn't delete user",
 				err,
+				"Internal server error during user deletion",
 				fiber.StatusInternalServerError,
 			)
 		}

@@ -2,8 +2,9 @@ package infra
 
 import (
 	"errors"
-	"github.com/amirasaad/fintech/pkg/config"
 	"time"
+
+	"github.com/amirasaad/fintech/pkg/config"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -12,7 +13,7 @@ import (
 
 // Add appEnv as a parameter for dependency-injected environment
 func NewDBConnection(
-	cnf config.DBConfig,
+	cnf *config.DB,
 	appEnv string,
 ) (*gorm.DB, error) {
 	databaseUrl := cnf.Url

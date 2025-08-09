@@ -19,7 +19,9 @@ import (
 	userweb "github.com/amirasaad/fintech/webapi/user"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/limiter"
+	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
+
 	"github.com/gofiber/swagger"
 )
 
@@ -73,6 +75,7 @@ func SetupApp(app *app.App) *fiber.App {
 		},
 	}))
 	fiberApp.Use(recover.New())
+	fiberApp.Use(logger.New())
 
 	// Health check endpoint
 	fiberApp.Get(

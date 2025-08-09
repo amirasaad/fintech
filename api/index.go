@@ -7,13 +7,14 @@ import (
 
 	"github.com/amirasaad/fintech/infra/initializer"
 	"github.com/amirasaad/fintech/pkg/app"
+	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/webapi"
 	"github.com/gofiber/fiber/v2/middleware/adaptor"
 )
 
-// Handler is the main entry point of the application.
+// Handler_api_index_go is the main entry point of the application.
 // Think of it like the main() method
-func Handler(w http.ResponseWriter, r *http.Request) {
+func Handler_api_index_go(w http.ResponseWriter, r *http.Request) {
 	// This is needed to set the proper request path in `*fiber.Ctx`
 	r.RequestURI = r.URL.String()
 
@@ -22,22 +23,23 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 
 // building the fiber application
 func handler() http.HandlerFunc {
-	// Setup logger
-	logHandler := slog.NewTextHandler(log.Writer(), &slog.HandlerOptions{
-		Level: slog.LevelDebug,
-	})
-	logger := slog.New(logHandler)
-	slog.SetDefault(logger)
+	logger := slog.Default()
+	// Load configuration
+	cfg, err := config.Load()
+	if err != nil {
+		logger.Error("Failed to load application configuration", "error", err)
+		log.Fatal(err)
+	}
 
 	// Initialize all dependencies
-	deps, _, err := initializer.InitializeDependencies(logger)
+	deps, err := initializer.InitializeDependencies(cfg)
 	if err != nil {
 		logger.Error("Failed to initialize application dependencies", "error", err)
 		log.Fatal(err)
 	}
 
 	// Initialize the application
-	a := app.New(deps, nil)
+	a := app.New(deps, cfg)
 
 	// Setup Fiber app with the initialized application
 	fiberApp := webapi.SetupApp(a)

@@ -12,12 +12,20 @@ type PaymentInitiatedOpt func(*PaymentInitiated)
 
 // WithPaymentTransactionID sets the transaction ID for the PaymentInitiated
 func WithPaymentTransactionID(id uuid.UUID) PaymentInitiatedOpt {
-	return func(e *PaymentInitiated) { e.TransactionID = id }
+	return func(
+		pi *PaymentInitiated,
+	) {
+		pi.TransactionID = id
+	}
 }
 
 // WithPaymentID sets the payment ID for the PaymentInitiated
 func WithInitiatedPaymentID(paymentID string) PaymentInitiatedOpt {
-	return func(e *PaymentInitiated) { e.PaymentID = paymentID }
+	return func(
+		pi *PaymentInitiated,
+	) {
+		pi.PaymentID = paymentID
+	}
 }
 
 // WithPaymentStatus sets the status for the PaymentInitiated
@@ -33,12 +41,10 @@ func WithFlowEvent(fe FlowEvent) PaymentInitiatedOpt {
 }
 
 // NewPaymentInitiated creates a new PaymentInitiated with the given options
-func NewPaymentInitiated(fe FlowEvent, opts ...PaymentInitiatedOpt) *PaymentInitiated {
+func NewPaymentInitiated(fe *FlowEvent, opts ...PaymentInitiatedOpt) *PaymentInitiated {
 	pi := &PaymentInitiated{
-		FlowEvent:     fe,
-		TransactionID: uuid.Nil,
-		PaymentID:     "",
-		Status:        "initiated",
+		FlowEvent: *fe,
+		Status:    "initiated",
 	}
 
 	pi.ID = uuid.New()
@@ -54,12 +60,14 @@ type PaymentProcessedOpt func(*PaymentProcessed)
 
 // NewPaymentProcessed creates a new PaymentProcessed with the given parameters
 func NewPaymentProcessed(
-	pi PaymentInitiated,
+	ef *FlowEvent,
 	opts ...PaymentProcessedOpt,
 ) *PaymentProcessed {
 	// Create base PaymentInitiated with required fields
 	pp := &PaymentProcessed{
-		PaymentInitiated: pi,
+		PaymentInitiated: PaymentInitiated{
+			FlowEvent: *ef,
+		},
 	}
 
 	pp.ID = uuid.New()
@@ -92,12 +100,12 @@ func WithCorrelationID(correlationID uuid.UUID) PaymentCompletedOpt {
 
 // NewPaymentCompleted creates a new PaymentCompleted with the given options
 func NewPaymentCompleted(
-	fe FlowEvent,
+	ef *FlowEvent,
 	opts ...PaymentCompletedOpt,
 ) *PaymentCompleted {
 	pc := &PaymentCompleted{
 		PaymentInitiated: PaymentInitiated{
-			FlowEvent: fe,
+			FlowEvent: *ef,
 		},
 	}
 
@@ -120,12 +128,12 @@ func WithFailedPaymentID(paymentID string) PaymentFailedOpt {
 
 // NewPaymentFailed creates a new PaymentFailed with the given options
 func NewPaymentFailed(
-	fe FlowEvent,
+	ef *FlowEvent,
 	opts ...PaymentFailedOpt,
 ) *PaymentFailed {
 	pf := &PaymentFailed{
 		PaymentInitiated: PaymentInitiated{
-			FlowEvent: fe,
+			FlowEvent: *ef,
 		},
 	}
 

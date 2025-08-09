@@ -9,8 +9,8 @@ import (
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/eventbus"
+	"github.com/amirasaad/fintech/pkg/handler/common"
 	"github.com/amirasaad/fintech/pkg/repository"
-	"github.com/amirasaad/fintech/pkg/repository/transaction"
 	"github.com/google/uuid"
 )
 
@@ -76,7 +76,7 @@ func HandleRequested(
 		txID := uuid.New()
 
 		// Persist the withdraw transaction
-		if err := persistWithdrawTransaction(ctx, uow, wr, txID); err != nil {
+		if err := persistWithdrawTransaction(ctx, uow, wr, txID, log); err != nil {
 			log.Error(
 				"❌ [ERROR] Failed to persist withdraw transaction",
 				"error", err,
@@ -131,15 +131,12 @@ func persistWithdrawTransaction(
 	uow repository.UnitOfWork,
 	wr *events.WithdrawRequested,
 	txID uuid.UUID,
+	log *slog.Logger,
 ) error {
 	return uow.Do(ctx, func(uow repository.UnitOfWork) error {
 		// Get the transaction repository
-		txRepoAny, err := uow.GetRepository((*transaction.Repository)(nil))
+		txRepo, err := common.GetTransactionRepository(uow, log)
 		if err != nil {
-			return fmt.Errorf("failed to get transaction repository: %w", err)
-		}
-		txRepo, ok := txRepoAny.(transaction.Repository)
-		if !ok {
 			return fmt.Errorf("failed to get transaction repository: %w", err)
 		}
 

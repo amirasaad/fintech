@@ -2,6 +2,7 @@ package currency
 
 import (
 	"errors"
+
 	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/middleware"
@@ -17,7 +18,7 @@ func Routes(
 	app *fiber.App,
 	currencySvc *currencysvc.Service,
 	authSvc *authsvc.Service,
-	cfg *config.AppConfig,
+	cfg *config.App,
 ) {
 	currencyGroup := app.Group("/api/currencies")
 
@@ -59,22 +60,22 @@ func Routes(
 	adminGroup := currencyGroup.Group("/admin")
 	adminGroup.Post(
 		"/",
-		middleware.JwtProtected(cfg.Jwt),
+		middleware.JwtProtected(cfg.Auth.Jwt),
 		RegisterCurrency(currencySvc),
 	)
 	adminGroup.Delete(
 		"/:code",
-		middleware.JwtProtected(cfg.Jwt),
+		middleware.JwtProtected(cfg.Auth.Jwt),
 		UnregisterCurrency(currencySvc),
 	)
 	adminGroup.Put(
 		"/:code/activate",
-		middleware.JwtProtected(cfg.Jwt),
+		middleware.JwtProtected(cfg.Auth.Jwt),
 		ActivateCurrency(currencySvc),
 	)
 	adminGroup.Put(
 		"/:code/deactivate",
-		middleware.JwtProtected(cfg.Jwt),
+		middleware.JwtProtected(cfg.Auth.Jwt),
 		DeactivateCurrency(currencySvc),
 	)
 }

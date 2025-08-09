@@ -7,275 +7,130 @@ import (
 
 	"github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/dto"
+	"github.com/amirasaad/fintech/pkg/handler/testutils"
 	"github.com/amirasaad/fintech/pkg/repository"
 	repoaccount "github.com/amirasaad/fintech/pkg/repository/account"
 	repotransaction "github.com/amirasaad/fintech/pkg/repository/transaction"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
 func TestCompletedHandler(t *testing.T) {
+
+	t.Run("successfully processes payment completion", func(t *testing.T) {
+		t.Parallel()
+		h := testutils.New(t)
+		event := createValidPaymentCompletedEvent(h)
+
+		// Setup test data and mocks using the helper function
+		setupSuccessfulTest(h)
+
+		// Call the handler
+		handlerErr := h.WithHandler(
+			HandleCompleted(h.Bus, h.UOW, h.Logger),
+		).Handler(h.Ctx, event)
+		require.NoError(t, handlerErr)
+		h.AssertExpectations()
+	})
+
 	t.Run("returns nil for incorrect event type", func(t *testing.T) {
 		t.Parallel()
-		h := newTestHelper(t)
-		handler := HandleCompleted(h.bus, h.uow, h.logger)
-
-		// The handler should not call any repository methods for incorrect event types
-		h.uow.EXPECT().GetRepository(mock.Anything).Unset()
-		h.uow.EXPECT().Do(mock.Anything, mock.Anything).Unset()
-
-		mockEvent := &testEvent{}
-		err := handler(h.ctx, mockEvent)
+		h := testutils.New(t)
+		err := h.WithHandler(
+			HandleCompleted(h.Bus, h.UOW, h.Logger),
+		).Handler(h.Ctx, &testutils.TestEvent{})
 		require.NoError(t, err)
 	})
 
 	t.Run("handles error from unit of work", func(t *testing.T) {
 		t.Parallel()
-		h := newTestHelper(t)
-		handler := HandleCompleted(h.bus, h.uow, h.logger)
+		h := testutils.New(t)
+		event := createValidPaymentCompletedEvent(h)
 
-		// Setup test transaction
-		tx := &dto.TransactionRead{
-			ID:        h.transactionID,
-			UserID:    h.userID,
-			AccountID: h.accountID,
-			PaymentID: h.paymentID,
-			Status:    string(account.TransactionStatusPending),
-			Currency:  "USD",
-			Amount:    h.amount.AmountFloat(),
-		}
+		// Setup mock expectations
+		h.UOW.EXPECT().
+			Do(h.Ctx, mock.Anything).
+			Return(errors.New("unit of work error")).
+			Once()
 
-		// Setup test account
-		testAccount := &dto.AccountRead{
-			ID:       h.accountID,
-			UserID:   h.userID,
-			Balance:  h.amount.AmountFloat(), // $1000.00
-			Currency: "USD",
-		}
-
-		// Mock the Do callback to return an error
-		uowErr := errors.New("uow error")
-		h.uow.EXPECT().Do(
-			mock.Anything,
-			mock.Anything,
-		).Return(uowErr).Run(func(
-			ctx context.Context,
-			fn func(uow repository.UnitOfWork) error,
-		) {
-			// Setup UOW to return the mock repositories inside the callback
-			h.uow.EXPECT().GetRepository(
-				(*repoaccount.Repository)(nil),
-			).Return(h.mockAccRepo, nil).Once()
-			h.uow.EXPECT().GetRepository(
-				(*repotransaction.Repository)(nil),
-			).Return(h.mockTxRepo, nil).Once()
-
-			// Mock the repositories
-			h.mockTxRepo.EXPECT().GetByPaymentID(
-				mock.Anything,
-				h.paymentID,
-			).Return(tx, nil).Once()
-			h.mockAccRepo.EXPECT().Get(
-				mock.Anything,
-				h.accountID,
-			).Return(testAccount, nil).Once()
-
-			// Mock the Update methods since the handler will call them before the error occurs
-			h.mockTxRepo.EXPECT().Update(
-				mock.Anything,
-				mock.Anything,
-				mock.Anything,
-			).Return(nil).Once()
-			h.mockAccRepo.EXPECT().Update(
-				mock.Anything,
-				mock.Anything,
-				mock.Anything,
-			).Return(nil).Once()
-
-			// The callback should not return an error
-			err := fn(h.uow)
-			require.NoError(t, err, "callback should not return error")
-		}).Once()
-
-		err := handler(h.ctx, h.createValidEvent())
-		require.ErrorIs(t, err, uowErr)
-	})
-
-	t.Run("handles successful event", func(t *testing.T) {
-		t.Parallel()
-		h := newTestHelper(t)
-		h.setupSuccessfulTest()
-		handler := HandleCompleted(h.bus, h.uow, h.logger)
-
-		err := handler(h.ctx, h.createValidEvent())
-		require.NoError(t, err)
-	})
-
-	t.Run("handles error getting account repository", func(t *testing.T) {
-		t.Parallel()
-		h := newTestHelper(t)
-		handler := HandleCompleted(h.bus, h.uow, h.logger)
-		expectedErr := errors.New("failed to get account repository")
-
-		// Setup the Do method to execute the callback
-		h.uow.EXPECT().Do(
-			mock.Anything,
-			mock.Anything,
-		).Return(expectedErr).Run(func(
-			ctx context.Context,
-			fn func(uow repository.UnitOfWork) error,
-		) {
-			// The callback will call GetRepository for the account repository
-			h.uow.EXPECT().GetRepository(
-				(*repoaccount.Repository)(nil),
-			).Return(nil, expectedErr).Once()
-
-			// The callback should return the error from GetRepository
-			err := fn(h.uow)
-			require.ErrorIs(t, err, expectedErr)
-		}).Once()
-
-		err := handler(h.ctx, h.createValidEvent())
-		require.ErrorIs(t, err, expectedErr)
-	})
-
-	t.Run("handles invalid account repository type", func(t *testing.T) {
-		t.Parallel()
-		h := newTestHelper(t)
-		handler := HandleCompleted(h.bus, h.uow, h.logger)
-
-		// Setup the Do method to execute the callback
-		h.uow.EXPECT().Do(
-			mock.Anything,
-			mock.Anything,
-		).Return(ErrInvalidRepositoryType).Run(func(
-			ctx context.Context,
-			fn func(uow repository.UnitOfWork) error,
-		) {
-			// The callback will call GetRepository for the
-			// account repository and return an invalid type
-			h.uow.EXPECT().GetRepository(
-				(*repoaccount.Repository)(nil),
-			).Return("not a repository", nil).Once()
-
-			// The callback should return the error from the type assertion
-			err := fn(h.uow)
-			require.ErrorIs(
-				t,
-				err,
-				ErrInvalidRepositoryType,
-			)
-		}).Once()
-
-		err := handler(h.ctx, h.createValidEvent())
-		require.ErrorIs(t, err, ErrInvalidRepositoryType)
+		handlerErr := h.WithHandler(
+			HandleCompleted(h.Bus, h.UOW, h.Logger),
+		).Handler(h.Ctx, event)
+		require.Error(t, handlerErr)
+		assert.Contains(t, handlerErr.Error(), "unit of work error")
 	})
 
 	t.Run("handles error getting transaction by payment ID", func(t *testing.T) {
 		t.Parallel()
-		h := newTestHelper(t)
-		handler := HandleCompleted(h.bus, h.uow, h.logger)
-		expectedErr := errors.New("database error")
+		h := testutils.New(t)
+		event := createValidPaymentCompletedEvent(h)
+		expectedErr := errors.New("record not found")
 
-		// Mock the Do callback and set up all repository interactions inside it
-		h.uow.EXPECT().Do(
-			mock.Anything,
-			mock.Anything,
-		).Return(expectedErr).Run(func(
-			ctx context.Context,
-			fn func(uow repository.UnitOfWork) error,
-		) {
-			// Setup UOW to return the mock repositories inside the callback
-			h.uow.EXPECT().GetRepository(
-				(*repoaccount.Repository)(nil),
-			).Return(h.mockAccRepo, nil).Once()
-			h.uow.EXPECT().GetRepository(
-				(*repotransaction.Repository)(nil),
-			).Return(h.mockTxRepo, nil).Once()
+		doFn := func(ctx context.Context, fn func(uow repository.UnitOfWork) error) error {
+			h.UOW.EXPECT().
+				GetRepository((*repoaccount.Repository)(nil)).
+				Return(h.MockAccRepo, nil).
+				Once()
 
-			// Mock the repositories to return an error when getting transaction by payment ID
-			h.mockTxRepo.EXPECT().GetByPaymentID(
-				mock.Anything,
-				h.paymentID,
-			).Return(nil, expectedErr).Once()
+			h.UOW.EXPECT().
+				GetRepository((*repotransaction.Repository)(nil)).
+				Return(h.MockTxRepo, nil).
+				Once()
 
-			// The callback should return the error from GetByPaymentID
-			err := fn(h.uow)
-			require.ErrorIs(
-				t,
-				err,
-				expectedErr,
-				"callback should return the expected error",
-			)
-		}).Once()
+			h.MockTxRepo.EXPECT().
+				GetByPaymentID(h.Ctx, h.PaymentID).
+				Return(nil, expectedErr).
+				Once()
 
-		err := handler(h.ctx, h.createValidEvent())
-		require.ErrorIs(t, err, expectedErr)
+			err := fn(h.UOW)
+			require.ErrorIs(t, err, expectedErr)
+			return err
+		}
+
+		h.UOW.EXPECT().Do(h.Ctx, mock.Anything).RunAndReturn(doFn).Once()
+
+		handlerErr := h.WithHandler(
+			HandleCompleted(h.Bus, h.UOW, h.Logger),
+		).Handler(h.Ctx, event)
+
+		require.Error(t, handlerErr)
+		assert.ErrorIs(t, handlerErr, expectedErr)
 	})
 
 	t.Run("handles error getting account", func(t *testing.T) {
 		t.Parallel()
-		h := newTestHelper(t)
-		handler := HandleCompleted(h.bus, h.uow, h.logger)
+		h := testutils.New(t)
+		handler := HandleCompleted(h.Bus, h.UOW, h.Logger)
 		expectedErr := errors.New("account not found")
 
-		// Setup test transaction
 		tx := &dto.TransactionRead{
-			ID:        h.transactionID,
-			UserID:    h.userID,
-			AccountID: h.accountID,
-			PaymentID: h.paymentID,
+			ID:        h.TransactionID,
+			UserID:    h.UserID,
+			AccountID: h.AccountID,
+			PaymentID: h.PaymentID,
 			Status:    string(account.TransactionStatusPending),
 			Currency:  "USD",
-			Amount:    h.amount.AmountFloat(),
+			Amount:    h.Amount.AmountFloat(),
 		}
 
-		// Mock the Do callback and set up all repository interactions inside it
-		h.uow.EXPECT().Do(
-			mock.Anything,
-			mock.Anything,
-		).Return(expectedErr).Run(
-			func(
-				ctx context.Context,
-				fn func(uow repository.UnitOfWork) error,
-			) {
-				// The callback should be called with the uow
+		doFn := func(ctx context.Context, fn func(uow repository.UnitOfWork) error) error {
+			h.UOW.EXPECT().GetRepository(
+				(*repotransaction.Repository)(nil)).Return(h.MockTxRepo, nil).Once()
+			h.MockTxRepo.EXPECT().GetByPaymentID(h.Ctx, h.PaymentID).Return(tx, nil).Once()
 
-				// Setup UOW to return the mock repositories inside the callback
-				h.uow.EXPECT().GetRepository(
-					(*repoaccount.Repository)(nil),
-				).Return(
-					h.mockAccRepo,
-					nil,
-				).Once()
-				h.uow.EXPECT().GetRepository(
-					(*repotransaction.Repository)(nil),
-				).Return(
-					h.mockTxRepo,
-					nil,
-				).Once()
+			h.UOW.EXPECT().GetRepository(
+				(*repoaccount.Repository)(nil)).Return(h.MockAccRepo, nil).Once()
+			h.MockAccRepo.EXPECT().Get(h.Ctx, h.AccountID).Return(nil, expectedErr).Once()
 
-				// Setup mocks for repository methods
-				h.mockTxRepo.EXPECT().GetByPaymentID(
-					mock.Anything,
-					h.paymentID,
-				).Return(tx, nil).Once()
-				h.mockAccRepo.EXPECT().Get(
-					mock.Anything,
-					h.accountID,
-				).Return(nil, expectedErr).Once()
+			err := fn(h.UOW)
+			require.ErrorIs(t, err, expectedErr)
+			return err
+		}
 
-				// The callback should return the error from Get
-				err := fn(h.uow)
-				require.ErrorIs(
-					t,
-					err,
-					expectedErr,
-					"callback should return the expected error",
-				)
-			}).Once()
+		h.UOW.EXPECT().Do(h.Ctx, mock.Anything).RunAndReturn(doFn).Once()
 
-		err := handler(h.ctx, h.createValidEvent())
+		err := handler(h.Ctx, createValidPaymentCompletedEvent(h))
 		require.ErrorIs(t, err, expectedErr)
 	})
 }

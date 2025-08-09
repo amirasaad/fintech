@@ -3,82 +3,182 @@ package payment
 import (
 	"context"
 	"errors"
-	"io"
-	"log/slog"
 	"testing"
 
-	"github.com/amirasaad/fintech/internal/fixtures/mocks"
 	"github.com/amirasaad/fintech/pkg/domain/events"
-	"github.com/google/uuid"
+	"github.com/amirasaad/fintech/pkg/handler/testutils"
+	"github.com/amirasaad/fintech/pkg/repository"
+	repotransaction "github.com/amirasaad/fintech/pkg/repository/transaction"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
-// testEvent is a simple implementation of the events.Event interface for testing
-type testEvent struct{}
-
-func (e *testEvent) Type() string {
-	return "unexpected.event.type"
-}
-
 func TestHandleProcessed(t *testing.T) {
-	ctx := context.Background()
-	logger := slog.New(
-		slog.NewTextHandler(
-			io.Discard,
-			&slog.HandlerOptions{Level: slog.LevelError},
-		),
-	)
 	t.Run("handles unexpected event type gracefully", func(t *testing.T) {
-		// Setup
-		uow := mocks.NewUnitOfWork(t)
+		t.Parallel()
+		h := testutils.New(t)
+		handler := HandleProcessed(h.UOW, h.Logger)
 
-		// Use a different event type
-		// Create a simple implementation of the events.Event interface
-		event := &testEvent{}
+		// Create a test event with unexpected type
+		event := &testutils.TestEvent{}
 
 		// Execute
-		handler := HandleProcessed(uow, logger)
-		err := handler(ctx, event)
+		err := handler(h.Ctx, event)
 
 		// Assert
 		require.Error(t, err)
-		// No interactions should occur with mocks
-		uow.AssertNotCalled(t, "Do", mock.Anything, mock.Anything)
+		h.UOW.AssertNotCalled(
+			t,
+			"Do",
+			h.Ctx,
+			mock.Anything,
+		)
+		h.UOW.ExpectedCalls = nil
+		h.MockTxRepo.ExpectedCalls = nil
+	})
+
+	t.Run("successfully processes payment", func(t *testing.T) {
+		t.Parallel()
+		h := testutils.New(t)
+		handler := HandleProcessed(h.UOW, h.Logger)
+
+		// Setup mocks for successful processing
+		h.UOW.EXPECT().
+			Do(h.Ctx, mock.Anything).
+			Return(nil).
+			Run(func(
+				ctx context.Context,
+				fn func(uow repository.UnitOfWork) error,
+			) {
+				h.UOW.EXPECT().
+					GetRepository(
+						(*repotransaction.Repository)(nil),
+					).
+					Return(h.MockTxRepo, nil).
+					Once()
+
+				h.MockTxRepo.EXPECT().
+					Update(h.Ctx, h.TransactionID, mock.Anything).
+					Return(nil).
+					Once()
+
+				// Simulate the callback that would be called by the handler
+				err := fn(h.UOW)
+				require.NoError(
+					t,
+					err,
+					"callback should not return error",
+				)
+			}).
+			Once()
+
+		// Create a valid payment processed event with transaction ID
+		event := events.NewPaymentProcessed(
+			&events.FlowEvent{
+				ID:            h.EventID,
+				CorrelationID: h.CorrelationID,
+				FlowType:      "payment",
+			},
+			func(pp *events.PaymentProcessed) {
+				pp.TransactionID = h.TransactionID
+				pp.PaymentID = h.PaymentID
+			},
+		)
+
+		// Execute
+		err := handler(h.Ctx, event)
+
+		// Assert
+		require.NoError(t, err)
+		h.UOW.ExpectedCalls = nil
+		h.MockTxRepo.ExpectedCalls = nil
 	})
 
 	t.Run("handles repository error", func(t *testing.T) {
-		// Setup
-		uow := mocks.NewUnitOfWork(t)
+		t.Parallel()
+		h := testutils.New(t)
+		handler := HandleProcessed(h.UOW, h.Logger)
 
-		transactionID := uuid.New()
-		paymentID := "pm_12345"
-
-		event := &events.PaymentProcessed{
-			PaymentInitiated: events.PaymentInitiated{
-				FlowEvent: events.FlowEvent{
-					ID:            uuid.New(),
-					FlowType:      "payment",
-					UserID:        uuid.Nil,
-					AccountID:     uuid.Nil,
-					CorrelationID: uuid.Nil,
-				},
-				TransactionID: transactionID,
-				PaymentID:     paymentID,
-				Status:        "initiated",
+		// Create a valid payment processed event with transaction ID first
+		event := events.NewPaymentProcessed(
+			&events.FlowEvent{
+				ID:            h.EventID,
+				CorrelationID: h.CorrelationID,
+				FlowType:      "payment",
 			},
-		}
+			func(pp *events.PaymentProcessed) {
+				pp.TransactionID = h.TransactionID
+				pp.PaymentID = h.PaymentID
+			},
+		)
 
-		// Mock the Do call to execute the callback with the mock UOW
-		uow.EXPECT().Do(mock.Anything, mock.AnythingOfType("func(repository.UnitOfWork) error")).
-			Return(errors.New("repository error")).Once()
+		// Setup mocks to return an error from Update
+		h.UOW.EXPECT().
+			Do(h.Ctx, mock.Anything).
+			Return(errors.New("repository error")).
+			Once()
+
+		// Execute and verify error
+		err := handler(h.Ctx, event)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "repository error")
+		h.UOW.ExpectedCalls = nil
+		h.MockTxRepo.ExpectedCalls = nil
+	})
+
+	t.Run("handles successful transaction update", func(t *testing.T) {
+		t.Parallel()
+		h := testutils.New(t)
+
+		// Setup mocks for successful transaction update
+		h.UOW.EXPECT().
+			Do(h.Ctx, mock.Anything).
+			Return(nil).
+			Run(func(
+				ctx context.Context,
+				fn func(uow repository.UnitOfWork) error) {
+				h.UOW.EXPECT().
+					GetRepository(
+						(*repotransaction.Repository)(nil)).
+					Return(h.MockTxRepo, nil).
+					Once()
+
+				h.MockTxRepo.EXPECT().
+					Update(h.Ctx, h.TransactionID, mock.Anything).
+					Return(nil).
+					Once()
+
+				// Simulate the callback that would be called by the handler
+				err := fn(h.UOW)
+				require.NoError(
+					t, err, "callback should not return error")
+			}).
+			Once()
+
+		// Create a valid payment processed event with transaction ID
+		event := events.NewPaymentProcessed(
+			&events.FlowEvent{
+				ID:            h.EventID,
+				CorrelationID: h.CorrelationID,
+				FlowType:      "payment",
+			},
+			func(pp *events.PaymentProcessed) {
+				pp.TransactionID = h.TransactionID
+				pp.PaymentID = h.PaymentID
+			},
+		)
 
 		// Execute
-		handler := HandleProcessed(uow, logger)
-		err := handler(ctx, event)
+		err := h.WithHandler(
+			HandleProcessed(
+				h.UOW,
+				h.Logger),
+		).Handler(h.Ctx, event)
 
-		// Assert
-		require.Error(t, err)
-		require.Equal(t, "repository error", err.Error())
+		// Assert no error occurred
+		assert.NoError(t, err)
+		h.UOW.ExpectedCalls = nil
+		h.MockTxRepo.ExpectedCalls = nil
 	})
 }

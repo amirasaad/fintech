@@ -2,10 +2,11 @@ package provider
 
 import (
 	"fmt"
-	"github.com/amirasaad/fintech/pkg/config"
 	"log/slog"
 	"math"
 	"time"
+
+	"github.com/amirasaad/fintech/pkg/config"
 
 	infra_cache "github.com/amirasaad/fintech/infra/cache"
 	"github.com/amirasaad/fintech/pkg/cache"
@@ -18,7 +19,7 @@ type ExchangeRateService struct {
 	providers []provider.ExchangeRateProvider
 	cache     cache.ExchangeRateCache
 	logger    *slog.Logger
-	cfg       *config.ExchangeRateConfig
+	cfg       *config.ExchangeRate
 	// mu        sync.RWMutex
 }
 
@@ -28,7 +29,7 @@ func NewExchangeRateService(
 	providers []provider.ExchangeRateProvider,
 	cache cache.ExchangeRateCache,
 	logger *slog.Logger,
-	cfg *config.ExchangeRateConfig,
+	cfg *config.ExchangeRate,
 ) *ExchangeRateService {
 	return &ExchangeRateService{
 		providers: providers,

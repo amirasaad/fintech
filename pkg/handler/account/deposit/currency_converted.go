@@ -110,7 +110,14 @@ func HandleCurrencyConverted(
 			)
 			return fmt.Errorf("failed to get account: %w", err)
 		}
-		acc := mapper.MapAccountReadToDomain(accRead)
+		acc, err := mapper.MapAccountReadToDomain(accRead)
+		if err != nil {
+			log.Error(
+				"Failed to map account read to domain",
+				"error", err,
+			)
+			return fmt.Errorf("failed to map account read to domain: %w", err)
+		}
 
 		// Perform domain validation
 		if err := acc.ValidateDeposit(userID, dcc.ConvertedAmount); err != nil {
@@ -138,7 +145,7 @@ func HandleCurrencyConverted(
 			)
 			return fmt.Errorf("failed to emit %s: %w", dv.Type(), err)
 		}
-		pi := events.NewPaymentInitiated(dcc.FlowEvent, func(pi *events.PaymentInitiated) {
+		pi := events.NewPaymentInitiated(&dcc.FlowEvent, func(pi *events.PaymentInitiated) {
 			pi.TransactionID = dcc.TransactionID
 			pi.Amount = dcc.ConvertedAmount
 			pi.UserID = dcc.UserID

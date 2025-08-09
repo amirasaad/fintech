@@ -7,7 +7,7 @@ import (
 	"log/slog"
 
 	"github.com/amirasaad/fintech/pkg/dto"
-	"github.com/amirasaad/fintech/pkg/repository/transaction"
+	"github.com/amirasaad/fintech/pkg/handler/common"
 	"github.com/google/uuid"
 
 	"github.com/amirasaad/fintech/pkg/domain/events"
@@ -58,14 +58,13 @@ func HandleCurrencyConverted(
 
 		// Persist conversion result (stubbed for now)
 		if err := uow.Do(ctx, func(uow repository.UnitOfWork) error {
-			transactionRepoAny, err := uow.GetRepository((*transaction.Repository)(nil))
+			transactionRepo, err := common.GetTransactionRepository(uow, log)
 			if err != nil {
 				return err
 			}
 			// Create money object for transaction amount
 			amount := cc.ConvertedAmount.Amount()
 			currency := cc.ConvertedAmount.Currency().String()
-			transactionRepo := transactionRepoAny.(transaction.Repository)
 			return transactionRepo.Update(ctx, cc.TransactionID, dto.TransactionUpdate{
 				OriginalAmount:   &cc.ConversionInfo.OriginalAmount,
 				Amount:           &amount,

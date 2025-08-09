@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/amirasaad/fintech/pkg/currency"
-	"github.com/amirasaad/fintech/pkg/domain/money"
+	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/google/uuid"
 )
 
@@ -34,6 +34,13 @@ func WithDepositFlowEvent(fe FlowEvent) DepositRequestedOpt {
 // WithDepositTransactionID sets the transaction ID for the deposit
 func WithDepositTransactionID(id uuid.UUID) DepositRequestedOpt {
 	return func(e *DepositRequested) { e.TransactionID = id }
+}
+
+// WithDepositSource is a test helper to set the source on a DepositRequested event
+func WithDepositSource(source string) DepositRequestedOpt {
+	return func(e *DepositRequested) {
+		e.Source = source
+	}
 }
 
 // NewDepositRequested creates a new DepositRequested event with the given

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/amirasaad/fintech/pkg/domain/money"
+	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/google/uuid"
 )
 
@@ -21,6 +21,24 @@ type TransferRequested struct {
 
 func (e *TransferRequested) Type() string {
 	return EventTypeTransferRequested.String()
+}
+
+func (e *TransferRequested) WithDestAccountID(id uuid.UUID) *TransferRequested {
+	return NewTransferRequested(
+		e.UserID,
+		e.AccountID,
+		e.CorrelationID,
+		WithTransferDestAccountID(id),
+	)
+}
+
+func (e *TransferRequested) WithAmount(m money.Money) *TransferRequested {
+	return NewTransferRequested(
+		e.UserID,
+		e.AccountID,
+		e.CorrelationID,
+		WithTransferRequestedAmount(m),
+	)
 }
 
 // Validate checks if the event is valid.

@@ -59,8 +59,7 @@ packages:
   github.com/amirasaad/fintech/pkg/provider:
     config:
       dir: "internal/fixtures/mocks"
-      filename: "provider.go"
       pkgname: "mocks"
-      structname: "{{.InterfaceName}}"
     interfaces:
       ExchangeRateProvider:
+      PaymentProvider:

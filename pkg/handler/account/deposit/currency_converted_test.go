@@ -5,18 +5,11 @@ import (
 	"time"
 
 	"github.com/amirasaad/fintech/pkg/domain/events"
-	"github.com/amirasaad/fintech/pkg/domain/money"
+	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-// WithDepositSource is a test helper to set the source on a DepositRequested event
-func WithDepositSource(source string) events.DepositRequestedOpt {
-	return func(e *events.DepositRequested) {
-		e.Source = source
-	}
-}
 
 func TestDepositCurrencyConverted(t *testing.T) {
 	t.Run("creates valid event with all required fields", func(t *testing.T) {
@@ -36,7 +29,7 @@ func TestDepositCurrencyConverted(t *testing.T) {
 			events.WithDepositAmount(amount),
 			events.WithDepositTransactionID(transactionID),
 			events.WithDepositID(uuid.New()),
-			WithDepositSource("test-source"),
+			events.WithDepositSource("test-source"),
 		)
 
 		// 2. Create the HandleCurrencyConverted event with the same transaction ID
@@ -118,9 +111,6 @@ func TestDepositCurrencyConverted(t *testing.T) {
 			eventType,
 			"type name should match the constant",
 		)
-
-		// Verify the type can be used for registration
-		// The event is already of type *events.DepositCurrencyConverted, no need to assert
 	})
 
 }

@@ -10,7 +10,6 @@ import (
 	"log/slog"
 
 	"github.com/amirasaad/fintech/internal/fixtures/mocks"
-	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/dto"
 	userrepo "github.com/amirasaad/fintech/pkg/repository/user"
 	authsvc "github.com/amirasaad/fintech/pkg/service/auth"
@@ -80,11 +79,29 @@ func TestLogin_Success(t *testing.T) {
 		username,
 		"password", // This must match the password that was hashed to create the hardcoded hash
 	)
-	require.NoError(err, "Login should succeed with correct password")
-	require.NotNil(loggedInUser, "Logged in user should not be nil")
-	assert.Equal(username, loggedInUser.Username, "Returned user should have the correct username")
-	assert.Equal(email, loggedInUser.Email, "Returned user should have the correct email")
-	assert.Equal(userID, loggedInUser.ID, "Returned user should have the correct ID")
+	require.NoError(
+		err,
+		"Login should succeed with correct password",
+	)
+	require.NotNil(
+		loggedInUser,
+		"Logged in user should not be nil",
+	)
+	assert.Equal(
+		username,
+		loggedInUser.Username,
+		"Returned user should have the correct username",
+	)
+	assert.Equal(
+		email,
+		loggedInUser.Email,
+		"Returned user should have the correct email",
+	)
+	assert.Equal(
+		userID,
+		loggedInUser.ID,
+		"Returned user should have the correct ID",
+	)
 }
 
 func TestLogin_InvalidPassword(t *testing.T) {
@@ -161,7 +178,9 @@ func TestGetCurrentUserId_InvalidToken(t *testing.T) {
 	t.Parallel()
 	uow := mocks.NewUnitOfWork(t)
 	logger := slog.Default()
-	jwtStrategy := authsvc.NewJWTStrategy(uow, config.JwtConfig{}, logger)
+	jwtStrategy := authsvc.NewJWTStrategy(uow, &config.Jwt{
+		Secret: "secret",
+	}, logger)
 	s := authsvc.New(uow, jwtStrategy, logger)
 	token := &jwt.Token{}
 	_, err := s.GetCurrentUserId(token)
@@ -172,7 +191,9 @@ func TestGetCurrentUserId_MissingClaim(t *testing.T) {
 	t.Parallel()
 	uow := mocks.NewUnitOfWork(t)
 	logger := slog.Default()
-	jwtStrategy := authsvc.NewJWTStrategy(uow, config.JwtConfig{}, logger)
+	jwtStrategy := authsvc.NewJWTStrategy(uow, &config.Jwt{
+		Secret: "secret",
+	}, logger)
 	s := authsvc.New(uow, jwtStrategy, logger)
 	token := jwt.New(jwt.SigningMethodHS256)
 	_, err := s.GetCurrentUserId(token)
@@ -185,11 +206,11 @@ func TestLogin_BasicAuthSuccess(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 	hash, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
-	user := &domain.User{
-		ID:       uuid.New(),
-		Username: "user",
-		Email:    "user@example.com",
-		Password: string(hash),
+	user := &dto.UserRead{
+		ID:             uuid.New(),
+		Username:       "user",
+		Email:          "user@example.com",
+		HashedPassword: string(hash),
 	}
 	authStrategy := mocks.NewStrategy(t)
 	authStrategy.EXPECT().Login(
