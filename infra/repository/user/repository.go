@@ -72,17 +72,31 @@ func (r *repository) Update(
 	id uuid.UUID,
 	uu *dto.UserUpdate,
 ) error {
-	var user User
-	if err := r.db.WithContext(
-		ctx,
-	).Where("id = ?", id).First(&user).Error; err != nil {
-		return err
+	updates := make(map[string]interface{})
+
+	// Only include non-nil fields in the update
+	if uu.Username != nil {
+		updates["username"] = *uu.Username
 	}
-	user.Username = *uu.Username
-	user.Email = *uu.Email
-	user.Names = *uu.Names
-	user.Password = *uu.Password
-	return r.db.WithContext(ctx).Save(&user).Error
+	if uu.Email != nil {
+		updates["email"] = *uu.Email
+	}
+	if uu.Names != nil {
+		updates["names"] = *uu.Names
+	}
+	if uu.Password != nil {
+		updates["password"] = *uu.Password
+	}
+
+	// If no fields to update, return early
+	if len(updates) == 0 {
+		return nil
+	}
+
+	// Update only the specified fields
+	return r.db.WithContext(ctx).Model(&User{}).
+		Where("id = ?", id).
+		Updates(updates).Error
 }
 
 func (r *repository) Create(
