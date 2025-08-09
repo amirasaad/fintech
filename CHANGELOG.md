@@ -1,5 +1,29 @@
 # CHANGELOG
 
+## v1.2.0 (2025-08-09)
+
+### Feat
+
+- **checkout**: add checkout service with session management and webapi integration
+- **auth**: add support for basic auth strategy
+- **api**: initialize currency and checkout registries with Redis support
+- implement payment processing with fees and currency conversion
+- **refactor**: Decompose monolith repository and adopt CQRS
+
+### Fix
+
+- **user**: handle partial updates in user repository
+
+### Refactor
+
+- **testutils**: add checkout registry provider to app deps
+- ♻️ reorganize code structure and improve error handling
+- **app**: convert Deps to pointer type and extract initialization logic
+- **app**: centralize app initialization and dependencies
+- **cmd/server**: restructure main.go into modular initialization functions
+- move config package to pkg/config and update imports
+- **webhooks**: Remove duplicate Stripe webhook logic
+
 ## v1.1.0 (2025-08-05)
 
 ### BREAKING CHANGE
