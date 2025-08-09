@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-// MemoryCache implements RegistryCache using in-memory storage
+// MemoryCache implements Cache using in-memory storage
 type MemoryCache struct {
 	cache map[string]cacheEntry
 	mu    sync.RWMutex
@@ -221,7 +221,7 @@ func (p *FilePersistence) Clear(ctx context.Context) error {
 	return os.Remove(p.filePath)
 }
 
-// SimpleMetrics implements RegistryMetrics using simple counters
+// SimpleMetrics implements Metrics using simple counters
 type SimpleMetrics struct {
 	registrations   int64
 	unregistrations int64
@@ -318,19 +318,19 @@ func (m *SimpleMetrics) GetStats() map[string]interface{} {
 
 // SimpleEventBus implements RegistryEventBus using in-memory event handling
 type SimpleEventBus struct {
-	observers []RegistryObserver
+	observers []Observer
 	mu        sync.RWMutex
 }
 
 // NewSimpleEventBus creates a new simple event bus
 func NewSimpleEventBus() *SimpleEventBus {
 	return &SimpleEventBus{
-		observers: make([]RegistryObserver, 0),
+		observers: make([]Observer, 0),
 	}
 }
 
 // Subscribe adds an observer to the event bus
-func (b *SimpleEventBus) Subscribe(observer RegistryObserver) error {
+func (b *SimpleEventBus) Subscribe(observer Observer) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -339,7 +339,7 @@ func (b *SimpleEventBus) Subscribe(observer RegistryObserver) error {
 }
 
 // Unsubscribe removes an observer from the event bus
-func (b *SimpleEventBus) Unsubscribe(observer RegistryObserver) error {
+func (b *SimpleEventBus) Unsubscribe(observer Observer) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -353,9 +353,9 @@ func (b *SimpleEventBus) Unsubscribe(observer RegistryObserver) error {
 }
 
 // Publish publishes an event to all observers
-func (b *SimpleEventBus) Emit(ctx context.Context, event RegistryEvent) error {
+func (b *SimpleEventBus) Emit(ctx context.Context, event Event) error {
 	b.mu.RLock()
-	observers := make([]RegistryObserver, len(b.observers))
+	observers := make([]Observer, len(b.observers))
 	copy(observers, b.observers)
 	b.mu.RUnlock()
 
@@ -377,7 +377,7 @@ func (b *SimpleEventBus) Emit(ctx context.Context, event RegistryEvent) error {
 	return nil
 }
 
-// SimpleValidator implements RegistryValidator with basic validation
+// SimpleValidator implements Validator with basic validation
 type SimpleValidator struct {
 	requiredMetadata  []string
 	forbiddenMetadata []string
@@ -406,7 +406,10 @@ func (v *SimpleValidator) WithForbiddenMetadata(fields []string) *SimpleValidato
 }
 
 // WithValidator adds a custom validator for a metadata field
-func (v *SimpleValidator) WithValidator(field string, validator func(string) error) *SimpleValidator {
+func (v *SimpleValidator) WithValidator(
+	field string,
+	validator func(string) error,
+) *SimpleValidator {
 	v.validators[field] = validator
 	return v
 }
@@ -453,7 +456,7 @@ func (v *SimpleValidator) ValidateMetadata(ctx context.Context, metadata map[str
 	return nil
 }
 
-// SimpleHealth implements RegistryHealth with basic health checking
+// SimpleHealth implements Health with basic health checking
 type SimpleHealth struct {
 	lastError error
 	mu        sync.RWMutex

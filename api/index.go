@@ -1,26 +1,20 @@
 package handler
 
 import (
-	"context"
 	"log"
 	"log/slog"
 	"net/http"
 
-	"github.com/amirasaad/fintech/app"
-	"github.com/amirasaad/fintech/infra/eventbus"
-
-	"github.com/amirasaad/fintech/config"
-	"github.com/amirasaad/fintech/infra"
-	"github.com/amirasaad/fintech/infra/provider"
-	"github.com/amirasaad/fintech/pkg/currency"
-
-	infra_repository "github.com/amirasaad/fintech/infra/repository"
-
+	"github.com/amirasaad/fintech/infra/initializer"
+	"github.com/amirasaad/fintech/pkg/app"
+	"github.com/amirasaad/fintech/pkg/config"
+	"github.com/amirasaad/fintech/webapi"
 	"github.com/gofiber/fiber/v2/middleware/adaptor"
 )
 
-// Handler is the main entry point of the application. Think of it like the main() method
-func Handler(w http.ResponseWriter, r *http.Request) {
+// Handler_api_index_go is the main entry point of the application.
+// Think of it like the main() method
+func Handler_api_index_go(w http.ResponseWriter, r *http.Request) {
 	// This is needed to set the proper request path in `*fiber.Ctx`
 	r.RequestURI = r.URL.String()
 
@@ -29,44 +23,27 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 
 // building the fiber application
 func handler() http.HandlerFunc {
-	logger := slog.New(slog.NewTextHandler(log.Writer(), &slog.HandlerOptions{Level: slog.LevelDebug}))
-	slog.SetDefault(logger)
-	cfg, err := config.LoadAppConfig(logger)
+	logger := slog.Default()
+	// Load configuration
+	cfg, err := config.Load()
 	if err != nil {
 		logger.Error("Failed to load application configuration", "error", err)
 		log.Fatal(err)
 	}
-	currencyConverter, err := infra.NewExchangeRateSystem(logger, *cfg)
+
+	// Initialize all dependencies
+	deps, err := initializer.InitializeDependencies(cfg)
 	if err != nil {
-		logger.Error("Failed to initialize exchange rate system", "error", err)
-		log.Fatal(err)
-	}
-	// Initialize currency registry
-	ctx := context.Background()
-	currencyRegistry, err := currency.NewCurrencyRegistry(ctx)
-	if err != nil {
-		logger.Error("Failed to initialize currency registry", "error", err)
-		log.Fatal(err)
-	}
-	logger.Info("Currency registry initialized successfully")
-	// Initialize DB connection ONCE
-	db, err := infra.NewDBConnection(cfg.DB, cfg.Env)
-	if err != nil {
-		logger.Error("Failed to initialize database", "error", err)
+		logger.Error("Failed to initialize application dependencies", "error", err)
 		log.Fatal(err)
 	}
 
-	// Create UOW using the shared db
-	uow := infra_repository.NewUoW(db)
+	// Initialize the application
+	a := app.New(deps, cfg)
 
-	a := app.New(config.Deps{
-		Uow:               uow,
-		EventBus:          eventbus.NewMemoryRegistryEventBus(),
-		CurrencyConverter: currencyConverter,
-		CurrencyRegistry:  currencyRegistry,
-		PaymentProvider:   provider.NewMockPaymentProvider(),
-		Logger:            logger,
-		Config:            cfg,
-	})
-	return adaptor.FiberApp(a)
+	// Setup Fiber app with the initialized application
+	fiberApp := webapi.SetupApp(a)
+
+	// Return the Fiber app as an http.Handler
+	return adaptor.FiberApp(fiberApp)
 }

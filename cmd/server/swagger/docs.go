@@ -30,7 +30,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "Creates a new account for the authenticated user. You can specify the currency for the account. Returns the created account details.",
+                "description": "Creates a new account for the authenticated user.",
                 "consumes": [
                     "application/json"
                 ],
@@ -82,7 +82,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "Retrieves the current balance for the specified account. Returns the balance amount and currency.",
+                "description": "Retrieves the current balance for the specified account.",
                 "consumes": [
                     "application/json"
                 ],
@@ -143,7 +143,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "Adds funds to the specified account. Specify the amount, currency, and optional money source. Returns the transaction details.",
+                "description": "Adds funds to the specified account. Specify the amount, currency,",
                 "consumes": [
                     "application/json"
                 ],
@@ -213,7 +213,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "Retrieves a list of transactions for the specified account. Returns an array of transaction details.",
+                "description": "Retrieves a list of transactions for the specified account.",
                 "consumes": [
                     "application/json"
                 ],
@@ -274,7 +274,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "Transfers a specified amount from one account to another. Specify the source and destination account IDs, amount, and currency. Returns the transaction details.",
+                "description": "Transfers a specified amount from one account to another.",
                 "consumes": [
                     "application/json"
                 ],
@@ -350,7 +350,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "Withdraws a specified amount from the user's account. Specify the amount and currency. Returns the transaction details.",
+                "description": "Withdraws a specified amount from the user's account.",
                 "consumes": [
                     "application/json"
                 ],
@@ -441,7 +441,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/currency.CurrencyMeta"
+                            "$ref": "#/definitions/currency.Meta"
                         }
                     },
                     "400": {
@@ -656,7 +656,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/currency.CurrencyMeta"
+                            "$ref": "#/definitions/currency.Meta"
                         }
                     },
                     "500": {
@@ -696,7 +696,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/currency.CurrencyMeta"
+                                "$ref": "#/definitions/currency.Meta"
                             }
                         }
                     },
@@ -743,7 +743,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/currency.CurrencyMeta"
+                                "$ref": "#/definitions/currency.Meta"
                             }
                         }
                     },
@@ -849,7 +849,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/currency.CurrencyMeta"
+                            "$ref": "#/definitions/currency.Meta"
                         }
                     },
                     "400": {
@@ -962,6 +962,46 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/common.ProblemDetails"
+                        }
+                    }
+                }
+            }
+        },
+        "/checkout/sessions/pending": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Retrieves a list of pending checkout sessions for the authenticated user.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "checkout"
+                ],
+                "summary": "Get pending checkout sessions",
+                "responses": {
+                    "200": {
+                        "description": "Pending sessions fetched",
+                        "schema": {
+                            "$ref": "#/definitions/common.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/common.ProblemDetails"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/common.ProblemDetails"
                         }
@@ -1354,7 +1394,7 @@ const docTemplate = `{
                     "description": "Optional: additional error details"
                 },
                 "instance": {
-                    "description": "URI reference that identifies the specific occurrence",
+                    "description": "URI reference",
                     "type": "string"
                 },
                 "status": {
@@ -1387,7 +1427,7 @@ const docTemplate = `{
                 }
             }
         },
-        "currency.CurrencyMeta": {
+        "currency.Meta": {
             "type": "object",
             "properties": {
                 "active": {
@@ -1529,13 +1569,21 @@ const docTemplate = `{
                 }
             }
         }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "description": "\"Enter your Bearer token in the format: ` + "`" + `Bearer {token}` + "`" + `\"",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        }
     }
 }`
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
 	Version:          "1.0.0",
-	Host:             "",
+	Host:             "localhost:3000",
 	BasePath:         "/",
 	Schemes:          []string{},
 	Title:            "Fintech API",

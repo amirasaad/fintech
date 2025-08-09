@@ -1,22 +1,14 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log/slog"
-	"os"
-	"time"
 
-	"github.com/amirasaad/fintech/app"
-
-	"github.com/amirasaad/fintech/config"
-	"github.com/amirasaad/fintech/infra"
-	"github.com/amirasaad/fintech/infra/eventbus"
-	"github.com/amirasaad/fintech/infra/provider"
-	infra_repository "github.com/amirasaad/fintech/infra/repository"
-	"github.com/amirasaad/fintech/pkg/currency"
-
-	"github.com/charmbracelet/log"
+	"github.com/amirasaad/fintech/infra/initializer"
+	"github.com/amirasaad/fintech/pkg/app"
+	"github.com/amirasaad/fintech/pkg/config"
+	"github.com/amirasaad/fintech/webapi"
+	log "github.com/charmbracelet/log"
 )
 
 // @title Fintech API
@@ -35,63 +27,47 @@ import (
 // @name Authorization
 // @description "Enter your Bearer token in the format: `Bearer {token}`"
 func main() {
-	handler := log.NewWithOptions(os.Stdout, log.Options{
-		ReportTimestamp: true,
-		TimeFunction:    log.NowUTC,
-		TimeFormat:      time.Kitchen,
-		ReportCaller:    true,
-		Prefix:          "Server 🗄️ ",
-	})
-	// Setup structured logging
-	logger := slog.New(handler)
-	slog.SetDefault(logger)
-
-	// Load application configuration
-	cfg, err := config.LoadAppConfig(logger)
-	if err != nil {
-		logger.Error("Failed to load application configuration", "error", err)
+	if err := run(); err != nil {
 		log.Fatal(err)
 	}
+}
 
-	logger.Info("Configuration loaded successfully",
-		"database_url_configured", cfg.DB.Url != "",
-		"jwt_expiry", cfg.Jwt.Expiry,
-		"exchange_rate_api_configured", cfg.Exchange.ApiKey != "")
+func run() error {
+	// Load configuration
+	logger := slog.Default()
+	cfg, err := config.Load()
 
-	// Initialize currency registry
-	ctx := context.Background()
-	currencyRegistry, err := currency.NewCurrencyRegistry(ctx)
 	if err != nil {
-		logger.Error("Failed to initialize currency registry", "error", err)
-		log.Fatal(err)
-	}
-	logger.Info("Currency registry initialized successfully")
-
-	// Initialize DB connection ONCE
-	db, err := infra.NewDBConnection(cfg.DB, cfg.Env)
-	if err != nil {
-		logger.Error("Failed to initialize database", "error", err)
-		log.Fatal(err)
+		return fmt.Errorf("failed to load application configuration: %w", err)
 	}
 
-	// Create UOW factory using the shared db
-	uow := infra_repository.NewUoW(db)
-
-	// Create exchange rate system
-	currencyConverter, err := infra.NewExchangeRateSystem(logger, *cfg)
+	// Initialize all dependencies
+	deps, err := initializer.InitializeDependencies(cfg)
 	if err != nil {
-		logger.Error("Failed to initialize exchange rate system", "error", err)
-		log.Fatal(err)
+		return fmt.Errorf("failed to initialize dependencies: %w", err)
 	}
 
-	logger.Info("Starting fintech server", "port", ":3000")
-	log.Fatal(app.New(config.Deps{
-		Uow:               uow,
-		EventBus:          eventbus.NewMemoryRegistryEventBus(),
-		CurrencyConverter: currencyConverter,
-		CurrencyRegistry:  currencyRegistry,
-		Logger:            logger,
-		PaymentProvider:   provider.NewStripePaymentProvider(cfg.PaymentProviders.Stripe.ApiKey, logger),
-		Config:            cfg,
-	}).Listen(fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)))
+	logger.Info(
+		"starting server",
+		"env", cfg.Env,
+		"scheme", cfg.Server.Scheme,
+		"host", cfg.Server.Host,
+		"port", cfg.Server.Port,
+	)
+
+	// Create and start the application
+	app := app.New(deps, cfg)
+
+	// Setup Fiber app with all routes and middleware
+	fiberApp := webapi.SetupApp(app)
+
+	// Start the server
+	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
+	logger.Info("Starting server",
+		"env", cfg.Env,
+		"address", addr,
+		"scheme", cfg.Server.Scheme,
+	)
+
+	return fiberApp.Listen(addr)
 }

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"os"
 	"testing"
 
 	"github.com/amirasaad/fintech/pkg/domain"
@@ -28,10 +27,7 @@ func (s *AccountTestSuite) SetupTest() {
 }
 
 func TestAccountTestSuite(t *testing.T) {
-	if os.Getenv("E2E") == "" {
-		t.Skip("Skipping E2E tests")
-	}
-	suite.Run(t, new(testutils.E2ETestSuite))
+	suite.Run(t, new(AccountTestSuite))
 }
 
 func (s *AccountTestSuite) TestCreateAccount() {
@@ -78,7 +74,12 @@ func (s *AccountTestSuite) TestDeposit() {
 	acc, _ := account.New().WithUserID(user.ID).Build()
 
 	depositBody := `{"amount":100,"currency":"USD", "money_source": "cash"}`
-	resp := s.MakeRequest("POST", fmt.Sprintf("/account/%s/deposit", acc.ID), depositBody, token)
+	resp := s.MakeRequest(
+		"POST",
+		fmt.Sprintf("/account/%s/deposit", acc.ID),
+		depositBody,
+		token,
+	)
 	defer resp.Body.Close() //nolint: errcheck
 	// Assert status 202 Accepted
 	s.Equal(202, resp.StatusCode)
@@ -105,13 +106,25 @@ func (s *AccountTestSuite) TestWithdraw() {
 
 	// Deposit some money first
 	depositBody := `{"amount":100,"currency":"USD","money_source":"Cash"}`
-	depositResp := s.MakeRequest("POST", fmt.Sprintf("/account/%s/deposit", accountID), depositBody, s.token)
+	depositResp := s.MakeRequest(
+		"POST",
+		fmt.Sprintf("/account/%s/deposit", accountID),
+		depositBody,
+		s.token,
+	)
 	defer depositResp.Body.Close() //nolint: errcheck
 	s.Equal(202, depositResp.StatusCode)
 
 	s.Run("Withdraw successfully", func() {
-		withdrawBody := `{"amount":50,"currency":"USD","external_target":{"bank_account_number":"1234567890"}}`
-		resp := s.MakeRequest("POST", fmt.Sprintf("/account/%s/withdraw", accountID), withdrawBody, s.token)
+		withdrawBody := `
+		{"amount":50,"currency":"USD",
+		"external_target":{"bank_account_number":"1234567890"}}`
+		resp := s.MakeRequest(
+			"POST",
+			fmt.Sprintf("/account/%s/withdraw", accountID),
+			withdrawBody,
+			s.token,
+		)
 		defer resp.Body.Close() //nolint: errcheck
 		s.Equal(202, resp.StatusCode)
 		var withdrawResponse common.Response
@@ -120,22 +133,39 @@ func (s *AccountTestSuite) TestWithdraw() {
 	})
 
 	s.Run("Withdraw without auth", func() {
-		withdrawBody := `{"amount":50,"currency":"USD","external_target":{"bank_account_number":"1234567890"}}`
-		resp := s.MakeRequest("POST", fmt.Sprintf("/account/%s/withdraw", accountID), withdrawBody, "")
+		withdrawBody := `
+		{"amount":50,"currency":"USD",
+		"external_target":{"bank_account_number":"1234567890"}}`
+		resp := s.MakeRequest(
+			"POST",
+			fmt.Sprintf("/account/%s/withdraw", accountID),
+			withdrawBody,
+			"",
+		)
 		defer resp.Body.Close() //nolint: errcheck
 		s.Equal(fiber.StatusUnauthorized, resp.StatusCode)
 	})
 
 	s.Run("Withdraw missing external target", func() {
 		withdrawBody := `{"amount":50,"currency":"USD"}`
-		resp := s.MakeRequest("POST", fmt.Sprintf("/account/%s/withdraw", accountID), withdrawBody, s.token)
+		resp := s.MakeRequest(
+			"POST",
+			fmt.Sprintf("/account/%s/withdraw", accountID),
+			withdrawBody,
+			s.token,
+		)
 		defer resp.Body.Close() //nolint: errcheck
 		s.Equal(fiber.StatusBadRequest, resp.StatusCode)
 	})
 
 	s.Run("Withdraw with empty external target", func() {
 		withdrawBody := `{"amount":50,"currency":"USD","external_target":{}}`
-		resp := s.MakeRequest("POST", fmt.Sprintf("/account/%s/withdraw", accountID), withdrawBody, s.token)
+		resp := s.MakeRequest(
+			"POST",
+			fmt.Sprintf("/account/%s/withdraw", accountID),
+			withdrawBody,
+			s.token,
+		)
 		defer resp.Body.Close() //nolint: errcheck
 		s.Equal(fiber.StatusBadRequest, resp.StatusCode)
 	})
@@ -157,13 +187,23 @@ func (s *AccountTestSuite) TestGetBalance() {
 	s.Require().True(ok, "Expected account ID to be present")
 
 	s.Run("Get balance successfully", func() {
-		resp := s.MakeRequest("GET", fmt.Sprintf("/account/%s/balance", accountID), "", s.token)
+		resp := s.MakeRequest(
+			"GET",
+			fmt.Sprintf("/account/%s/balance", accountID),
+			"",
+			s.token,
+		)
 		defer resp.Body.Close() //nolint: errcheck
 		s.Equal(fiber.StatusOK, resp.StatusCode)
 	})
 
 	s.Run("Get balance without auth", func() {
-		resp := s.MakeRequest("GET", fmt.Sprintf("/account/%s/balance", accountID), "", "")
+		resp := s.MakeRequest(
+			"GET",
+			fmt.Sprintf("/account/%s/balance", accountID),
+			"",
+			"",
+		)
 		defer resp.Body.Close() //nolint: errcheck
 		s.Equal(fiber.StatusUnauthorized, resp.StatusCode)
 	})

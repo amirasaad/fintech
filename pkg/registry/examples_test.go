@@ -8,7 +8,7 @@ import (
 // Example demonstrates basic registry usage
 func Example() {
 	// Create a new registry
-	registry := NewRegistry()
+	registry := New()
 
 	// Register some entities
 	registry.Register("user-1", Meta{
@@ -65,7 +65,7 @@ func Example() {
 // Example_second demonstrates global registry functions
 func Example_second() {
 	// Reset the global registry to ensure a clean state for the example
-	globalRegistry = NewRegistry() // This avoids pollution from other tests/examples
+	globalRegistry = New() // This avoids pollution from other tests/examples
 
 	// Use global registry functions
 	Register("global-user", Meta{
@@ -101,7 +101,7 @@ func Example_second() {
 
 // Example_third demonstrates metadata operations
 func Example_third() {
-	registry := NewRegistry()
+	registry := New()
 
 	// Register with metadata
 	registry.Register("product-1", Meta{
@@ -142,7 +142,7 @@ func Example_third() {
 
 // Example_fourth demonstrates entity lifecycle management
 func Example_fourth() {
-	registry := NewRegistry()
+	registry := New()
 
 	// Register an entity
 	registry.Register("entity-1", Meta{

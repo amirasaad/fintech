@@ -36,8 +36,8 @@ Authorization: Bearer {{login.response.body.$.data.$.token}}
 
 
 {
-    "amount": 1000,
-    "currency": "JPY",
+    "amount": 100,
+    "currency": "EUR",
     "money_source": "Cash"
 }
 

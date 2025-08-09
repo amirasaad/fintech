@@ -685,6 +685,35 @@ paths:
                     status: 429
                     detail: "Rate limit exceeded"
                     instance: "/account/{id}/transactions"
+
+  /checkout/sessions/pending:
+    get:
+      consumes:
+        - application/json
+      description:
+        Retrieves a list of pending checkout sessions for the authenticated
+        user.
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: Pending sessions fetched
+          schema:
+            $ref: "#/definitions/common.Response"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/common.ProblemDetails"
+        "500":
+          description: Internal server error
+          schema:
+            $ref: "#/definitions/common.ProblemDetails"
+      security:
+        - Bearer: []
+      summary: Get pending checkout sessions
+      tags:
+        - checkout
+
 components:
   securitySchemes:
     bearerAuth: # arbitrary name for the security scheme

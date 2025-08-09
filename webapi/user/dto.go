@@ -12,7 +12,8 @@ type UpdateUserInput struct {
 	Names string `json:"names" validate:"max=100"`
 }
 
-// PasswordInput represents the request body for password confirmation operations.
+// PasswordInput represents the request body for password
+// confirmation operations.
 type PasswordInput struct {
 	Password string `json:"password" validate:"required"`
 }

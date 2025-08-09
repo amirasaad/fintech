@@ -1,4 +1,4 @@
-package infrarepo // import alias for infra/repository/transaction
+package transaction // import alias for infra/repository/transaction
 
 import (
 	"context"
@@ -8,42 +8,75 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
-
-	"github.com/amirasaad/fintech/infra/repository/model"
 )
 
 type repository struct {
 	db *gorm.DB
 }
 
-// NewRepository creates a new CQRS-style transaction repository using the provided *gorm.DB.
+// New creates a new CQRS-style transaction repository using the provided *gorm.DB.
 func New(db *gorm.DB) repo.Repository {
 	return &repository{db: db}
 }
 
 // Create implements transaction.Repository.
-func (r *repository) Create(ctx context.Context, create dto.TransactionCreate) error {
+func (r *repository) Create(
+	ctx context.Context,
+	create dto.TransactionCreate,
+) error {
 	tx := mapCreateDTOToModel(create)
 	return r.db.WithContext(ctx).Create(&tx).Error
 }
 
 // Update implements transaction.Repository.
-func (r *repository) Update(ctx context.Context, id uuid.UUID, update dto.TransactionUpdate) error {
+func (r *repository) Update(
+	ctx context.Context,
+	id uuid.UUID,
+	update dto.TransactionUpdate,
+) error {
 	updates := mapUpdateDTOToModel(update)
-	return r.db.WithContext(ctx).Model(&model.Transaction{}).Where("id = ?", id).Updates(updates).Error
+	return r.db.WithContext(
+		ctx,
+	).Model(
+		&Transaction{},
+	).Where(
+		"id = ?",
+		id,
+	).Updates(
+		updates,
+	).Error
 }
 
 // PartialUpdate implements transaction.Repository.
-func (r *repository) PartialUpdate(ctx context.Context, id uuid.UUID, update dto.TransactionUpdate) error {
+func (r *repository) PartialUpdate(
+	ctx context.Context,
+	id uuid.UUID,
+	update dto.TransactionUpdate,
+) error {
 	updates := mapUpdateDTOToModel(update)
-	return r.db.WithContext(ctx).Model(&model.Transaction{}).Where("id = ?", id).Updates(updates).Error
+	return r.db.WithContext(
+		ctx,
+	).Model(
+		&Transaction{},
+	).Where(
+		"id = ?",
+		id,
+	).Updates(
+		updates,
+	).Error
 }
 
 // UpsertByPaymentID implements transaction.Repository.
-func (r *repository) UpsertByPaymentID(ctx context.Context, paymentID string, create dto.TransactionCreate) error {
+func (r *repository) UpsertByPaymentID(
+	ctx context.Context,
+	paymentID string,
+	create dto.TransactionCreate,
+) error {
 	tx := mapCreateDTOToModel(create)
 	tx.PaymentID = paymentID
-	return r.db.WithContext(ctx).Clauses(
+	return r.db.WithContext(
+		ctx,
+	).Clauses(
 		clause.OnConflict{
 			Columns:   []clause.Column{{Name: "payment_id"}},
 			DoUpdates: clause.AssignmentColumns([]string{"status", "amount"}),
@@ -52,27 +85,56 @@ func (r *repository) UpsertByPaymentID(ctx context.Context, paymentID string, cr
 }
 
 // Get implements transaction.Repository.
-func (r *repository) Get(ctx context.Context, id uuid.UUID) (*dto.TransactionRead, error) {
-	var tx model.Transaction
-	if err := r.db.WithContext(ctx).First(&tx, "id = ?", id).Error; err != nil {
+func (r *repository) Get(
+	ctx context.Context,
+	id uuid.UUID,
+) (*dto.TransactionRead, error) {
+	var tx Transaction
+	if err := r.db.WithContext(
+		ctx,
+	).First(
+		&tx,
+		"id = ?",
+		id,
+	).Error; err != nil {
 		return nil, err
 	}
 	return mapModelToReadDTO(&tx), nil
 }
 
 // GetByPaymentID implements transaction.Repository.
-func (r *repository) GetByPaymentID(ctx context.Context, paymentID string) (*dto.TransactionRead, error) {
-	var tx model.Transaction
-	if err := r.db.WithContext(ctx).Where("payment_id = ?", paymentID).First(&tx).Error; err != nil {
+func (r *repository) GetByPaymentID(
+	ctx context.Context,
+	paymentID string,
+) (*dto.TransactionRead, error) {
+	var tx Transaction
+	if err := r.db.WithContext(
+		ctx,
+	).Where(
+		"payment_id = ?",
+		paymentID,
+	).First(
+		&tx,
+	).Error; err != nil {
 		return nil, err
 	}
 	return mapModelToReadDTO(&tx), nil
 }
 
 // ListByUser implements transaction.Repository.
-func (r *repository) ListByUser(ctx context.Context, userID uuid.UUID) ([]*dto.TransactionRead, error) {
-	var txs []model.Transaction
-	if err := r.db.WithContext(ctx).Where("user_id = ?", userID).Find(&txs).Error; err != nil {
+func (r *repository) ListByUser(
+	ctx context.Context,
+	userID uuid.UUID,
+) ([]*dto.TransactionRead, error) {
+	var txs []Transaction
+	if err := r.db.WithContext(
+		ctx,
+	).Where(
+		"user_id = ?",
+		userID,
+	).Find(
+		&txs,
+	).Error; err != nil {
 		return nil, err
 	}
 	result := make([]*dto.TransactionRead, 0, len(txs))
@@ -83,9 +145,19 @@ func (r *repository) ListByUser(ctx context.Context, userID uuid.UUID) ([]*dto.T
 }
 
 // ListByAccount implements transaction.Repository.
-func (r *repository) ListByAccount(ctx context.Context, accountID uuid.UUID) ([]*dto.TransactionRead, error) {
-	var txs []model.Transaction
-	if err := r.db.WithContext(ctx).Where("account_id = ?", accountID).Find(&txs).Error; err != nil {
+func (r *repository) ListByAccount(
+	ctx context.Context,
+	accountID uuid.UUID,
+) ([]*dto.TransactionRead, error) {
+	var txs []Transaction
+	if err := r.db.WithContext(
+		ctx,
+	).Where(
+		"account_id = ?",
+		accountID,
+	).Find(
+		&txs,
+	).Error; err != nil {
 		return nil, err
 	}
 	result := make([]*dto.TransactionRead, 0, len(txs))
@@ -97,8 +169,8 @@ func (r *repository) ListByAccount(ctx context.Context, accountID uuid.UUID) ([]
 
 // --- Mappers ---
 
-func mapCreateDTOToModel(create dto.TransactionCreate) model.Transaction {
-	return model.Transaction{
+func mapCreateDTOToModel(create dto.TransactionCreate) Transaction {
+	return Transaction{
 		ID:          create.ID,
 		UserID:      create.UserID,
 		AccountID:   create.AccountID,
@@ -114,8 +186,20 @@ func mapUpdateDTOToModel(update dto.TransactionUpdate) map[string]any {
 	if update.Status != nil {
 		updates["status"] = *update.Status
 	}
+	if update.Amount != nil {
+		updates["amount"] = *update.Amount
+	}
+	if update.Currency != nil {
+		updates["currency"] = *update.Currency
+	}
+	if update.Balance != nil {
+		updates["balance"] = *update.Balance
+	}
 	if update.PaymentID != nil {
 		updates["payment_id"] = *update.PaymentID
+	}
+	if update.Fee != nil {
+		updates["fee"] = *update.Fee
 	}
 	if update.ConversionRate != nil {
 		updates["conversion_rate"] = update.ConversionRate
@@ -131,7 +215,7 @@ func mapUpdateDTOToModel(update dto.TransactionUpdate) map[string]any {
 	return updates
 }
 
-func mapModelToReadDTO(tx *model.Transaction) *dto.TransactionRead {
+func mapModelToReadDTO(tx *Transaction) *dto.TransactionRead {
 	return &dto.TransactionRead{
 		ID:        tx.ID,
 		UserID:    tx.UserID,

@@ -1,32 +1,28 @@
 <p align="center">
-  <img src="docs/assets/fintech-banner.svg" alt="Fintech Platform Banner"/>
+  <img src="docs/assets/fintech-banner.svg" alt="Fintech Platform Banner" width="600"/>
 </p>
-<h2 align="center">A modern, event-driven fintech platform for learning, prototyping, and experimentation.</h2>
+<h1 align="center">Fintech Platform</h1>
+<h3 align="center">A modern, event-driven fintech platform for learning, prototyping, and experimentation</h3>
 
 <p align="center">
-  <a href="https://github.com/your-org/fintech/actions">
-    <img src="https://img.shields.io/github/actions/workflow/status/amirasaad/fintech/build.yml?style=flat&logo=github" alt="CI Status"/>
+  <a href="https://github.com/amirasaad/fintech/actions/workflows/build.yml">
+    <img src="https://github.com/amirasaad/fintech/actions/workflows/build.yml/badge.svg" alt="Build Status"/>
   </a>
   <a href="https://goreportcard.com/report/github.com/amirasaad/fintech">
     <img src="https://goreportcard.com/badge/github.com/amirasaad/fintech" alt="Go Report Card"/>
   </a>
-  <a href="https://codecov.io/github/amirasaad/fintech">
-    <img src="https://codecov.io/github/amirasaad/fintech/graph/badge.svg?token=iuU1Fm5BwG" alt="codecov"/>
+  <a href="https://codecov.io/gh/amirasaad/fintech">
+    <img src="https://codecov.io/gh/amirasaad/fintech/branch/main/graph/badge.svg?token=iuU1Fm5BwG" alt="Code Coverage"/>
   </a>
-  <a href="https://conventionalcommits.org">
-    <img src="https://img.shields.io/badge/Conventional%20Commits-1.0.0-blue?style=flat&logo=git" alt="Conventional Commits"/>
+  <a href="https://pkg.go.dev/github.com/amirasaad/fintech">
+    <img src="https://pkg.go.dev/badge/github.com/amirasaad/fintech" alt="Go Reference"/>
   </a>
-  <a href="https://squidfunk.github.io/mkdocs-material/">
-    <img src="https://img.shields.io/badge/MkDocs%20Material-9.x-blueviolet?style=flat&logo=readthedocs" alt="MkDocs Material"/>
+  <a href="https://golang.org/dl/">
+    <img src="https://img.shields.io/badge/Go-1.22+-00ADD8?style=flat&logo=go" alt="Go Version"/>
   </a>
-  <img src="https://img.shields.io/badge/Go-1.22-blue?style=flat&logo=go" alt="Go"/>
-  <img src="https://img.shields.io/badge/Fiber-2.x-00BFFF?style=flat&logo=fiber"/>
-  <img src="https://img.shields.io/badge/GORM-ORM-ff69b4?style=flat&logo=sqlite"/>
-  <img src="https://img.shields.io/badge/PostgreSQL-Database-336791?style=flat&logo=postgresql"/>
-  <img src="https://img.shields.io/badge/Redis-Cache-DC382D?style=flat&logo=redis"/>
-  <img src="https://img.shields.io/badge/JWT-Auth-000000?style=flat&logo=jsonwebtokens"/>
-   <img src="https://img.shields.io/badge/Tested%20with-Testify-38C871?style=flat&logo=go" alt="Tested with Testify"/>
-
+  <a href="https://github.com/amirasaad/fintech/blob/main/LICENSE">
+    <img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License"/>
+  </a>
 </p>
 
 > **A modern, event-driven fintech platform for learning, prototyping, and experimentation.**
@@ -68,6 +64,7 @@ This project uses a clean, DRY, and SRP-compliant event-driven architecture for 
 - **Extensibility:** New flows can be added by defining new event types and handlers, or by extending interfaces if logic is shared.
 
 **Design Lessons:**
+
 - Prefer explicit handler registration over central switch/if statements for extensibility and SRP.
 - Use interfaces for shared event contracts when multiple event types trigger the same logic.
 - Only refactor to interfaces when you have multiple stable use cases (YAGNI principle).
@@ -84,61 +81,53 @@ This project uses a robust event-driven architecture for all account flows (depo
 ### Current Event Flows
 
 - **Deposit:**
-  1. `DepositRequestedEvent`
-  2. `DepositValidatedEvent`
-  3. `DepositPersistedEvent`
-  4. `DepositBusinessValidationEvent`
-  5. `DepositBusinessValidatedEvent`
-  6. `PaymentInitiatedEvent`
+  1. `Deposit.Requested` - Initial deposit request
+  2. `Deposit.CurrencyConverted` - Deposit record created in database
+  3. `Deposit.Validated` - Input validation completed
+  4. `Payment.Initiated` - Payment processing started with provider
 
 - **Withdraw:**
-  1. `WithdrawRequestedEvent`
-  2. `WithdrawValidatedEvent`
-  3. `WithdrawPersistedEvent`
-  4. `WithdrawBusinessValidationEvent`
-  5. `WithdrawBusinessValidatedEvent`
-  6. `PaymentInitiatedEvent`
+  1. `Withdraw.Requested` - Initial withdraw request
+  2. `Withdraw.CurrencyConverted` - Withdraw record created in database
+  3. `Withdraw.Validated` - Input validation completed
+  4. `Payment.Initiated` - Payment processing started with provider
 
 - **Transfer:**
-  1. `TransferRequestedEvent`
-  2. `TransferValidatedEvent`
-  3. `TransferDomainOpDoneEvent`
-  4. `TransferConversionDoneEvent` (via `TransferBusinessValidatedEvent`)
-  5. `TransferCompletedEvent`
+  1. `Transfer.Requested` - Initial transfer request
+  2. `Transfer.CurrencyConverted` - Conversion completed
+  3. `Transfer.Validated` - Input validation completed
+  4. `Transfer.Completed` - Transfer completed
 
 ### Mermaid Diagram
 
 ```mermaid
 flowchart TD
     subgraph Deposit
-        DREQ[DepositRequestedEvent] --> DVAL[DepositValidatedEvent]
-        DVAL --> DPERS[DepositPersistedEvent]
-        DPERS --> DBUSVAL[DepositBusinessValidationEvent]
-        DBUSVAL --> DBVAL[DepositBusinessValidatedEvent]
-        DBVAL --> PINIT[PaymentInitiatedEvent]
+        DR[Deposit.Requested] --> DC[Deposit.CurrencyConverted]
+        DC --> DV[Deposit.Validated]
+        DV --> PI[Payment.Initiated]
     end
     subgraph Withdraw
-        WREQ[WithdrawRequestedEvent] --> WVAL[WithdrawValidatedEvent]
-        WVAL --> WPERS[WithdrawPersistedEvent]
-        WPERS --> WBUSVAL[WithdrawBusinessValidationEvent]
-        WBUSVAL --> WBVAL[WithdrawBusinessValidatedEvent]
-        WBVAL --> PINIT2[PaymentInitiatedEvent]
+        WR[Withdraw.Requested] --> WC[Withdraw.CurrencyConverted]
+        WC --> WV[Withdraw.Validated]
+        WV --> PI2[Payment.Initiated]
     end
     subgraph Transfer
-        TREQ[TransferRequestedEvent] --> TVAL[TransferValidatedEvent]
-        TVAL --> TDONE[TransferDomainOpDoneEvent]
-        TDONE --> TCONV[TransferConversionDoneEvent]
-        TCONV --> TCOMP[TransferCompletedEvent]
+        TR[Transfer.Requested] --> TV[Transfer.Validated]
+        TV --> TC[Transfer.CurrencyConverted]
+        TC --> TC[Transfer.Completed]
     end
 ```
 
 ### Handler Responsibilities
+
 - Each handler is responsible for a single event type and emits the next event in the flow.
 - Handlers use structured, emoji-rich logging for traceability.
 - All event structs embed a common `FlowEvent` for shared fields (UserID, AccountID, CorrelationID, FlowType).
 - All IDs and correlation IDs use `uuid.UUID`.
 
 ### Testing & Static Analysis
+
 - E2E event flow tests verify the full event chain for each flow.
 - Static analysis detects event cycles and is integrated into pre-commit hooks.
 - All handlers and event flows are covered by unit and integration tests.

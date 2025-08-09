@@ -87,7 +87,7 @@ flowchart TD
   - Deposit amount is positive
   - Account is in valid state for deposits
 
-### 2. Persistence Handler (`pkg/handler/account/deposit/persistence.go`)
+### 2. HandleProcessed Handler (`pkg/handler/account/deposit/persistence.go`)
 
 - **Purpose:** Persists deposit transaction to database
 - **Events Consumed:** `DepositValidatedEvent`
@@ -116,7 +116,7 @@ flowchart TD
   - Integrates with payment providers (e.g., Stripe)
   - Creates payment intent/session
 
-### 5. Payment Persistence Handler (`pkg/handler/payment/persistence.go`)
+### 5. Payment HandleProcessed Handler (`pkg/handler/payment/persistence.go`)
 
 - **Purpose:** Persists payment ID to transaction record
 - **Events Consumed:** `PaymentInitiatedEvent`
@@ -260,7 +260,7 @@ func TestDepositE2EEventFlow(t *testing.T) {
 - Invalid user ID → Handler logs error, returns validation error
 - Negative amount → Handler logs error, returns validation error
 
-### Persistence Failures
+### HandleProcessed Failures
 - Database error → Handler logs error, returns error (stops flow)
 - Transaction creation fails → Handler logs error, returns error
 

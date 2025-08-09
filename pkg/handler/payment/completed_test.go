@@ -3,49 +3,134 @@ package payment
 import (
 	"context"
 	"errors"
-	"log/slog"
 	"testing"
 
-	"github.com/amirasaad/fintech/internal/fixtures/mocks"
-	"github.com/amirasaad/fintech/pkg/domain/events"
-	"github.com/google/uuid"
+	"github.com/amirasaad/fintech/pkg/domain/account"
+	"github.com/amirasaad/fintech/pkg/dto"
+	"github.com/amirasaad/fintech/pkg/handler/testutils"
+	"github.com/amirasaad/fintech/pkg/repository"
+	repoaccount "github.com/amirasaad/fintech/pkg/repository/account"
+	repotransaction "github.com/amirasaad/fintech/pkg/repository/transaction"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
-type mockEvent struct{}
-
-func (m *mockEvent) Type() string { return "mockEvent" }
-
 func TestCompletedHandler(t *testing.T) {
-	ctx := context.Background()
-	logger := slog.Default()
-	bus := mocks.NewMockBus(t)
-	mUow := mocks.NewMockUnitOfWork(t)
 
-	validEvent := &events.PaymentCompletedEvent{
-		ID:            uuid.New(),
-		PaymentID:     "pay_123",
-		CorrelationID: uuid.New(),
-	}
+	t.Run("successfully processes payment completion", func(t *testing.T) {
+		t.Parallel()
+		h := testutils.New(t)
+		event := createValidPaymentCompletedEvent(h)
+
+		// Setup test data and mocks using the helper function
+		setupSuccessfulTest(h)
+
+		// Call the handler
+		handlerErr := h.WithHandler(
+			HandleCompleted(h.Bus, h.UOW, h.Logger),
+		).Handler(h.Ctx, event)
+		require.NoError(t, handlerErr)
+		h.AssertExpectations()
+	})
 
 	t.Run("returns nil for incorrect event type", func(t *testing.T) {
-		h := Completed(bus, mUow, logger)
-		err := h(ctx, &mockEvent{})
-		assert.NoError(t, err)
+		t.Parallel()
+		h := testutils.New(t)
+		err := h.WithHandler(
+			HandleCompleted(h.Bus, h.UOW, h.Logger),
+		).Handler(h.Ctx, &testutils.TestEvent{})
+		require.NoError(t, err)
 	})
 
 	t.Run("handles error from unit of work", func(t *testing.T) {
-		h := Completed(bus, mUow, logger)
-		mUow.On("Do", ctx, mock.Anything).Return(errors.New("uow error")).Once()
-		err := h(ctx, validEvent)
-		assert.Error(t, err)
+		t.Parallel()
+		h := testutils.New(t)
+		event := createValidPaymentCompletedEvent(h)
+
+		// Setup mock expectations
+		h.UOW.EXPECT().
+			Do(h.Ctx, mock.Anything).
+			Return(errors.New("unit of work error")).
+			Once()
+
+		handlerErr := h.WithHandler(
+			HandleCompleted(h.Bus, h.UOW, h.Logger),
+		).Handler(h.Ctx, event)
+		require.Error(t, handlerErr)
+		assert.Contains(t, handlerErr.Error(), "unit of work error")
 	})
 
-	t.Run("handles successful event", func(t *testing.T) {
-		h := Completed(bus, mUow, logger)
-		mUow.On("Do", ctx, mock.Anything).Return(nil).Once()
-		err := h(ctx, validEvent)
-		assert.NoError(t, err)
+	t.Run("handles error getting transaction by payment ID", func(t *testing.T) {
+		t.Parallel()
+		h := testutils.New(t)
+		event := createValidPaymentCompletedEvent(h)
+		expectedErr := errors.New("record not found")
+
+		doFn := func(ctx context.Context, fn func(uow repository.UnitOfWork) error) error {
+			h.UOW.EXPECT().
+				GetRepository((*repoaccount.Repository)(nil)).
+				Return(h.MockAccRepo, nil).
+				Once()
+
+			h.UOW.EXPECT().
+				GetRepository((*repotransaction.Repository)(nil)).
+				Return(h.MockTxRepo, nil).
+				Once()
+
+			h.MockTxRepo.EXPECT().
+				GetByPaymentID(h.Ctx, h.PaymentID).
+				Return(nil, expectedErr).
+				Once()
+
+			err := fn(h.UOW)
+			require.ErrorIs(t, err, expectedErr)
+			return err
+		}
+
+		h.UOW.EXPECT().Do(h.Ctx, mock.Anything).RunAndReturn(doFn).Once()
+
+		handlerErr := h.WithHandler(
+			HandleCompleted(h.Bus, h.UOW, h.Logger),
+		).Handler(h.Ctx, event)
+
+		require.Error(t, handlerErr)
+		assert.ErrorIs(t, handlerErr, expectedErr)
+	})
+
+	t.Run("handles error getting account", func(t *testing.T) {
+		t.Parallel()
+		h := testutils.New(t)
+		handler := HandleCompleted(h.Bus, h.UOW, h.Logger)
+		expectedErr := errors.New("account not found")
+
+		tx := &dto.TransactionRead{
+			ID:        h.TransactionID,
+			UserID:    h.UserID,
+			AccountID: h.AccountID,
+			PaymentID: h.PaymentID,
+			Status:    string(account.TransactionStatusPending),
+			Currency:  "USD",
+			Amount:    h.Amount.AmountFloat(),
+		}
+
+		doFn := func(ctx context.Context, fn func(uow repository.UnitOfWork) error) error {
+			h.UOW.EXPECT().GetRepository(
+				(*repotransaction.Repository)(nil)).Return(h.MockTxRepo, nil).Once()
+			h.MockTxRepo.EXPECT().GetByPaymentID(h.Ctx, h.PaymentID).Return(tx, nil).Once()
+
+			h.UOW.EXPECT().GetRepository(
+				(*repoaccount.Repository)(nil)).Return(h.MockAccRepo, nil).Once()
+			h.MockAccRepo.EXPECT().Get(h.Ctx, h.AccountID).Return(nil, expectedErr).Once()
+
+			err := fn(h.UOW)
+			require.ErrorIs(t, err, expectedErr)
+			return err
+		}
+
+		h.UOW.EXPECT().Do(h.Ctx, mock.Anything).RunAndReturn(doFn).Once()
+
+		err := handler(h.Ctx, createValidPaymentCompletedEvent(h))
+		require.ErrorIs(t, err, expectedErr)
 	})
 }

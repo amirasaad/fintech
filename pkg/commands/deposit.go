@@ -3,8 +3,8 @@ package commands
 
 import "github.com/google/uuid"
 
-// DepositCommand is a DTO for deposit operations (command pattern).
-type DepositCommand struct {
+// Deposit is a DTO for deposit operations (command pattern).
+type Deposit struct {
 	UserID      uuid.UUID
 	AccountID   uuid.UUID
 	Amount      float64

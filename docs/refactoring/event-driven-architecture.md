@@ -21,7 +21,7 @@ Our fintech application follows an event-driven architecture that decouples busi
 Events flow through a chain of handlers, each responsible for a specific concern:
 
 ```
-User Request → Validation → Conversion (if needed) → Business Validation → Payment/Domain Op → Persistence
+User Request → Validation → Conversion (if needed) → Business Validation → Payment/Domain Op → HandleProcessed
 ```
 
 ### 3. Multi-Currency Handling
@@ -36,44 +36,32 @@ User Request → Validation → Conversion (if needed) → Business Validation �
 
 ```mermaid
 graph TD
-    A[Deposit Request] --> B[DepositValidatedEvent]
-    B --> C{Currency Match?}
-    C -->|No| D[ConversionRequestedEvent]
-    C -->|Yes| E[DepositConversionDoneEvent]
-    D --> F[ConversionDoneEvent]
-    F --> E
-    E --> G[PaymentInitiatedEvent]
-    G --> H[PaymentCompletedEvent]
-    H --> I[DepositPersistedEvent]
+    A[DepositRequested] --> B[CurrencyConversionRequested]
+    B --> C[CurrencyConverted]
+    C --> D[DepositCurrencyConverted]
+    D --> E[DepositBusinessValidated]
+    E --> F[PaymentInitiated]
 ```
 
 ### Withdraw Flow
 
 ```mermaid
 graph TD
-    A[Withdraw Request] --> B[WithdrawValidatedEvent]
-    B --> C{Currency Match?}
-    C -->|No| D[ConversionRequestedEvent]
-    C -->|Yes| E[WithdrawConversionDoneEvent]
-    D --> F[ConversionDoneEvent]
-    F --> E
-    E --> G[PaymentInitiatedEvent]
-    G --> H[PaymentCompletedEvent]
-    H --> I[WithdrawPersistedEvent]
+    A[WithdrawRequested] --> B[CurrencyConversionRequested]
+    B --> C[CurrencyConverted]
+    C --> D[WithdrawCurrencyConverted]
+    D --> E[WithdrawBusinessValidated]
+    E --> F[PaymentInitiated]
 ```
 
 ### Transfer Flow
 
 ```mermaid
 graph TD
-    A[Transfer Request] --> B[TransferValidatedEvent]
-    B --> C{Currency Match?}
-    C -->|No| D[ConversionRequestedEvent]
-    C -->|Yes| E[TransferConversionDoneEvent]
-    D --> F[ConversionDoneEvent]
-    F --> E
-    E --> G[TransferDomainOpDoneEvent]
-    G --> H[TransferPersistedEvent]
+    A[TransferRequested] --> B[CurrencyConversionRequested]
+    B --> C[CurrencyConverted]
+    C --> D[TransferCurrencyConverted]
+    D --> E[TransferCompleted]
 ```
 
 ## Key Design Decisions
@@ -87,7 +75,7 @@ graph TD
 - Has no side effects
 - Doesn't trigger payment processing
 - Can be used by any business operation
-- Emits generic `ConversionRequestedEvent` and `ConversionDoneEvent`
+- Emits generic `CurrencyConversionRequested` and `CurrencyConverted`
 
 **Benefits**:
 
@@ -118,8 +106,8 @@ graph TD
 
 **Solution**: Payment initiation is triggered by business validation events:
 
-- `WithdrawValidatedEvent` triggers payment for withdrawals
-- `DepositValidatedEvent` triggers payment for deposits
+- `WithdrawBusinessValidated` triggers payment for withdrawals
+- `DepositBusinessValidated` triggers payment for deposits
 - Business validation ensures all rules pass before payment
 
 **Benefits**:
@@ -132,14 +120,14 @@ graph TD
 
 **Generic Events** (reusable):
 
-- `ConversionRequestedEvent`
-- `ConversionDoneEvent`
+- `CurrencyConversionRequested`
+- `CurrencyConverted`
 
 **Business-Specific Events** (context-aware):
 
-- `DepositConversionDoneEvent`
-- `WithdrawConversionDoneEvent`
-- `TransferConversionDoneEvent`
+- `DepositCurrencyConverted`
+- `WithdrawCurrencyConverted`
+- `TransferCurrencyConverted`
 
 **Benefits**:
 
@@ -152,42 +140,40 @@ graph TD
 ### Generic Conversion Events
 
 ```go
-type ConversionRequestedEvent struct {
-    EventID     string
-    FromAmount  money.Money
-    ToCurrency  currency.Currency
-    RequestID   string
+type CurrencyConversionRequested struct {
+    FlowEvent
+    Amount        money.Money
+    To            currency.Code
+    TransactionID uuid.UUID
 }
 
-type ConversionDoneEvent struct {
-    EventID     string
-    FromAmount  money.Money
-    ToAmount    money.Money
-    RequestID   string
+type CurrencyConverted struct {
+    FlowEvent
+    TransactionID   uuid.UUID
+    ConvertedAmount money.Money
+    ConversionInfo  *common.ConversionInfo
 }
 ```
 
 ### Business-Specific Events
 
 ```go
-type DepositConversionDoneEvent struct {
-    ConversionDoneEvent
-    UserID      string
-    AccountID   string
+type DepositCurrencyConverted struct {
+    DepositRequested
+    CurrencyConverted
+    Timestamp time.Time
 }
 
-type WithdrawConversionDoneEvent struct {
-    ConversionDoneEvent
-    UserID      string
-    AccountID   string
-    Source      string
+type WithdrawCurrencyConverted struct {
+    WithdrawRequested
+    CurrencyConverted
+    Timestamp time.Time
 }
 
-type TransferConversionDoneEvent struct {
-    ConversionDoneEvent
-    SenderUserID    string
-    SourceAccountID string
-    TargetAccountID string
+type TransferCurrencyConverted struct {
+    TransferRequested
+    CurrencyConverted
+    Timestamp time.Time
 }
 ```
 
@@ -202,7 +188,7 @@ type TransferConversionDoneEvent struct {
 
 ### Business-Specific Conversion Done Handlers
 
-- Handle `*ConversionDoneEvent` events
+- Handle `*CurrencyConverted` events
 - Perform business validation in account currency
 - Emit payment initiation or domain operation events
 - Inject payment providers and domain services
@@ -214,7 +200,7 @@ type TransferConversionDoneEvent struct {
 - Emit payment completion events
 - Handle payment failures
 
-### Persistence Handlers
+### HandleProcessed Handlers
 
 - Handle domain operation completion events
 - Persist transactions using Unit of Work

@@ -3,20 +3,30 @@ package registry
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 )
 
-// RegistryFactoryImpl implements RegistryFactory
-type RegistryFactoryImpl struct{}
+// FactoryImpl implements RegistryFactory
+type FactoryImpl struct{}
 
 // NewRegistryFactory creates a new registry factory
-func NewRegistryFactory() RegistryFactory {
-	return &RegistryFactoryImpl{}
+func NewRegistryFactory() Factory {
+	return &FactoryImpl{}
 }
 
 // Create creates a basic registry with the given configuration
-func (f *RegistryFactoryImpl) Create(ctx context.Context, config RegistryConfig) (RegistryProvider, error) {
-	registry := NewEnhancedRegistry(config)
+func (f *FactoryImpl) Create(
+	ctx context.Context,
+	config Config,
+) (Provider, error) {
+	// If Redis URL is provided, use Redis cache
+	if config.RedisURL != "" {
+		return f.CreateWithRedisCache(ctx, config, config.RedisURL)
+	}
+
+	// Otherwise, use in-memory cache
+	registry := NewEnhanced(config)
 
 	// Add default implementations if not provided
 	if config.EnableValidation {
@@ -35,8 +45,12 @@ func (f *RegistryFactoryImpl) Create(ctx context.Context, config RegistryConfig)
 }
 
 // CreateWithPersistence creates a registry with persistence
-func (f *RegistryFactoryImpl) CreateWithPersistence(ctx context.Context, config RegistryConfig, persistence RegistryPersistence) (RegistryProvider, error) {
-	registry := NewEnhancedRegistry(config)
+func (f *FactoryImpl) CreateWithPersistence(
+	ctx context.Context,
+	config Config,
+	persistence Persistence,
+) (Provider, error) {
+	registry := NewEnhanced(config)
 
 	// Add persistence
 	registry.WithPersistence(persistence)
@@ -67,8 +81,12 @@ func (f *RegistryFactoryImpl) CreateWithPersistence(ctx context.Context, config 
 }
 
 // CreateWithCache creates a registry with custom cache
-func (f *RegistryFactoryImpl) CreateWithCache(ctx context.Context, config RegistryConfig, cache RegistryCache) (RegistryProvider, error) {
-	registry := NewEnhancedRegistry(config)
+func (f *FactoryImpl) CreateWithCache(
+	ctx context.Context,
+	config Config,
+	cache Cache,
+) (Provider, error) {
+	registry := NewEnhanced(config)
 
 	// Add custom cache
 	registry.WithCache(cache)
@@ -85,9 +103,39 @@ func (f *RegistryFactoryImpl) CreateWithCache(ctx context.Context, config Regist
 	return registry, nil
 }
 
+// CreateWithRedisCache creates a registry with Redis cache
+func (f *FactoryImpl) CreateWithRedisCache(
+	ctx context.Context,
+	config Config,
+	redisURL string,
+) (Provider, error) {
+	// Create Redis client
+	redisClient, err := NewRedisClient(redisURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create Redis client: %w", err)
+	}
+
+	// Set default key prefix if not specified
+	keyPrefix := config.RedisKeyPrefix
+	if keyPrefix == "" {
+		keyPrefix = "registry:"
+	} else if keyPrefix != "" && !strings.HasSuffix(keyPrefix, ":") {
+		keyPrefix += ":"
+	}
+
+	// Create Redis cache with TTL and key prefix from config
+	redisCache := NewRedisCache(redisClient, keyPrefix, config.CacheTTL)
+
+	return f.CreateWithCache(ctx, config, redisCache)
+}
+
 // CreateWithMetrics creates a registry with metrics
-func (f *RegistryFactoryImpl) CreateWithMetrics(ctx context.Context, config RegistryConfig, metrics RegistryMetrics) (RegistryProvider, error) {
-	registry := NewEnhancedRegistry(config)
+func (f *FactoryImpl) CreateWithMetrics(
+	ctx context.Context,
+	config Config,
+	metrics Metrics,
+) (Provider, error) {
+	registry := NewEnhanced(config)
 
 	// Add metrics
 	registry.WithMetrics(metrics)
@@ -108,9 +156,13 @@ func (f *RegistryFactoryImpl) CreateWithMetrics(ctx context.Context, config Regi
 	return registry, nil
 }
 
-// CreateFullFeatured creates a registry with all features enabled
-func (f *RegistryFactoryImpl) CreateFullFeatured(ctx context.Context, config RegistryConfig) (RegistryProvider, error) {
-	registry := NewEnhancedRegistry(config)
+// CreateFullFeatured creates a registry with all features enabled,
+// including persistence, caching, metrics, and validation.
+func (f *FactoryImpl) CreateFullFeatured(
+	ctx context.Context,
+	config Config,
+) (Provider, error) {
+	registry := NewEnhanced(config)
 
 	// Add all implementations
 	registry.WithValidator(NewSimpleValidator())
@@ -138,8 +190,8 @@ func (f *RegistryFactoryImpl) CreateFullFeatured(ctx context.Context, config Reg
 }
 
 // CreateForTesting creates a registry optimized for testing
-func (f *RegistryFactoryImpl) CreateForTesting(ctx context.Context) (RegistryProvider, error) {
-	config := RegistryConfig{
+func (f *FactoryImpl) CreateForTesting(ctx context.Context) (Provider, error) {
+	config := Config{
 		Name:             "test-registry",
 		MaxEntities:      1000,
 		EnableEvents:     false,
@@ -148,15 +200,19 @@ func (f *RegistryFactoryImpl) CreateForTesting(ctx context.Context) (RegistryPro
 		CacheTTL:         time.Minute,
 	}
 
-	registry := NewEnhancedRegistry(config)
+	registry := NewEnhanced(config)
 	registry.WithValidator(NewSimpleValidator())
 
 	return registry, nil
 }
 
 // CreateForProduction creates a registry optimized for production use
-func (f *RegistryFactoryImpl) CreateForProduction(ctx context.Context, name string, persistencePath string) (RegistryProvider, error) {
-	config := RegistryConfig{
+func (f *FactoryImpl) CreateForProduction(
+	ctx context.Context,
+	name string,
+	persistencePath string,
+) (Provider, error) {
+	config := Config{
 		Name:              name,
 		MaxEntities:       10000,
 		EnableEvents:      true,
@@ -171,9 +227,13 @@ func (f *RegistryFactoryImpl) CreateForProduction(ctx context.Context, name stri
 	return f.CreateFullFeatured(ctx, config)
 }
 
-// CreateForDevelopment creates a registry optimized for development
-func (f *RegistryFactoryImpl) CreateForDevelopment(ctx context.Context, name string) (RegistryProvider, error) {
-	config := RegistryConfig{
+// CreateForDevelopment creates a registry with development-friendly
+// defaults, including in-memory storage and verbose logging.
+func (f *FactoryImpl) CreateForDevelopment(
+	ctx context.Context,
+	name string,
+) (Provider, error) {
+	config := Config{
 		Name:             name,
 		MaxEntities:      1000,
 		EnableEvents:     true,
@@ -182,7 +242,7 @@ func (f *RegistryFactoryImpl) CreateForDevelopment(ctx context.Context, name str
 		CacheTTL:         time.Minute,
 	}
 
-	registry := NewEnhancedRegistry(config)
+	registry := NewEnhanced(config)
 	registry.WithValidator(NewSimpleValidator())
 	registry.WithMetrics(NewSimpleMetrics())
 	registry.WithEventBus(NewSimpleEventBus())
@@ -193,9 +253,9 @@ func (f *RegistryFactoryImpl) CreateForDevelopment(ctx context.Context, name str
 // Convenience functions for common registry creation patterns
 
 // NewBasicRegistry creates a basic registry with default settings
-func NewBasicRegistry() RegistryProvider {
+func NewBasicRegistry() Provider {
 	factory := NewRegistryFactory()
-	config := RegistryConfig{
+	config := Config{
 		Name:             "basic-registry",
 		EnableEvents:     true,
 		EnableValidation: true,
@@ -208,9 +268,9 @@ func NewBasicRegistry() RegistryProvider {
 }
 
 // NewPersistentRegistry creates a registry with file persistence
-func NewPersistentRegistry(filePath string) (RegistryProvider, error) {
+func NewPersistentRegistry(filePath string) (Provider, error) {
 	factory := NewRegistryFactory()
-	config := RegistryConfig{
+	config := Config{
 		Name:              "persistent-registry",
 		EnableEvents:      true,
 		EnableValidation:  true,
@@ -226,9 +286,9 @@ func NewPersistentRegistry(filePath string) (RegistryProvider, error) {
 }
 
 // NewCachedRegistry creates a registry with enhanced caching
-func NewCachedRegistry(cacheSize int, cacheTTL time.Duration) RegistryProvider {
+func NewCachedRegistry(cacheSize int, cacheTTL time.Duration) Provider {
 	factory := NewRegistryFactory()
-	config := RegistryConfig{
+	config := Config{
 		Name:             "cached-registry",
 		EnableEvents:     true,
 		EnableValidation: true,
@@ -241,9 +301,9 @@ func NewCachedRegistry(cacheSize int, cacheTTL time.Duration) RegistryProvider {
 }
 
 // NewMonitoredRegistry creates a registry with metrics and monitoring
-func NewMonitoredRegistry(name string) RegistryProvider {
+func NewMonitoredRegistry(name string) Provider {
 	factory := NewRegistryFactory()
-	config := RegistryConfig{
+	config := Config{
 		Name:             name,
 		EnableEvents:     true,
 		EnableValidation: true,
@@ -257,7 +317,7 @@ func NewMonitoredRegistry(name string) RegistryProvider {
 }
 
 // BuildRegistry creates a registry with the built configuration
-func (b *RegistryBuilder) BuildRegistry() (RegistryProvider, error) {
+func (b *Builder) BuildRegistry() (Provider, error) {
 	factory := NewRegistryFactory()
 	return factory.Create(context.Background(), b.Build())
 }

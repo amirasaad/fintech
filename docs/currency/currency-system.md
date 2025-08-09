@@ -113,8 +113,8 @@ ethAccount, err := domain.NewAccountWithCurrency(userID, "ETH")
 
 ```go
 // Create money objects with dynamic currencies
-btcMoney, err := domain.NewMoney(0.001, "BTC")  // 0.001 BTC
-ethMoney, err := domain.NewMoney(0.5, "ETH")    // 0.5 ETH
+btcMoney, err := money.New(0.001, "BTC")  // 0.001 BTC
+ethMoney, err := money.New(0.5, "ETH")    // 0.5 ETH
 
 // Perform operations
 _, err = btcAccount.Deposit(userID, btcMoney)
@@ -198,8 +198,8 @@ if err != nil {
 
 ```go
 // Cannot add different currencies
-usdMoney, _ := domain.NewMoney(100, "USD")
-eurMoney, _ := domain.NewMoney(100, "EUR")
+usdMoney, _ := money.New(100, "USD")
+eurMoney, _ := money.New(100, "EUR")
 sum, err := usdMoney.Add(eurMoney)
 if err != nil {
     // err == domain.ErrInvalidCurrencyCode

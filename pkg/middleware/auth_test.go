@@ -5,15 +5,16 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/amirasaad/fintech/pkg/config"
+
 	"errors"
 
-	"github.com/amirasaad/fintech/config"
 	"github.com/gofiber/fiber/v2"
 )
 
 func TestProtected_Unauthorized(t *testing.T) {
 	app := fiber.New()
-	app.Use(JwtProtected(config.JwtConfig{}))
+	app.Use(JwtProtected(&config.Jwt{}))
 	app.Get("/", func(c *fiber.Ctx) error { return c.SendStatus(fiber.StatusOK) })
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)

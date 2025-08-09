@@ -12,11 +12,12 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/amirasaad/fintech/config"
 	"github.com/amirasaad/fintech/infra"
-	"github.com/amirasaad/fintech/infra/provider"
+	"github.com/amirasaad/fintech/infra/eventbus"
 	infra_repository "github.com/amirasaad/fintech/infra/repository"
+	"github.com/amirasaad/fintech/pkg/app"
 	"github.com/amirasaad/fintech/pkg/commands"
+	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/service/account"
 	"github.com/amirasaad/fintech/pkg/service/auth"
@@ -41,9 +42,13 @@ func main() {
 	}
 
 	// Load application configuration
-	cfg, err := config.LoadAppConfig(logger)
+	cfg, err := config.Load()
 	if err != nil {
-		_, _ = color.New(color.FgRed).Fprintln(os.Stderr, "Failed to load application configuration:", err)
+		_, _ = color.New(
+			color.FgRed,
+		).Fprintln(
+			os.Stderr,
+			"Failed to load application configuration:", err)
 		return
 	}
 
@@ -51,7 +56,6 @@ func main() {
 	if *verbose {
 		logger.Info("Configuration loaded successfully",
 			"database_url", cfg.DB.Url,
-			"jwt_expiry", cfg.Auth,
 			"exchange_rate_api_configured", cfg.Exchange.ApiKey != "")
 	}
 
@@ -62,29 +66,22 @@ func main() {
 		_, _ = color.New(color.FgRed).Fprintln(os.Stderr, "Failed to initialize database:", err)
 		return
 	}
+	// override auth
+	cfg.Auth.Strategy = "basic"
 
 	// Create UOW factory using the shared db
 	uow := infra_repository.NewUoW(db)
+	bus := eventbus.NewWithMemoryAsync(logger)
+	app := app.New(&app.Deps{
+		EventBus: bus,
+		Uow:      uow,
+		Logger:   logger,
+	}, cfg)
 
-	// Create exchange rate system
-	currencyConverter, err := infra.NewExchangeRateSystem(logger, *cfg)
-	if err != nil {
-		_, _ = color.New(color.FgRed).Fprintln(os.Stderr, "Failed to initialize exchange rate system:", err)
-		return
-	}
-
-	scv := account.NewService(config.Deps{
-		Uow:               uow,
-		CurrencyConverter: currencyConverter,
-		Logger:            logger,
-		PaymentProvider:   provider.NewMockPaymentProvider(),
-	})
-	authSvc := auth.NewBasicAuthService(uow, logger)
-
-	cliApp(scv, authSvc)
+	cliApp(app)
 }
 
-func cliApp(scv *account.Service, authSvc *auth.AuthService) {
+func cliApp(app *app.App) {
 	reader := bufio.NewReader(os.Stdin)
 	banner := color.New(color.FgCyan, color.Bold).SprintFunc()
 	prompt := color.New(color.FgGreen, color.Bold).SprintFunc()
@@ -102,11 +99,15 @@ func cliApp(scv *account.Service, authSvc *auth.AuthService) {
 	`))
 
 	for {
-		if !handleLogin(reader, prompt, errorMsg, successMsg, authSvc) {
+		if !handleLogin(reader, prompt, errorMsg, successMsg, app.AuthService) {
 			continue
 		}
 
-		fmt.Println(banner("\nAvailable commands: create, deposit <account_id> <amount>, withdraw <account_id> <amount>, balance <account_id>, logout, exit"))
+		fmt.Println(banner(
+			"Available commands: " +
+				"create, deposit <account_id> <amount>, " +
+				"withdraw <account_id> <amount>," +
+				"balance <account_id>, logout, exit"))
 		fmt.Print(prompt("> "))
 
 		input, _ := reader.ReadString('\n')
@@ -121,11 +122,19 @@ func cliApp(scv *account.Service, authSvc *auth.AuthService) {
 			continue
 		}
 
-		handleCommand(args, scv, errorMsg, successMsg)
+		handleCommand(args, app.AccountService, errorMsg, successMsg)
 	}
 }
 
-func handleLogin(reader *bufio.Reader, prompt, errorMsg, successMsg func(a ...interface{}) string, authSvc *auth.AuthService) bool {
+func handleLogin(
+	reader *bufio.Reader,
+	prompt,
+	errorMsg,
+	successMsg func(
+		a ...any,
+	) string,
+	authSvc *auth.Service,
+) bool {
 	if userID != uuid.Nil {
 		return true
 	}
@@ -155,7 +164,12 @@ func handleLogin(reader *bufio.Reader, prompt, errorMsg, successMsg func(a ...in
 	return true
 }
 
-func handleSpecialCommands(input string, successMsg func(a ...interface{}) string) bool {
+func handleSpecialCommands(
+	input string,
+	successMsg func(
+		a ...any,
+	) string,
+) bool {
 	switch input {
 	case "exit":
 		fmt.Println(successMsg("Goodbye!"))
@@ -170,7 +184,14 @@ func handleSpecialCommands(input string, successMsg func(a ...interface{}) strin
 	}
 }
 
-func handleCommand(args []string, scv *account.Service, errorMsg, successMsg func(a ...interface{}) string) {
+func handleCommand(
+	args []string,
+	scv *account.Service,
+	errorMsg,
+	successMsg func(
+		a ...any,
+	) string,
+) {
 	cmd := args[0]
 
 	switch cmd {
@@ -187,14 +208,20 @@ func handleCommand(args []string, scv *account.Service, errorMsg, successMsg fun
 	}
 }
 
-func handleCreateAccount(scv *account.Service, errorMsg, successMsg func(a ...interface{}) string) {
+func handleCreateAccount(
+	scv *account.Service,
+	errorMsg,
+	successMsg func(
+		a ...any,
+	) string,
+) {
 	a, err := scv.CreateAccount(context.Background(), dto.AccountCreate{UserID: userID})
 	if err != nil {
 		fmt.Println(errorMsg("Error creating a:"), err)
 		return
 	}
 
-	balance, err := scv.GetBalance(userID, a.ID)
+	balance, err := scv.GetBalance(context.Background(), userID, a.ID)
 	if err != nil {
 		fmt.Println(errorMsg("Error fetching a balance:"), err)
 		return
@@ -203,7 +230,14 @@ func handleCreateAccount(scv *account.Service, errorMsg, successMsg func(a ...in
 	fmt.Println(successMsg(fmt.Sprintf("Account created: ID=%s, Balance=%.2f", a.ID, balance)))
 }
 
-func handleDeposit(args []string, scv *account.Service, errorMsg, successMsg func(a ...interface{}) string) {
+func handleDeposit(
+	args []string,
+	scv *account.Service,
+	errorMsg,
+	successMsg func(
+		a ...any,
+	) string,
+) {
 	if len(args) < 3 {
 		fmt.Println(errorMsg("Usage: deposit <account_id> <amount>"))
 		return
@@ -216,7 +250,12 @@ func handleDeposit(args []string, scv *account.Service, errorMsg, successMsg fun
 		return
 	}
 
-	err = scv.Deposit(context.Background(), commands.DepositCommand{})
+	err = scv.Deposit(context.Background(), commands.Deposit{
+		UserID:    userID,
+		AccountID: uuid.MustParse(accountID),
+		Amount:    amount,
+		Currency:  "USD",
+	})
 	if err != nil {
 		fmt.Println(errorMsg("Error depositing:"), err)
 		return
@@ -225,7 +264,14 @@ func handleDeposit(args []string, scv *account.Service, errorMsg, successMsg fun
 	fmt.Println(successMsg(fmt.Sprintf("Deposited %.2f to account %s", amount, accountID)))
 }
 
-func handleWithdraw(args []string, scv *account.Service, errorMsg, successMsg func(a ...interface{}) string) {
+func handleWithdraw(
+	args []string,
+	scv *account.Service,
+	errorMsg,
+	successMsg func(
+		a ...any,
+	) string,
+) {
 	if len(args) < 3 {
 		fmt.Println(errorMsg("Usage: withdraw <account_id> <amount>"))
 		return
@@ -251,7 +297,7 @@ func handleWithdraw(args []string, scv *account.Service, errorMsg, successMsg fu
 	externalWalletAddress, _ := reader.ReadString('\n')
 	externalWalletAddress = strings.TrimSpace(externalWalletAddress)
 
-	err = scv.Withdraw(context.Background(), commands.WithdrawCommand{
+	err = scv.Withdraw(context.Background(), commands.Withdraw{
 		UserID:    userID,
 		AccountID: uuid.MustParse(accountID),
 		Amount:    amount,
@@ -267,17 +313,25 @@ func handleWithdraw(args []string, scv *account.Service, errorMsg, successMsg fu
 		return
 	}
 
-	fmt.Println(successMsg(fmt.Sprintf("Withdrew %.2f from account %s", amount, accountID)))
+	fmt.Println(successMsg(fmt.Sprintf(
+		"Withdrew %.2f from account %s", amount, accountID)))
 }
 
-func handleBalance(args []string, scv *account.Service, errorMsg, successMsg func(a ...interface{}) string) {
+func handleBalance(
+	args []string,
+	scv *account.Service,
+	errorMsg,
+	successMsg func(
+		a ...any,
+	) string,
+) {
 	if len(args) < 2 {
 		fmt.Println(errorMsg("Usage: balance <account_id>"))
 		return
 	}
 
 	accountID := args[1]
-	balance, err := scv.GetBalance(userID, uuid.MustParse(accountID))
+	balance, err := scv.GetBalance(context.Background(), userID, uuid.MustParse(accountID))
 	if err != nil {
 		fmt.Println(errorMsg("Error fetching balance:"), err)
 		return

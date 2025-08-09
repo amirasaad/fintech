@@ -6,24 +6,33 @@ import (
 	"github.com/amirasaad/fintech/pkg/domain"
 )
 
-// RealCurrencyConverter implements the CurrencyConverter interface using real exchange rates.
-type RealCurrencyConverter struct {
+// ExchangeRateCurrencyConverter implements the CurrencyConverter
+// interface using ExchangeRate v6 API.
+type ExchangeRateCurrencyConverter struct {
 	exchangeRateService *ExchangeRateService
 	logger              *slog.Logger
 	fallback            domain.CurrencyConverter
 }
 
-// NewRealCurrencyConverter creates a new real currency converter with fallback support.
-func NewRealCurrencyConverter(exchangeRateService *ExchangeRateService, fallback domain.CurrencyConverter, logger *slog.Logger) *RealCurrencyConverter {
-	return &RealCurrencyConverter{
+// NewExchangeRateCurrencyConverter creates
+// a new ExchangeRateCurrencyConverter with fallback support.
+func NewExchangeRateCurrencyConverter(
+	exchangeRateService *ExchangeRateService,
+	fallback domain.CurrencyConverter,
+	logger *slog.Logger,
+) *ExchangeRateCurrencyConverter {
+	return &ExchangeRateCurrencyConverter{
 		exchangeRateService: exchangeRateService,
 		logger:              logger,
 		fallback:            fallback,
 	}
 }
 
-// Convert converts an amount from one currency to another using real exchange rates.
-func (c *RealCurrencyConverter) Convert(amount float64, from, to string) (*domain.ConversionInfo, error) {
+// Convert converts an amount from one currency to another using ExchangeRate v6 API.
+func (c *ExchangeRateCurrencyConverter) Convert(
+	amount float64,
+	from, to string,
+) (*domain.ConversionInfo, error) {
 	if from == to {
 		return &domain.ConversionInfo{
 			OriginalAmount:    amount,
@@ -37,7 +46,12 @@ func (c *RealCurrencyConverter) Convert(amount float64, from, to string) (*domai
 	// Try to get real exchange rate
 	rate, err := c.exchangeRateService.GetRate(from, to)
 	if err != nil {
-		c.logger.Warn("Failed to get real exchange rate, falling back", "from", from, "to", to, "error", err)
+		c.logger.Warn(
+			"Failed to get real exchange rate, falling back",
+			"from", from,
+			"to", to,
+			"error", err,
+		)
 
 		// Use fallback converter
 		if c.fallback != nil {
@@ -49,9 +63,15 @@ func (c *RealCurrencyConverter) Convert(amount float64, from, to string) (*domai
 
 	convertedAmount := amount * rate.Rate
 
-	c.logger.Info("Currency conversion completed",
-		"from", from, "to", to, "amount", amount,
-		"converted", convertedAmount, "rate", rate.Rate, "source", rate.Source)
+	c.logger.Info(
+		"Currency conversion completed",
+		"from", from,
+		"to", to,
+		"amount", amount,
+		"converted", convertedAmount,
+		"rate", rate.Rate,
+		"source", rate.Source,
+	)
 
 	return &domain.ConversionInfo{
 		OriginalAmount:    amount,
@@ -62,15 +82,23 @@ func (c *RealCurrencyConverter) Convert(amount float64, from, to string) (*domai
 	}, nil
 }
 
-// GetRate returns the current exchange rate between two currencies.
-func (c *RealCurrencyConverter) GetRate(from, to string) (float64, error) {
+// GetRate returns the current exchange rate between two currencies
+// using ExchangeRate v6 API.
+func (c *ExchangeRateCurrencyConverter) GetRate(
+	from, to string,
+) (float64, error) {
 	if from == to {
 		return 1.0, nil
 	}
 
 	rate, err := c.exchangeRateService.GetRate(from, to)
 	if err != nil {
-		c.logger.Warn("Failed to get real exchange rate, falling back", "from", from, "to", to, "error", err)
+		c.logger.Warn(
+			"Failed to get real exchange rate, falling back",
+			"from", from,
+			"to", to,
+			"error", err,
+		)
 
 		// Use fallback converter
 		if c.fallback != nil {
@@ -83,8 +111,12 @@ func (c *RealCurrencyConverter) GetRate(from, to string) (float64, error) {
 	return rate.Rate, nil
 }
 
-// IsSupported checks if a currency pair is supported by checking if we can get a rate.
-func (c *RealCurrencyConverter) IsSupported(from, to string) bool {
+// IsSupported checks if a currency pair is supported
+//
+//	by checking if we can get a rate using ExchangeRate v6 API.
+func (c *ExchangeRateCurrencyConverter) IsSupported(
+	from, to string,
+) bool {
 	if from == to {
 		return true
 	}

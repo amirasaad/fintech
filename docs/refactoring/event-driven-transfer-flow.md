@@ -68,7 +68,7 @@ The transfer workflow is orchestrated through a series of events and handlers:
 2. **Validation Handler** loads source and target accounts, checks domain validation (`ValidateTransfer`), emits `TransferValidatedEvent`.
 3. **Transfer Conversion Handler** (if needed) converts currency, emits `TransferConversionDone`.
 4. **Domain Operation Handler** executes the transfer on the domain model, emits `TransferDomainOpDoneEvent`.
-5. **Persistence Handler** persists the transaction(s), emits `TransferPersistedEvent`.
+5. **HandleProcessed Handler** persists the transaction(s), emits `TransferPersistedEvent`.
 6. **Webhook Handler** (optional) updates transaction status and account balances on payment confirmation.
 
 ### 🖼️ Transfer Workflow Diagram
@@ -81,7 +81,7 @@ flowchart TD
     D --> E["TransferConversionDone"]
     E --> F["Domain Operation Handler"]
     F --> G["TransferDomainOpDoneEvent"]
-    G --> H["Persistence Handler (persists)"]
+    G --> H["HandleProcessed Handler (persists)"]
     H --> I["TransferPersistedEvent"]
     I --> J["Webhook Handler (optional)"]
 ```
@@ -115,7 +115,7 @@ flowchart TD
 - **Events Consumed:** `MoneyConvertedEvent` (or `MoneyCreatedEvent` if no conversion)
 - **Events Emitted:** `TransferDomainOpDoneEvent`
 
-### 4. Persistence Handler
+### 4. HandleProcessed Handler
 
 - **Purpose:** Persists the transfer transaction(s) to the database
 - **Events Consumed:** `TransferDomainOpDoneEvent`

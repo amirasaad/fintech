@@ -7,7 +7,8 @@ import (
 	"github.com/google/uuid"
 )
 
-// Repository defines the interface for account data access operations with support for CQRS (Command/Query Responsibility Segregation).
+// Repository defines the interface for account data access operations with
+// support for CQRS (Command/Query Responsibility Segregation).
 type Repository interface {
 	// Create inserts a new account record from a DTO.
 	Create(ctx context.Context, create dto.AccountCreate) error

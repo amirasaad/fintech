@@ -1,60 +1,71 @@
 package events
 
 import (
+	"fmt"
 	"time"
 
-	"github.com/amirasaad/fintech/pkg/domain/account"
-	"github.com/amirasaad/fintech/pkg/domain/money"
+	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/google/uuid"
 )
 
-// WithdrawRequestedEvent is emitted when a withdrawal is requested (pure event-driven domain).
-type WithdrawRequestedEvent struct {
+// WithdrawRequested is emitted when a withdrawal is requested (pure event-driven
+// domain).
+type WithdrawRequested struct {
 	FlowEvent
 	ID                    uuid.UUID
+	TransactionID         uuid.UUID
 	Amount                money.Money
 	BankAccountNumber     string
 	RoutingNumber         string
 	ExternalWalletAddress string
 	Timestamp             time.Time
 	PaymentID             string // Added for payment provider integration
+	Fee                   int64
 }
 
-// WithdrawValidatedEvent is emitted after withdraw validation succeeds.
-type WithdrawValidatedEvent struct {
-	WithdrawRequestedEvent
-	TargetCurrency string
-	Account        *account.Account
+func (e *WithdrawRequested) Type() string {
+	return EventTypeWithdrawRequested.String()
 }
 
-// WithdrawBusinessValidationEvent is emitted after withdraw currency conversion is completed.
-type WithdrawBusinessValidationEvent struct {
-	WithdrawValidatedEvent
-	ConversionDoneEvent
-	Amount money.Money
+// Validate performs business validation on the withdrawal request
+func (e *WithdrawRequested) Validate() error {
+	if e.AccountID == uuid.Nil {
+		return fmt.Errorf("account ID cannot be nil")
+	}
+	if e.UserID == uuid.Nil {
+		return fmt.Errorf("user ID cannot be nil")
+	}
+	if e.Amount.IsZero() {
+		return fmt.Errorf("amount cannot be zero")
+	}
+	if e.Amount.IsNegative() {
+		return fmt.Errorf("amount must be positive")
+	}
+	return nil
 }
 
-// WithdrawPersistedEvent is emitted after withdraw persistence is complete.
-type WithdrawPersistedEvent struct {
-	WithdrawValidatedEvent
-	TransactionID uuid.UUID
+// WithdrawCurrencyConverted is emitted after currency conversion for withdraw.
+type WithdrawCurrencyConverted struct {
+	CurrencyConverted
 }
 
-// WithdrawBusinessValidatedEvent is emitted after business validation in account currency for withdraw.
-type WithdrawBusinessValidatedEvent struct {
-	WithdrawBusinessValidationEvent
-	TransactionID uuid.UUID
+func (e WithdrawCurrencyConverted) Type() string {
+	return EventTypeWithdrawCurrencyConverted.String()
 }
 
-// WithdrawFailedEvent is emitted when any part of the withdrawal flow fails.
-type WithdrawFailedEvent struct {
-	WithdrawRequestedEvent
+// WithdrawValidated is emitted after business validation for withdraw.
+type WithdrawValidated struct {
+	WithdrawCurrencyConverted
+}
+
+func (e WithdrawValidated) Type() string {
+	return EventTypeWithdrawValidated.String()
+}
+
+// WithdrawFailed is emitted when any part of the withdrawal flow fails.
+type WithdrawFailed struct {
+	WithdrawRequested
 	Reason string
 }
 
-func (e WithdrawRequestedEvent) Type() string          { return "WithdrawRequestedEvent" }
-func (e WithdrawValidatedEvent) Type() string          { return "WithdrawValidatedEvent" }
-func (e WithdrawBusinessValidationEvent) Type() string { return "WithdrawBusinessValidationEvent" }
-func (e WithdrawPersistedEvent) Type() string          { return "WithdrawPersistedEvent" }
-func (e WithdrawBusinessValidatedEvent) Type() string  { return "WithdrawBusinessValidatedEvent" }
-func (e WithdrawFailedEvent) Type() string             { return "WithdrawFailedEvent" }
+func (e WithdrawFailed) Type() string { return EventTypeWithdrawFailed.String() }

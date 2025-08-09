@@ -12,7 +12,7 @@ func TestNewRegistry(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 
-	registry := NewRegistry()
+	registry := New()
 	assert.NotNil(registry)
 	assert.Equal(0, registry.Count())
 }
@@ -21,7 +21,7 @@ func TestRegistry_Register(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 
-	registry := NewRegistry()
+	registry := New()
 
 	// Register new entity
 	registry.Register("test1", Meta{Name: "Test Entity", Active: true})
@@ -38,7 +38,7 @@ func TestRegistry_Get(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 
-	registry := NewRegistry()
+	registry := New()
 
 	// Test existing entity
 	registry.Register("test1", Meta{Name: "Test Entity", Active: true})
@@ -57,7 +57,7 @@ func TestRegistry_IsRegistered(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 
-	registry := NewRegistry()
+	registry := New()
 
 	assert.False(registry.IsRegistered("test1"))
 	registry.Register("test1", Meta{Name: "Test"})
@@ -68,7 +68,7 @@ func TestRegistry_ListRegistered(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 
-	registry := NewRegistry()
+	registry := New()
 	registered := registry.ListRegistered()
 	assert.Empty(registered)
 
@@ -85,7 +85,7 @@ func TestRegistry_ListActive(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 
-	registry := NewRegistry()
+	registry := New()
 	registry.Register("active1", Meta{Name: "Active 1", Active: true})
 	registry.Register("active2", Meta{Name: "Active 2", Active: true})
 	registry.Register("inactive1", Meta{Name: "Inactive 1", Active: false})
@@ -101,7 +101,7 @@ func TestRegistry_Unregister(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 
-	registry := NewRegistry()
+	registry := New()
 	registry.Register("test1", Meta{Name: "Test"})
 
 	assert.True(registry.IsRegistered("test1"))
@@ -114,7 +114,7 @@ func TestRegistry_Count(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 
-	registry := NewRegistry()
+	registry := New()
 	assert.Equal(0, registry.Count())
 
 	registry.Register("test1", Meta{Name: "Test 1"})
@@ -131,7 +131,7 @@ func TestRegistry_Metadata(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 
-	registry := NewRegistry()
+	registry := New()
 	registry.Register("test1", Meta{Name: "Test"})
 
 	// Set metadata
@@ -157,11 +157,10 @@ func TestRegistry_Metadata(t *testing.T) {
 }
 
 func TestGlobalFunctions(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 
 	// Reset global registry to ensure clean state
-	globalRegistry = NewRegistry()
+	globalRegistry = New()
 
 	// Test global Register function
 	Register("global1", Meta{Name: "Global 1", Active: true})
@@ -195,10 +194,9 @@ func TestGlobalFunctions(t *testing.T) {
 }
 
 func TestRegistry_ThreadSafety(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 
-	registry := NewRegistry()
+	registry := New()
 	var wg sync.WaitGroup
 	numGoroutines := 100
 
@@ -227,7 +225,6 @@ func TestRegistry_ThreadSafety(t *testing.T) {
 }
 
 func TestGlobalRegistry_ThreadSafety(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 
 	var wg sync.WaitGroup

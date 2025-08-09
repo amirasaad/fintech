@@ -3,13 +3,10 @@ packages:
   github.com/amirasaad/fintech/pkg/repository:
     config:
       dir: "internal/fixtures/mocks"
-      filename: "repository.go"
+      filename: "uow.go"
       pkgname: "mocks"
-      structname: "Mock{{.InterfaceName}}"
+      structname: "{{.InterfaceName}}"
     interfaces:
-      TransactionRepository:
-      AccountRepository:
-      UserRepository:
       UnitOfWork:
   github.com/amirasaad/fintech/pkg/repository/account:
     config:
@@ -27,20 +24,28 @@ packages:
       structname: "Transaction{{.InterfaceName}}"
     interfaces:
       Repository:
+  github.com/amirasaad/fintech/pkg/repository/user:
+    config:
+      dir: "internal/fixtures/mocks"
+      filename: "user.go"
+      pkgname: "mocks"
+      structname: "User{{.InterfaceName}}"
+    interfaces:
+      Repository:
   github.com/amirasaad/fintech/pkg/service/auth:
     config:
       dir: "internal/fixtures/mocks"
       filename: "auth.go"
       pkgname: "mocks"
-      structname: "Mock{{.InterfaceName}}"
+      structname: "{{.InterfaceName}}"
     interfaces:
-      AuthStrategy:
+      Strategy:
   github.com/amirasaad/fintech/pkg/domain:
     config:
       dir: "internal/fixtures/mocks"
       filename: "domain.go"
       pkgname: "mocks"
-      structname: "Mock{{.InterfaceName}}"
+      structname: "{{.InterfaceName}}"
     interfaces:
       CurrencyConverter:
   github.com/amirasaad/fintech/pkg/eventbus:
@@ -48,14 +53,21 @@ packages:
       dir: "internal/fixtures/mocks"
       filename: "eventbus.go"
       pkgname: "mocks"
-      structname: "Mock{{.InterfaceName}}"
+      structname: "{{.InterfaceName}}"
     interfaces:
       Bus:
   github.com/amirasaad/fintech/pkg/provider:
     config:
       dir: "internal/fixtures/mocks"
-      filename: "provider.go"
       pkgname: "mocks"
-      structname: "Mock{{.InterfaceName}}"
     interfaces:
       ExchangeRateProvider:
+      PaymentProvider:
+  github.com/amirasaad/fintech/pkg/registry:
+    config:
+      dir: "internal/fixtures/mocks"
+      filename: "registry.go"
+      pkgname: "mocks"
+      structname: "Registry{{.InterfaceName}}"
+    interfaces:
+      Provider:

@@ -59,7 +59,7 @@ bus.Subscribe("WithdrawConversionDoneEvent", withdrawhandler.ConversionDoneHandl
 - ✅ **SRP**: Only handles payment initiation, not business validation
 - ✅ **Extensible**: Easy to add new validation events (e.g., `TransferValidatedEvent`)
 
-### 2. **Generic Payment Persistence Handler**
+### 2. **Generic Payment HandleProcessed Handler**
 
 **Location**: `pkg/handler/payment/persistence_handler.go`
 
@@ -108,7 +108,7 @@ TransferRequestedEvent → ValidationHandler → TransferValidatedEvent → Doma
 
 ### Updated Tests
 - ✅ **Payment Initiation Handler**: Tests for `DepositValidatedEvent` and `WithdrawValidatedEvent`
-- ✅ **Payment Persistence Handler**: Tests for `PaymentInitiatedEvent`
+- ✅ **Payment HandleProcessed Handler**: Tests for `PaymentInitiatedEvent`
 - ✅ **Conversion Done Handlers**: Tests for business validation only
 
 ### Test Coverage
@@ -134,14 +134,14 @@ go test ./pkg/handler/... -v          # ✅ All passing
 
 ### 1. **Event-Driven Design**
 - Events trigger next steps, not conditional logic
-- Clear event flow: Validation → Payment → Persistence
+- Clear event flow: Validation → Payment → HandleProcessed
 - No if-else statements for control flow
 
 ### 2. **Single Responsibility Principle**
 - Each handler has one clear responsibility
 - Conversion handlers: Business validation only
 - Payment handlers: Payment operations only
-- Persistence handlers: Database operations only
+- HandleProcessed handlers: Database operations only
 
 ### 3. **Don't Repeat Yourself**
 - Generic payment handlers for all operations
@@ -151,7 +151,7 @@ go test ./pkg/handler/... -v          # ✅ All passing
 ### 4. **Separation of Concerns**
 - Business validation separated from payment initiation
 - Payment logic separated from conversion logic
-- Persistence logic separated from business logic
+- HandleProcessed logic separated from business logic
 
 ## 🚀 Benefits
 

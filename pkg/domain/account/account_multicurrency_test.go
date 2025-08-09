@@ -19,5 +19,6 @@ func TestAccount_DefaultCurrencyIsUSD(t *testing.T) {
 func TestAccount_CreateWithSpecificCurrency(t *testing.T) {
 	a, err := account.New().WithUserID(uuid.New()).WithCurrency("EUR").Build()
 	require.NoError(t, err)
-	assert.Equal(t, currency.EUR, a.Balance.Currency(), "Account should use specified currency")
+	assert.Equal(t, currency.EUR, a.Balance.Currency(),
+		"Account should use specified currency")
 }

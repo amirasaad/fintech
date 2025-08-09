@@ -1,7 +1,22 @@
 version: "2"
 linters:
+  enable:
+    - testifylint
+    - revive
+
   settings:
     testifylint:
       # Enable all checkers (https://github.com/Antonboom/testifylint#checkers).
       # Default: false
       enable-all: true
+    revive:
+      severity: warning
+      rules:
+        - name: atomic
+        - name: line-length-limit
+          severity: error
+          arguments: [100]
+          exclude:
+            - "**/docs.go"
+        - name: unhandled-error
+          arguments: ["fmt.Printf", "Register"]

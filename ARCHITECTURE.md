@@ -58,33 +58,210 @@ sequenceDiagram
     participant U as User
     participant API as API/Service
     participant EB as EventBus
-    participant MC as MoneyCreationHandler
+    participant DH as DepositHandler
     participant CC as CurrencyConverter
-    participant DB as Persistence
+    participant PH as PaymentHandler
+    participant DB as Database
     participant PP as PaymentProvider
 
-    U->>API: DepositRequest (amount, currency)
-    API->>EB: DepositRequestedEvent
-    EB->>MC: DepositRequestedEvent
-    MC->>CC: MoneyConversionRequestedEvent (if needed)
-    CC-->>MC: MoneyConvertedEvent (converted amount)
-    MC->>EB: MoneyCreatedEvent (account currency)
-    EB->>DB: MoneyCreatedEvent
-    DB->>EB: TransactionPersistedEvent
-    EB->>PP: TransactionPersistedEvent
-    PP->>EB: PaymentInitiatedEvent (paymentId)
-    EB->>DB: PaymentInitiatedEvent (persist paymentId)
-    PP->>API: Payment confirmation webhook
-    API->>DB: Update transaction status, update balance if completed
+    U->>API: POST /api/accounts/{id}/deposit
+    API->>EB: Emit Deposit.Requested
+    EB->>DH: Handle Deposit.Requested
+    DH->>DB: Validate account
+    DH->>DB: Create transaction (pending)
+    DH->>EB: Emit CurrencyConversion.Requested
+
+    EB->>CC: Handle CurrencyConversion.Requested
+    CC->>CC: Convert currency if needed
+    CC->>EB: Emit Deposit.CurrencyConverted
+
+    EB->>DH: Handle Deposit.CurrencyConverted
+    DH->>DB: Validate business rules
+    DH->>EB: Emit Deposit.Validated
+    DH->>EB: Emit Payment.Initiated
+
+    EB->>PH: Handle Payment.Initiated
+    PH->>PP: Initiate payment
+    PP-->>PH: Payment ID
+    PH->>EB: Emit Payment.Processed
+    PH->>DB: Update transaction with payment ID
+
+    PP->>API: Webhook (payment status update)
+    API->>DB: Update transaction status
+    API->>DB: Update account balance (if completed)
+    API->>EB: Emit Payment.Completed
+
+    EB->>PH: Handle Payment.Completed
+    PH->>DB: Finalize transaction
 ```
 
-**Workflow Steps:**
+## Event Payloads and Handlers
 
-1. User submits a deposit request (amount, currency, etc.).
-2. API emits a `DepositRequestedEvent`.
-3. MoneyCreationHandler creates a Money value object. If conversion is needed, emits a `MoneyConversionRequestedEvent` and waits for a `MoneyConvertedEvent`.
-4. Emits a `MoneyCreatedEvent` in the account's currency.
-5. Persistence handler saves the transaction and emits a `TransactionPersistedEvent`.
-6. Payment provider handler initiates payment and emits a `PaymentInitiatedEvent` (with paymentId).
-7. Persistence handler updates the transaction with the paymentId.
-8. On payment provider webhook, the API updates the transaction status and account balance if payment is completed.
+### 1. `Deposit.Requested`
+
+**Emitted by**: API Layer when deposit is initiated
+
+**Payload**:
+
+```go
+type DepositRequested struct {
+    FlowEvent      // Contains ID, UserID, AccountID, CorrelationID
+    Amount        money.Money  // Requested amount and currency
+    Source        string       // Payment source identifier
+    TransactionID uuid.UUID    // Unique ID for this transaction
+}
+
+**Handler**: `deposit.HandleRequested`
+
+**Responsibilities**:
+- Validate account exists and is active
+- Create pending transaction record
+- Emit `CurrencyConversion.Requested` with original amount and target currency
+- Handle validation errors by emitting `Deposit.Failed`
+- Log all operations for audit trailed
+
+### 2. `CurrencyConversion.Requested`
+
+**Emitted by**: Deposit Handler when currency conversion is needed
+
+**Payload**:
+
+```go
+type CurrencyConversionRequested struct {
+    FlowEvent
+    FromCurrency currency.Code
+    ToCurrency   currency.Code
+    Amount       money.Money
+    TransactionID uuid.UUID
+    OriginalRequest interface{} // Original request that triggered the conversion
+}
+```
+
+**Handler**: `conversion.HandleRequested`
+
+**Responsibilities**:
+
+- Convert amount between currencies using exchange rates
+- Apply currency conversion fees if applicable
+- Emit `Deposit.CurrencyConverted` with converted amount
+- Handle conversion failures by emitting `CurrencyConversion.Failed`
+- Log conversion details for audit and reconciliation
+
+### 3. `Deposit.CurrencyConverted`
+
+**Emitted by**: Currency Conversion Service after successful conversion
+
+**Payload**:
+
+```go
+type DepositCurrencyConverted struct {
+    FlowEvent
+    TransactionID    uuid.UUID
+    OriginalAmount   money.Money
+    ConvertedAmount  money.Money
+    ConversionRate   decimal.Decimal
+    ConversionFee    money.Money
+}
+```
+
+**Handler**: `deposit.HandleCurrencyConverted`
+
+**Responsibilities**:
+
+- Validate conversion results
+- Apply business rules for converted amounts
+- Emit `Deposit.Validated`
+- Emit `Payment.Initiated` to start payment processing
+- Log conversion details for audit
+
+### 4. `Deposit.Validated`
+
+**Emitted by**: Deposit Handler after successful validation
+
+**Payload**:
+
+```go
+type DepositValidated struct {
+    DepositCurrencyConverted
+    ValidatedAt time.Time
+}
+```
+
+**Handler**: `deposit.HandleValidated`
+
+**Responsibilities**:
+
+- Final validation of deposit request
+- Verify account limits and business rules
+- Log validation results
+- Prepare for payment initiation
+
+### 5. `Payment.Initiated`
+
+**Emitted by**: Deposit Handler after validation
+
+**Payload**:
+
+```go
+type PaymentInitiated struct {
+    FlowEvent
+    TransactionID uuid.UUID
+    Amount        money.Money
+    PaymentMethod string
+    PaymentID     string
+    Status        string
+}
+```
+
+**Handler**: `payment.HandleInitiated`
+
+**Responsibilities**:
+
+- Initiate payment with payment provider
+- Handle payment provider communication
+- Emit `Payment.Processed` on success or `Payment.Failed` on error
+- Implement retry logic for transient failures
+- Log payment initiation details
+
+### 6. `Payment.Processed`
+
+**Emitted by**: Payment Handler after payment processing
+
+**Payload**:
+
+```go
+type PaymentProcessed struct {
+    PaymentInitiated
+    PaymentID         string
+    Status            string
+    ProcessedAt       time.Time
+}
+```
+
+**Handler**: `payment.HandleProcessed`
+
+**Responsibilities**:
+
+- Update transaction with payment reference
+- Trigger balance update if payment is completed
+- Handle retries for failed payments
+
+## Webhook Integration
+
+Payment providers notify the system of payment status changes via webhooks:
+
+1. **Endpoint**: `POST /api/webhooks/payments/{provider}`
+2. **Authentication**: HMAC signature verification
+3. **Flow**:
+   - Verify webhook signature
+   - Look up transaction by reference
+   - Update transaction status
+   - If payment completed, update account balance
+   - Emit appropriate domain events
+
+## Error Handling
+
+- Failed payments trigger `PaymentFailed` events
+- Automatic retries for transient failures
+- Dead-letter queue for unprocessable events
+- Comprehensive logging and monitoring

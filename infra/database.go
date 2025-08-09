@@ -4,14 +4,18 @@ import (
 	"errors"
 	"time"
 
-	"github.com/amirasaad/fintech/config"
+	"github.com/amirasaad/fintech/pkg/config"
+
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
 
 // Add appEnv as a parameter for dependency-injected environment
-func NewDBConnection(cnf config.DBConfig, appEnv string) (*gorm.DB, error) {
+func NewDBConnection(
+	cnf *config.DB,
+	appEnv string,
+) (*gorm.DB, error) {
 	databaseUrl := cnf.Url
 	if databaseUrl == "" {
 		return nil, errors.New("DATABASE_URL is not set")

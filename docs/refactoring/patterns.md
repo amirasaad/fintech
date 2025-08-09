@@ -42,7 +42,7 @@ user.Metadata()["email"] = "john@example.com"
 err := registry.Register(ctx, user)
 ```
 
-### 🧪 Example: Custom Registry with Caching & Persistence
+### 🧪 Example: Custom Registry with Caching & HandleProcessed
 
 ```go
 reg, err := registry.NewRegistryBuilder().

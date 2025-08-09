@@ -20,19 +20,19 @@ func TestCurrencyService(t *testing.T) {
 	assert := assert.New(t)
 
 	t.Run("create currency service", func(t *testing.T) {
-		registry, err := currency.NewCurrencyRegistry(ctx)
+		registry, err := currency.New(ctx)
 		require.NoError(err)
 
-		service := currencysvc.NewCurrencyService(registry, slog.Default())
+		service := currencysvc.New(registry, slog.Default())
 		assert.NotNil(service)
 		assert.Equal(registry, service.GetRegistry())
 	})
 
 	t.Run("get currency", func(t *testing.T) {
-		registry, err := currency.NewCurrencyRegistry(ctx)
+		registry, err := currency.New(ctx)
 		require.NoError(err)
 
-		service := currencysvc.NewCurrencyService(registry, slog.Default())
+		service := currencysvc.New(registry, slog.Default())
 
 		// Test getting existing currency
 		usd, err := service.GetCurrency(ctx, "USD")
@@ -48,10 +48,10 @@ func TestCurrencyService(t *testing.T) {
 	})
 
 	t.Run("list supported currencies", func(t *testing.T) {
-		registry, err := currency.NewCurrencyRegistry(ctx)
+		registry, err := currency.New(ctx)
 		require.NoError(err)
 
-		service := currencysvc.NewCurrencyService(registry, slog.Default())
+		service := currencysvc.New(registry, slog.Default())
 
 		supported, err := service.ListSupportedCurrencies(ctx)
 		require.NoError(err)
@@ -63,10 +63,10 @@ func TestCurrencyService(t *testing.T) {
 	})
 
 	t.Run("list all currencies", func(t *testing.T) {
-		registry, err := currency.NewCurrencyRegistry(ctx)
+		registry, err := currency.New(ctx)
 		require.NoError(err)
 
-		service := currencysvc.NewCurrencyService(registry, slog.Default())
+		service := currencysvc.New(registry, slog.Default())
 
 		all, err := service.ListAllCurrencies(ctx)
 		require.NoError(err)
@@ -86,12 +86,12 @@ func TestCurrencyService(t *testing.T) {
 	})
 
 	t.Run("register currency", func(t *testing.T) {
-		registry, err := currency.NewCurrencyRegistry(ctx)
+		registry, err := currency.New(ctx)
 		require.NoError(err)
 
-		service := currencysvc.NewCurrencyService(registry, slog.Default())
+		service := currencysvc.New(registry, slog.Default())
 
-		newCurrency := currency.CurrencyMeta{
+		newCurrency := currency.Meta{
 			Code:     "TST",
 			Name:     "Test Currency",
 			Symbol:   "T",
@@ -114,13 +114,13 @@ func TestCurrencyService(t *testing.T) {
 	})
 
 	t.Run("unregister currency", func(t *testing.T) {
-		registry, err := currency.NewCurrencyRegistry(ctx)
+		registry, err := currency.New(ctx)
 		require.NoError(err)
 
-		service := currencysvc.NewCurrencyService(registry, slog.Default())
+		service := currencysvc.New(registry, slog.Default())
 
 		// Register a test currency first
-		testCurrency := currency.CurrencyMeta{
+		testCurrency := currency.Meta{
 			Code:     "TSU",
 			Name:     "Test Currency 2",
 			Symbol:   "T2",
@@ -144,13 +144,13 @@ func TestCurrencyService(t *testing.T) {
 	})
 
 	t.Run("activate and deactivate currency", func(t *testing.T) {
-		registry, err := currency.NewCurrencyRegistry(ctx)
+		registry, err := currency.New(ctx)
 		require.NoError(err)
 
-		service := currencysvc.NewCurrencyService(registry, slog.Default())
+		service := currencysvc.New(registry, slog.Default())
 
 		// Register a currency as inactive
-		currency := currency.CurrencyMeta{
+		currency := currency.Meta{
 			Code:     "TSV",
 			Name:     "Test Currency 3",
 			Symbol:   "T3",
@@ -176,10 +176,10 @@ func TestCurrencyService(t *testing.T) {
 	})
 
 	t.Run("search currencies", func(t *testing.T) {
-		registry, err := currency.NewCurrencyRegistry(ctx)
+		registry, err := currency.New(ctx)
 		require.NoError(err)
 
-		service := currencysvc.NewCurrencyService(registry, slog.Default())
+		service := currencysvc.New(registry, slog.Default())
 
 		// Search for "Dollar"
 		results, err := service.SearchCurrencies(ctx, "Dollar")
@@ -198,10 +198,10 @@ func TestCurrencyService(t *testing.T) {
 	})
 
 	t.Run("search currencies by region", func(t *testing.T) {
-		registry, err := currency.NewCurrencyRegistry(ctx)
+		registry, err := currency.New(ctx)
 		require.NoError(err)
 
-		service := currencysvc.NewCurrencyService(registry, slog.Default())
+		service := currencysvc.New(registry, slog.Default())
 
 		// Search for North America
 		results, err := service.SearchCurrenciesByRegion(ctx, "North America")
@@ -220,10 +220,10 @@ func TestCurrencyService(t *testing.T) {
 	})
 
 	t.Run("get currency statistics", func(t *testing.T) {
-		registry, err := currency.NewCurrencyRegistry(ctx)
+		registry, err := currency.New(ctx)
 		require.NoError(err)
 
-		service := currencysvc.NewCurrencyService(registry, slog.Default())
+		service := currencysvc.New(registry, slog.Default())
 
 		stats, err := service.GetCurrencyStatistics(ctx)
 		require.NoError(err)
@@ -246,10 +246,10 @@ func TestCurrencyService(t *testing.T) {
 	})
 
 	t.Run("validate currency code", func(t *testing.T) {
-		registry, err := currency.NewCurrencyRegistry(ctx)
+		registry, err := currency.New(ctx)
 		require.NoError(err)
 
-		service := currencysvc.NewCurrencyService(registry, slog.Default())
+		service := currencysvc.New(registry, slog.Default())
 
 		// Valid codes
 		validCodes := []string{"USD", "EUR", "GBP", "JPY", "CAD"}
@@ -267,10 +267,10 @@ func TestCurrencyService(t *testing.T) {
 	})
 
 	t.Run("get default currency", func(t *testing.T) {
-		registry, err := currency.NewCurrencyRegistry(ctx)
+		registry, err := currency.New(ctx)
 		require.NoError(err)
 
-		service := currencysvc.NewCurrencyService(registry, slog.Default())
+		service := currencysvc.New(registry, slog.Default())
 
 		defaultCurrency, err := service.GetDefaultCurrency(ctx)
 		require.NoError(err)
@@ -281,10 +281,10 @@ func TestCurrencyService(t *testing.T) {
 	})
 
 	t.Run("is currency supported", func(t *testing.T) {
-		registry, err := currency.NewCurrencyRegistry(ctx)
+		registry, err := currency.New(ctx)
 		require.NoError(err)
 
-		service := currencysvc.NewCurrencyService(registry, slog.Default())
+		service := currencysvc.New(registry, slog.Default())
 
 		// Test supported currency
 		assert.True(service.IsCurrencySupported(ctx, "USD"))

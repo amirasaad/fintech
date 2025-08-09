@@ -19,8 +19,8 @@ type Registry struct {
 	mu       sync.RWMutex
 }
 
-// NewRegistry creates a new empty registry
-func NewRegistry() *Registry {
+// New creates a new empty registry
+func New() *Registry {
 	return &Registry{
 		entities: make(map[string]Meta),
 	}
@@ -132,7 +132,7 @@ func (r *Registry) SetMetadata(id, key, value string) bool {
 }
 
 // Global registry instance for convenience
-var globalRegistry = NewRegistry()
+var globalRegistry = New()
 
 // Global convenience functions
 func Register(id string, meta Meta) {

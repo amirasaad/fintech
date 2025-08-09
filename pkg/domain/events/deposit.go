@@ -1,55 +1,43 @@
 package events
 
 import (
-	"github.com/amirasaad/fintech/pkg/domain/account"
-	"time"
-
-	"github.com/amirasaad/fintech/pkg/domain/money"
+	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/google/uuid"
 )
 
-// DepositRequestedEvent is emitted when a deposit is requested (pure event-driven domain).
-type DepositRequestedEvent struct {
+// DepositRequested is emitted after deposit validation and persistence.
+type DepositRequested struct {
 	FlowEvent
-	ID        uuid.UUID
-	Amount    money.Money
-	Source    string // MoneySource as string
-	Timestamp time.Time
-}
-
-// DepositValidatedEvent is emitted after deposit validation succeeds.
-type DepositValidatedEvent struct {
-	ID uuid.UUID
-	DepositRequestedEvent
-	Account *account.Account
-}
-
-// DepositBusinessValidationEvent is emitted after deposit currency conversion is completed.
-type DepositBusinessValidationEvent struct {
-	DepositValidatedEvent
-	ConversionDoneEvent
-	Account *account.Account
-	Amount  money.Money
-}
-
-// DepositPersistedEvent is emitted after persistence is complete.
-type DepositPersistedEvent struct {
-	ID uuid.UUID
-	DepositValidatedEvent
-	TransactionID uuid.UUID   // propagate TransactionID
-	Amount        money.Money // Amount to deposit
-}
-
-// DepositBusinessValidatedEvent is emitted after business validation in account currency.
-type DepositBusinessValidatedEvent struct {
-	FlowEvent
-	ID uuid.UUID
-	DepositBusinessValidationEvent
+	Amount        money.Money
+	Source        string
 	TransactionID uuid.UUID
 }
 
-func (e DepositRequestedEvent) Type() string          { return "DepositRequestedEvent" }
-func (e DepositValidatedEvent) Type() string          { return "DepositValidatedEvent" }
-func (e DepositBusinessValidationEvent) Type() string { return "DepositBusinessValidationEvent" }
-func (e DepositPersistedEvent) Type() string          { return "DepositPersistedEvent" }
-func (e DepositBusinessValidatedEvent) Type() string  { return "DepositBusinessValidatedEvent" }
+func (e DepositRequested) Type() string { return EventTypeDepositRequested.String() }
+func (e DepositRequested) Validate() error {
+	return nil
+}
+
+// DepositCurrencyConverted is emitted after currency conversion for deposit.
+type DepositCurrencyConverted struct {
+	CurrencyConverted
+}
+
+func (e DepositCurrencyConverted) Type() string {
+	return EventTypeDepositCurrencyConverted.String()
+}
+
+// DepositValidated is emitted after business validation for deposit.
+type DepositValidated struct {
+	DepositCurrencyConverted
+}
+
+func (e DepositValidated) Type() string { return EventTypeDepositValidated.String() }
+
+// DepositFailed is emitted when a deposit fails.
+type DepositFailed struct {
+	DepositRequested
+	Reason string
+}
+
+func (e DepositFailed) Type() string { return EventTypeDepositFailed.String() }

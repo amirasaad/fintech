@@ -30,32 +30,35 @@ This design allows new flows to be added to the conversion process without modif
 The system implements three main business flows:
 
 #### Deposit Flow
+
 ```mermaid
 graph TD
-    A[DepositRequestedEvent] --> B[DepositValidatedEvent]
-    B --> C[DepositPersistedEvent]
-    C --> D[DepositBusinessValidationEvent]
-    D --> E[DepositBusinessValidatedEvent]
-    E --> F[PaymentInitiatedEvent]
+    A[DepositRequested] --> B[CurrencyConversionRequested]
+    B --> C[CurrencyConverted]
+    C --> D[DepositCurrencyConverted]
+    D --> E[DepositBusinessValidated]
+    E --> F[PaymentInitiated]
 ```
 
 #### Withdraw Flow
+
 ```mermaid
 graph TD
-    A[WithdrawRequestedEvent] --> B[WithdrawValidatedEvent]
-    B --> C[WithdrawPersistedEvent]
-    C --> D[WithdrawBusinessValidationEvent]
-    D --> E[WithdrawBusinessValidatedEvent]
-    E --> F[PaymentInitiatedEvent]
+    A[WithdrawRequested] --> B[CurrencyConversionRequested]
+    B --> C[CurrencyConverted]
+    C --> D[WithdrawCurrencyConverted]
+    D --> E[WithdrawBusinessValidated]
+    E --> F[PaymentInitiated]
 ```
 
 #### Transfer Flow
+
 ```mermaid
 graph TD
-    A[TransferRequestedEvent] --> B[TransferValidatedEvent]
-    B --> C[TransferDomainOpDoneEvent]
-    C --> D[TransferConversionDoneEvent]
-    D --> E[TransferCompletedEvent]
+    A[TransferRequested] --> B[CurrencyConversionRequested]
+    B --> C[CurrencyConverted]
+    C --> D[TransferCurrencyConverted]
+    D --> E[TransferCompleted]
 ```
 
 ### 🏛️ Handler Responsibilities
@@ -63,7 +66,7 @@ graph TD
 Each handler in the system follows the Single Responsibility Principle:
 
 1. **Validation Handlers:** Perform input validation and business rule checks
-2. **Persistence Handlers:** Handle database operations and transaction creation
+2. **HandleProcessed Handlers:** Handle database operations and transaction creation
 3. **Business Validation Handlers:** Perform complex business logic validation
 4. **Conversion Handlers:** Handle currency conversion operations
 5. **Payment Handlers:** Integrate with external payment providers

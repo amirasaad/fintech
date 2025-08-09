@@ -152,7 +152,7 @@ Refactored transaction handling to follow CQRS (Command Query Responsibility Seg
 
 [View CQRS Refactor →](transaction-cqrs-refactor.md)
 
-### 10. Transaction Persistence Refactor 💾
+### 10. Transaction HandleProcessed Refactor 💾
 
 **Status**: ✅ **Completed**
 
@@ -165,7 +165,7 @@ Refactored transaction persistence to use proper repository pattern with Unit of
 - Better error handling
 - Improved testability
 
-[View Persistence Refactor →](transaction-persistence-refactor.md)
+[View HandleProcessed Refactor →](transaction-persistence-refactor.md)
 
 ### 11. Layered Dependency Injection 🏛️
 
