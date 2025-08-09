@@ -63,3 +63,11 @@ packages:
     interfaces:
       ExchangeRateProvider:
       PaymentProvider:
+  github.com/amirasaad/fintech/pkg/registry:
+    config:
+      dir: "internal/fixtures/mocks"
+      filename: "registry.go"
+      pkgname: "mocks"
+      structname: "Registry{{.InterfaceName}}"
+    interfaces:
+      Provider:

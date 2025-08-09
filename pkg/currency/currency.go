@@ -651,6 +651,10 @@ func (cr *Registry) GetRegistry() registry.Provider {
 	return cr.registry
 }
 
+func (cr *Registry) SetRegistry(reg registry.Provider) {
+	cr.registry = reg
+}
+
 // Global currency registry instance
 var globalCurrencyRegistry *Registry
 
@@ -708,7 +712,10 @@ func Register(meta Meta) error {
 	return globalCurrencyRegistry.Register(meta)
 }
 
-func Get(code string) (Meta, error) {
+// Get returns currency metadata for the given code
+var Get = getCurrencyInternal
+
+func getCurrencyInternal(code string) (Meta, error) {
 	return globalCurrencyRegistry.Get(code)
 }
 

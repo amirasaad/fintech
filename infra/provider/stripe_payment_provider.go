@@ -10,11 +10,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/amirasaad/fintech/pkg/checkout"
 	"github.com/amirasaad/fintech/pkg/config"
+	"github.com/amirasaad/fintech/pkg/registry"
 
 	"github.com/stripe/stripe-go/v82/webhook"
 
-	"github.com/amirasaad/fintech/pkg/checkout"
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/domain/events"
@@ -38,8 +39,8 @@ type CheckoutSession struct {
 type StripePaymentProvider struct {
 	bus             eventbus.Bus
 	client          *stripe.Client
-	cfg             *config.Stripe
 	checkoutService *checkout.Service
+	cfg             *config.Stripe
 	logger          *slog.Logger
 }
 
@@ -48,8 +49,8 @@ type StripePaymentProvider struct {
 // checkout session data.
 func NewStripePaymentProvider(
 	bus eventbus.Bus,
+	checkoutProvider registry.Provider,
 	cfg *config.Stripe,
-	checkoutService *checkout.Service,
 	logger *slog.Logger,
 ) *StripePaymentProvider {
 	client := stripe.NewClient(cfg.ApiKey)
@@ -58,7 +59,7 @@ func NewStripePaymentProvider(
 		bus:             bus,
 		client:          client,
 		cfg:             cfg,
-		checkoutService: checkoutService,
+		checkoutService: checkout.New(checkoutProvider),
 		logger:          logger,
 	}
 }

@@ -12,7 +12,6 @@ import (
 	infra_provider "github.com/amirasaad/fintech/infra/provider"
 	infra_repository "github.com/amirasaad/fintech/infra/repository"
 	"github.com/amirasaad/fintech/pkg/app"
-	"github.com/amirasaad/fintech/pkg/checkout"
 	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/eventbus"
@@ -48,7 +47,7 @@ func InitializeDependencies(cfg *config.App) (
 	}
 
 	// Initialize checkout registry
-	checkoutRegistry, err := initCheckoutRegistry(cfg, logger)
+	checkoutRegistry, err := initCheckoutRegistryProvider(cfg, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -81,8 +80,8 @@ func InitializeDependencies(cfg *config.App) (
 	// Initialize payment provider
 	deps.PaymentProvider = infra_provider.NewStripePaymentProvider(
 		bus,
+		checkoutRegistry,
 		cfg.PaymentProviders.Stripe,
-		checkout.NewService(checkoutRegistry),
 		logger,
 	)
 
@@ -106,7 +105,10 @@ func initCurrencyRegistry(cfg *config.App, logger *slog.Logger) (*currency.Regis
 	return currency.GetGlobalRegistry(), nil
 }
 
-func initCheckoutRegistry(cfg *config.App, logger *slog.Logger) (registry.Provider, error) {
+func initCheckoutRegistryProvider(
+	cfg *config.App,
+	logger *slog.Logger,
+) (registry.Provider, error) {
 	checkoutRegistry, err := registry.NewBuilder().
 		WithName("checkout").
 		WithRedis(cfg.Redis.URL).

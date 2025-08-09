@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/amirasaad/fintech/pkg/currency"
+	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/amirasaad/fintech/pkg/registry"
 	"github.com/google/uuid"
 )
@@ -31,8 +32,8 @@ type Service struct {
 	registry registry.Provider
 }
 
-// NewService creates a new checkout service with the given registry
-func NewService(reg registry.Provider) *Service {
+// New creates a new checkout service with the given registry
+func New(reg registry.Provider) *Service {
 	return &Service{
 		registry: reg,
 	}
@@ -133,6 +134,31 @@ func (s *Service) GetSessionByTransactionID(
 	return s.metaToSession(meta)
 }
 
+// GetSessionsByUserID retrieves all checkout sessions for a given user ID
+func (s *Service) GetSessionsByUserID(ctx context.Context, userID uuid.UUID) ([]*Session, error) {
+	entities, err := s.registry.ListByMetadata(ctx, "user_id", userID.String())
+	if err != nil {
+		return nil, fmt.Errorf("error getting sessions by user ID: %w", err)
+	}
+
+	var sessions []*Session
+	for _, entity := range entities {
+		meta := registry.Meta{
+			ID:       entity.ID(),
+			Name:     entity.Name(),
+			Active:   entity.Active(),
+			Metadata: entity.Metadata(),
+		}
+		session, err := s.metaToSession(meta)
+		if err != nil {
+			return nil, fmt.Errorf("error converting meta to session: %w", err)
+		}
+		sessions = append(sessions, session)
+	}
+
+	return sessions, nil
+}
+
 // UpdateStatus updates the status of a checkout session
 func (s *Service) UpdateStatus(
 	ctx context.Context,
@@ -210,18 +236,13 @@ func (s *Session) Validate() error {
 
 // FormatAmount formats the amount according to the currency's decimal places
 func (s *Session) FormatAmount() (string, error) {
-	if s.currencyInfo == nil {
-		// Try to get currency info if not cached
-		currencyInfo, err := currency.Get(s.Currency)
-		if err != nil {
-			return "", fmt.Errorf("failed to get currency info: %w", err)
-		}
-		s.currencyInfo = &currencyInfo
+	// Create a Money object from the amount and currency
+	m, err := money.NewFromSmallestUnit(s.Amount, currency.Code(s.Currency))
+	if err != nil {
+		return "", fmt.Errorf("failed to create money object: %w", err)
 	}
-
-	// Convert to float for display
-	amount := float64(s.Amount) / float64(s.currencyInfo.Decimals)
-	return fmt.Sprintf("%.*f", s.currencyInfo.Decimals, amount), nil
+	// Use Money's String() method which handles the formatting
+	return m.String(), nil
 }
 
 // GetCurrencySymbol returns the currency symbol

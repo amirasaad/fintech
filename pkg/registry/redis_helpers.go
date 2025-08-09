@@ -72,11 +72,11 @@ func (c *RedisCache) Clear(ctx context.Context) error {
 
 	for iter.Next(ctx) {
 		if delErr := c.client.Del(ctx, iter.Val()).Err(); delErr != nil {
-			err = delErr
+			return delErr
 		}
 	}
 
-	if err := iter.Err(); err != nil {
+	if err = iter.Err(); err != nil {
 		return err
 	}
 

@@ -3,11 +3,13 @@ package app
 import (
 	"log/slog"
 
+	"github.com/amirasaad/fintech/pkg/checkout"
 	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/amirasaad/fintech/pkg/provider"
+	"github.com/amirasaad/fintech/pkg/registry"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/amirasaad/fintech/pkg/service/account"
 	"github.com/amirasaad/fintech/pkg/service/auth"
@@ -17,12 +19,13 @@ import (
 
 // Deps contains all the dependencies needed by the SetupBus function
 type Deps struct {
-	Uow               repository.UnitOfWork
-	CurrencyConverter money.CurrencyConverter
-	CurrencyRegistry  *currency.Registry
-	PaymentProvider   provider.PaymentProvider
-	EventBus          eventbus.Bus
-	Logger            *slog.Logger
+	Uow                      repository.UnitOfWork
+	CurrencyConverter        money.CurrencyConverter
+	CurrencyRegistry         *currency.Registry
+	CheckoutRegistryProvider registry.Provider
+	PaymentProvider          provider.PaymentProvider
+	EventBus                 eventbus.Bus
+	Logger                   *slog.Logger
 }
 
 type App struct {
@@ -32,6 +35,7 @@ type App struct {
 	UserService     *user.Service
 	AccountService  *account.Service
 	CurrencyService *currencyScv.Service
+	CheckoutService *checkout.Service
 }
 
 func New(deps *Deps, cfg *config.App) *App {
@@ -54,5 +58,6 @@ func New(deps *Deps, cfg *config.App) *App {
 	app.UserService = user.New(deps.Uow, deps.Logger)
 	app.AccountService = account.New(deps.EventBus, deps.Uow, deps.Logger)
 	app.CurrencyService = currencyScv.New(deps.CurrencyRegistry, deps.Logger)
+	app.CheckoutService = checkout.New(deps.CheckoutRegistryProvider)
 	return app
 }

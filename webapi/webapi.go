@@ -13,6 +13,7 @@ import (
 	"github.com/amirasaad/fintech/pkg/app"
 	accountweb "github.com/amirasaad/fintech/webapi/account"
 	authweb "github.com/amirasaad/fintech/webapi/auth"
+	checkoutweb "github.com/amirasaad/fintech/webapi/checkout"
 	"github.com/amirasaad/fintech/webapi/common"
 	currencyweb "github.com/amirasaad/fintech/webapi/currency"
 	"github.com/amirasaad/fintech/webapi/payment"
@@ -31,6 +32,7 @@ func SetupApp(app *app.App) *fiber.App {
 	userSvc := app.UserService
 	authSvc := app.AuthService
 	currencySvc := app.CurrencyService
+	checkoutSvc := app.CheckoutService
 
 	fiberApp := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
@@ -95,5 +97,6 @@ func SetupApp(app *app.App) *fiber.App {
 	userweb.Routes(fiberApp, userSvc, authSvc, app.Config)
 	authweb.Routes(fiberApp, authSvc)
 	currencyweb.Routes(fiberApp, currencySvc, authSvc, app.Config)
+	checkoutweb.Routes(fiberApp, checkoutSvc, authSvc, app.Config)
 	return fiberApp
 }
