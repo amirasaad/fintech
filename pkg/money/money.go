@@ -37,7 +37,7 @@ type Money struct {
 // MarshalJSON implements json.Marshaler interface.
 func (m Money) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]any{
-		"amount":   m.amount,
+		"amount":   m.AmountFloat(),
 		"currency": m.currency,
 	})
 }
