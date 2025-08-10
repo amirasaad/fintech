@@ -1,4 +1,4 @@
-package money_test
+package currency_test
 
 import (
 	"errors"
@@ -19,8 +19,8 @@ func TestCurrencyConversion(t *testing.T) {
 	tests := []struct {
 		name    string
 		amount  float64
-		from    string
-		to      string
+		from    currency.Code
+		to      currency.Code
 		want    *domain.ConversionInfo
 		wantErr bool
 	}{
@@ -71,7 +71,7 @@ func TestJPYToUSDConversion(t *testing.T) {
 		require.NoError(t, err)
 		usd, err := money.New(convInfo.ConvertedAmount, "USD")
 		require.NoError(t, err)
-		assert.Equal(t, "USD", string(usd.Currency()))
+		assert.Equal(t, "USD", usd.Currency().String())
 		assert.InDelta(t, convInfo.ConvertedAmount, usd.AmountFloat(), 0.01)
 	})
 
@@ -81,7 +81,7 @@ func TestJPYToUSDConversion(t *testing.T) {
 		require.NoError(t, err)
 		usd, err := money.New(convInfo.ConvertedAmount, "USD")
 		require.NoError(t, err)
-		assert.Equal(t, "USD", string(usd.Currency()))
+		assert.Equal(t, "USD", usd.Currency().String())
 		// Should be rounded to 2 decimals
 		meta, _ := currency.Get("USD")
 		factor := math.Pow10(meta.Decimals)

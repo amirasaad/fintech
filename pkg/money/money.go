@@ -18,7 +18,9 @@ import (
 	"github.com/amirasaad/fintech/pkg/domain/common"
 )
 
-// Use common.ErrInvalidCode and common.ConversionInfo
+var ErrInvalidAmount = fmt.Errorf("invalid amount float")
+
+var ErrAmountExceedsMaxSafeInt = fmt.Errorf("amount exceeds maximum safe integer value")
 
 // Amount represents a monetary amount as an integer in the
 // smallest currency unit (e.g., cents for USD).
@@ -170,7 +172,7 @@ func (m Money) Currency() currency.Code {
 	return m.currency
 }
 
-// Is checks the currency code if the same as money object
+// IsCurrency Is checks the currency code if the same as money object
 func (m Money) IsCurrency(code string) bool {
 	return m.Currency().String() == code
 }
@@ -345,7 +347,7 @@ func convertToSmallestUnit(amount float64, currencyCode string) (int64, error) {
 	factor := new(big.Rat).SetFloat64(math.Pow10(meta.Decimals))
 	amountRat := new(big.Rat).SetFloat64(amount)
 	if amountRat == nil {
-		return 0, fmt.Errorf("invalid amount float")
+		return 0, ErrInvalidAmount
 	}
 	// Multiply amount by factor
 	scaled := new(big.Rat).Mul(amountRat, factor)
@@ -353,7 +355,8 @@ func convertToSmallestUnit(amount float64, currencyCode string) (int64, error) {
 	scaledFloat, _ := scaled.Float64()
 	rounded := int64(math.Round(scaledFloat))
 	if float64(rounded) > float64(math.MaxInt64) || float64(rounded) < float64(math.MinInt64) {
-		return 0, fmt.Errorf("amount exceeds maximum safe integer value")
+
+		return 0, ErrAmountExceedsMaxSafeInt
 	}
 	return rounded, nil
 }

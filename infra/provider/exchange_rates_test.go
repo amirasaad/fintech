@@ -54,7 +54,7 @@ func TestExchangeRateService_GetRate_SameCurrency(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	cfg := &config.ExchangeRate{CacheTTL: time.Minute}
 	service := NewExchangeRateService(
-		[]provider.ExchangeRateProvider{},
+		[]provider.ExchangeRate{},
 		infra_cache.NewMemoryCache(),
 		logger,
 		cfg,
@@ -81,7 +81,7 @@ func TestExchangeRateService_GetRate_FromCache(t *testing.T) {
 		Rate:         0.85,
 	}, nil)
 	service := NewExchangeRateService(
-		[]provider.ExchangeRateProvider{mockProvider},
+		[]provider.ExchangeRate{mockProvider},
 		cache,
 		logger,
 		cfg,
@@ -114,7 +114,7 @@ func TestExchangeRateService_GetRate_FromProvider(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	cfg := &config.ExchangeRate{CacheTTL: time.Minute}
 	service := NewExchangeRateService(
-		[]provider.ExchangeRateProvider{mockProvider},
+		[]provider.ExchangeRate{mockProvider},
 		cache,
 		logger,
 		cfg,
@@ -154,7 +154,7 @@ func TestExchangeRateService_GetRate_ProviderUnhealthy(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	cfg := &config.ExchangeRate{CacheTTL: time.Minute}
 	service := NewExchangeRateService(
-		[]provider.ExchangeRateProvider{mockProvider},
+		[]provider.ExchangeRate{mockProvider},
 		cache,
 		logger,
 		cfg,
@@ -179,7 +179,7 @@ func TestExchangeRateService_GetRate_ProviderError(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	cfg := &config.ExchangeRate{CacheTTL: time.Minute}
 	service := NewExchangeRateService(
-		[]provider.ExchangeRateProvider{mockProvider},
+		[]provider.ExchangeRate{mockProvider},
 		cache,
 		logger,
 		cfg,
@@ -205,7 +205,7 @@ func TestExchangeRateService_GetRate_InvalidRate(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	cfg := &config.ExchangeRate{CacheTTL: time.Minute}
 	service := NewExchangeRateService(
-		[]provider.ExchangeRateProvider{mockProvider},
+		[]provider.ExchangeRate{mockProvider},
 		cache,
 		logger,
 		cfg,
@@ -240,7 +240,7 @@ func TestExchangeRateService_GetRates_MultipleCurrencies(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	cfg := &config.ExchangeRate{CacheTTL: time.Minute}
 	service := NewExchangeRateService(
-		[]provider.ExchangeRateProvider{mockProvider},
+		[]provider.ExchangeRate{mockProvider},
 		cache,
 		logger,
 		cfg,

@@ -77,7 +77,7 @@ func ToTransactionDTO(tx *domain.Transaction) *TransactionDTO {
 		UserID:      tx.UserID.String(),
 		AccountID:   tx.AccountID.String(),
 		Amount:      tx.Amount.AmountFloat(),
-		Currency:    string(tx.Amount.Currency()),
+		Currency:    tx.Amount.Currency().String(),
 		Balance:     tx.Balance.AmountFloat(),
 		CreatedAt:   tx.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 		MoneySource: string(tx.MoneySource),

@@ -3,6 +3,8 @@ package provider
 import (
 	"log/slog"
 
+	"github.com/amirasaad/fintech/pkg/currency"
+
 	"github.com/amirasaad/fintech/pkg/domain"
 )
 
@@ -31,20 +33,21 @@ func NewExchangeRateCurrencyConverter(
 // Convert converts an amount from one currency to another using ExchangeRate v6 API.
 func (c *ExchangeRateCurrencyConverter) Convert(
 	amount float64,
-	from, to string,
-) (*domain.ConversionInfo, error) {
+	from currency.Code,
+	to currency.Code,
+) (*currency.Info, error) {
 	if from == to {
-		return &domain.ConversionInfo{
+		return &currency.Info{
 			OriginalAmount:    amount,
-			OriginalCurrency:  from,
+			OriginalCurrency:  from.String(),
 			ConvertedAmount:   amount,
-			ConvertedCurrency: to,
+			ConvertedCurrency: to.String(),
 			ConversionRate:    1.0,
 		}, nil
 	}
 
 	// Try to get real exchange rate
-	rate, err := c.exchangeRateService.GetRate(from, to)
+	rate, err := c.exchangeRateService.GetRate(from.String(), to.String())
 	if err != nil {
 		c.logger.Warn(
 			"Failed to get real exchange rate, falling back",
@@ -73,11 +76,11 @@ func (c *ExchangeRateCurrencyConverter) Convert(
 		"source", rate.Source,
 	)
 
-	return &domain.ConversionInfo{
+	return &currency.Info{
 		OriginalAmount:    amount,
-		OriginalCurrency:  from,
+		OriginalCurrency:  from.String(),
 		ConvertedAmount:   convertedAmount,
-		ConvertedCurrency: to,
+		ConvertedCurrency: to.String(),
 		ConversionRate:    rate.Rate,
 	}, nil
 }

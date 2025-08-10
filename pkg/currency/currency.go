@@ -16,6 +16,7 @@ import (
 var (
 	ErrInvalidCode = errors.New(
 		"invalid currency code: must be 3 uppercase letters")
+	ErrUnsupported     = errors.New("unsupported currency")
 	ErrInvalidDecimals = errors.New("invalid decimals: must be between 0 and 8")
 	ErrInvalidSymbol   = errors.New(
 		"invalid symbol: must not be empty and max 10 characters")

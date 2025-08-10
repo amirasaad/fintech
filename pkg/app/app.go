@@ -1,13 +1,12 @@
 package app
 
 import (
+	"github.com/amirasaad/fintech/pkg/service/checkout"
 	"log/slog"
 
-	"github.com/amirasaad/fintech/pkg/checkout"
 	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/eventbus"
-	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/amirasaad/fintech/pkg/provider"
 	"github.com/amirasaad/fintech/pkg/registry"
 	"github.com/amirasaad/fintech/pkg/repository"
@@ -20,10 +19,10 @@ import (
 // Deps contains all the dependencies needed by the SetupBus function
 type Deps struct {
 	Uow                      repository.UnitOfWork
-	CurrencyConverter        money.CurrencyConverter
+	CurrencyConverter        currency.Converter
 	CurrencyRegistry         *currency.Registry
 	CheckoutRegistryProvider registry.Provider
-	PaymentProvider          provider.PaymentProvider
+	PaymentProvider          provider.Payment
 	EventBus                 eventbus.Bus
 	Logger                   *slog.Logger
 }

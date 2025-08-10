@@ -10,14 +10,14 @@ import (
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/eventbus"
-	"github.com/amirasaad/fintech/pkg/money"
+	currencyScv "github.com/amirasaad/fintech/pkg/service/currency"
 )
 
 // HandleRequested processes ConversionRequestedEvent and
 // delegates to a flow-specific factory to create the next event.
 func HandleRequested(
 	bus eventbus.Bus,
-	converter money.CurrencyConverter,
+	converter currency.Converter,
 	logger *slog.Logger,
 	factories map[string]EventFactory,
 ) func(ctx context.Context, e events.Event) error {
@@ -90,10 +90,7 @@ func HandleRequested(
 			return bus.Emit(ctx, nextEvent)
 		}
 
-		convInfo, err := converter.Convert(
-			ccr.Amount.AmountFloat(),
-			ccr.Amount.Currency().String(),
-			ccr.To.String())
+		convertedMoney, convInfo, err := currencyScv.ConvertMoney(converter, ccr.Amount, ccr.To)
 		if err != nil {
 			log.Error(
 				"Currency conversion failed",
@@ -109,20 +106,6 @@ func HandleRequested(
 			"convInfo", convInfo,
 		)
 
-		convertedMoney, err := money.New(
-			convInfo.ConvertedAmount,
-			currency.Code(
-				convInfo.ConvertedCurrency,
-			),
-		)
-		if err != nil {
-			log.Error(
-				"Failed to create converted money object",
-				"error", err,
-				"convInfo", convInfo,
-			)
-			return err
-		}
 		// Log OriginalRequest details for debugging
 		log.Debug(
 			"[DEBUG] Creating CurrencyConverted event",
@@ -134,7 +117,7 @@ func HandleRequested(
 		cc := events.NewCurrencyConverted(
 			ccr,
 			func(cc *events.CurrencyConverted) {
-				cc.ConvertedAmount = convertedMoney
+				cc.ConvertedAmount = *convertedMoney
 				cc.ConversionInfo = convInfo
 				cc.TransactionID = ccr.TransactionID
 				// Ensure OriginalRequest is preserved

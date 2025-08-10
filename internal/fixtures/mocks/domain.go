@@ -5,7 +5,7 @@
 package mocks
 
 import (
-	"github.com/amirasaad/fintech/pkg/domain/common"
+	"github.com/amirasaad/fintech/pkg/currency"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -37,26 +37,26 @@ func (_m *CurrencyConverter) EXPECT() *CurrencyConverter_Expecter {
 }
 
 // Convert provides a mock function for the type CurrencyConverter
-func (_mock *CurrencyConverter) Convert(amount float64, from string, to string) (*common.ConversionInfo, error) {
+func (_mock *CurrencyConverter) Convert(amount float64, from currency.Code, to currency.Code) (*currency.Info, error) {
 	ret := _mock.Called(amount, from, to)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Convert")
 	}
 
-	var r0 *common.ConversionInfo
+	var r0 *currency.Info
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(float64, string, string) (*common.ConversionInfo, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(float64, currency.Code, currency.Code) (*currency.Info, error)); ok {
 		return returnFunc(amount, from, to)
 	}
-	if returnFunc, ok := ret.Get(0).(func(float64, string, string) *common.ConversionInfo); ok {
+	if returnFunc, ok := ret.Get(0).(func(float64, currency.Code, currency.Code) *currency.Info); ok {
 		r0 = returnFunc(amount, from, to)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*common.ConversionInfo)
+			r0 = ret.Get(0).(*currency.Info)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(float64, string, string) error); ok {
+	if returnFunc, ok := ret.Get(1).(func(float64, currency.Code, currency.Code) error); ok {
 		r1 = returnFunc(amount, from, to)
 	} else {
 		r1 = ret.Error(1)
@@ -71,25 +71,25 @@ type CurrencyConverter_Convert_Call struct {
 
 // Convert is a helper method to define mock.On call
 //   - amount float64
-//   - from string
-//   - to string
+//   - from currency.Code
+//   - to currency.Code
 func (_e *CurrencyConverter_Expecter) Convert(amount interface{}, from interface{}, to interface{}) *CurrencyConverter_Convert_Call {
 	return &CurrencyConverter_Convert_Call{Call: _e.mock.On("Convert", amount, from, to)}
 }
 
-func (_c *CurrencyConverter_Convert_Call) Run(run func(amount float64, from string, to string)) *CurrencyConverter_Convert_Call {
+func (_c *CurrencyConverter_Convert_Call) Run(run func(amount float64, from currency.Code, to currency.Code)) *CurrencyConverter_Convert_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 float64
 		if args[0] != nil {
 			arg0 = args[0].(float64)
 		}
-		var arg1 string
+		var arg1 currency.Code
 		if args[1] != nil {
-			arg1 = args[1].(string)
+			arg1 = args[1].(currency.Code)
 		}
-		var arg2 string
+		var arg2 currency.Code
 		if args[2] != nil {
-			arg2 = args[2].(string)
+			arg2 = args[2].(currency.Code)
 		}
 		run(
 			arg0,
@@ -100,12 +100,12 @@ func (_c *CurrencyConverter_Convert_Call) Run(run func(amount float64, from stri
 	return _c
 }
 
-func (_c *CurrencyConverter_Convert_Call) Return(conversionInfo *common.ConversionInfo, err error) *CurrencyConverter_Convert_Call {
-	_c.Call.Return(conversionInfo, err)
+func (_c *CurrencyConverter_Convert_Call) Return(info *currency.Info, err error) *CurrencyConverter_Convert_Call {
+	_c.Call.Return(info, err)
 	return _c
 }
 
-func (_c *CurrencyConverter_Convert_Call) RunAndReturn(run func(amount float64, from string, to string) (*common.ConversionInfo, error)) *CurrencyConverter_Convert_Call {
+func (_c *CurrencyConverter_Convert_Call) RunAndReturn(run func(amount float64, from currency.Code, to currency.Code) (*currency.Info, error)) *CurrencyConverter_Convert_Call {
 	_c.Call.Return(run)
 	return _c
 }

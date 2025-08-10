@@ -1,10 +1,8 @@
-package money
+package currency
 
 import (
 	"errors"
 	"time"
-
-	"github.com/amirasaad/fintech/pkg/domain/common"
 )
 
 var (
@@ -21,11 +19,11 @@ var (
 	ErrExchangeRateInvalid = errors.New("invalid exchange rate received")
 )
 
-// CurrencyConverter defines the interface for converting amounts between currencies.
-type CurrencyConverter interface {
+// Converter defines the interface for converting amounts between currencies.
+type Converter interface {
 	// Convert converts an amount from one currency to another.
 	// Returns the converted amount and the rate used, or an error if conversion is not possible.
-	Convert(amount float64, from, to string) (*common.ConversionInfo, error)
+	Convert(amount float64, from Code, to Code) (*Info, error)
 
 	// GetRate returns the current exchange rate between two currencies.
 	// This is useful for displaying rates without performing a conversion.
@@ -45,20 +43,11 @@ type ExchangeRate struct {
 	ExpiresAt    time.Time
 }
 
-// ConvertMoney converts a Money value object to the target currency using the converter.
-// Returns a new Money object in the target currency and the conversion info.
-func ConvertMoney(
-	converter CurrencyConverter,
-	m Money,
-	to string,
-) (Money, *common.ConversionInfo, error) {
-	convInfo, err := converter.Convert(m.AmountFloat(), m.Currency().String(), to)
-	if err != nil {
-		return Money{}, nil, err
-	}
-	converted, err := New(convInfo.ConvertedAmount, m.Currency())
-	if err != nil {
-		return Money{}, nil, err
-	}
-	return converted, convInfo, nil
+// Info holds details about a currency conversion performed during a transaction.
+type Info struct {
+	OriginalAmount    float64
+	OriginalCurrency  string
+	ConvertedAmount   float64
+	ConvertedCurrency string
+	ConversionRate    float64
 }

@@ -57,8 +57,8 @@ type UpdatePaymentStatusParams struct {
 	Status        PaymentStatus
 }
 
-// PaymentProvider is a interface for payment provider
-type PaymentProvider interface {
+// Payment is a interface for payment provider
+type Payment interface {
 	InitiatePayment(
 		ctx context.Context,
 		params *InitiatePaymentParams,

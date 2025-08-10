@@ -27,7 +27,7 @@ type Deps struct {
 	Uow              repository.UnitOfWork
 	EventBus         eventbus.Bus
 	CurrencyRegistry *currency.Registry
-	PaymentProvider  provider.PaymentProvider
+	PaymentProvider  provider.Payment
 	Logger           *slog.Logger
 }
 

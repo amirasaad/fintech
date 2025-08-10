@@ -4,13 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/amirasaad/fintech/pkg/service/checkout"
 	"log/slog"
 	"maps"
 	"net/url"
 	"strings"
 	"time"
 
-	"github.com/amirasaad/fintech/pkg/checkout"
 	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/registry"
 
@@ -35,7 +35,7 @@ type CheckoutSession struct {
 	Currency    string
 }
 
-// StripePaymentProvider implements PaymentProvider using Stripe API.
+// StripePaymentProvider implements Payment using Stripe API.
 type StripePaymentProvider struct {
 	bus             eventbus.Bus
 	client          *stripe.Client

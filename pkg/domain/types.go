@@ -1,10 +1,10 @@
 package domain
 
 import (
+	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/amirasaad/fintech/pkg/domain/user"
-	"github.com/amirasaad/fintech/pkg/money"
 )
 
 // Type aliases for backward compatibility
@@ -19,13 +19,13 @@ type Account = account.Account
 type Transaction = account.Transaction
 
 // ConversionInfo contains information about currency conversion for a transaction.
-type ConversionInfo = common.ConversionInfo
+type ConversionInfo = currency.Info
 
 // CurrencyConverter and related
-type CurrencyConverter = money.CurrencyConverter
+type CurrencyConverter = currency.Converter
 
 // ExchangeRate represents an exchange rate between two currencies.
-type ExchangeRate = money.ExchangeRate
+type ExchangeRate = currency.ExchangeRate
 
 // User and related
 type User = user.User
@@ -39,8 +39,8 @@ var (
 	ErrInvalidCurrencyCode             = common.ErrInvalidCurrencyCode
 	ErrUserUnauthorized                = user.ErrUserUnauthorized
 
-	ErrExchangeRateUnavailable = money.ErrExchangeRateUnavailable
-	ErrUnsupportedCurrencyPair = money.ErrUnsupportedCurrencyPair
-	ErrExchangeRateExpired     = money.ErrExchangeRateExpired
-	ErrExchangeRateInvalid     = money.ErrExchangeRateInvalid
+	ErrExchangeRateUnavailable = currency.ErrExchangeRateUnavailable
+	ErrUnsupportedCurrencyPair = currency.ErrUnsupportedCurrencyPair
+	ErrExchangeRateExpired     = currency.ErrExchangeRateExpired
+	ErrExchangeRateInvalid     = currency.ErrExchangeRateInvalid
 )

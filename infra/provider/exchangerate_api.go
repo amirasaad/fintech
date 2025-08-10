@@ -15,7 +15,7 @@ import (
 	"github.com/amirasaad/fintech/pkg/provider"
 )
 
-// ExchangeRateAPIProvider implements the ExchangeRateProvider interface for exchangerate-api.com
+// ExchangeRateAPIProvider implements the ExchangeRate interface for exchangerate-api.com
 // Updated to use v6 endpoint and config
 type ExchangeRateAPIProvider struct {
 	apiKey     string
@@ -285,5 +285,5 @@ func (p *ExchangeRateAPIProvider) IsHealthy() bool {
 	return true
 }
 
-// Ensure ExchangeRateAPIProvider implements provider.ExchangeRateProvider
-var _ provider.ExchangeRateProvider = (*ExchangeRateAPIProvider)(nil)
+// Ensure ExchangeRateAPIProvider implements provider.ExchangeRate
+var _ provider.ExchangeRate = (*ExchangeRateAPIProvider)(nil)

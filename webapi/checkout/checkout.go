@@ -1,10 +1,10 @@
 package checkout
 
 import (
-	"github.com/amirasaad/fintech/pkg/checkout"
 	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/middleware"
 	authsvc "github.com/amirasaad/fintech/pkg/service/auth"
+	"github.com/amirasaad/fintech/pkg/service/checkout"
 	"github.com/amirasaad/fintech/webapi/common"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/log"

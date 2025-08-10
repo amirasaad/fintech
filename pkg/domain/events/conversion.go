@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/amirasaad/fintech/pkg/currency"
-	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/google/uuid"
 )
@@ -112,7 +111,7 @@ type CurrencyConverted struct {
 	CurrencyConversionRequested
 	TransactionID   uuid.UUID
 	ConvertedAmount money.Money
-	ConversionInfo  *common.ConversionInfo
+	ConversionInfo  *currency.Info
 }
 
 func (e CurrencyConverted) Type() string { return EventTypeCurrencyConverted.String() }
@@ -135,9 +134,9 @@ func (e CurrencyConverted) MarshalJSON() ([]byte, error) {
 		RequestPayload       json.RawMessage `json:"requestPayload,omitempty"`
 
 		// CurrencyConverted specific fields
-		TransactionID   uuid.UUID              `json:"transactionId"`
-		ConvertedAmount money.Money            `json:"convertedAmount"`
-		ConversionInfo  *common.ConversionInfo `json:"conversionInfo"`
+		TransactionID   uuid.UUID      `json:"transactionId"`
+		ConvertedAmount money.Money    `json:"convertedAmount"`
+		ConversionInfo  *currency.Info `json:"conversionInfo"`
 	}{
 		// Copy from embedded CurrencyConversionRequested
 		ID:                   e.ID,
@@ -192,9 +191,9 @@ func (e *CurrencyConverted) UnmarshalJSON(data []byte) error {
 		RequestPayload       json.RawMessage `json:"requestPayload,omitempty"`
 
 		// CurrencyConverted specific fields
-		TransactionID   uuid.UUID              `json:"transactionId"`
-		ConvertedAmount money.Money            `json:"convertedAmount"`
-		ConversionInfo  *common.ConversionInfo `json:"conversionInfo"`
+		TransactionID   uuid.UUID      `json:"transactionId"`
+		ConvertedAmount money.Money    `json:"convertedAmount"`
+		ConversionInfo  *currency.Info `json:"conversionInfo"`
 	}{}
 
 	// Unmarshal the main fields

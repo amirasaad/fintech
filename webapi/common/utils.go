@@ -2,6 +2,7 @@ package common
 
 import (
 	"errors"
+	"github.com/amirasaad/fintech/pkg/money"
 
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/domain/common"
@@ -156,7 +157,7 @@ func errorToStatusCode(err error) int {
 		return fiber.StatusUnprocessableEntity
 	case errors.Is(err, common.ErrInvalidDecimalPlaces):
 		return fiber.StatusBadRequest
-	case errors.Is(err, common.ErrAmountExceedsMaxSafeInt):
+	case errors.Is(err, money.ErrAmountExceedsMaxSafeInt):
 		return fiber.StatusBadRequest
 	case errors.Is(err, common.ErrUnsupportedCurrency):
 		return fiber.StatusUnprocessableEntity

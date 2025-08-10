@@ -42,7 +42,7 @@ func FuzzAccountDeposit(f *testing.F) {
 			}
 		}
 		// Invariant: currency format is always valid
-		if !currency.IsValidFormat(string(acc.Balance.Currency())) {
+		if !currency.IsValidFormat(acc.Balance.Currency().String()) {
 			t.Errorf("Account currency is invalid: %q", acc.Balance.Currency())
 		}
 	})
@@ -87,7 +87,7 @@ func FuzzAccountWithdraw(f *testing.F) {
 		}
 		// Invariant: currency format is always valid
 		// Explicitly convert string to currency.Code for validation
-		if !currency.IsValidFormat(string(acc.Balance.Currency())) {
+		if !currency.IsValidFormat(acc.Balance.Currency().String()) {
 			t.Errorf("Account currency is invalid: %q", acc.Balance.Currency())
 		}
 	})

@@ -16,7 +16,7 @@ import (
 
 // ExchangeRateService provides real-time exchange rates with caching and fallback providers.
 type ExchangeRateService struct {
-	providers []provider.ExchangeRateProvider
+	providers []provider.ExchangeRate
 	cache     cache.ExchangeRateCache
 	logger    *slog.Logger
 	cfg       *config.ExchangeRate
@@ -26,7 +26,7 @@ type ExchangeRateService struct {
 // NewExchangeRateService creates a new exchange rate service
 // with the given providers, cache, and exchange rate config.
 func NewExchangeRateService(
-	providers []provider.ExchangeRateProvider,
+	providers []provider.ExchangeRate,
 	cache cache.ExchangeRateCache,
 	logger *slog.Logger,
 	cfg *config.ExchangeRate,

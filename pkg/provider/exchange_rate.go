@@ -2,8 +2,8 @@ package provider
 
 import "github.com/amirasaad/fintech/pkg/domain"
 
-// ExchangeRateProvider defines the interface for external exchange rate providers.
-type ExchangeRateProvider interface {
+// ExchangeRate defines the interface for external exchange rate providers.
+type ExchangeRate interface {
 	// GetRate fetches the current exchange rate for a currency pair.
 	GetRate(from, to string) (*domain.ExchangeRate, error)
 

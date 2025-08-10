@@ -3,6 +3,7 @@
 package app
 
 import (
+	"github.com/amirasaad/fintech/pkg/currency"
 	"log/slog"
 
 	"github.com/amirasaad/fintech/pkg/domain/events"
@@ -13,7 +14,6 @@ import (
 	"github.com/amirasaad/fintech/pkg/handler/conversion"
 	"github.com/amirasaad/fintech/pkg/handler/fees"
 	"github.com/amirasaad/fintech/pkg/handler/payment"
-	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/amirasaad/fintech/pkg/repository"
 )
 
@@ -159,7 +159,7 @@ func (a *App) setupDepositHandlers(
 func (a *App) setupConversionHandlers(
 	bus eventbus.Bus,
 	uow repository.UnitOfWork,
-	currencyConverter money.CurrencyConverter,
+	currencyConverter currency.Converter,
 	logger *slog.Logger,
 ) {
 	// 1️⃣ GENERIC CONVERSION HANDLER

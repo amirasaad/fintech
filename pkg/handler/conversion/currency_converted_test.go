@@ -9,7 +9,6 @@ import (
 
 	"github.com/amirasaad/fintech/internal/fixtures/mocks"
 	"github.com/amirasaad/fintech/pkg/currency"
-	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/amirasaad/fintech/pkg/repository"
@@ -32,7 +31,7 @@ func TestHandleCurrencyConverted(t *testing.T) {
 		// Create test data
 		transactionID := uuid.New()
 		convertedAmount, _ := money.New(85.0, currency.EUR)
-		convInfo := &common.ConversionInfo{
+		convInfo := &currency.Info{
 			OriginalAmount:    100.0,
 			OriginalCurrency:  "USD",
 			ConvertedAmount:   85.0,
@@ -117,7 +116,7 @@ func TestHandleCurrencyConverted(t *testing.T) {
 		uow.AssertNotCalled(t, "Do", mock.Anything, mock.Anything)
 	})
 
-	t.Run("handles nil ConversionInfo", func(t *testing.T) {
+	t.Run("handles nil Info", func(t *testing.T) {
 		uow := mocks.NewUnitOfWork(t)
 
 		transactionID := uuid.New()
@@ -136,12 +135,12 @@ func TestHandleCurrencyConverted(t *testing.T) {
 			},
 			TransactionID:   transactionID,
 			ConvertedAmount: convertedAmount,
-			ConversionInfo:  nil, // Nil ConversionInfo
+			ConversionInfo:  nil, // Nil Info
 		}
 
 		handler := HandleCurrencyConverted(uow, logger)
 		err := handler(ctx, event)
-		require.NoError(t, err) // Should return nil for nil ConversionInfo
+		require.NoError(t, err) // Should return nil for nil Info
 		uow.AssertNotCalled(
 			t, "Do", mock.Anything, mock.Anything)
 	})
@@ -152,7 +151,7 @@ func TestHandleCurrencyConverted(t *testing.T) {
 
 		transactionID := uuid.New()
 		convertedAmount, _ := money.New(85.0, currency.EUR)
-		convInfo := &common.ConversionInfo{
+		convInfo := &currency.Info{
 			OriginalAmount:    100.0,
 			OriginalCurrency:  "USD",
 			ConvertedAmount:   85.0,
@@ -201,7 +200,7 @@ func TestHandleCurrencyConverted(t *testing.T) {
 
 		transactionID := uuid.New()
 		convertedAmount, _ := money.New(85.0, currency.EUR)
-		convInfo := &common.ConversionInfo{
+		convInfo := &currency.Info{
 			OriginalAmount:    100.0,
 			OriginalCurrency:  "USD",
 			ConvertedAmount:   85.0,

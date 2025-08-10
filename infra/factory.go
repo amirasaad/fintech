@@ -36,7 +36,7 @@ func NewExchangeRateSystem(
 	}
 
 	// Create providers
-	var exchangeRateProviders []provider.ExchangeRateProvider
+	var exchangeRateProviders []provider.ExchangeRate
 
 	// Use USD as the base currency for now (configurable in future)
 	baseCurrency := "USD"

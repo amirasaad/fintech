@@ -2,7 +2,6 @@ package conversion
 
 import (
 	"github.com/amirasaad/fintech/pkg/currency"
-	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/google/uuid"
@@ -27,13 +26,13 @@ func NewValidConversionRequestedEvent(
 	return event
 }
 
-// NewValidConversionInfo returns a fully valid ConversionInfo for use in tests.
+// NewValidConversionInfo returns a fully valid Info for use in tests.
 func NewValidConversionInfo(
 	originalAmount, convertedAmount float64,
 	originalCurrency, convertedCurrency string,
 	rate float64,
-) *common.ConversionInfo {
-	return &common.ConversionInfo{
+) *currency.Info {
+	return &currency.Info{
 		OriginalAmount:    originalAmount,
 		OriginalCurrency:  originalCurrency,
 		ConvertedAmount:   convertedAmount,

@@ -9,7 +9,7 @@ import (
 
 // StripeWebhookHandler handles incoming Stripe webhook events
 func StripeWebhookHandler(
-	paymentProvider provider.PaymentProvider,
+	paymentProvider provider.Payment,
 ) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		// Get the signature from the request headers
@@ -44,7 +44,7 @@ func StripeWebhookHandler(
 // StripeWebhookRoutes sets up the Stripe webhook routes
 func StripeWebhookRoutes(
 	app *fiber.App,
-	paymentProvider provider.PaymentProvider,
+	paymentProvider provider.Payment,
 ) {
 	// Webhook endpoint for Stripe events
 	app.Post("/api/v1/webhooks/stripe", StripeWebhookHandler(paymentProvider))

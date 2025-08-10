@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/amirasaad/fintech/pkg/currency"
-	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/google/uuid"
@@ -133,7 +132,7 @@ func TestCurrencyConverted(t *testing.T) {
 			},
 			TransactionID:   uuid.New(),
 			ConvertedAmount: convertedAmount,
-			ConversionInfo: &common.ConversionInfo{
+			ConversionInfo: &currency.Info{
 				OriginalAmount:    amount.AmountFloat(),
 				OriginalCurrency:  amount.Currency().String(),
 				ConvertedAmount:   convertedAmount.AmountFloat(),
@@ -175,7 +174,7 @@ func TestCurrencyConverted(t *testing.T) {
 			},
 			TransactionID:   transactionID,
 			ConvertedAmount: convertedAmount,
-			ConversionInfo: &common.ConversionInfo{
+			ConversionInfo: &currency.Info{
 				OriginalAmount:    amount.AmountFloat(),
 				OriginalCurrency:  amount.Currency().String(),
 				ConvertedAmount:   convertedAmount.AmountFloat(),

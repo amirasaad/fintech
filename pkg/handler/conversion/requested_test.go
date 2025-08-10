@@ -23,8 +23,12 @@ type MockEventFactory struct {
 	mock.Mock
 }
 
+// CreateNextEvent is a mock implementation of EventFactory.CreateNextEvent
 func (m *MockEventFactory) CreateNextEvent(cr *events.CurrencyConverted) events.Event {
 	args := m.Called(cr)
+	if args.Get(0) == nil {
+		return nil
+	}
 	return args.Get(0).(events.Event)
 }
 
@@ -80,22 +84,34 @@ func TestConversionHandler(t *testing.T) {
 				),
 			)
 
-			// Mock expectations
-			mockConverter.On("Convert", 100.0, "USD", "EUR").Return(convInfo, nil).Once()
-			bus.On(
-				"Emit",
-				mock.Anything,
-				mock.AnythingOfType("*events.CurrencyConverted"),
-			).Return(nil).Once()
+			// Mock expectations - use currency.Code types for currency codes
+			mockConverter.EXPECT().
+				Convert(100.0, currency.USD, currency.EUR).
+				Return(convInfo, nil).
+				Once()
+
+			bus.EXPECT().
+				Emit(mock.Anything, mock.MatchedBy(func(e events.Event) bool {
+					_, ok := e.(*events.CurrencyConverted)
+					return ok
+				})).
+				Return(nil).
+				Once()
+
 			mockFactory.On(
 				"CreateNextEvent",
-				mock.AnythingOfType("*events.CurrencyConverted"),
+				mock.MatchedBy(func(e *events.CurrencyConverted) bool {
+					return e != nil
+				}),
 			).Return(nextEvent).Once()
-			bus.On(
-				"Emit",
-				mock.Anything,
-				mock.AnythingOfType("*events.DepositCurrencyConverted"),
-			).Return(nil).Once()
+
+			bus.EXPECT().
+				Emit(mock.Anything, mock.MatchedBy(func(e events.Event) bool {
+					_, ok := e.(*events.DepositCurrencyConverted)
+					return ok
+				})).
+				Return(nil).
+				Once()
 
 			factories := map[string]EventFactory{
 				"deposit": mockFactory,
@@ -159,12 +175,10 @@ func TestConversionHandler(t *testing.T) {
 		)
 
 		// Mock conversion error
-		mockConverter.On(
-			"Convert",
-			100.0,
-			"USD",
-			"EUR",
-		).Return(nil, errors.New("conversion error")).Once()
+		mockConverter.EXPECT().
+			Convert(100.0, currency.USD, currency.EUR).
+			Return(nil, errors.New("conversion error")).
+			Once()
 
 		factories := map[string]EventFactory{
 			"deposit": &MockEventFactory{},

@@ -17,7 +17,7 @@ var processedPaymentInitiated sync.Map // map[string]struct{} for idempotency
 // HandleInitiated handles DepositBusinessValidatedEvent and initiates payment for deposits.
 func HandleInitiated(
 	bus eventbus.Bus,
-	paymentProvider provider.PaymentProvider,
+	paymentProvider provider.Payment,
 	logger *slog.Logger,
 ) eventbus.HandlerFunc {
 	return func(ctx context.Context, e events.Event) error {
