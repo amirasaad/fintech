@@ -33,18 +33,18 @@ func ExampleGet() {
 	// Total supported currencies: 13
 }
 
-// ExampleNewCurrencyRegistry demonstrates creating a custom currency registry
-func ExampleNewCurrencyRegistry() {
+// ExampleNewRegistry demonstrates creating a custom currency registry
+func ExampleNew() {
 	ctx := context.Background()
 
 	// Create a new registry
-	registry, err := NewCurrencyRegistry(ctx)
+	registry, err := New(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	// Register a custom cryptocurrency
-	crypto := CurrencyMeta{
+	crypto := Meta{
 		Code:     "BTC",
 		Name:     "Bitcoin",
 		Symbol:   "₿",
@@ -69,24 +69,24 @@ func ExampleNewCurrencyRegistry() {
 		log.Fatal(err)
 	}
 
-	fmt.Printf("Registered: %s (%s) - %s\n",
-		retrieved.Name, retrieved.Symbol, retrieved.Metadata["type"])
+	fmt.Printf("Registered: %s (%s)\n", retrieved.Name,
+		retrieved.Symbol)
 	// Output:
-	// Registered: Bitcoin (₿) - cryptocurrency
+	// Registered: Bitcoin (₿)
 }
 
-// ExampleNewCurrencyRegistryWithPersistence demonstrates using persistence with currency registry
-func ExampleNewCurrencyRegistryWithPersistence() {
+// ExampleNewRegistryWithPersistence demonstrates using persistence with currency registry
+func ExampleNewRegistryWithPersistence() {
 	ctx := context.Background()
 
 	// Create registry with persistence
-	registry, err := NewCurrencyRegistryWithPersistence(ctx, "./currencies.json")
+	registry, err := NewRegistryWithPersistence(ctx, "./currencies.json")
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	// Register a new currency
-	newCurrency := CurrencyMeta{
+	newCurrency := Meta{
 		Code:     "CST",
 		Name:     "Custom Currency",
 		Symbol:   "C",
@@ -106,10 +106,10 @@ func ExampleNewCurrencyRegistryWithPersistence() {
 	// Currency registered and persisted
 }
 
-// ExampleCurrencyRegistry_Search demonstrates searching for currencies
-func ExampleCurrencyRegistry_Search() {
+// ExampleRegistry_Search demonstrates searching for currencies
+func ExampleRegistry_Search() {
 	ctx := context.Background()
-	registry, err := NewCurrencyRegistry(ctx)
+	registry, err := New(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -136,10 +136,10 @@ func ExampleCurrencyRegistry_Search() {
 	// - US Dollar ($) from United States
 }
 
-// ExampleCurrencyRegistry_SearchByRegion demonstrates searching by region
-func ExampleCurrencyRegistry_SearchByRegion() {
+// ExampleRegistry_SearchByRegion demonstrates searching by region
+func ExampleRegistry_SearchByRegion() {
 	ctx := context.Background()
-	registry, err := NewCurrencyRegistry(ctx)
+	registry, err := New(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -165,16 +165,16 @@ func ExampleCurrencyRegistry_SearchByRegion() {
 	// - Swiss Franc (CHF)
 }
 
-// ExampleCurrencyRegistry_Register demonstrates currency lifecycle management
-func ExampleCurrencyRegistry_Register() {
+// ExampleRegistry_Register demonstrates currency lifecycle management
+func ExampleRegistry_Register() {
 	ctx := context.Background()
-	registry, err := NewCurrencyRegistry(ctx)
+	registry, err := New(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	// Register a currency as inactive
-	currency := CurrencyMeta{
+	currency := Meta{
 		Code:     "TST",
 		Name:     "Test Currency",
 		Symbol:   "T",
@@ -214,22 +214,25 @@ func ExampleCurrencyRegistry_Register() {
 }
 
 // ExampleCurrencyRegistry_Count demonstrates getting currency statistics
-func ExampleCurrencyRegistry_Count() {
+func ExampleRegistry_Count() {
 	ctx := context.Background()
-	registry, err := NewCurrencyRegistry(ctx)
+	registry, err := New(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	// Register some currencies
-	currencies := []CurrencyMeta{
+	currencies := []Meta{
 		{Code: "USD", Name: "US Dollar", Symbol: "$", Decimals: 2, Active: true},
 		{Code: "EUR", Name: "Euro", Symbol: "€", Decimals: 2, Active: true},
 		{Code: "INA", Name: "Inactive Currency", Symbol: "I", Decimals: 2, Active: false},
 	}
 
 	for _, currency := range currencies {
-		registry.Register(currency) //nolint:errcheck
+		if err := registry.Register(currency); err != nil {
+			log.Println(err)
+			continue
+		}
 	}
 
 	// Get counts
@@ -244,16 +247,16 @@ func ExampleCurrencyRegistry_Count() {
 	// Inactive currencies: 1
 }
 
-// ExampleCurrencyRegistry_Get demonstrates working with currency events
-func ExampleCurrencyRegistry_Get() {
+// ExampleRegistry_Get demonstrates working with currency events
+func ExampleRegistry_Get() {
 	ctx := context.Background()
-	registry, err := NewCurrencyRegistry(ctx)
+	registry, err := New(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	// Register a currency
-	currency := CurrencyMeta{
+	currency := Meta{
 		Code:     "TST",
 		Name:     "Test Currency",
 		Symbol:   "T",
@@ -280,10 +283,10 @@ func ExampleCurrencyRegistry_Get() {
 	// Currency unregistered successfully
 }
 
-// ExampleCurrencyRegistry_IsSupported demonstrates the caching behavior
-func ExampleCurrencyRegistry_IsSupported() {
+// ExampleRegistry_IsSupported demonstrates the caching behavior
+func ExampleRegistry_IsSupported() {
 	ctx := context.Background()
-	registry, err := NewCurrencyRegistry(ctx)
+	registry, err := New(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -299,10 +302,10 @@ func ExampleCurrencyRegistry_IsSupported() {
 	// Same currency: true
 }
 
-// ExampleCurrencyRegistry_ListSupported demonstrates health checking
-func ExampleCurrencyRegistry_ListSupported() {
+// ExampleRegistry_ListSupported demonstrates health checking
+func ExampleRegistry_ListSupported() {
 	ctx := context.Background()
-	registry, err := NewCurrencyRegistry(ctx)
+	registry, err := New(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}

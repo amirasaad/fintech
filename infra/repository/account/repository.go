@@ -3,10 +3,8 @@ package account
 import (
 	"context"
 
-	model "github.com/amirasaad/fintech/infra/repository/model" // domain model import
-	"github.com/amirasaad/fintech/pkg/domain/money"
 	"github.com/amirasaad/fintech/pkg/dto"
-	repo "github.com/amirasaad/fintech/pkg/repository/account"
+	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -15,26 +13,37 @@ type repository struct {
 	db *gorm.DB
 }
 
-// NewRepository creates a new CQRS-style account repository using the provided *gorm.DB.
-func New(db *gorm.DB) repo.Repository {
+// New creates a new CQRS-style account repository
+// using the provided *gorm.DB.
+func New(db *gorm.DB) *repository {
 	return &repository{db: db}
 }
 
 // Create implements account.Repository.
-func (r *repository) Create(ctx context.Context, create dto.AccountCreate) error {
+func (r *repository) Create(
+	ctx context.Context,
+	create dto.AccountCreate,
+) error {
 	acct := mapCreateDTOToModel(create)
 	return r.db.WithContext(ctx).Create(&acct).Error
 }
 
 // Update implements account.Repository.
-func (r *repository) Update(ctx context.Context, id uuid.UUID, update dto.AccountUpdate) error {
+func (r *repository) Update(
+	ctx context.Context,
+	id uuid.UUID,
+	update dto.AccountUpdate,
+) error {
 	updates := mapUpdateDTOToModel(update)
-	return r.db.WithContext(ctx).Model(&model.Account{}).Where("id = ?", id).Updates(updates).Error
+	return r.db.WithContext(ctx).Model(&Account{}).Where("id = ?", id).Updates(updates).Error
 }
 
 // Get implements account.Repository.
-func (r *repository) Get(ctx context.Context, id uuid.UUID) (*dto.AccountRead, error) {
-	var acct model.Account
+func (r *repository) Get(
+	ctx context.Context,
+	id uuid.UUID,
+) (*dto.AccountRead, error) {
+	var acct Account
 	if err := r.db.WithContext(ctx).First(&acct, "id = ?", id).Error; err != nil {
 		return nil, err
 	}
@@ -42,8 +51,11 @@ func (r *repository) Get(ctx context.Context, id uuid.UUID) (*dto.AccountRead, e
 }
 
 // ListByUser implements account.Repository.
-func (r *repository) ListByUser(ctx context.Context, userID uuid.UUID) ([]*dto.AccountRead, error) {
-	var accts []model.Account
+func (r *repository) ListByUser(
+	ctx context.Context,
+	userID uuid.UUID,
+) ([]*dto.AccountRead, error) {
+	var accts []Account
 	if err := r.db.WithContext(ctx).Where("user_id = ?", userID).Find(&accts).Error; err != nil {
 		return nil, err
 	}
@@ -55,8 +67,8 @@ func (r *repository) ListByUser(ctx context.Context, userID uuid.UUID) ([]*dto.A
 }
 
 // mapCreateDTOToModel maps AccountCreate DTO to GORM model.
-func mapCreateDTOToModel(create dto.AccountCreate) model.Account {
-	return model.Account{
+func mapCreateDTOToModel(create dto.AccountCreate) Account {
+	return Account{
 		ID:       create.ID,
 		UserID:   create.UserID,
 		Balance:  0,
@@ -79,7 +91,7 @@ func mapUpdateDTOToModel(update dto.AccountUpdate) map[string]any {
 }
 
 // mapModelToDTO maps a GORM model to a read-optimized DTO.
-func mapModelToDTO(acct *model.Account) *dto.AccountRead {
+func mapModelToDTO(acct *Account) *dto.AccountRead {
 	bal := money.NewFromData(acct.Balance, acct.Currency)
 	return &dto.AccountRead{
 		ID:        acct.ID,
@@ -87,8 +99,5 @@ func mapModelToDTO(acct *model.Account) *dto.AccountRead {
 		Balance:   bal.AmountFloat(),
 		Currency:  bal.Currency().String(),
 		CreatedAt: acct.CreatedAt,
-
-		// Status: acct.Status, // Uncomment if Status exists in model.Account
-		// Add more fields as needed
 	}
 }

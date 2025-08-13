@@ -8,7 +8,7 @@ import (
 
 // Routes registers HTTP routes for authentication operations.
 // Sets up endpoints for user login and authentication.
-func Routes(app *fiber.App, authSvc *authsvc.AuthService) {
+func Routes(app *fiber.App, authSvc *authsvc.Service) {
 	app.Post("/auth/login", Login(authSvc))
 }
 
@@ -25,7 +25,7 @@ func Routes(app *fiber.App, authSvc *authsvc.AuthService) {
 // @Failure 429 {object} common.ProblemDetails
 // @Failure 500 {object} common.ProblemDetails
 // @Router /auth/login [post]
-func Login(authSvc *authsvc.AuthService) fiber.Handler {
+func Login(authSvc *authsvc.Service) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		input, err := common.BindAndValidate[LoginInput](c)
 		if input == nil {
@@ -35,17 +35,42 @@ func Login(authSvc *authsvc.AuthService) fiber.Handler {
 		if err != nil {
 			// Check if it's an unauthorized error
 			if err.Error() == "user unauthorized" {
-				return common.ProblemDetailsJSON(c, "Invalid identity or password", nil, "Identity or password is incorrect", fiber.StatusUnauthorized)
+				return common.ProblemDetailsJSON(
+					c,
+					"Invalid identity or password",
+					nil,
+					"Identity or password is incorrect",
+					fiber.StatusUnauthorized,
+				)
 			}
-			return common.ProblemDetailsJSON(c, "Internal Server Error", err)
+			return common.ProblemDetailsJSON(
+				c,
+				"Internal Server Error",
+				err,
+			)
 		}
 		if user == nil {
-			return common.ProblemDetailsJSON(c, "Invalid identity or password", nil, "Identity or password is incorrect", fiber.StatusUnauthorized)
+			return common.ProblemDetailsJSON(
+				c,
+				"Invalid identity or password",
+				nil,
+				"Identity or password is incorrect",
+				fiber.StatusUnauthorized,
+			)
 		}
-		token, err := authSvc.GenerateToken(user)
+		token, err := authSvc.GenerateToken(c.Context(), user)
 		if err != nil {
-			return common.ProblemDetailsJSON(c, "Internal Server Error", err)
+			return common.ProblemDetailsJSON(
+				c,
+				"Internal Server Error",
+				err,
+			)
 		}
-		return common.SuccessResponseJSON(c, fiber.StatusOK, "Success login", fiber.Map{"token": token})
+		return common.SuccessResponseJSON(
+			c,
+			fiber.StatusOK,
+			"Success login",
+			fiber.Map{"token": token},
+		)
 	}
 }

@@ -10,98 +10,145 @@ icon: material/broadcast
 
 Domain events are immutable messages that represent significant business occurrences within the system. In this fintech project, domain events are the backbone of the event-driven architecture, enabling modular, decoupled, and extensible workflows for payments, transfers, deposits, withdrawals, and account operations.
 
+### 🔑 Key Principles
+
+1. **Immutable**: Events are records of things that happened in the past
+2. **Self-Contained**: Each event carries all necessary data
+3. **Named in Past Tense**: Events represent something that has already occurred
+4. **Causality**: Events form a directed acyclic graph (DAG)
+5. **Idempotency**: Event handling must be idempotent
+
+### 🏗️ Event Structure
+
+All domain events implement the following interface:
+
+```go
+type Event interface {
+
+    Type() string // Event type
+```
+
+### 🌐 Event Bus
+
+Events are published to an event bus that routes them to registered handlers:
+
+```go
+type EventBus interface {
+    Emit(ctx context.Context, event Event) error
+    Register(eventType string, handler EventHandler) error
+}
+```
+
+### 📊 Event Store
+
+All events are persisted in an event store for audit and replay:
+
+```go
+type EventStore interface {
+    Save(events []Event) error
+    Load(aggregateID string) ([]Event, error)
+    Subscribe(handler EventHandler) error
+}
+```
+
 ## 🧩 Key Domain Events
 
 Events are defined in [`pkg/domain/events/`](../pkg/domain/events/):
 
-### Deposit Events
-- `DepositRequestedEvent` - Initial deposit request
-- `DepositValidatedEvent` - Deposit validation completed
-- `DepositPersistedEvent` - Deposit transaction persisted
-- `DepositBusinessValidationEvent` - Business validation after conversion
-- `DepositBusinessValidatedEvent` - Business validation completed
+### Deposit Flow
 
-### Withdraw Events
-- `WithdrawRequestedEvent` - Initial withdraw request
-- `WithdrawValidatedEvent` - Withdraw validation completed
-- `WithdrawPersistedEvent` - Withdraw transaction persisted
-- `WithdrawBusinessValidationEvent` - Business validation after conversion
-- `WithdrawBusinessValidatedEvent` - Business validation completed
-- `WithdrawFailedEvent` - Withdraw operation failed
+- `Deposit.Requested` - Initial deposit request
+- `Deposit.CurrencyConverted` - Input validation completed
+- `Deposit.Validated` - Deposit record created in database
+- `Payment.Initiated` - Payment processing started with provider
 
-### Transfer Events
-- `TransferRequestedEvent` - Initial transfer request
-- `TransferValidatedEvent` - Transfer validation completed
-- `TransferBusinessValidatedEvent` - Transfer conversion completed
-- `TransferDomainOpDoneEvent` - Transfer domain operation completed
-- `TransferPersistedEvent` - Transfer persistence completed
-- `TransferCompletedEvent` - Transfer fully completed
-- `TransferFailedEvent` - Transfer operation failed
+### Withdraw Flow
+
+- `Withdraw.Requested` - Initial withdraw request
+- `Withdraw.CurrencyConverted` - Input validation completed
+- `Withdraw.Validated` - Withdraw record created in database
+- `Payment.Initiated` - Payment processing started with provider
+
+### Transfer Flow
+
+- `Transfer.Requested` - Initial transfer request
+- `Transfer.CurrencyConverted` - Input validation completed
+- `Transfer.Validated` - Transfer record created in database
+- `Transfer.Completed` - Transfer fully completed
 
 ### Payment Events
-- `PaymentInitiationEvent` - Payment initiation request
-- `PaymentInitiatedEvent` - Payment initiated with provider
-- `PaymentCompletedEvent` - Payment confirmed by provider
-- `PaymentFailedEvent` - Payment failed
-- `PaymentIdPersistedEvent` - Payment ID persisted to transaction
 
-### Conversion Events
-- `ConversionRequestedEvent` - Currency conversion requested
-- `ConversionDoneEvent` - Currency conversion completed
+- `Payment.Initiated` - Payment processing started with provider
+- `Payment.Processed` - Payment processed by webhook
+- `Payment.Completed` - Payment confirmed by provider
+- `Payment.Failed` - Payment processing failed
+
+### Common Events
+
+- `AccountBalanceUpdatedEvent` - Account balance was updated
+- `TransactionCreatedEvent` - New transaction was created
 
 ## 🖼️ Event Flow Relationships
 
 ```mermaid
 flowchart TD
     subgraph Deposit
-        A1[DepositRequestedEvent] --> A2[DepositValidatedEvent]
-        A2 --> A3[DepositPersistedEvent]
-        A3 --> A4[DepositBusinessValidationEvent]
-        A4 --> A5[DepositBusinessValidatedEvent]
-        A5 --> B4[PaymentInitiatedEvent]
+        DR[Deposit.Requested]
+        DC[Deposit.CurrencyConverted]
+        DV[Deposit.Validated]
+
+        DR --> DC
+        DC --> DV
+        DV --> PI
     end
 
     subgraph Withdraw
-        D1[WithdrawRequestedEvent] --> D2[WithdrawValidatedEvent]
-        D2 --> D3[WithdrawPersistedEvent]
-        D3 --> D4[WithdrawBusinessValidationEvent]
-        D4 --> D5[WithdrawBusinessValidatedEvent]
-        D5 --> B4
+        WR[Withdraw.Requested]
+        WC[Withdraw.CurrencyConverted]
+        WV[Withdraw.Validated]
+
+        WR --> WC
+        WC --> WV
+        WV --> PI
     end
 
     subgraph Transfer
-        C1[TransferRequestedEvent] --> C2[TransferValidatedEvent]
-        C2 --> C3[TransferDomainOpDoneEvent]
-        C3 --> C4[TransferConversionDoneEvent]
-        C4 --> C5[TransferCompletedEvent]
+        TR[Transfer.Requested]
+        TV[Transfer.Validated]
+        TCC[Transfer.CurrencyConverted]
+        TC[Transfer.Completed]
+
+        TR --> TV
+        TV --> TCC
+        TCC --> TC
     end
 
     subgraph Payment
-        B1[PaymentInitiationEvent] --> B2[PaymentCompletedEvent]
-        B1 --> B3[PaymentFailedEvent]
-        B4 --> B5[PaymentIdPersistedEvent]
-    end
+        PI[Payment.Initiated]
+        PP[Payment.Processed]
+        PC[Payment.Completed]
+        PF[Payment.Failed]
 
-    subgraph Conversion
-        E1[ConversionRequestedEvent] --> E2[ConversionDoneEvent]
+        PI --> PP
+        PP --> PC
+        PC --> PF
     end
 ```
 
-## 🏗️ Event Structure
-
-All events follow a consistent structure:
-
 ### Common FlowEvent
+
 ```go
 type FlowEvent struct {
-    FlowType      string    // "deposit", "withdraw", "transfer"
+    FlowType      string    // "deposit", "withdraw", "transfer", "payment", "payment"
     UserID        uuid.UUID
     AccountID     uuid.UUID
     CorrelationID uuid.UUID
+    Timestamp     time.Time
 }
 ```
 
 ### Event Interface
+
 ```go
 type Event interface {
     Type() string

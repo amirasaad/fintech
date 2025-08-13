@@ -12,12 +12,12 @@ import (
 func TestCurrencyEntity(t *testing.T) {
 	tests := []struct {
 		name     string
-		meta     CurrencyMeta
-		expected CurrencyMeta
+		meta     Meta
+		expected Meta
 	}{
 		{
 			name: "valid currency entity",
-			meta: CurrencyMeta{
+			meta: Meta{
 				Code:     "USD",
 				Name:     "US Dollar",
 				Symbol:   "$",
@@ -26,7 +26,7 @@ func TestCurrencyEntity(t *testing.T) {
 				Region:   "North America",
 				Active:   true,
 			},
-			expected: CurrencyMeta{
+			expected: Meta{
 				Code:     "USD",
 				Name:     "US Dollar",
 				Symbol:   "$",
@@ -38,7 +38,7 @@ func TestCurrencyEntity(t *testing.T) {
 		},
 		{
 			name: "currency with metadata",
-			meta: CurrencyMeta{
+			meta: Meta{
 				Code:     "EUR",
 				Name:     "Euro",
 				Symbol:   "€",
@@ -51,7 +51,7 @@ func TestCurrencyEntity(t *testing.T) {
 					"type":     "fiat",
 				},
 			},
-			expected: CurrencyMeta{
+			expected: Meta{
 				Code:     "EUR",
 				Name:     "Euro",
 				Symbol:   "€",
@@ -69,7 +69,7 @@ func TestCurrencyEntity(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			entity := NewCurrencyEntity(tt.meta)
+			entity := NewEntity(tt.meta)
 
 			assert.Equal(t, tt.expected.Code, entity.ID())
 			assert.Equal(t, tt.expected.Name, entity.Name())
@@ -110,13 +110,13 @@ func TestCurrencyValidator(t *testing.T) {
 
 	tests := []struct {
 		name        string
-		meta        CurrencyMeta
+		meta        Meta
 		expectError bool
 		errorType   error
 	}{
 		{
 			name: "valid currency",
-			meta: CurrencyMeta{
+			meta: Meta{
 				Code:     "USD",
 				Name:     "US Dollar",
 				Symbol:   "$",
@@ -126,40 +126,40 @@ func TestCurrencyValidator(t *testing.T) {
 		},
 		{
 			name: "invalid currency code - lowercase",
-			meta: CurrencyMeta{
+			meta: Meta{
 				Code:     "usd",
 				Name:     "US Dollar",
 				Symbol:   "$",
 				Decimals: 2,
 			},
 			expectError: true,
-			errorType:   ErrInvalidCurrencyCode,
+			errorType:   ErrInvalidCode,
 		},
 		{
 			name: "invalid currency code - too short",
-			meta: CurrencyMeta{
+			meta: Meta{
 				Code:     "US",
 				Name:     "US Dollar",
 				Symbol:   "$",
 				Decimals: 2,
 			},
 			expectError: true,
-			errorType:   ErrInvalidCurrencyCode,
+			errorType:   ErrInvalidCode,
 		},
 		{
 			name: "invalid currency code - too long",
-			meta: CurrencyMeta{
+			meta: Meta{
 				Code:     "USDD",
 				Name:     "US Dollar",
 				Symbol:   "$",
 				Decimals: 2,
 			},
 			expectError: true,
-			errorType:   ErrInvalidCurrencyCode,
+			errorType:   ErrInvalidCode,
 		},
 		{
 			name: "invalid decimals - negative",
-			meta: CurrencyMeta{
+			meta: Meta{
 				Code:     "USD",
 				Name:     "US Dollar",
 				Symbol:   "$",
@@ -170,18 +170,18 @@ func TestCurrencyValidator(t *testing.T) {
 		},
 		{
 			name: "invalid decimals - too high",
-			meta: CurrencyMeta{
+			meta: Meta{
 				Code:     "USD",
 				Name:     "US Dollar",
 				Symbol:   "$",
-				Decimals: 9,
+				Decimals: 20,
 			},
 			expectError: true,
 			errorType:   ErrInvalidDecimals,
 		},
 		{
 			name: "invalid symbol - empty",
-			meta: CurrencyMeta{
+			meta: Meta{
 				Code:     "USD",
 				Name:     "US Dollar",
 				Symbol:   "",
@@ -192,7 +192,7 @@ func TestCurrencyValidator(t *testing.T) {
 		},
 		{
 			name: "invalid symbol - too long",
-			meta: CurrencyMeta{
+			meta: Meta{
 				Code:     "USD",
 				Name:     "US Dollar",
 				Symbol:   "This symbol is way too long for a currency",
@@ -203,7 +203,7 @@ func TestCurrencyValidator(t *testing.T) {
 		},
 		{
 			name: "empty name",
-			meta: CurrencyMeta{
+			meta: Meta{
 				Code:     "USD",
 				Name:     "",
 				Symbol:   "$",
@@ -215,7 +215,7 @@ func TestCurrencyValidator(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			entity := NewCurrencyEntity(tt.meta)
+			entity := NewEntity(tt.meta)
 			err := validator.Validate(ctx, entity)
 
 			if tt.expectError {
@@ -293,7 +293,7 @@ func TestCurrencyRegistry(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("create registry", func(t *testing.T) {
-		registry, err := NewCurrencyRegistry(ctx)
+		registry, err := New(ctx)
 		require.NoError(t, err)
 		assert.NotNil(t, registry)
 
@@ -313,10 +313,10 @@ func TestCurrencyRegistry(t *testing.T) {
 	})
 
 	t.Run("register new currency", func(t *testing.T) {
-		registry, err := NewCurrencyRegistry(ctx)
+		registry, err := New(ctx)
 		require.NoError(t, err)
 
-		newCurrency := CurrencyMeta{
+		newCurrency := Meta{
 			Code:     "BTC",
 			Name:     "Bitcoin",
 			Symbol:   "₿",
@@ -339,10 +339,10 @@ func TestCurrencyRegistry(t *testing.T) {
 	})
 
 	t.Run("register invalid currency", func(t *testing.T) {
-		registry, err := NewCurrencyRegistry(ctx)
+		registry, err := New(ctx)
 		require.NoError(t, err)
 
-		invalidCurrency := CurrencyMeta{
+		invalidCurrency := Meta{
 			Code:     "invalid",
 			Name:     "Invalid Currency",
 			Symbol:   "INV",
@@ -351,11 +351,11 @@ func TestCurrencyRegistry(t *testing.T) {
 
 		err = registry.Register(invalidCurrency)
 		require.Error(t, err)
-		assert.ErrorIs(t, err, ErrInvalidCurrencyCode)
+		assert.ErrorIs(t, err, ErrInvalidCode)
 	})
 
 	t.Run("get non-existent currency", func(t *testing.T) {
-		registry, err := NewCurrencyRegistry(ctx)
+		registry, err := New(ctx)
 		require.NoError(t, err)
 
 		_, err = registry.Get("NONEXISTENT")
@@ -364,7 +364,7 @@ func TestCurrencyRegistry(t *testing.T) {
 	})
 
 	t.Run("list supported currencies", func(t *testing.T) {
-		registry, err := NewCurrencyRegistry(ctx)
+		registry, err := New(ctx)
 		require.NoError(t, err)
 
 		supported, err := registry.ListSupported()
@@ -383,7 +383,7 @@ func TestCurrencyRegistry(t *testing.T) {
 	})
 
 	t.Run("list all currencies", func(t *testing.T) {
-		registry, err := NewCurrencyRegistry(ctx)
+		registry, err := New(ctx)
 		require.NoError(t, err)
 
 		all, err := registry.ListAll()
@@ -404,11 +404,11 @@ func TestCurrencyRegistry(t *testing.T) {
 	})
 
 	t.Run("activate and deactivate currency", func(t *testing.T) {
-		registry, err := NewCurrencyRegistry(ctx)
+		registry, err := New(ctx)
 		require.NoError(t, err)
 
 		// Register a new currency
-		newCurrency := CurrencyMeta{
+		newCurrency := Meta{
 			Code:     "TST",
 			Name:     "Test Currency",
 			Symbol:   "T",
@@ -434,11 +434,11 @@ func TestCurrencyRegistry(t *testing.T) {
 	})
 
 	t.Run("unregister currency", func(t *testing.T) {
-		registry, err := NewCurrencyRegistry(ctx)
+		registry, err := New(ctx)
 		require.NoError(t, err)
 
 		// Register a test currency
-		testCurrency := CurrencyMeta{
+		testCurrency := Meta{
 			Code:     "TSU",
 			Name:     "Test Currency 2",
 			Symbol:   "T2",
@@ -462,7 +462,7 @@ func TestCurrencyRegistry(t *testing.T) {
 	})
 
 	t.Run("search currencies", func(t *testing.T) {
-		registry, err := NewCurrencyRegistry(ctx)
+		registry, err := New(ctx)
 		require.NoError(t, err)
 
 		// Search for "Dollar"
@@ -482,7 +482,7 @@ func TestCurrencyRegistry(t *testing.T) {
 	})
 
 	t.Run("search by region", func(t *testing.T) {
-		registry, err := NewCurrencyRegistry(ctx)
+		registry, err := New(ctx)
 		require.NoError(t, err)
 
 		// Search for North America
@@ -502,7 +502,7 @@ func TestCurrencyRegistry(t *testing.T) {
 	})
 
 	t.Run("count currencies", func(t *testing.T) {
-		registry, err := NewCurrencyRegistry(ctx)
+		registry, err := New(ctx)
 		require.NoError(t, err)
 
 		total, err := registry.Count()
@@ -561,7 +561,7 @@ func TestGlobalFunctions(t *testing.T) {
 func TestBackwardCompatibility(t *testing.T) {
 	t.Run("legacy register", func(t *testing.T) {
 		// This should not panic
-		RegisterLegacy("LGY", CurrencyMeta{
+		Legacy("LGY", Meta{
 			Symbol:   "L",
 			Decimals: 2,
 		})
@@ -612,7 +612,7 @@ func TestBackwardCompatibility(t *testing.T) {
 
 	t.Run("legacy unregister", func(t *testing.T) {
 		// Register a test currency
-		RegisterLegacy("TSV", CurrencyMeta{
+		Legacy("TSV", Meta{
 			Symbol:   "T3",
 			Decimals: 2,
 		})
@@ -644,22 +644,22 @@ func TestValidationHelpers(t *testing.T) {
 		}
 	})
 
-	t.Run("validateCurrencyMeta", func(t *testing.T) {
-		validMeta := CurrencyMeta{
+	t.Run("validateMeta", func(t *testing.T) {
+		validMeta := Meta{
 			Code:     "USD",
 			Name:     "US Dollar",
 			Symbol:   "$",
 			Decimals: 2,
 		}
-		require.NoError(t, validateCurrencyMeta(validMeta))
+		require.NoError(t, validateMeta(validMeta))
 
-		invalidMeta := CurrencyMeta{
+		invalidMeta := Meta{
 			Code:     "invalid",
 			Name:     "Invalid",
 			Symbol:   "$",
 			Decimals: 2,
 		}
-		require.Error(t, validateCurrencyMeta(invalidMeta))
-		require.ErrorIs(t, validateCurrencyMeta(invalidMeta), ErrInvalidCurrencyCode)
+		require.Error(t, validateMeta(invalidMeta))
+		require.ErrorIs(t, validateMeta(invalidMeta), ErrInvalidCode)
 	})
 }

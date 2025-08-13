@@ -1,96 +1,35 @@
 package conversion
 
 import (
-	"github.com/amirasaad/fintech/pkg/domain"
-	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/amirasaad/fintech/pkg/domain/events"
-	"github.com/amirasaad/fintech/pkg/domain/money"
 )
 
-// DepositEventFactory creates a DepositBusinessValidationEvent.
+// DepositEventFactory creates a DepositCurrencyConverted event from a CurrencyConverted event.
 type DepositEventFactory struct{}
 
+// CreateNextEvent creates DepositCurrencyConverted with converted event
 func (f *DepositEventFactory) CreateNextEvent(
-	cre *events.ConversionRequestedEvent,
-	convInfo *common.ConversionInfo,
-	convertedMoney money.Money,
-) (domain.Event, error) {
-	return events.DepositBusinessValidationEvent{
-		DepositValidatedEvent: events.DepositValidatedEvent{
-			DepositRequestedEvent: events.DepositRequestedEvent{
-				FlowEvent: cre.FlowEvent,
-				ID:        cre.ID,
-				Amount:    cre.Amount,
-				Timestamp: cre.Timestamp,
-			},
-		},
-		ConversionDoneEvent: events.ConversionDoneEvent{
-			FlowEvent:      cre.FlowEvent,
-			ID:             cre.ID,
-			RequestID:      cre.RequestID,
-			TransactionID:  cre.TransactionID,
-			Timestamp:      cre.Timestamp,
-			ConversionInfo: convInfo,
-		},
-		Amount: convertedMoney,
-	}, nil
-
+	cc *events.CurrencyConverted,
+) events.Event {
+	return events.NewDepositCurrencyConverted(cc)
 }
 
-// WithdrawEventFactory creates a WithdrawBusinessValidationEvent.
+// WithdrawEventFactory creates a WithdrawCurrencyConverted event from a CurrencyConverted event.
 type WithdrawEventFactory struct{}
 
+// CreateNextEvent creates WithdrawCurrencyConverted with converted event
 func (f *WithdrawEventFactory) CreateNextEvent(
-	cre *events.ConversionRequestedEvent,
-	convInfo *common.ConversionInfo,
-	convertedMoney money.Money,
-) (domain.Event, error) {
-	return events.WithdrawBusinessValidationEvent{
-		WithdrawValidatedEvent: events.WithdrawValidatedEvent{
-			WithdrawRequestedEvent: events.WithdrawRequestedEvent{
-				FlowEvent: cre.FlowEvent,
-				ID:        cre.ID,
-				Amount:    cre.Amount,
-				Timestamp: cre.Timestamp,
-			},
-		},
-		ConversionDoneEvent: events.ConversionDoneEvent{
-			FlowEvent:      cre.FlowEvent,
-			ID:             cre.ID,
-			RequestID:      cre.RequestID,
-			TransactionID:  cre.TransactionID,
-			Timestamp:      cre.Timestamp,
-			ConversionInfo: convInfo,
-		},
-		Amount: convertedMoney,
-	}, nil
+	cc *events.CurrencyConverted,
+) events.Event {
+	return events.NewWithdrawCurrencyConverted(cc)
 }
 
-// TransferEventFactory creates a TransferConversionDoneEvent.
+// TransferEventFactory creates a TransferCurrencyConverted event from a CurrencyConverted event.
 type TransferEventFactory struct{}
 
+// CreateNextEvent creates TransferCurrencyConverted with converted event
 func (f *TransferEventFactory) CreateNextEvent(
-	cre *events.ConversionRequestedEvent,
-	convInfo *common.ConversionInfo,
-	convertedMoney money.Money,
-) (domain.Event, error) {
-	return events.TransferBusinessValidatedEvent{
-		TransferValidatedEvent: events.TransferValidatedEvent{
-			TransferRequestedEvent: events.TransferRequestedEvent{
-				FlowEvent: cre.FlowEvent,
-				ID:        cre.ID,
-				Amount:    cre.Amount,
-				Timestamp: cre.Timestamp,
-			},
-		},
-		ConversionDoneEvent: events.ConversionDoneEvent{
-			FlowEvent:      cre.FlowEvent,
-			ID:             cre.ID,
-			RequestID:      cre.RequestID,
-			TransactionID:  cre.TransactionID,
-			Timestamp:      cre.Timestamp,
-			ConversionInfo: convInfo,
-		},
-		Amount: convertedMoney,
-	}, nil
+	cc *events.CurrencyConverted,
+) events.Event {
+	return events.NewTransferCurrencyConverted(cc)
 }

@@ -1,64 +1,84 @@
 package events
 
 import (
+	"fmt"
 	"time"
 
-	"github.com/amirasaad/fintech/pkg/domain/money"
+	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/google/uuid"
 )
 
-// TransferRequestedEvent is emitted when a transfer is requested (pure event-driven domain).
-type TransferRequestedEvent struct {
+// TransferRequested is emitted after transfer validation and persistence.
+type TransferRequested struct {
 	FlowEvent
-	ID             uuid.UUID
-	Amount         money.Money
-	Source         string // MoneySource as string
-	DestAccountID  uuid.UUID
-	ReceiverUserID uuid.UUID
-	Timestamp      time.Time
-}
-
-// TransferValidatedEvent is emitted after transfer validation succeeds.
-type TransferValidatedEvent struct {
-	TransferRequestedEvent
-}
-
-// TransferBusinessValidatedEvent is emitted after transfer currency conversion is completed.
-type TransferBusinessValidatedEvent struct {
-	TransferValidatedEvent
-	ConversionDoneEvent
-	Amount money.Money
-}
-
-// TransferDomainOpDoneEvent is emitted after the transfer domain operation is complete.
-type TransferDomainOpDoneEvent struct {
-	TransferValidatedEvent
-	ConversionDoneEvent
+	Amount        money.Money
+	Source        string
+	DestAccountID uuid.UUID
+	Timestamp     time.Time
 	TransactionID uuid.UUID
+	Fee           int64
 }
 
-// TransferPersistedEvent is emitted after transfer persistence is complete.
-type TransferPersistedEvent struct {
-	TransferDomainOpDoneEvent
+func (e *TransferRequested) Type() string {
+	return EventTypeTransferRequested.String()
 }
 
-// TransferCompletedEvent is emitted after both tx_out and tx_in are created for an internal transfer.
-type TransferCompletedEvent struct {
-	TransferDomainOpDoneEvent
-	TxOutID uuid.UUID
-	TxInID  uuid.UUID
+func (e *TransferRequested) WithDestAccountID(id uuid.UUID) *TransferRequested {
+	return NewTransferRequested(
+		e.UserID,
+		e.AccountID,
+		e.CorrelationID,
+		WithTransferDestAccountID(id),
+	)
 }
 
-// TransferFailedEvent is emitted when a transfer fails business validation or persistence.
-type TransferFailedEvent struct {
-	TransferRequestedEvent
+func (e *TransferRequested) WithAmount(m money.Money) *TransferRequested {
+	return NewTransferRequested(
+		e.UserID,
+		e.AccountID,
+		e.CorrelationID,
+		WithTransferRequestedAmount(m),
+	)
+}
+
+// Validate checks if the event is valid.
+func (e *TransferRequested) Validate() error {
+	if e.AccountID == uuid.Nil || e.UserID == uuid.Nil ||
+		e.DestAccountID == uuid.Nil || e.Amount.IsZero() || e.Amount.IsNegative() {
+		return fmt.Errorf("malformed validated event: %+v", e)
+	}
+	return nil
+}
+
+// TransferCurrencyConverted is emitted after currency conversion for transfer.
+type TransferCurrencyConverted struct {
+	CurrencyConverted
+}
+
+func (e TransferCurrencyConverted) Type() string {
+	return EventTypeTransferCurrencyConverted.String()
+}
+
+// TransferValidated is emitted after business validation for transfer.
+type TransferValidated struct {
+	TransferCurrencyConverted
+}
+
+func (e TransferValidated) Type() string { return EventTypeTransferValidated.String() }
+
+// TransferCompleted is emitted when transfer is fully completed.
+type TransferCompleted struct {
+	TransferValidated
+}
+
+func (e TransferCompleted) Type() string { return EventTypeTransferCompleted.String() }
+
+// TransferFailed is emitted when transfer fails.
+type TransferFailed struct {
+	TransferRequested
 	Reason string
 }
 
-func (e TransferRequestedEvent) Type() string         { return "TransferRequestedEvent" }
-func (e TransferValidatedEvent) Type() string         { return "TransferValidatedEvent" }
-func (e TransferBusinessValidatedEvent) Type() string { return "TransferConversionDoneEvent" }
-func (e TransferDomainOpDoneEvent) Type() string      { return "TransferDomainOpDoneEvent" }
-func (e TransferPersistedEvent) Type() string         { return "TransferPersistedEvent" }
-func (e TransferCompletedEvent) Type() string         { return "TransferCompletedEvent" }
-func (e TransferFailedEvent) Type() string            { return "TransferFailedEvent" }
+func (e TransferFailed) Type() string {
+	return EventTypeTransferFailed.String()
+}

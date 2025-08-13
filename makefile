@@ -20,7 +20,7 @@ run:
 
 migrate-up:
 	@echo "Applying migrations..."
-	@migrate -database "$(DATABASE_URL)" -path internal/migrations up
+	@migrate -verbose -database "$(DATABASE_URL)" -path internal/migrations up
 
 migrate-down:
 	@echo "Reverting migrations..."
@@ -33,4 +33,6 @@ migrate-create:
 	fi
 	@migrate create -ext sql -dir internal/migrations -seq $(name)
 
+migrate-force:
+	@migrate -verbose -database "$(DATABASE_URL)" -path internal/migrations force ${n}
 .PHONY: test cov cov_report run migrate-up migrate-down migrate-create

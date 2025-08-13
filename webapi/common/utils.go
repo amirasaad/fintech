@@ -2,6 +2,7 @@ package common
 
 import (
 	"errors"
+	"github.com/amirasaad/fintech/pkg/money"
 
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/domain/common"
@@ -24,14 +25,22 @@ type ProblemDetails struct {
 	Title    string `json:"title"`              // Short, human-readable summary
 	Status   int    `json:"status"`             // HTTP status code
 	Detail   string `json:"detail,omitempty"`   // Human-readable explanation
-	Instance string `json:"instance,omitempty"` // URI reference that identifies the specific occurrence
+	Instance string `json:"instance,omitempty"` // URI reference
 	Errors   any    `json:"errors,omitempty"`   // Optional: additional error details
 }
 
-// ProblemDetailsJSON writes a problem+json error response with a status code inferred from the error (if present).
-// The title is set to the error message (if error), and detail can be a string, error, or structured object.
-// Optionally, a status code can be provided as the last argument (int) to override the fallback status.
-func ProblemDetailsJSON(c *fiber.Ctx, title string, err error, detailOrStatus ...any) error {
+// ProblemDetailsJSON writes a problem+json error response with a status
+// code inferred from the error (if present).
+// The title is set to the error message (if error),
+// and detail can be a string, error, or structured object.
+// Optionally, a status code can be provided as the last argument (int)
+// to override the fallback status.
+func ProblemDetailsJSON(
+	c *fiber.Ctx,
+	title string,
+	err error,
+	detailOrStatus ...any,
+) error {
 	status := fiber.StatusBadRequest
 	pdDetail := ""
 	var pdErrors any
@@ -78,7 +87,13 @@ func ProblemDetailsJSON(c *fiber.Ctx, title string, err error, detailOrStatus ..
 func BindAndValidate[T any](c *fiber.Ctx) (*T, error) {
 	var input T
 	if err := c.BodyParser(&input); err != nil {
-		return nil, ProblemDetailsJSON(c, "Invalid request body", err, "Request body could not be parsed or has invalid types", fiber.StatusBadRequest) //nolint:errcheck
+		return nil, ProblemDetailsJSON(
+			c,
+			"Invalid request body",
+			err,
+			"Request body could not be parsed or has invalid types",
+			fiber.StatusBadRequest,
+		) //nolint:errcheck
 	}
 
 	validate := validator.New()
@@ -90,15 +105,32 @@ func BindAndValidate[T any](c *fiber.Ctx) (*T, error) {
 				msg := fe.Tag()
 				details[field] = msg
 			}
-			return nil, ProblemDetailsJSON(c, "Validation failed", nil, "Request validation failed", details, fiber.StatusBadRequest) //nolint:errcheck
+			//revive:disable
+			return nil, ProblemDetailsJSON( //nolint:errcheck
+				c,
+				"Validation failed",
+				nil,
+				"Request validation failed",
+				details,
+				fiber.StatusBadRequest,
+			)
+			//revive:enable
 		}
-		ProblemDetailsJSON(c, "Validation failed", err, "Request validation failed", fiber.StatusBadRequest) //nolint:errcheck
+		//revive:disable
+		ProblemDetailsJSON( //nolint:errcheck
+			c,
+			"Validation failed",
+			err,
+			"Request validation failed",
+			fiber.StatusBadRequest)
+		//revive:enable
 		return nil, err
 	}
 	return &input, nil
 }
 
-// SuccessResponseJSON writes a JSON response with the given status, message, and data using the standard Response struct.
+// SuccessResponseJSON writes a JSON response with the given status, message, and data
+// using the standard Response struct.
 // Use for successful API responses (e.g., 200, 201, 202).
 func SuccessResponseJSON(c *fiber.Ctx, status int, message string, data any) error {
 	return c.Status(status).JSON(Response{
@@ -125,7 +157,7 @@ func errorToStatusCode(err error) int {
 		return fiber.StatusUnprocessableEntity
 	case errors.Is(err, common.ErrInvalidDecimalPlaces):
 		return fiber.StatusBadRequest
-	case errors.Is(err, common.ErrAmountExceedsMaxSafeInt):
+	case errors.Is(err, money.ErrAmountExceedsMaxSafeInt):
 		return fiber.StatusBadRequest
 	case errors.Is(err, common.ErrUnsupportedCurrency):
 		return fiber.StatusUnprocessableEntity

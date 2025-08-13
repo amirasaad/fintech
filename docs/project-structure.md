@@ -4,7 +4,35 @@ icon: material/folder
 
 # Project Structure
 
-The project is meticulously organized to promote modularity, maintainability, and adherence to Domain-Driven Design (DDD) principles. This structure facilitates clear separation of concerns and simplifies development and testing.
+This document outlines the organization of the fintech platform's codebase. The project follows clean architecture principles with clear separation of concerns between domain logic, application services, and infrastructure.
+
+## 📁 Directory Overview
+
+The codebase is organized into several key directories, each with a specific purpose:
+
+- **`/cmd`** - Application entry points
+- **`/internal`** - Private application code (not for external use)
+- **`/pkg`** - Public packages that can be used by external applications
+- **`/configs`** - Configuration files
+- **`/deployments`** - Deployment configurations
+- **`/docs`** - Documentation
+- **`/test`** - Test suites
+
+## 🏗️ Architecture Layers
+
+The application follows a clean architecture with these layers:
+
+1. **Domain Layer** - Core business logic and entities
+2. **Application Layer** - Use cases and business rules
+3. **Interface Layer** - API endpoints and external interfaces
+4. **Infrastructure Layer** - External services and persistence
+
+## 🔄 Development Workflow
+
+- Configuration via environment variables
+- Containerized with Docker
+- CI/CD with GitHub Actions
+- Automated testing and code quality checks
 
 ```ascii
 fintech/
@@ -78,22 +106,26 @@ fintech/
 ## 🏗️ Architecture Layers
 
 ### Domain Layer (`pkg/domain/`)
+
 - **Pure business logic** with no external dependencies
 - **Value objects** like `Money` for type safety
 - **Domain entities** like `Account` and `User`
 - **Domain events** for event-driven architecture
 
 ### Application Layer (`pkg/service/`, `pkg/handler/`)
+
 - **Use case orchestration** through services
 - **Event handlers** for business flow processing
 - **Application-specific business rules**
 
 ### Infrastructure Layer (`infra/`)
+
 - **Database implementations** using GORM
 - **External service integrations** (Stripe, currency APIs)
 - **Event bus implementations**
 
 ### Presentation Layer (`webapi/`)
+
 - **HTTP handlers** using Fiber framework
 - **Request/response DTOs**
 - **Authentication and middleware**

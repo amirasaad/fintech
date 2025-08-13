@@ -10,7 +10,7 @@ import (
 )
 
 // LoadCurrencyMetaCSV loads currency metadata from a CSV file for test fixtures.
-func LoadCurrencyMetaCSV(path string) ([]currency.CurrencyMeta, error) {
+func LoadCurrencyMetaCSV(path string) ([]currency.Meta, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -23,14 +23,14 @@ func LoadCurrencyMetaCSV(path string) ([]currency.CurrencyMeta, error) {
 		return nil, err
 	}
 
-	var metas []currency.CurrencyMeta
+	var metas []currency.Meta
 	for i, rec := range records {
 		if i == 0 {
 			continue // skip header
 		}
 		decimals, _ := strconv.Atoi(rec[3])
 		active := strings.ToLower(rec[6]) == "true"
-		metas = append(metas, currency.CurrencyMeta{
+		metas = append(metas, currency.Meta{
 			Code:     rec[0],
 			Name:     rec[1],
 			Symbol:   rec[2],

@@ -1,4 +1,30 @@
-## v2.0.0 (2025-07-23)
+# CHANGELOG
+
+## v1.2.0 (2025-08-09)
+
+### Feat
+
+- **checkout**: add checkout service with session management and webapi integration
+- **auth**: add support for basic auth strategy
+- **api**: initialize currency and checkout registries with Redis support
+- implement payment processing with fees and currency conversion
+- **refactor**: Decompose monolith repository and adopt CQRS
+
+### Fix
+
+- **user**: handle partial updates in user repository
+
+### Refactor
+
+- **testutils**: add checkout registry provider to app deps
+- ♻️ reorganize code structure and improve error handling
+- **app**: convert Deps to pointer type and extract initialization logic
+- **app**: centralize app initialization and dependencies
+- **cmd/server**: restructure main.go into modular initialization functions
+- move config package to pkg/config and update imports
+- **webhooks**: Remove duplicate Stripe webhook logic
+
+## v1.1.0 (2025-08-05)
 
 ### BREAKING CHANGE
 
@@ -6,8 +32,11 @@
 
 ### Feat
 
-- **eventbus**: introduce MemoryRegistryEventBus for enhanced event handling
-- enhance event-driven architecture with new event types and handlers
+- add Stripe webhook handler and improve error handling
+- **checkout**: add session service for managing checkout sessions
+- **payment**: add PaymentProcessed event type and set paymentID
+- **stripe**: add checkout session and webhook handling
+- **eventbus**: add redis based eventbus and refactor events streaming
 - 🎯 implement Stripe webhook integration with event-driven payment processing (#18)
 - stripe integration (#17)
 - **core**: ✨ event-driven payments, strict balance invariants, and handler refactor (#15)
@@ -24,9 +53,8 @@ feat(user): implement user domain model
 
 ### Fix
 
-- workflow
-- **config**: remove required tag from SigningSecret in Stripe struct
-- add idempotency checks to deposit and payment handlers
+- **mkdocs**: remove python tags from mkdocs.yml
+- **transfer**: update persistence handler tests to match event emission behavior
 - add idempotency check for conversion persistence handler
 - prevent DepositConversionDoneEvent emission to avoid event cycle
 - **webapi**: validate currency codes in account operations
@@ -43,12 +71,20 @@ Use common error type for invalid decimal places validation in money conversion.
 
 ### Refactor
 
-- ♻️ update event-driven architecture and test improvements
-- **transfer**: ✨ implement layered event-driven transfer flow
+- update Stripe webhook handler to use event bus
+- ⚰️ remove dead code
+- **registry**: rename registry types and functions for consistency
+- **currency**: use maps.Copy for metadata copying
+- **payment**: improve payment provider interface and stripe implementation
+- **payment**: simplify handler function signatures to use eventbus.HandlerFunc
+- **events**: standardize event types and handlers
+- **eventbus**: migrate event type definitions to pkg/domain/events/types.go and update event bus implementations
+- update event handling and fix type safety issues
+- **event-bus**: ♻️ enhance MemoryRegistryEventBus with logger and improve event processing
+- ♻️ update service dependencies to use event bus and unit of work for improved architecture
+- **event-driven**: ♻️ major event handler and flow refactor: simplify, modularize, and improve test coverage (#19)
 - deposit event flow with simplified handlers and idempotency
 - payment initiation to separate deposit and withdraw handlers
-- **eventbus**: update event handling methods and improve event cycle detection
-- **events**: rename EventType method to Type for consistency across event interfaces
 - Account Service Refactoring and Test Organization Improvements (#13)
 - reorganize codebase structure and extract DTOs to separate files (#12)
 - **auth**: improve unauthorized error handling

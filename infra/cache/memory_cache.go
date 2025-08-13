@@ -45,7 +45,11 @@ func (c *MemoryCache) Get(key string) (*domain.ExchangeRate, error) {
 }
 
 // Set stores a rate in cache with TTL
-func (c *MemoryCache) Set(key string, rate *domain.ExchangeRate, ttl time.Duration) error {
+func (c *MemoryCache) Set(
+	key string,
+	rate *domain.ExchangeRate,
+	ttl time.Duration,
+) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 

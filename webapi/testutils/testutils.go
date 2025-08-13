@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -13,8 +15,10 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/amirasaad/fintech/app"
-	"github.com/amirasaad/fintech/config"
+	"github.com/amirasaad/fintech/pkg/app"
+	"github.com/amirasaad/fintech/pkg/config"
+	"github.com/amirasaad/fintech/pkg/registry"
+
 	"github.com/amirasaad/fintech/infra/eventbus"
 	"github.com/amirasaad/fintech/infra/provider"
 	infrarepo "github.com/amirasaad/fintech/infra/repository"
@@ -22,12 +26,13 @@ import (
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/domain/user"
+	"github.com/amirasaad/fintech/webapi"
 	"github.com/amirasaad/fintech/webapi/common"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-migrate/migrate/v4"
 	migratepostgres "github.com/golang-migrate/migrate/v4/database/postgres"
-	_ "github.com/golang-migrate/migrate/v4/source/file" // required for file-based migrations in tests
+	_ "github.com/golang-migrate/migrate/v4/source/file" // required for file-based migrations
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/suite"
 	"github.com/testcontainers/testcontainers-go"
@@ -43,7 +48,7 @@ type E2ETestSuite struct {
 	pgContainer *tcpostgres.PostgresContainer
 	db          *gorm.DB
 	app         *fiber.App
-	cfg         *config.AppConfig
+	cfg         *config.App
 }
 
 // BeforeEachTest runs before each test in the E2ETestSuite. It enables parallel test execution.
@@ -91,14 +96,14 @@ func (s *E2ETestSuite) SetupSuite() {
 	s.Require().NoError(err)
 
 	err = m.Up()
-	if err != nil && err != migrate.ErrNoChange {
+	if err != nil && !errors.Is(err, migrate.ErrNoChange) {
 		s.Require().NoError(err)
 	}
 
 	// Load config
-	cfgPath, err := s.findEnvTest()
+	envTest, err := s.findEnvTest()
 	s.Require().NoError(err)
-	s.cfg, err = config.LoadAppConfig(slog.Default(), cfgPath)
+	s.cfg, err = config.Load(envTest)
 	s.Require().NoError(err)
 	s.cfg.DB.Url = dsn
 
@@ -115,21 +120,29 @@ func (s *E2ETestSuite) TearDownSuite() {
 	}
 }
 
-// setupApp creates all services and the test app
+// setupApp creates all services and the test app,
+// using Redis as the event bus via testcontainers-go.
 func (s *E2ETestSuite) setupApp() {
-	// Create deps
+	s.T().Helper()
+	// Create deps with debug logging
 	uow := infrarepo.NewUoW(s.db)
-	logger := slog.Default()
+	// Enable debug logging
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelDebug,
+	}))
 	currencyConverter := provider.NewStubCurrencyConverter()
 
 	// Setup currency service
 	ctx := context.Background()
-	currencyRegistry, err := currency.NewCurrencyRegistry(ctx)
+	currencyRegistry, err := currency.New(ctx)
 	s.Require().NoError(err)
 
 	// Load currency fixtures
 	_, filename, _, _ := runtime.Caller(0)
-	fixturePath := filepath.Join(filepath.Dir(filename), "../../internal/fixtures/currency/meta.csv")
+	fixturePath := filepath.Join(
+		filepath.Dir(filename),
+		"../../internal/fixtures/currency/meta.csv",
+	)
 	metas, err := fixturescurrency.LoadCurrencyMetaCSV(fixturePath)
 	s.Require().NoError(err)
 
@@ -137,18 +150,47 @@ func (s *E2ETestSuite) setupApp() {
 		s.Require().NoError(currencyRegistry.Register(meta))
 	}
 
-	// Create test app
-	s.app = app.New(
-		config.Deps{
-			CurrencyConverter: currencyConverter,
-			CurrencyRegistry:  currencyRegistry,
-			Uow:               uow,
-			PaymentProvider:   provider.NewMockPaymentProvider(),
-			EventBus:          eventbus.NewMemoryRegistryEventBus(),
-			Logger:            logger,
-			Config:            s.cfg,
+	// Start Redis container
+	redisContainer, err := testcontainers.GenericContainer(
+		ctx,
+		testcontainers.GenericContainerRequest{
+			ContainerRequest: testcontainers.ContainerRequest{
+				Image:        "redis:7-alpine",
+				ExposedPorts: []string{"6379/tcp"},
+				WaitingFor: wait.ForListeningPort(
+					"6379/tcp",
+				).WithStartupTimeout(10 * time.Second),
+			},
+			Started: true,
 		},
 	)
+	s.Require().NoError(err)
+
+	endpoint, err := redisContainer.Endpoint(ctx, "")
+	s.Require().NoError(err)
+
+	// Setup Redis EventBus
+	eventBus, err := eventbus.NewWithRedis("redis://"+endpoint, logger)
+	s.Require().NoError(err)
+
+	// Store Redis container for cleanup at the end of this test
+	s.T().Cleanup(func() {
+		_ = redisContainer.Terminate(ctx)
+	})
+
+	// Create test app
+	s.app = webapi.SetupApp(app.New(
+		&app.Deps{
+			CurrencyConverter:        currencyConverter,
+			CurrencyRegistry:         currencyRegistry,
+			Uow:                      uow,
+			PaymentProvider:          provider.NewMockPaymentProvider(),
+			CheckoutRegistryProvider: registry.NewCachedRegistry(10, time.Minute),
+			EventBus:                 eventBus,
+			Logger:                   logger,
+		},
+		s.cfg,
+	))
 }
 
 // findEnvTest searches for the nearest .env.test file
@@ -174,7 +216,9 @@ func (s *E2ETestSuite) findEnvTest() (string, error) {
 }
 
 // MakeRequest is a helper for making HTTP requests in tests
-func (s *E2ETestSuite) MakeRequest(method, path, body, token string) *http.Response {
+func (s *E2ETestSuite) MakeRequest(
+	method, path, body, token string,
+) *http.Response {
 	var req *http.Request
 	if body != "" {
 		req = httptest.NewRequest(method, path, bytes.NewBufferString(body))
@@ -187,7 +231,7 @@ func (s *E2ETestSuite) MakeRequest(method, path, body, token string) *http.Respo
 	}
 	resp, err := s.app.Test(req, 1000000)
 	if err != nil {
-		panic(err)
+		s.T().Fatal(err)
 	}
 	return resp
 }
@@ -199,30 +243,38 @@ func (s *E2ETestSuite) CreateTestUser() *domain.User {
 	email := fmt.Sprintf("test_%s@example.com", randomID)
 
 	// Create user via HTTP POST request
-	createUserBody := fmt.Sprintf(`{"username":"%s","email":"%s","password":"password123"}`, username, email)
+	createUserBody := fmt.Sprintf(
+		`{"username":"%s","email":"%s","password":"password123"}`,
+		username,
+		email,
+	)
 	resp := s.MakeRequest("POST", "/user", createUserBody, "")
 
 	if resp.StatusCode != 201 {
-		panic(fmt.Sprintf("Expected 201 Created for user creation, got %d", resp.StatusCode))
+		// Read the response body for more details
+		body, _ := io.ReadAll(resp.Body)
+		s.T().Logf("User creation failed with status %d.", resp.StatusCode)
+		s.T().Logf("Response body: %s", string(body))
+		s.T().Fatalf("Expected 201 Created for user creation, got %d", resp.StatusCode)
 	}
 
 	// Parse response to get the created user
 	var response common.Response
 	err := json.NewDecoder(resp.Body).Decode(&response)
 	if err != nil {
-		panic(err)
+		s.T().Fatal(err)
 	}
 
 	// Extract user data from response
 	if userData, ok := response.Data.(map[string]any); ok {
 		userIDStr, ok := userData["id"].(string)
 		if !ok {
-			panic("User ID should be present in response")
+			s.T().Fatalf("User ID should be present in response")
 		}
 
-		userID, err := uuid.Parse(userIDStr)
-		if err != nil {
-			panic(err)
+		userID, parseErr := uuid.Parse(userIDStr)
+		if parseErr != nil {
+			s.T().Fatalf("User ID should be a valid UUID")
 		}
 
 		return &domain.User{
@@ -234,22 +286,22 @@ func (s *E2ETestSuite) CreateTestUser() *domain.User {
 	}
 
 	// Fallback: create user directly
-	testUser, err := user.NewUser(username, email, "password123")
+	testUser, err := user.New(username, email, "password123")
 	if err != nil {
-		panic(err)
+		s.T().Fatalf("Failed to create user: %v", err)
 	}
 	return testUser
 }
 
 // LoginUser makes an actual HTTP request to login and returns the JWT token
 func (s *E2ETestSuite) LoginUser(testUser *domain.User) string {
-	loginBody := fmt.Sprintf(`{"identity":"%s","password":"password123"}`, testUser.Email)
+	loginBody := fmt.Sprintf(`{"identity":"%s","password":"%s"}`, testUser.Email, testUser.Password)
 	resp := s.MakeRequest("POST", "/auth/login", loginBody, "")
 
 	var response common.Response
 	err := json.NewDecoder(resp.Body).Decode(&response)
 	if err != nil {
-		panic(err)
+		s.T().Fatal(err)
 	}
 
 	// Extract token from response
@@ -260,10 +312,13 @@ func (s *E2ETestSuite) LoginUser(testUser *domain.User) string {
 		}
 	} else if dataMap, ok := response.Data.(map[string]string); ok {
 		token = dataMap["token"]
+	} else if tokenString, ok := response.Data.(string); ok {
+		token = tokenString
 	}
 
+	s.T().Logf("Extracted token: %s", token)
 	if token == "" {
-		panic("No token found in response")
+		s.T().Fatalf("No token found in response")
 	}
 	return token
 }

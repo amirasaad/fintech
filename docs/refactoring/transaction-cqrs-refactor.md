@@ -69,7 +69,7 @@ A key best practice in CQRS and clean architecture is to keep all business rules
 - **DTOs are for data transfer only:** They move data between layers (API, service, repository) and should not contain business logic or enforce invariants.
 - **Domain invariants live in the domain model:** All validation and business rules (e.g., valid states, amount > 0, currency checks) must be enforced in domain constructors, methods, or factories.
 - **Conversion step:** When receiving a DTO (from API or repository), always convert it to a domain model before applying business logic. If the DTO is invalid, the conversion fails with a domain error.
-- **Persistence:** Repositories accept DTOs for storage, but domain logic is always applied before persistence. For reads, repositories return DTOs, and services/handlers convert to domain models if business logic is needed.
+- **HandleProcessed:** Repositories accept DTOs for storage, but domain logic is always applied before persistence. For reads, repositories return DTOs, and services/handlers convert to domain models if business logic is needed.
 
 **Example Flow:**
 

@@ -9,7 +9,8 @@ import (
 )
 
 var (
-	// ErrUserNotFound is returned when a user cannot be found in the repository.
+	// ErrUserNotFound is returned when a user cannot be found in the
+	// repository.
 	ErrUserNotFound = errors.New("user not found")
 	// ErrUserUnauthorized is return when user
 	ErrUserUnauthorized = errors.New("user unauthorized")
@@ -26,8 +27,8 @@ type User struct {
 	UpdatedAt time.Time `json:"updated"`
 }
 
-// NewUser creates a new User with a hashed password and current timestamps.
-func NewUser(username, email, password string) (*User, error) {
+// New creates a new User with a hashed password and current timestamps.
+func New(username, email, password string) (*User, error) {
 	if username == "" {
 		return nil, errors.New("username cannot be empty")
 	}

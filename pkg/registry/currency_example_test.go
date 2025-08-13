@@ -51,7 +51,7 @@ func CurrencyRegistryExample() {
 	fmt.Println("=== Currency Registry Example ===")
 
 	// Create a registry optimized for currency management
-	config := RegistryConfig{
+	config := Config{
 		Name:             "currency-registry",
 		MaxEntities:      1000,
 		EnableEvents:     true,
@@ -60,7 +60,7 @@ func CurrencyRegistryExample() {
 		CacheTTL:         10 * time.Minute,
 	}
 
-	registry := NewEnhancedRegistry(config)
+	registry := NewEnhanced(config)
 	registry.WithValidator(NewCurrencyValidator())
 	registry.WithCache(NewMemoryCache(10 * time.Minute))
 
@@ -79,7 +79,11 @@ func CurrencyRegistryExample() {
 	}
 
 	for _, currency := range currencies {
-		registry.Register(ctx, currency) //nolint:errcheck
+		err := registry.Register(ctx, currency)
+		if err != nil {
+			fmt.Printf("Failed to register %s: %v\n", currency.Name(), err)
+			continue
+		}
 		fmt.Printf("Registered: %s (%s)\n", currency.Name(), currency.Metadata()["code"])
 	}
 
@@ -87,7 +91,10 @@ func CurrencyRegistryExample() {
 	fmt.Println("\n--- Search Examples ---")
 
 	// Search by name
-	dollarResults, _ := registry.Search(ctx, "Dollar")
+	dollarResults, searchErr := registry.Search(ctx, "Dollar")
+	if searchErr != nil {
+		fmt.Printf("Search failed: %v\n", searchErr)
+	}
 	fmt.Printf("Found %d currencies with 'Dollar' in name:\n", len(dollarResults))
 	for _, currency := range dollarResults {
 		fmt.Printf("  - %s (%s)\n", currency.Name(), currency.Metadata()["code"])
@@ -169,7 +176,10 @@ func CurrencyRegistryExample() {
 			fmt.Sprintf("T%d", i),
 			2,
 		)
-		registry.Register(ctx, currency) //nolint:errcheck
+		err := registry.Register(ctx, currency)
+		if err != nil {
+			fmt.Printf("Warning: Failed to register test currency %s: %v\n", currency.ID(), err)
+		}
 	}
 	registerTime := time.Since(start)
 	fmt.Printf("Registered 100 currencies in %v\n", registerTime)
@@ -177,7 +187,10 @@ func CurrencyRegistryExample() {
 	// Test lookup performance
 	start = time.Now()
 	for i := 1; i <= 1000; i++ {
-		registry.Get(ctx, "USD") //nolint:errcheck
+		_, err := registry.Get(ctx, "USD")
+		if err != nil {
+			fmt.Printf("Failed to get USD: %v\n", err)
+		}
 	}
 	lookupTime := time.Since(start)
 	fmt.Printf("1000 USD lookups in %v (avg: %v per lookup)\n",
@@ -310,7 +323,7 @@ func CurrencyRegistryWithPersistence() {
 	fmt.Println("\n=== Currency Registry with Persistence ===")
 
 	// Create registry with file persistence
-	config := RegistryConfig{
+	config := Config{
 		Name:              "persistent-currency-registry",
 		EnableEvents:      true,
 		EnableValidation:  true,
@@ -321,7 +334,7 @@ func CurrencyRegistryWithPersistence() {
 		AutoSaveInterval:  time.Minute,
 	}
 
-	registry := NewEnhancedRegistry(config)
+	registry := NewEnhanced(config)
 	registry.WithValidator(NewCurrencyValidator())
 	registry.WithCache(NewMemoryCache(5 * time.Minute))
 
@@ -335,7 +348,10 @@ func CurrencyRegistryWithPersistence() {
 	}
 
 	for _, currency := range currencies {
-		registry.Register(ctx, currency) //nolint:errcheck
+		err := registry.Register(ctx, currency)
+		if err != nil {
+			fmt.Printf("Warning: Failed to register currency %s: %v\n", currency.ID(), err)
+		}
 	}
 
 	fmt.Printf("Registered %d currencies to persistent storage\n", len(currencies))
@@ -343,7 +359,7 @@ func CurrencyRegistryWithPersistence() {
 	// Simulate application restart by creating a new registry
 	fmt.Println("Simulating application restart...")
 
-	newRegistry := NewEnhancedRegistry(config)
+	newRegistry := NewEnhanced(config)
 	newRegistry.WithValidator(NewCurrencyValidator())
 	newRegistry.WithCache(NewMemoryCache(5 * time.Minute))
 
@@ -356,7 +372,10 @@ func CurrencyRegistryWithPersistence() {
 	}
 
 	for _, entity := range entities {
-		newRegistry.Register(ctx, entity) //nolint:errcheck
+		err := newRegistry.Register(ctx, entity)
+		if err != nil {
+			fmt.Printf("Failed to register entity: %v\n", err)
+		}
 	}
 
 	fmt.Printf("Loaded %d currencies from persistent storage\n", len(entities))
@@ -385,7 +404,7 @@ func CurrencyRegistryWithEvents() {
 	fmt.Println("\n=== Currency Registry with Events ===")
 
 	// Create registry with events
-	config := RegistryConfig{
+	config := Config{
 		Name:             "event-driven-currency-registry",
 		EnableEvents:     true,
 		EnableValidation: true,
@@ -393,7 +412,7 @@ func CurrencyRegistryWithEvents() {
 		CacheTTL:         5 * time.Minute,
 	}
 
-	registry := NewEnhancedRegistry(config)
+	registry := NewEnhanced(config)
 	registry.WithValidator(NewCurrencyValidator())
 
 	// Create event observer
@@ -411,25 +430,38 @@ func CurrencyRegistryWithEvents() {
 	}
 
 	for _, currency := range currencies {
-		registry.Register(ctx, currency) //nolint:errcheck
+		err := registry.Register(ctx, currency)
+		if err != nil {
+			fmt.Printf("Failed to register currency: %v\n", err)
+			continue
+		}
 		observer.OnEntityRegistered(ctx, currency)
 	}
 
 	// Simulate currency updates
-	usd, _ := registry.Get(ctx, "USD")
-	if usd != nil {
-		registry.SetMetadata(ctx, "USD", "last_updated", time.Now().Format(time.RFC3339)) //nolint:errcheck
-		observer.OnEntityUpdated(ctx, usd)
+	usd, err := registry.Get(ctx, "USD")
+	if err != nil {
+		fmt.Printf("Failed to get USD: %v\n", err)
+	} else {
+		err = registry.SetMetadata(ctx, "USD", "last_updated", time.Now().Format(time.RFC3339))
+		if err != nil {
+			fmt.Printf("Failed to set metadata: %v\n", err)
+		} else {
+			observer.OnEntityUpdated(ctx, usd)
+		}
 	}
 
 	// Simulate currency deactivation
-	registry.Deactivate(ctx, "EUR") //nolint:errcheck
-	observer.OnEntityDeactivated(ctx, "EUR")
+	err = registry.Deactivate(ctx, "EUR")
+	if err != nil {
+		fmt.Printf("Failed to deactivate EUR: %v\n", err)
+	} else {
+		observer.OnEntityDeactivated(ctx, "EUR")
+	}
 
 	fmt.Println("Currency events processed successfully")
 }
 
-// CurrencyEventLogger implements RegistryObserver for currency events
 type CurrencyEventLogger struct{}
 
 func (l *CurrencyEventLogger) OnEntityRegistered(ctx context.Context, entity Entity) {

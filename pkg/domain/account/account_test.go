@@ -9,7 +9,7 @@ import (
 
 	"github.com/amirasaad/fintech/pkg/currency"
 	domainaccount "github.com/amirasaad/fintech/pkg/domain/account"
-	"github.com/amirasaad/fintech/pkg/domain/money"
+	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -94,7 +94,8 @@ func TestValidateTransfer(t *testing.T) {
 
 	// Test case 2: Unauthorized transfer
 	t.Run("unauthorized transfer", func(t *testing.T) {
-		err := sourceAcc.ValidateTransfer(uuid.New(), receiverID, destAcc, amount)
+		err := sourceAcc.ValidateTransfer(
+			uuid.New(), receiverID, destAcc, amount)
 		assert.ErrorIs(t, err, domainaccount.ErrNotOwner)
 	})
 

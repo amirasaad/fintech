@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain"
 )
 
@@ -35,21 +36,28 @@ func NewStubCurrencyConverter() *StubCurrencyConverter {
 	}}
 }
 
-func (s *StubCurrencyConverter) Convert(amount float64, from, to string) (*domain.ConversionInfo, error) {
-	rate, exists := s.rates[from][to]
+func (s *StubCurrencyConverter) Convert(
+	amount float64,
+	from currency.Code,
+	to currency.Code,
+) (*currency.Info, error) {
+	rate, exists := s.rates[from.String()][to.String()]
 	if !exists {
 		return nil, domain.ErrUnsupportedCurrencyPair
 	}
 	return &domain.ConversionInfo{
 		OriginalAmount:    amount,
-		OriginalCurrency:  from,
+		OriginalCurrency:  from.String(),
 		ConvertedAmount:   amount * rate,
-		ConvertedCurrency: to,
+		ConvertedCurrency: to.String(),
 		ConversionRate:    rate,
 	}, nil
 }
 
-func (s *StubCurrencyConverter) GetRate(from, to string) (float64, error) {
+func (s *StubCurrencyConverter) GetRate(
+	from,
+	to string,
+) (float64, error) {
 	if from == to {
 		return 1.0, nil
 	}
@@ -60,7 +68,10 @@ func (s *StubCurrencyConverter) GetRate(from, to string) (float64, error) {
 	return rate, nil
 }
 
-func (s *StubCurrencyConverter) IsSupported(from, to string) bool {
+func (s *StubCurrencyConverter) IsSupported(
+	from,
+	to string,
+) bool {
 	if from == to {
 		return true
 	}
