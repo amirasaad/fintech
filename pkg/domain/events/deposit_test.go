@@ -1,8 +1,9 @@
 package events_test
 
 import (
-	"github.com/amirasaad/fintech/pkg/currency"
 	"testing"
+
+	"github.com/amirasaad/fintech/pkg/provider"
 
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/money"
@@ -59,7 +60,7 @@ func TestDepositCurrencyConverted(t *testing.T) {
 					},
 					TransactionID:   uuid.New(),
 					ConvertedAmount: amount,
-					ConversionInfo: &currency.Info{
+					ConversionInfo: &provider.ExchangeInfo{
 						OriginalAmount:    1000.0,
 						OriginalCurrency:  "USD",
 						ConvertedAmount:   850.0,
@@ -93,7 +94,7 @@ func TestDepositValidated(t *testing.T) {
 					},
 					TransactionID:   uuid.New(),
 					ConvertedAmount: amount,
-					ConversionInfo: &currency.Info{
+					ConversionInfo: &provider.ExchangeInfo{
 						OriginalAmount:    1000.0,
 						OriginalCurrency:  "USD",
 						ConvertedAmount:   850.0,
@@ -123,7 +124,8 @@ func TestDepositFailed(t *testing.T) {
 						UserID:    uuid.New(),
 						AccountID: uuid.New(),
 					},
-					Amount: amount, Source: "bank_transfer",
+					Amount:        amount,
+					Source:        "bank_transfer",
 					TransactionID: uuid.New(),
 				},
 				Reason: "insufficient_funds",

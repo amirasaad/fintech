@@ -44,18 +44,25 @@ type PaymentProviders struct {
 	Stripe *Stripe `envconfig:"STRIPE"`
 }
 
-type ExchangeRate struct {
-	ApiKey            string        `envconfig:"API_KEY"`
-	ApiUrl            string        `envconfig:"API_URL" default:""`
-	CacheTTL          time.Duration `envconfig:"CACHE_TTL" default:"15m"`
-	HTTPTimeout       time.Duration `envconfig:"HTTP_TIMEOUT" default:"10s"`
+type ExchangeRateApi struct {
+	ApiKey      string        `envconfig:"API_KEY"`
+	ApiUrl      string        `envconfig:"API_URL" default:""`
+	HTTPTimeout time.Duration `envconfig:"HTTP_TIMEOUT" default:"10s"`
+}
+
+type ExchangeRateProviders struct {
+	ExchangeRateApi *ExchangeRateApi `envconfig:"EXCHANGERATE"`
+}
+
+type ExchangeRateCache struct {
+	TTL               time.Duration `envconfig:"TTL" default:"15m"`
 	MaxRetries        int           `envconfig:"MAX_RETRIES" default:"3"`
 	RequestsPerMinute int           `envconfig:"REQUESTS_PER_MINUTE" default:"60"`
 	BurstSize         int           `envconfig:"BURST_SIZE" default:"10"`
 	EnableFallback    bool          `envconfig:"ENABLE_FALLBACK" default:"true"`
 	FallbackTTL       time.Duration `envconfig:"FALLBACK_TTL" default:"1h"`
-	CachePrefix       string        `envconfig:"CACHE_PREFIX" default:"exr:rate:"`
-	CacheUrl          string        `envconfig:"CACHE_URL"`
+	Prefix            string        `envconfig:"CACHE_PREFIX" default:"exr:rate:"`
+	Url               string        `envconfig:"URL"`
 }
 
 type Fee struct {
@@ -63,7 +70,7 @@ type Fee struct {
 }
 
 type Log struct {
-	Level      string `envconfig:"LEVEL" default:"info"`
+	Level      int    `envconfig:"LEVEL" default:"0"`
 	Format     string `envconfig:"FORMAT" default:"json"`
 	TimeFormat string `envconfig:"TIME_FORMAT" default:"2006-01-02 15:04:05"`
 	Prefix     string `envconfig:"PREFIX" default:"[fintech]"`
@@ -76,14 +83,15 @@ type Server struct {
 }
 
 type App struct {
-	Env              string            `envconfig:"APP_ENV" default:"development"`
-	Server           *Server           `envconfig:"SERVER"`
-	Log              *Log              `envconfig:"LOG"`
-	DB               *DB               `envconfig:"DATABASE"`
-	Auth             *Auth             `envconfig:"AUTH"`
-	Exchange         *ExchangeRate     `envconfig:"EXCHANGE_RATE"`
-	Redis            *Redis            `envconfig:"REDIS"`
-	RateLimit        *RateLimit        `envconfig:"RATE_LIMIT"`
-	PaymentProviders *PaymentProviders `envconfig:"PAYMENT_PROVIDER"`
-	Fee              *Fee              `envconfig:"FEE"`
+	Env                      string                 `envconfig:"APP_ENV" default:"development"`
+	Server                   *Server                `envconfig:"SERVER"`
+	Log                      *Log                   `envconfig:"LOG"`
+	DB                       *DB                    `envconfig:"DATABASE"`
+	Auth                     *Auth                  `envconfig:"AUTH"`
+	ExchangeRateCache        *ExchangeRateCache     `envconfig:"EXCHANGE_RATE_CACHE"`
+	ExchangeRateAPIProviders *ExchangeRateProviders `envconfig:"EXCHANGE_RATE_PROVIDER"`
+	Redis                    *Redis                 `envconfig:"REDIS"`
+	RateLimit                *RateLimit             `envconfig:"RATE_LIMIT"`
+	PaymentProviders         *PaymentProviders      `envconfig:"PAYMENT_PROVIDER"`
+	Fee                      *Fee                   `envconfig:"FEE"`
 }

@@ -119,7 +119,7 @@ func (fc *FeeCalculator) updateTransactionFee(
 func (fc *FeeCalculator) updateAccountBalance(
 	ctx context.Context,
 	accountID uuid.UUID,
-	feeAmount money.Money,
+	feeAmount *money.Money,
 ) error {
 	// Get the account
 	acc, err := fc.accRepo.Get(ctx, accountID)
@@ -143,7 +143,7 @@ func (fc *FeeCalculator) updateAccountBalance(
 			"current_balance", domainAcc.Balance,
 			"account_id", accountID,
 		)
-		return err
+		return fmt.Errorf("failed to subtract fee from balance: %w", err)
 	}
 
 	// Update account balance

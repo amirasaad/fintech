@@ -12,7 +12,7 @@ import (
 type DepositRequestedOpt func(*DepositRequested)
 
 // WithDepositAmount sets the deposit amount
-func WithDepositAmount(m money.Money) DepositRequestedOpt {
+func WithDepositAmount(m *money.Money) DepositRequestedOpt {
 	return func(e *DepositRequested) { e.Amount = m }
 }
 

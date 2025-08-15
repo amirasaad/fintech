@@ -8,6 +8,7 @@ import (
 	"github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/handler/testutils"
+	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/amirasaad/fintech/pkg/repository"
 	repoaccount "github.com/amirasaad/fintech/pkg/repository/account"
 	repotransaction "github.com/amirasaad/fintech/pkg/repository/transaction"
@@ -17,10 +18,26 @@ import (
 )
 
 func TestCompletedHandler(t *testing.T) {
+	// Helper function to create a properly initialized test helper
+	newTestHelper := func(t *testing.T) *testutils.TestHelper {
+		// First create the helper with minimal options
+		h := testutils.New(t)
+
+		// Initialize required fields
+		amount, err := money.New(10.00, "USD")
+		require.NoError(t, err)
+
+		feeAmount, err := money.New(1.00, "USD")
+		require.NoError(t, err)
+
+		// Set the amounts using the helper methods
+		h = h.WithAmount(amount).WithFeeAmount(feeAmount)
+
+		return h
+	}
 
 	t.Run("successfully processes payment completion", func(t *testing.T) {
-		t.Parallel()
-		h := testutils.New(t)
+		h := newTestHelper(t)
 		event := createValidPaymentCompletedEvent(h)
 
 		// Setup test data and mocks using the helper function
@@ -35,8 +52,7 @@ func TestCompletedHandler(t *testing.T) {
 	})
 
 	t.Run("returns nil for incorrect event type", func(t *testing.T) {
-		t.Parallel()
-		h := testutils.New(t)
+		h := newTestHelper(t)
 		err := h.WithHandler(
 			HandleCompleted(h.Bus, h.UOW, h.Logger),
 		).Handler(h.Ctx, &testutils.TestEvent{})
@@ -44,8 +60,7 @@ func TestCompletedHandler(t *testing.T) {
 	})
 
 	t.Run("handles error from unit of work", func(t *testing.T) {
-		t.Parallel()
-		h := testutils.New(t)
+		h := newTestHelper(t)
 		event := createValidPaymentCompletedEvent(h)
 
 		// Setup mock expectations
@@ -62,8 +77,7 @@ func TestCompletedHandler(t *testing.T) {
 	})
 
 	t.Run("handles error getting transaction by payment ID", func(t *testing.T) {
-		t.Parallel()
-		h := testutils.New(t)
+		h := newTestHelper(t)
 		event := createValidPaymentCompletedEvent(h)
 		expectedErr := errors.New("record not found")
 

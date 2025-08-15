@@ -1,5 +1,8 @@
 package money
 
-import "github.com/amirasaad/fintech/pkg/currency"
+import (
+	"github.com/amirasaad/fintech/pkg/provider"
+)
 
-type CurrencyConverter currency.Converter
+// Detracted: use provider.ExchangeRate
+type CurrencyConverter provider.ExchangeRate

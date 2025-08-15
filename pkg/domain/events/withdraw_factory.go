@@ -11,7 +11,7 @@ import (
 // --- WithdrawRequested ---
 type WithdrawRequestedOpt func(*WithdrawRequested)
 
-func WithWithdrawAmount(m money.Money) WithdrawRequestedOpt {
+func WithWithdrawAmount(m *money.Money) WithdrawRequestedOpt {
 	return func(e *WithdrawRequested) { e.Amount = m }
 }
 

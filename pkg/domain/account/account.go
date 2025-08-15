@@ -55,7 +55,7 @@ var (
 type Account struct {
 	ID        uuid.UUID
 	UserID    uuid.UUID
-	Balance   money.Money // Account balance as a Money value object.
+	Balance   *money.Money // Account balance as a Money value object.
 	UpdatedAt time.Time
 	CreatedAt time.Time
 }
@@ -169,7 +169,7 @@ func (a *Account) validate(userID uuid.UUID) error {
 	return nil
 }
 
-func (a *Account) validateAmount(amount money.Money) error {
+func (a *Account) validateAmount(amount *money.Money) error {
 	if !amount.IsPositive() {
 		return ErrTransactionAmountMustBePositive
 	}
@@ -178,7 +178,7 @@ func (a *Account) validateAmount(amount money.Money) error {
 }
 
 // ValidateDeposit checks all business invariants for a deposit operation.
-func (a *Account) ValidateDeposit(userID uuid.UUID, amount money.Money) (err error) {
+func (a *Account) ValidateDeposit(userID uuid.UUID, amount *money.Money) (err error) {
 	if err = a.validate(userID); err != nil {
 		return
 	}
@@ -202,7 +202,7 @@ func (a *Account) ValidateDeposit(userID uuid.UUID, amount money.Money) (err err
 //   - Cannot withdraw more than the current balance.
 //
 // Returns a Transaction or an error if any invariant is violated.
-func (a *Account) ValidateWithdraw(userID uuid.UUID, amount money.Money) error {
+func (a *Account) ValidateWithdraw(userID uuid.UUID, amount *money.Money) error {
 	if a.UserID != userID {
 		return ErrNotOwner
 	}
@@ -224,7 +224,7 @@ func (a *Account) ValidateWithdraw(userID uuid.UUID, amount money.Money) error {
 func (a *Account) ValidateTransfer(
 	senderUserID, receiverUserID uuid.UUID,
 	dest *Account,
-	amount money.Money,
+	amount *money.Money,
 ) error {
 	if a == nil || dest == nil {
 		return ErrNilAccount

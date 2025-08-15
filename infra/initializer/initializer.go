@@ -46,6 +46,21 @@ func InitializeDependencies(cfg *config.App) (
 		return nil, err
 	}
 
+	deps.ExchangeRateRegistryProvider, err = initExchangeRateRegistryProvider(
+		cfg.ExchangeRateCache,
+		logger,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	deps.ExchangeRateProvider, err = initExchangeRateProvider(
+		cfg.ExchangeRateAPIProviders.ExchangeRateApi,
+		logger,
+	)
+	if err != nil {
+		return nil, err
+	}
 	// Initialize checkout registry
 	checkoutRegistry, err := initCheckoutRegistryProvider(cfg, logger)
 	if err != nil {
@@ -88,18 +103,59 @@ func InitializeDependencies(cfg *config.App) (
 	return
 }
 
+func initExchangeRateProvider(
+	cfg *config.ExchangeRateApi,
+	logger *slog.Logger,
+) (provider.ExchangeRate, error) {
+	return infra_provider.NewExchangeRateAPIProvider(
+		cfg,
+		logger,
+	), nil
+}
+
+func initExchangeRateRegistryProvider(
+	cfg *config.ExchangeRateCache,
+	logger *slog.Logger,
+) (registry.Provider, error) {
+	// The prefix should be "exr:rate:" from the config
+	prefix := cfg.Prefix
+	if prefix == "" {
+		prefix = "exr:rate:" // Default prefix if not set
+	}
+
+	exchangeRateRegistry, err := registry.NewBuilder().
+		WithName("exchange_rate").
+		WithRedis(cfg.Url).
+		WithKeyPrefix(prefix).
+		WithCache(1000, cfg.TTL).
+		BuildRegistry()
+
+	if err != nil {
+		logger.Error("Failed to create exchange rate registry",
+			"error", err,
+			"redis_url_configured", cfg.Url != "")
+		return nil, err
+	}
+
+	logger.Info("Exchange rate registry initialized with Redis cache",
+		"redis_url_configured", cfg.Url != "",
+		"key_prefix", prefix)
+
+	return exchangeRateRegistry, nil
+}
+
 func initCurrencyRegistry(cfg *config.App, logger *slog.Logger) (*currency.Registry, error) {
 	ctx := context.Background()
 	keyPrefix := cfg.Redis.KeyPrefix + "currency:"
 	if err := currency.InitializeGlobalRegistry(ctx, cfg.Redis.URL, keyPrefix); err != nil {
 		logger.Error("Failed to initialize global currency registry with Redis",
 			"error", err,
-			"redis_url", cfg.Redis.URL,
+			"redis_url_configured", cfg.Redis.URL != "",
 			"key_prefix", keyPrefix)
 		return nil, err
 	}
 	logger.Info("Currency registry initialized with Redis cache",
-		"redis_url", cfg.Redis.URL,
+		"redis_url_configured", cfg.Redis.URL != "",
 		"key_prefix", keyPrefix)
 
 	return currency.GetGlobalRegistry(), nil
@@ -118,7 +174,7 @@ func initCheckoutRegistryProvider(
 	if err != nil {
 		logger.Error("Failed to create checkout registry",
 			"error", err,
-			"redis_configured", cfg.Redis.URL != "")
+			"redis_url_configured", cfg.Redis.URL != "")
 		return nil, err
 	}
 	return checkoutRegistry, nil
@@ -136,42 +192,68 @@ func setupLogger(cfg *config.Log) *slog.Logger {
 	// Customize the style for each log level
 	// Error level styling
 	styles.Levels[log.ErrorLevel] = lipgloss.NewStyle().
-		SetString("❌ ERROR").
+		SetString("❌").
 		Bold(true).
 		Padding(0, 1).
 		Foreground(errorTxtColor)
 
 	// Info level styling
 	styles.Levels[log.InfoLevel] = lipgloss.NewStyle().
-		SetString("ℹ️  INFO").
+		SetString("ℹ️").
 		Bold(true).
 		Padding(0, 1).
 		Foreground(infoTxtColor)
 
 	// Warn level styling
 	styles.Levels[log.WarnLevel] = lipgloss.NewStyle().
-		SetString("⚠️  WARN").
+		SetString("⚠️").
 		Bold(true).
 		Padding(0, 1).
 		Foreground(warnTxtColor)
 
 	// Debug level styling
 	styles.Levels[log.DebugLevel] = lipgloss.NewStyle().
-		SetString("🐛 DEBUG").
+		SetString("🐛").
 		Bold(true).
 		Padding(0, 1).
 		Foreground(debugTxtColor)
 
+	styles.Keys["error"] = lipgloss.NewStyle().Foreground(errorTxtColor)
+	styles.Values["error"] = lipgloss.NewStyle().Bold(true)
+	styles.Keys["info"] = lipgloss.NewStyle().Foreground(infoTxtColor)
+	styles.Values["info"] = lipgloss.NewStyle().Bold(true)
+	styles.Keys["warn"] = lipgloss.NewStyle().Foreground(warnTxtColor)
+	styles.Values["warn"] = lipgloss.NewStyle().Bold(true)
+	styles.Keys["debug"] = lipgloss.NewStyle().Foreground(debugTxtColor)
+	styles.Values["debug"] = lipgloss.NewStyle().Bold(true)
+	styles.Keys["prefix"] = lipgloss.NewStyle().Foreground(debugTxtColor)
+	styles.Values["prefix"] = lipgloss.NewStyle().Bold(true)
+	styles.Keys["caller"] = lipgloss.NewStyle().Foreground(debugTxtColor)
+	styles.Values["caller"] = lipgloss.NewStyle().Bold(true)
+	styles.Keys["time"] = lipgloss.NewStyle().Foreground(debugTxtColor)
+	styles.Values["time"] = lipgloss.NewStyle().Bold(true)
+
+	formattersMap := map[string]log.Formatter{
+		"json": log.JSONFormatter,
+		"text": log.TextFormatter,
+	}
+	formatter := log.TextFormatter
+	if f, ok := formattersMap[cfg.Format]; ok {
+		formatter = f
+	}
+
 	// Create a new logger with the custom styles
 	logger := log.NewWithOptions(os.Stdout, log.Options{
-		ReportCaller:    false,
+		ReportCaller:    true,
 		ReportTimestamp: true,
 		TimeFormat:      cfg.TimeFormat,
-		Level:           log.DebugLevel,
+		Level:           log.Level(cfg.Level),
 		Prefix:          cfg.Prefix,
+		Formatter:       formatter,
 	})
 
 	logger.SetStyles(styles) // Convert to slog.Logger
+
 	slogger := slog.New(logger)
 	slog.SetDefault(slogger)
 

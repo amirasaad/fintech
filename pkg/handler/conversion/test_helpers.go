@@ -4,6 +4,7 @@ import (
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/money"
+	"github.com/amirasaad/fintech/pkg/provider"
 	"github.com/google/uuid"
 )
 
@@ -18,7 +19,7 @@ func NewValidConversionRequestedEvent(
 	event := events.NewCurrencyConversionRequested(
 		flow,
 		nil,
-		events.WithConversionAmount(amount),
+		events.WithConversionAmount(&amount),
 		events.WithConversionTo(currency.Code(to)),
 		events.WithConversionTransactionID(transactionID),
 	)
@@ -31,8 +32,8 @@ func NewValidConversionInfo(
 	originalAmount, convertedAmount float64,
 	originalCurrency, convertedCurrency string,
 	rate float64,
-) *currency.Info {
-	return &currency.Info{
+) *provider.ExchangeInfo {
+	return &provider.ExchangeInfo{
 		OriginalAmount:    originalAmount,
 		OriginalCurrency:  originalCurrency,
 		ConvertedAmount:   convertedAmount,

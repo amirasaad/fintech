@@ -1,7 +1,8 @@
 package account
 
 import (
-	"github.com/amirasaad/fintech/pkg/domain"
+	"github.com/amirasaad/fintech/pkg/dto"
+	"github.com/amirasaad/fintech/pkg/provider"
 )
 
 //revive:disable
@@ -67,27 +68,26 @@ type TransferResponseDTO struct {
 	ConversionInfo *ConversionInfoDTO `json:"conversion_info"`
 }
 
-// ToTransactionDTO maps a domain.Transaction to a TransactionDTO.
-func ToTransactionDTO(tx *domain.Transaction) *TransactionDTO {
+// ToTransactionDTO maps a dto.TransactionRead to a TransactionDTO.
+func ToTransactionDTO(tx *dto.TransactionRead) *TransactionDTO {
 	if tx == nil {
 		return nil
 	}
 	dto := &TransactionDTO{
-		ID:          tx.ID.String(),
-		UserID:      tx.UserID.String(),
-		AccountID:   tx.AccountID.String(),
-		Amount:      tx.Amount.AmountFloat(),
-		Currency:    tx.Amount.Currency().String(),
-		Balance:     tx.Balance.AmountFloat(),
-		CreatedAt:   tx.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
-		MoneySource: string(tx.MoneySource),
+		ID:        tx.ID.String(),
+		UserID:    tx.UserID.String(),
+		AccountID: tx.AccountID.String(),
+		Amount:    tx.Amount,
+		Currency:  tx.Currency,
+		Balance:   tx.Balance,
+		CreatedAt: tx.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}
 
 	return dto
 }
 
-// ToConversionInfoDTO maps domain.ConversionInfo to ConversionInfoDTO.
-func ToConversionInfoDTO(convInfo *domain.ConversionInfo) *ConversionInfoDTO {
+// ToConversionInfoDTO maps provider.ExchangeRate to ConversionInfoDTO.
+func ToConversionInfoDTO(convInfo *provider.ExchangeInfo) *ConversionInfoDTO {
 	if convInfo == nil {
 		return nil
 	}
@@ -101,7 +101,7 @@ func ToConversionInfoDTO(convInfo *domain.ConversionInfo) *ConversionInfoDTO {
 }
 
 // ToTransferResponseDTO maps domain transactions and conversion info to a TransferResponseDTO with a single conversion_info field.
-func ToTransferResponseDTO(txOut, txIn *domain.Transaction, convInfo *domain.ConversionInfo) *TransferResponseDTO {
+func ToTransferResponseDTO(txOut, txIn *dto.TransactionRead, convInfo *provider.ExchangeInfo) *TransferResponseDTO {
 	return &TransferResponseDTO{
 		Outgoing:       ToTransactionDTO(txOut),
 		Incoming:       ToTransactionDTO(txIn),

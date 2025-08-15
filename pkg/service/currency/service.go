@@ -21,7 +21,7 @@ func New(
 ) *Service {
 	return &Service{
 		registry: registry,
-		logger:   logger,
+		logger:   logger.With("service", "Currency"),
 	}
 }
 

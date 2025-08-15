@@ -19,7 +19,7 @@ func MapAccountReadToDomain(dto *dto.AccountRead) (*account.Account, error) {
 		WithID(dto.ID).
 		WithUserID(dto.UserID).
 		WithBalance(balance.Amount()).
-		WithCurrency(balance.Currency()).
+		WithCurrency(currency.Code(balance.Currency().String())).
 		WithCreatedAt(dto.CreatedAt).
 		WithUpdatedAt(dto.UpdatedAt).
 		Build()

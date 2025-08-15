@@ -55,8 +55,10 @@ func main() {
 	// Log configuration details if verbose
 	if *verbose {
 		logger.Info("Configuration loaded successfully",
-			"database_url", cfg.DB.Url,
-			"exchange_rate_api_configured", cfg.Exchange.ApiKey != "")
+			"database_url",
+			cfg.DB.Url,
+			"exchange_rate_api_configured",
+			cfg.ExchangeRateAPIProviders.ExchangeRateApi.ApiKey != "")
 	}
 
 	appEnv := os.Getenv("APP_ENV")

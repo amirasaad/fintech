@@ -9,7 +9,7 @@ import (
 // PaymentInitiated is emitted after payment initiation with a provider (event-driven workflow).
 type PaymentInitiated struct {
 	FlowEvent
-	Amount        money.Money
+	Amount        *money.Money
 	TransactionID uuid.UUID
 	PaymentID     string
 	Status        string
@@ -17,7 +17,7 @@ type PaymentInitiated struct {
 
 func (e PaymentInitiated) Type() string { return EventTypePaymentInitiated.String() }
 
-func (e *PaymentInitiated) WithAmount(m money.Money) *PaymentInitiated {
+func (e *PaymentInitiated) WithAmount(m *money.Money) *PaymentInitiated {
 	e.Amount = m
 	return e
 }
@@ -56,7 +56,7 @@ type PaymentProcessed struct {
 
 func (e *PaymentProcessed) Type() string { return EventTypePaymentProcessed.String() }
 
-func (e *PaymentProcessed) WithAmount(m money.Money) *PaymentProcessed {
+func (e *PaymentProcessed) WithAmount(m *money.Money) *PaymentProcessed {
 	e.Amount = m
 	return e
 }

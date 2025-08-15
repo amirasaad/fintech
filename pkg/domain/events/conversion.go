@@ -7,6 +7,7 @@ import (
 
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/money"
+	"github.com/amirasaad/fintech/pkg/provider"
 	"github.com/google/uuid"
 )
 
@@ -15,7 +16,7 @@ import (
 type CurrencyConversionRequested struct {
 	FlowEvent
 	OriginalRequest Event `json:"-"` // Handle this field manually in MarshalJSON/UnmarshalJSON
-	Amount          money.Money
+	Amount          *money.Money
 	To              currency.Code
 	TransactionID   uuid.UUID
 
@@ -110,8 +111,8 @@ func (e *CurrencyConversionRequested) UnmarshalJSON(data []byte) error {
 type CurrencyConverted struct {
 	CurrencyConversionRequested
 	TransactionID   uuid.UUID
-	ConvertedAmount money.Money
-	ConversionInfo  *currency.Info
+	ConvertedAmount *money.Money
+	ConversionInfo  *provider.ExchangeInfo `json:"-"`
 }
 
 func (e CurrencyConverted) Type() string { return EventTypeCurrencyConverted.String() }
@@ -127,16 +128,16 @@ func (e CurrencyConverted) MarshalJSON() ([]byte, error) {
 		AccountID            uuid.UUID       `json:"accountId"`
 		CorrelationID        uuid.UUID       `json:"correlationId"`
 		Timestamp            time.Time       `json:"timestamp"`
-		Amount               money.Money     `json:"amount"`
+		Amount               *money.Money    `json:"amount"`
 		To                   currency.Code   `json:"to"`
 		RequestTransactionID uuid.UUID       `json:"requestTransactionId"` // From embedded CCR
 		RequestType          string          `json:"requestType,omitempty"`
 		RequestPayload       json.RawMessage `json:"requestPayload,omitempty"`
 
 		// CurrencyConverted specific fields
-		TransactionID   uuid.UUID      `json:"transactionId"`
-		ConvertedAmount money.Money    `json:"convertedAmount"`
-		ConversionInfo  *currency.Info `json:"conversionInfo"`
+		TransactionID   uuid.UUID              `json:"transactionId"`
+		ConvertedAmount *money.Money           `json:"convertedAmount"`
+		ConversionInfo  *provider.ExchangeInfo `json:"conversionInfo"`
 	}{
 		// Copy from embedded CurrencyConversionRequested
 		ID:                   e.ID,
@@ -153,7 +154,7 @@ func (e CurrencyConverted) MarshalJSON() ([]byte, error) {
 
 		// Copy CurrencyConverted specific fields
 		TransactionID:   e.TransactionID,
-		ConvertedAmount: e.ConvertedAmount,
+		ConvertedAmount: e.ConvertedAmount, // Keep as pointer
 		ConversionInfo:  e.ConversionInfo,
 	}
 
@@ -191,9 +192,9 @@ func (e *CurrencyConverted) UnmarshalJSON(data []byte) error {
 		RequestPayload       json.RawMessage `json:"requestPayload,omitempty"`
 
 		// CurrencyConverted specific fields
-		TransactionID   uuid.UUID      `json:"transactionId"`
-		ConvertedAmount money.Money    `json:"convertedAmount"`
-		ConversionInfo  *currency.Info `json:"conversionInfo"`
+		TransactionID   uuid.UUID       `json:"transactionId"`
+		ConvertedAmount *money.Money    `json:"convertedAmount"`
+		ConversionInfo  json.RawMessage `json:"conversionInfo"`
 	}{}
 
 	// Unmarshal the main fields
@@ -208,7 +209,13 @@ func (e *CurrencyConverted) UnmarshalJSON(data []byte) error {
 	e.AccountID = aux.AccountID
 	e.CorrelationID = aux.CorrelationID
 	e.Timestamp = aux.Timestamp
-	e.Amount = aux.Amount
+	// Create a new money.Money pointer and copy the value
+	if aux.Amount != (money.Money{}) {
+		amount := aux.Amount // Create a copy
+		e.Amount = &amount
+	} else {
+		e.Amount = nil
+	}
 	e.To = aux.To
 	e.TransactionID = aux.RequestTransactionID
 	e.RequestType = aux.RequestType
@@ -217,7 +224,6 @@ func (e *CurrencyConverted) UnmarshalJSON(data []byte) error {
 	// Copy CurrencyConverted specific fields
 	e.TransactionID = aux.TransactionID
 	e.ConvertedAmount = aux.ConvertedAmount
-	e.ConversionInfo = aux.ConversionInfo
 
 	// Handle the OriginalRequest reconstruction
 	if aux.RequestType != "" && len(aux.RequestPayload) > 0 {

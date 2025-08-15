@@ -11,6 +11,7 @@ import (
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/money"
+	"github.com/amirasaad/fintech/pkg/provider"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/mock"
@@ -31,7 +32,7 @@ func TestHandleCurrencyConverted(t *testing.T) {
 		// Create test data
 		transactionID := uuid.New()
 		convertedAmount, _ := money.New(85.0, currency.EUR)
-		convInfo := &currency.Info{
+		convInfo := &provider.ExchangeInfo{
 			OriginalAmount:    100.0,
 			OriginalCurrency:  "USD",
 			ConvertedAmount:   85.0,
@@ -151,7 +152,7 @@ func TestHandleCurrencyConverted(t *testing.T) {
 
 		transactionID := uuid.New()
 		convertedAmount, _ := money.New(85.0, currency.EUR)
-		convInfo := &currency.Info{
+		convInfo := &provider.ExchangeInfo{
 			OriginalAmount:    100.0,
 			OriginalCurrency:  "USD",
 			ConvertedAmount:   85.0,
@@ -200,7 +201,7 @@ func TestHandleCurrencyConverted(t *testing.T) {
 
 		transactionID := uuid.New()
 		convertedAmount, _ := money.New(85.0, currency.EUR)
-		convInfo := &currency.Info{
+		convInfo := &provider.ExchangeInfo{
 			OriginalAmount:    100.0,
 			OriginalCurrency:  "USD",
 			ConvertedAmount:   85.0,

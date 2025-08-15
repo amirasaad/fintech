@@ -3,7 +3,6 @@
 package app
 
 import (
-	"github.com/amirasaad/fintech/pkg/currency"
 	"log/slog"
 
 	"github.com/amirasaad/fintech/pkg/domain/events"
@@ -14,6 +13,7 @@ import (
 	"github.com/amirasaad/fintech/pkg/handler/conversion"
 	"github.com/amirasaad/fintech/pkg/handler/fees"
 	"github.com/amirasaad/fintech/pkg/handler/payment"
+	"github.com/amirasaad/fintech/pkg/provider"
 	"github.com/amirasaad/fintech/pkg/repository"
 )
 
@@ -22,10 +22,14 @@ func (a *App) setupEventBus() {
 
 	bus := a.Deps.EventBus
 	uow := a.Deps.Uow
-	currencyConverter := a.Deps.CurrencyConverter
 	logger := a.Deps.Logger
 
-	a.setupConversionHandlers(bus, uow, currencyConverter, logger)
+	a.setupConversionHandlers(
+		bus,
+		uow,
+		a.Deps.ExchangeRateProvider,
+		logger,
+	)
 
 	a.setupDepositHandlers(bus, uow, logger)
 	a.setupWithdrawHandlers(bus, uow, logger)
@@ -159,30 +163,25 @@ func (a *App) setupDepositHandlers(
 func (a *App) setupConversionHandlers(
 	bus eventbus.Bus,
 	uow repository.UnitOfWork,
-	currencyConverter currency.Converter,
+	exchangeRateProvider provider.ExchangeRate,
 	logger *slog.Logger,
 ) {
 	// 1️⃣ GENERIC CONVERSION HANDLER
-	// Handles all ConversionRequestedEvent by delegating to a flow-specific factory.
+	// This handler processes all conversion requests and delegates to the appropriate flow
 	conversionFactories := map[string]conversion.EventFactory{
 		"deposit":  &conversion.DepositEventFactory{},
 		"withdraw": &conversion.WithdrawEventFactory{},
 		"transfer": &conversion.TransferEventFactory{},
 	}
+
 	bus.Register(
 		events.EventTypeCurrencyConversionRequested,
 		conversion.HandleRequested(
 			bus,
-			currencyConverter,
+			a.Deps.ExchangeRateRegistryProvider,
+			exchangeRateProvider,
 			logger,
 			conversionFactories,
-		),
-	)
-	bus.Register(
-		events.EventTypeCurrencyConverted,
-		conversion.HandleCurrencyConverted(
-			uow,
-			logger,
 		),
 	)
 }

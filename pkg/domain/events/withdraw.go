@@ -14,7 +14,7 @@ type WithdrawRequested struct {
 	FlowEvent
 	ID                    uuid.UUID
 	TransactionID         uuid.UUID
-	Amount                money.Money
+	Amount                *money.Money
 	BankAccountNumber     string
 	RoutingNumber         string
 	ExternalWalletAddress string

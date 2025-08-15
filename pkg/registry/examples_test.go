@@ -10,22 +10,24 @@ func Example() {
 	// Create a new registry
 	registry := New()
 
-	// Register some entities
-	registry.Register("user-1", Meta{
-		Name:     "John Doe",
-		Active:   true,
-		Metadata: map[string]string{"email": "john@example.com", "role": "admin"},
-	})
+	// Create entities using NewBaseEntity
+	user1 := NewBaseEntity("user-1", "John Doe")
+	user1.BEActive = true
+	user1.BEMetadata = map[string]string{"email": "john@example.com", "role": "admin"}
 
-	registry.Register("user-2", Meta{
-		Name:     "Jane Smith",
-		Active:   true,
-		Metadata: map[string]string{"email": "jane@example.com", "role": "user"},
-	})
+	user2 := NewBaseEntity("user-2", "Jane Smith")
+	user2.BEActive = true
+	user2.BEMetadata = map[string]string{"email": "jane@example.com", "role": "user"}
+
+	// Register entities
+	registry.Register(user1.ID(), user1)
+	registry.Register(user2.ID(), user2)
 
 	// Get an entity
 	user := registry.Get("user-1")
-	fmt.Printf("User: %s (%s)\n", user.Name, user.Metadata["email"])
+	if user != nil {
+		fmt.Printf("User: %s (%s)\n", user.Name(), user.Metadata()["email"])
+	}
 
 	// Check if registered
 	fmt.Printf("User-1 registered: %t\n", registry.IsRegistered("user-1"))
@@ -68,15 +70,16 @@ func Example_second() {
 	globalRegistry = New() // This avoids pollution from other tests/examples
 
 	// Use global registry functions
-	Register("global-user", Meta{
-		Name:     "Global User",
-		Active:   true,
-		Metadata: map[string]string{"type": "global"},
-	})
+	globalUser := NewBaseEntity("global-user", "Global User")
+	globalUser.BEActive = true
+	globalUser.BEMetadata = map[string]string{"type": "global"}
+	Register(globalUser.ID(), globalUser)
 
 	// Get from global registry
 	user := Get("global-user")
-	fmt.Printf("Global user: %s\n", user.Name)
+	if user != nil {
+		fmt.Printf("Global user: %s\n", user.Name())
+	}
 
 	// Check registration
 	fmt.Printf("Is registered: %t\n", IsRegistered("global-user"))
@@ -103,16 +106,15 @@ func Example_second() {
 func Example_third() {
 	registry := New()
 
-	// Register with metadata
-	registry.Register("product-1", Meta{
-		Name:   "Laptop",
-		Active: true,
-		Metadata: map[string]string{
-			"category": "Electronics",
-			"price":    "999.99",
-			"brand":    "TechCorp",
-		},
-	})
+	// Create and register with metadata
+	product := NewBaseEntity("product-1", "Laptop")
+	product.BEActive = true
+	product.BEMetadata = map[string]string{
+		"category": "Electronics",
+		"price":    "999.99",
+		"brand":    "TechCorp",
+	}
+	registry.Register("product-1", product)
 
 	// Get specific metadata
 	category, found := registry.GetMetadata("product-1", "category")
@@ -144,24 +146,25 @@ func Example_third() {
 func Example_fourth() {
 	registry := New()
 
-	// Register an entity
-	registry.Register("entity-1", Meta{
-		Name:     "Test Entity",
-		Active:   true,
-		Metadata: map[string]string{"version": "1.0"},
-	})
+	// Create and register an entity
+	entity := NewBaseEntity("entity-1", "Test Entity")
+	entity.BEActive = true
+	entity.BEMetadata = map[string]string{"version": "1.0"}
+	registry.Register("entity-1", entity)
 
 	fmt.Printf("Initial count: %d\n", registry.Count())
 
-	// Deactivate by setting Active to false
-	entity := registry.Get("entity-1")
-	entity.Active = false
+	// Deactivate
+	// Type assertion since we know it's a BaseEntity
+	entity = registry.Get("entity-1").(*BaseEntity)
+	entity.BEActive = false
 	registry.Register("entity-1", entity)
 
 	fmt.Printf("Active entities: %d\n", len(registry.ListActive()))
 
 	// Reactivate
-	entity.Active = true
+	entity = registry.Get("entity-1").(*BaseEntity)
+	entity.BEActive = true
 	registry.Register("entity-1", entity)
 
 	fmt.Printf("Active entities after reactivation: %d\n", len(registry.ListActive()))

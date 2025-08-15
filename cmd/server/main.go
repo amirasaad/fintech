@@ -35,7 +35,7 @@ func main() {
 func run() error {
 	// Load configuration
 	logger := slog.Default()
-	cfg, err := config.Load()
+	cfg, err := config.Load(".env")
 
 	if err != nil {
 		return fmt.Errorf("failed to load application configuration: %w", err)

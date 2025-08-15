@@ -4,96 +4,39 @@ import (
 	"log/slog"
 
 	"github.com/amirasaad/fintech/pkg/config"
-
-	infra_cache "github.com/amirasaad/fintech/infra/cache"
-	infra_provider "github.com/amirasaad/fintech/infra/provider"
-	"github.com/amirasaad/fintech/pkg/cache"
-	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/provider"
-	"github.com/redis/go-redis/v9"
+	"github.com/amirasaad/fintech/pkg/registry"
+	"github.com/amirasaad/fintech/pkg/service/exchange"
 )
 
-// NewExchangeRateSystem creates a complete exchange rate system with providers,
-//
-//	cache, and converter
+// NewExchangeRateSystem creates a complete exchange rate system with providers and converter
 func NewExchangeRateSystem(
 	logger *slog.Logger,
-	cfg config.ExchangeRate,
-) (domain.CurrencyConverter, error) {
-	// Create cache
-	var rateCache cache.ExchangeRateCache
-	if cfg.CacheUrl != "" {
-		opt, err := redis.ParseURL(cfg.CacheUrl)
-		if err != nil {
-			logger.Error("Invalid Redis URL", "url", cfg.CacheUrl, "error", err)
-			return nil, err
-		}
-		rateCache = infra_cache.NewRedisExchangeRateCacheWithOptions(opt, cfg.CachePrefix, logger)
-		logger.Info("Using Redis for exchange rate cache", "url", cfg.CacheUrl)
-	} else {
-		rateCache = infra_cache.NewMemoryCache()
-		logger.Info("Using in-memory cache for exchange rates")
+	cfg config.ExchangeRateCache,
+	exchangeRateProviders *config.ExchangeRateProviders,
+	registryProvider registry.Provider,
+) (provider.ExchangeRate, error) {
+	if logger == nil {
+		logger = slog.Default()
 	}
 
-	// Create providers
-	var exchangeRateProviders []provider.ExchangeRate
+	// Create a default provider (this could be replaced with a real provider)
+	// For now, we'll use a simple in-memory provider
+	baseProvider := provider.NewBaseProvider("default", "1.0.0", nil)
 
-	// Use USD as the base currency for now (configurable in future)
-	baseCurrency := "USD"
-	// TODO: Make base currency configurable via config.Exchange.BaseCurrency
-
-	// Add ExchangeRate API provider if API key is configured
-	var exchangeRateProvider *infra_provider.ExchangeRateAPIProvider
-	if cfg.ApiKey != "" {
-		exchangeRateProvider = infra_provider.NewExchangeRateAPIProvider(cfg, logger)
-		exchangeRateProviders = append(exchangeRateProviders, exchangeRateProvider)
-		logger.Info("ExchangeRate API provider configured", "apiKey", maskAPIKey(cfg.ApiKey))
-	} else {
-		logger.Warn("No ExchangeRate API key configured, using fallback only")
-	}
-
-	// Fetch and cache rates ONCE at startup for POC
-	if exchangeRateProvider != nil {
-		err := exchangeRateProvider.FetchAndCacheRates(baseCurrency, rateCache, cfg.CacheTTL)
-		if err != nil {
-			logger.Error("Failed to fetch and cache exchange rates at startup", "error", err)
-		}
-	}
-
-	// Create exchange rate service
-	exchangeRateService := infra_provider.NewExchangeRateService(
-		exchangeRateProviders,
-		rateCache,
-		logger,
-		&cfg,
-	)
-
-	// Create fallback converter
-	var fallback domain.CurrencyConverter
-	if cfg.EnableFallback {
-		fallback = infra_provider.NewStubCurrencyConverter()
-		logger.Info("Fallback currency converter enabled")
-	}
-
-	// Create real currency converter
-	converter := infra_provider.NewExchangeRateCurrencyConverter(
-		exchangeRateService,
-		fallback,
+	// Create exchange rate service with the registry provider and base provider
+	exchangeService := exchange.New(
+		registryProvider,
+		baseProvider, // Pass the base provider
 		logger,
 	)
 
 	logger.Info("Exchange rate system initialized",
-		"providers", len(exchangeRateProviders),
+		"providers", 1, // Single provider (the service itself)
 		"fallbackEnabled", cfg.EnableFallback,
-		"cacheTTL", cfg.CacheTTL)
+		"cache_ttl", cfg.TTL.String(),
+	)
 
-	return converter, nil
-}
-
-// maskAPIKey returns a masked version of the API key for logging
-func maskAPIKey(apiKey string) string {
-	if len(apiKey) <= 8 {
-		return "***"
-	}
-	return apiKey[:4] + "..." + apiKey[len(apiKey)-4:]
+	// The exchange service implements the provider.ExchangeRate interface
+	return exchangeService, nil
 }

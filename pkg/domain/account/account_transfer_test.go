@@ -20,7 +20,7 @@ func TestAccount_Transfer(t *testing.T) {
 		destAccount   *account.Account
 		sourceUserID  uuid.UUID
 		destUserID    uuid.UUID
-		amount        money.Money
+		amount        *money.Money
 		expectedErr   error
 	}
 

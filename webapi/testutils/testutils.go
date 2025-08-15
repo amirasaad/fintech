@@ -10,7 +10,6 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"path/filepath"
 	"runtime"
 	"time"
@@ -101,7 +100,7 @@ func (s *E2ETestSuite) SetupSuite() {
 	}
 
 	// Load config
-	envTest, err := s.findEnvTest()
+	envTest, err := config.FindEnvTest(".env.test")
 	s.Require().NoError(err)
 	s.cfg, err = config.Load(envTest)
 	s.Require().NoError(err)
@@ -127,10 +126,9 @@ func (s *E2ETestSuite) setupApp() {
 	// Create deps with debug logging
 	uow := infrarepo.NewUoW(s.db)
 	// Enable debug logging
-	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{
 		Level: slog.LevelDebug,
 	}))
-	currencyConverter := provider.NewStubCurrencyConverter()
 
 	// Setup currency service
 	ctx := context.Background()
@@ -181,38 +179,17 @@ func (s *E2ETestSuite) setupApp() {
 	// Create test app
 	s.app = webapi.SetupApp(app.New(
 		&app.Deps{
-			CurrencyConverter:        currencyConverter,
-			CurrencyRegistry:         currencyRegistry,
-			Uow:                      uow,
-			PaymentProvider:          provider.NewMockPaymentProvider(),
-			CheckoutRegistryProvider: registry.NewCachedRegistry(10, time.Minute),
-			EventBus:                 eventBus,
-			Logger:                   logger,
+			CurrencyRegistry:             currencyRegistry,
+			ExchangeRateProvider:         provider.NewMockExchangeRate(),
+			ExchangeRateRegistryProvider: registry.NewCachedRegistry(10, time.Minute),
+			Uow:                          uow,
+			PaymentProvider:              provider.NewMockPaymentProvider(),
+			CheckoutRegistryProvider:     registry.NewCachedRegistry(10, time.Minute),
+			EventBus:                     eventBus,
+			Logger:                       logger,
 		},
 		s.cfg,
 	))
-}
-
-// findEnvTest searches for the nearest .env.test file
-func (s *E2ETestSuite) findEnvTest() (string, error) {
-	startDir, err := os.Getwd()
-	if err != nil {
-		return "", err
-	}
-
-	curr := startDir
-	for {
-		candidate := filepath.Join(curr, ".env.test")
-		if _, err = os.Stat(candidate); err == nil {
-			return candidate, nil
-		}
-		parent := filepath.Dir(curr)
-		if parent == curr {
-			break
-		}
-		curr = parent
-	}
-	return "", os.ErrNotExist
 }
 
 // MakeRequest is a helper for making HTTP requests in tests

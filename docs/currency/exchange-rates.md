@@ -9,15 +9,20 @@ icon: material/chart-line-variant
 The fintech system uses a robust, production-ready exchange rate provider setup:
 
 - **ExchangeRateAPIProvider** (`infra/provider/exchangerate_api.go`): Fetches real-time rates from [exchangerate-api.com](https://www.exchangerate-api.com/), with caching and health checks.
-- **ExchangeRateService** (`infra/provider/exchange_rates.go`): Orchestrates provider selection, caching, and fallback logic.
-- **RealCurrencyConverter** (`infra/provider/currency_converter.go`): Performs conversions using the above service.
+- **exchange.Service** (`pkg/service/exchange/service.go`): Orchestrates provider selection, caching, and fallback logic.
 
 **Example:**
 
 ```go
-provider := provider.NewExchangeRateAPIProvider(cfg, logger)
-service := provider.NewExchangeRateService([]provider.ExchangeRateProvider{provider}, cache, logger, cfg)
-converter := provider.NewRealCurrencyConverter(service, fallback, logger)
+// The exchange service is created in the factory
+exchangeService, err := exchange.New(exchange.Config{
+ Registry: providerRegistry,
+ Cache:    rateCache,
+ Logger:   logger,
+})
+
+// In the application, you can then use the service to convert money
+convertedMoney, err := exchangeService.Convert(ctx, originalMoney, "USD")
 ```
 
 !!! tip "Why this matters"

@@ -12,7 +12,7 @@ import (
 type CurrencyConversionRequestedOpt func(*CurrencyConversionRequested)
 
 // WithConversionAmount sets the amount for the CurrencyConversionRequested.
-func WithConversionAmount(amount money.Money) CurrencyConversionRequestedOpt {
+func WithConversionAmount(amount *money.Money) CurrencyConversionRequestedOpt {
 	return func(e *CurrencyConversionRequested) { e.Amount = amount }
 }
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/amirasaad/fintech/pkg/currency"
@@ -92,15 +93,8 @@ func (s *Service) GetSession(
 		return nil, fmt.Errorf("session not found: %s", id)
 	}
 
-	// Convert registry.Meta to our internal Meta type
-	meta := registry.Meta{
-		ID:       entity.ID(),
-		Name:     entity.Name(),
-		Active:   entity.Active(),
-		Metadata: entity.Metadata(),
-	}
-
-	return s.metaToSession(meta)
+	// Convert Entity to Session
+	return s.entityToSession(entity)
 }
 
 // GetSessionByTransactionID retrieves a checkout session by transaction ID
@@ -122,16 +116,8 @@ func (s *Service) GetSessionByTransactionID(
 		return nil, fmt.Errorf("session with transaction ID %s not found", txID)
 	}
 
-	// Convert the first matching entity to our internal Meta type
-	entity := entities[0]
-	meta := registry.Meta{
-		ID:       entity.ID(),
-		Name:     entity.Name(),
-		Active:   entity.Active(),
-		Metadata: entity.Metadata(),
-	}
-
-	return s.metaToSession(meta)
+	// Convert the first matching entity to Session
+	return s.entityToSession(entities[0])
 }
 
 // GetSessionsByUserID retrieves all checkout sessions for a given user ID
@@ -143,15 +129,9 @@ func (s *Service) GetSessionsByUserID(ctx context.Context, userID uuid.UUID) ([]
 
 	var sessions []*Session
 	for _, entity := range entities {
-		meta := registry.Meta{
-			ID:       entity.ID(),
-			Name:     entity.Name(),
-			Active:   entity.Active(),
-			Metadata: entity.Metadata(),
-		}
-		session, err := s.metaToSession(meta)
+		session, err := s.entityToSession(entity)
 		if err != nil {
-			return nil, fmt.Errorf("error converting meta to session: %w", err)
+			return nil, fmt.Errorf("error converting entity to session: %w", err)
 		}
 		sessions = append(sessions, session)
 	}
@@ -291,50 +271,76 @@ func (s *Service) saveSession(session *Session) error {
 	return nil
 }
 
-// metaToSession converts registry.Meta to Session
-func (s *Service) metaToSession(meta registry.Meta) (*Session, error) {
-	txID, err := uuid.Parse(meta.Metadata["transaction_id"])
-	if err != nil {
-		return nil, fmt.Errorf("invalid transaction_id: %w", err)
+// entityToSession converts a registry.Entity to a Session
+func (s *Service) entityToSession(entity registry.Entity) (*Session, error) {
+	if entity == nil {
+		return nil, fmt.Errorf("entity cannot be nil")
 	}
 
-	userID, err := uuid.Parse(meta.Metadata["user_id"])
-	if err != nil {
-		return nil, fmt.Errorf("invalid user_id: %w", err)
-	}
-
-	accountID, err := uuid.Parse(meta.Metadata["account_id"])
-	if err != nil {
-		return nil, fmt.Errorf("invalid account_id: %w", err)
-	}
-
-	var amount int64
-	_, err = fmt.Sscanf(meta.Metadata["amount"], "%d", &amount)
-	if err != nil {
-		return nil, fmt.Errorf("invalid amount: %w", err)
-	}
-
-	createdAt, err := time.Parse(time.RFC3339, meta.Metadata["created_at"])
-	if err != nil {
-		return nil, fmt.Errorf("invalid created_at: %w", err)
-	}
-
-	expiresAt, err := time.Parse(time.RFC3339, meta.Metadata["expires_at"])
-	if err != nil {
-		return nil, fmt.Errorf("invalid expires_at: %w", err)
-	}
+	metadata := entity.Metadata()
 
 	session := &Session{
-		ID:            meta.ID,
-		TransactionID: txID,
-		UserID:        userID,
-		AccountID:     accountID,
-		Amount:        amount,
-		Currency:      meta.Metadata["currency"],
-		Status:        meta.Metadata["status"],
-		CheckoutURL:   meta.Metadata["checkout_url"],
-		CreatedAt:     createdAt,
-		ExpiresAt:     expiresAt,
+		ID:            entity.ID(),
+		TransactionID: uuid.Nil,
+		UserID:        uuid.Nil,
+		AccountID:     uuid.Nil,
+		Status:        "",
+		CheckoutURL:   "",
+		CreatedAt:     time.Time{},
+		ExpiresAt:     time.Time{},
+	}
+
+	// Parse transaction ID
+	if txID, ok := metadata["transaction_id"]; ok && txID != "" {
+		if id, err := uuid.Parse(txID); err == nil {
+			session.TransactionID = id
+		}
+	}
+
+	// Parse user ID
+	if userID, ok := metadata["user_id"]; ok && userID != "" {
+		if id, err := uuid.Parse(userID); err == nil {
+			session.UserID = id
+		}
+	}
+
+	// Parse account ID
+	if accountID, ok := metadata["account_id"]; ok && accountID != "" {
+		if id, err := uuid.Parse(accountID); err == nil {
+			session.AccountID = id
+		}
+	}
+
+	// Parse amount
+	if amount, ok := metadata["amount"]; ok && amount != "" {
+		if amt, err := strconv.ParseInt(amount, 10, 64); err == nil {
+			session.Amount = amt
+		}
+	}
+
+	// Set other fields
+	session.Currency = metadata["currency"]
+	session.Status = metadata["status"]
+	session.CheckoutURL = metadata["checkout_url"]
+
+	// Parse timestamps
+	if createdAt, ok := metadata["created_at"]; ok && createdAt != "" {
+		if t, err := time.Parse(time.RFC3339, createdAt); err == nil {
+			session.CreatedAt = t
+		}
+	}
+
+	if expiresAt, ok := metadata["expires_at"]; ok && expiresAt != "" {
+		if t, err := time.Parse(time.RFC3339, expiresAt); err == nil {
+			session.ExpiresAt = t
+		}
+	}
+
+	// Load currency info
+	if session.Currency != "" {
+		if info, err := currency.Get(session.Currency); err == nil {
+			session.currencyInfo = &info
+		}
 	}
 
 	// Validate the session

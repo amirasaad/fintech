@@ -1,3 +1,5 @@
+lint:
+	golangci-lint run ./...
 test:
 	go test -p 4 -v $$(go list ./... | grep -v '/internal' | grep -v '/api' | grep -v '/cmd')
 
@@ -35,4 +37,4 @@ migrate-create:
 
 migrate-force:
 	@migrate -verbose -database "$(DATABASE_URL)" -path internal/migrations force ${n}
-.PHONY: test cov cov_report run migrate-up migrate-down migrate-create
+.PHONY: lint test test-unit test-integration test-e2e cov cov_report run migrate-up migrate-down migrate-create

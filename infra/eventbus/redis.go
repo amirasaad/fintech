@@ -254,7 +254,7 @@ func (b *RedisEventBus) registerHandler(eventType events.EventType, handler even
 	defer b.handlersMtx.Unlock()
 	b.ensureHandlersMap()
 	b.handlers[eventType] = append(b.handlers[eventType], handler)
-	b.logger.Info("registered handler", "event_type", eventType)
+	b.logger.Debug("registered handler", "event_type", eventType)
 }
 
 // ensureHandlersMap initializes the handlers map if it is nil.
@@ -277,7 +277,7 @@ func (b *RedisEventBus) consume(
 	stream := streamNameFor(eventType)
 	group := groupNameFor(eventType)
 	consumer := consumerNameFor(eventType)
-	b.logger.Info(
+	b.logger.Debug(
 		"starting consumer",
 		"event_type", eventType,
 		"stream", stream,
@@ -595,8 +595,8 @@ func (b *RedisEventBus) retryDLQ(
 			)
 		}
 	}
-	b.logger.Info(
-		"✅ Successfully retried %d",
+	b.logger.Debug(
+		"✅ Successfully retried DLQ messages",
 		"count", count,
 		"dlq_stream", dlqStream,
 		"original_stream", originalStream,

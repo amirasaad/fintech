@@ -4,12 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/amirasaad/fintech/pkg/service/checkout"
 	"log/slog"
 	"maps"
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/amirasaad/fintech/pkg/service/checkout"
 
 	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/registry"
@@ -277,7 +278,7 @@ func (s *StripePaymentProvider) handleCheckoutSessionCompleted(
 		return nil, err
 	}
 
-	amount, err := s.parseAmount(session.AmountSubtotal, session.Currency, log)
+	amount, err := s.parseAmount(session.AmountSubtotal, session.Currency)
 	if err != nil {
 		log.Error(
 			"error parsing amount",
@@ -440,7 +441,7 @@ func (s *StripePaymentProvider) handlePaymentIntentSucceeded(
 		return nil, err
 	}
 
-	pc := s.buildPaymentCompletedEventPayload(&pi, parsedMeta, fee, log)
+	pc := s.buildPaymentCompletedEventPayload(&pi, parsedMeta, *fee, log)
 	if err := s.bus.Emit(ctx, pc); err != nil {
 		log.Error("error emitting payment completed event", "error", err)
 		return nil, fmt.Errorf("error emitting payment completed event: %w", err)
@@ -534,14 +535,14 @@ func (s *StripePaymentProvider) parseProviderFeeAmount(
 	feeAmount int64,
 	cur string,
 	log *slog.Logger,
-) (money.Money, error) {
+) (*money.Money, error) {
 	fee, err := money.NewFromSmallestUnit(
 		feeAmount,
 		currency.Code(cur),
 	)
 	if err != nil {
 		log.Error("error creating money from smallest unit", "error", err)
-		return money.Money{}, fmt.Errorf("error creating money from smallest unit: %w", err)
+		return nil, fmt.Errorf("error creating money from smallest unit: %w", err)
 	}
 	return fee, nil
 }
@@ -553,7 +554,7 @@ func (s *StripePaymentProvider) buildPaymentCompletedEventPayload(
 	feeAmount money.Money,
 	log *slog.Logger,
 ) *events.PaymentCompleted {
-	amount, err := s.parseAmount(pi.AmountReceived, pi.Currency, log)
+	amount, err := s.parseAmount(pi.AmountReceived, pi.Currency)
 	return events.NewPaymentCompleted(
 		&events.FlowEvent{
 			ID:            meta.TransactionID,
@@ -564,7 +565,7 @@ func (s *StripePaymentProvider) buildPaymentCompletedEventPayload(
 		},
 		events.WithPaymentID(pi.ID),
 		events.WithProviderFee(account.Fee{
-			Amount: feeAmount,
+			Amount: &feeAmount,
 			Type:   account.FeeProvider,
 		}),
 		func(pc *events.PaymentCompleted) {
@@ -581,8 +582,7 @@ func (s *StripePaymentProvider) buildPaymentCompletedEventPayload(
 func (s *StripePaymentProvider) parseAmount(
 	amount int64,
 	currencyCode stripe.Currency,
-	log *slog.Logger,
-) (money.Money, error) {
+) (*money.Money, error) {
 	return money.NewFromSmallestUnit(
 		amount,
 		currency.Code(strings.ToUpper(string(currencyCode))),

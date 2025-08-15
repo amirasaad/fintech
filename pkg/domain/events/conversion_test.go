@@ -8,6 +8,7 @@ import (
 	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/money"
+	"github.com/amirasaad/fintech/pkg/provider"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -132,7 +133,7 @@ func TestCurrencyConverted(t *testing.T) {
 			},
 			TransactionID:   uuid.New(),
 			ConvertedAmount: convertedAmount,
-			ConversionInfo: &currency.Info{
+			ConversionInfo: &provider.ExchangeInfo{
 				OriginalAmount:    amount.AmountFloat(),
 				OriginalCurrency:  amount.Currency().String(),
 				ConvertedAmount:   convertedAmount.AmountFloat(),
@@ -174,7 +175,7 @@ func TestCurrencyConverted(t *testing.T) {
 			},
 			TransactionID:   transactionID,
 			ConvertedAmount: convertedAmount,
-			ConversionInfo: &currency.Info{
+			ConversionInfo: &provider.ExchangeInfo{
 				OriginalAmount:    amount.AmountFloat(),
 				OriginalCurrency:  amount.Currency().String(),
 				ConvertedAmount:   convertedAmount.AmountFloat(),
@@ -251,10 +252,10 @@ func TestCurrencyConverted(t *testing.T) {
 			"converted currency should be EUR")
 
 		// Check the conversion info
-		conversionInfo, ok := result["conversionInfo"].(map[string]interface{})
+		conversionInfo, ok := result["conversionInfo"].(map[string]any)
 		assert.True(t, ok, "conversionInfo should be an object")
 		// Check the conversion info fields (they use PascalCase in the JSON)
-		// Note: The OriginalAmount is 100 (not 1000) in the actual output
+		// Note: The From field is 100 (not 1000) in the actual output
 		assert.InEpsilon(
 			t,
 			100.0,

@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"sync"
 	"testing"
 
 	"github.com/amirasaad/fintech/internal/fixtures/mocks"
@@ -51,8 +52,8 @@ type TestHelper struct {
 	EventID       uuid.UUID
 	CorrelationID uuid.UUID
 	TransactionID uuid.UUID
-	Amount        money.Money
-	FeeAmount     money.Money
+	Amount        *money.Money
+	FeeAmount     *money.Money
 }
 
 // New creates a new test helper with fresh mocks and test data
@@ -127,13 +128,13 @@ func New(t *testing.T, opts ...TestOption) *TestHelper {
 	}
 
 	// Initialize amounts if not set
-	if h.Amount.IsZero() {
+	if h.Amount == nil {
 		amount, err := money.New(DefaultAmount, DefaultCurrency)
 		require.NoError(t, err, "failed to create default amount")
 		h.Amount = amount
 	}
 
-	if h.FeeAmount.IsZero() {
+	if h.FeeAmount == nil {
 		feeAmount, err := money.New(DefaultFeeAmount, DefaultCurrency)
 		require.NoError(t, err, "failed to create default fee amount")
 		h.FeeAmount = feeAmount
@@ -145,15 +146,21 @@ func New(t *testing.T, opts ...TestOption) *TestHelper {
 // TestOption defines a function type for test options
 type TestOption func(*TestHelper)
 
+var (
+	initOnce sync.Once
+)
+
 var defaultTestOptions = []TestOption{
 	// Initialize currency registry with default currencies
 	func(h *TestHelper) {
-		// Initialize the global currency registry if not already done
-		ctx := context.Background()
-		err := currency.InitializeGlobalRegistry(ctx)
-		if err != nil {
-			h.T.Fatalf("failed to initialize global currency registry: %v", err)
-		}
+		// Use sync.Once to ensure initialization happens only once
+		initOnce.Do(func() {
+			// Initialize with background context and default currencies
+			ctx := context.Background()
+			if err := currency.InitializeGlobalRegistry(ctx); err != nil {
+				h.T.Fatal("failed to initialize global currency registry", err)
+			}
+		})
 	},
 }
 
@@ -171,13 +178,13 @@ func (h *TestHelper) WithContext(ctx context.Context) *TestHelper {
 }
 
 // WithAmount sets a custom amount for the test helper
-func (h *TestHelper) WithAmount(amount money.Money) *TestHelper {
+func (h *TestHelper) WithAmount(amount *money.Money) *TestHelper {
 	h.Amount = amount
 	return h
 }
 
 // WithFeeAmount sets a custom fee amount for the test helper
-func (h *TestHelper) WithFeeAmount(amount money.Money) *TestHelper {
+func (h *TestHelper) WithFeeAmount(amount *money.Money) *TestHelper {
 	h.FeeAmount = amount
 	return h
 }

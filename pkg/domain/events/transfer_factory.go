@@ -11,7 +11,7 @@ import (
 // --- TransferRequested ---
 type TransferRequestedOpt func(*TransferRequested)
 
-func WithTransferRequestedAmount(m money.Money) TransferRequestedOpt {
+func WithTransferRequestedAmount(m *money.Money) TransferRequestedOpt {
 	return func(e *TransferRequested) { e.Amount = m }
 }
 
@@ -108,7 +108,7 @@ func NewTransferFailed(
 // TransferCompletedOpt --- TransferCompleted factory ---
 type TransferCompletedOpt func(*TransferCompleted)
 
-func WithTransferAmount(m money.Money) TransferCompletedOpt {
+func WithTransferAmount(m *money.Money) TransferCompletedOpt {
 	return func(e *TransferCompleted) { e.Amount = m }
 }
 

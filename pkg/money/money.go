@@ -15,7 +15,6 @@ import (
 	"math/big"
 
 	"github.com/amirasaad/fintech/pkg/currency"
-	"github.com/amirasaad/fintech/pkg/domain/common"
 )
 
 var ErrInvalidAmount = fmt.Errorf("invalid amount float")
@@ -61,8 +60,8 @@ func (m *Money) UnmarshalJSON(data []byte) error {
 }
 
 // Zero creates a Money object with zero amount in the specified currency.
-func Zero(cur currency.Code) Money {
-	return Money{
+func Zero(cur currency.Code) *Money {
+	return &Money{
 		amount:   0,
 		currency: cur,
 	}
@@ -75,7 +74,7 @@ func Zero(cur currency.Code) Money {
 //   - Amount is converted to the smallest currency unit.
 //
 // Panics if any invariant is violated.
-func Must(amount float64, currencyCode currency.Code) Money {
+func Must(amount float64, currencyCode currency.Code) *Money {
 	money, err := New(amount, currencyCode)
 	if err != nil {
 		panic(err)
@@ -86,8 +85,8 @@ func Must(amount float64, currencyCode currency.Code) Money {
 // NewFromData creates a Money object from raw data (used for DB hydration).
 // This bypasses invariants and should only be used for repository hydration or tests.
 // Deprecated: use NewFromSmallestUnit instead.
-func NewFromData(amount int64, cc string) Money {
-	return Money{
+func NewFromData(amount int64, cc string) *Money {
+	return &Money{
 		amount:   amount,
 		currency: currency.Code(cc),
 	}
@@ -104,14 +103,14 @@ func New(
 	amount float64,
 	currencyCode currency.Code,
 ) (
-	money Money,
+	money *Money,
 	err error,
 ) {
 	if currencyCode == "" {
 		currencyCode = currency.Code(currency.DefaultCode)
 	}
 	if !currency.IsValidFormat(string(currencyCode)) {
-		err = common.ErrInvalidCurrencyCode
+		err = currency.ErrInvalidCode
 		return
 	}
 
@@ -120,7 +119,7 @@ func New(
 		return
 	}
 
-	money = Money{amount: Amount(smallestUnit), currency: currencyCode}
+	money = &Money{amount: Amount(smallestUnit), currency: currencyCode}
 	return
 }
 
@@ -133,31 +132,31 @@ func NewFromSmallestUnit(
 	amount int64,
 	currencyCode currency.Code,
 ) (
-	money Money,
+	money *Money,
 	err error,
 ) {
 	if currencyCode == "" {
 		currencyCode = currency.Code(currency.DefaultCode)
 	}
 	if !currency.IsValidFormat(string(currencyCode)) {
-		err = common.ErrInvalidCurrencyCode
+		err = currency.ErrInvalidCode
 		return
 	}
 
-	money = Money{amount: Amount(amount), currency: currencyCode}
+	money = &Money{amount: Amount(amount), currency: currencyCode}
 	return
 }
 
 // Amount returns the amount of the Money object in the smallest currency unit.
-func (m Money) Amount() Amount {
+func (m *Money) Amount() Amount {
 	return m.amount
 }
 
 // AmountFloat returns the amount as a float64 in the main currency unit (e.g., dollars for USD).
 // Invariants enforced:
 //   - Currency metadata must be valid.
-func (m Money) AmountFloat() float64 {
-	meta, err := currency.Get(string(m.currency))
+func (m *Money) AmountFloat() float64 {
+	meta, err := currency.Get(m.currency.String())
 	if err != nil {
 		slog.Error("invalid currency code in AmountFloat", "currency", m.currency, "error", err)
 		return 0
@@ -168,12 +167,12 @@ func (m Money) AmountFloat() float64 {
 }
 
 // Currency returns the currency of the Money object.
-func (m Money) Currency() currency.Code {
+func (m *Money) Currency() currency.Code {
 	return m.currency
 }
 
 // IsCurrency Is checks the currency code if the same as money object
-func (m Money) IsCurrency(code string) bool {
+func (m *Money) IsCurrency(code string) bool {
 	return m.Currency().String() == code
 }
 
@@ -182,11 +181,11 @@ func (m Money) IsCurrency(code string) bool {
 //   - Currencies must match.
 //
 // Returns Money or an error if currencies do not match.
-func (m Money) Add(other Money) (Money, error) {
+func (m *Money) Add(other *Money) (*Money, error) {
 	if !m.IsSameCurrency(other) {
-		return Money{}, common.ErrInvalidCurrencyCode
+		return nil, currency.ErrInvalidCode
 	}
-	return Money{
+	return &Money{
 		amount:   m.amount + other.amount,
 		currency: m.currency,
 	}, nil
@@ -197,19 +196,19 @@ func (m Money) Add(other Money) (Money, error) {
 //   - Currencies must match.
 //
 // Returns Money or an error if currencies do not match.
-func (m Money) Subtract(other Money) (Money, error) {
+func (m *Money) Subtract(other *Money) (*Money, error) {
 	if !m.IsSameCurrency(other) {
-		return Money{}, common.ErrInvalidCurrencyCode
+		return nil, currency.ErrInvalidCode
 	}
-	return Money{
+	return &Money{
 		amount:   m.amount - other.amount,
 		currency: m.currency,
 	}, nil
 }
 
 // Negate negates the current Money object.
-func (m Money) Negate() Money {
-	return Money{
+func (m *Money) Negate() *Money {
+	return &Money{
 		amount:   -m.amount,
 		currency: m.currency,
 	}
@@ -220,7 +219,7 @@ func (m Money) Negate() Money {
 //   - Currencies must match.
 //
 // Returns false if currencies do not match.
-func (m Money) Equals(other Money) bool {
+func (m *Money) Equals(other *Money) bool {
 	return m.IsSameCurrency(other) && m.amount == other.amount
 }
 
@@ -229,9 +228,9 @@ func (m Money) Equals(other Money) bool {
 //   - Currencies must match.
 //
 // Returns an error if currencies do not match.
-func (m Money) GreaterThan(other Money) (bool, error) {
+func (m *Money) GreaterThan(other *Money) (bool, error) {
 	if !m.IsSameCurrency(other) {
-		return false, common.ErrInvalidCurrencyCode
+		return false, currency.ErrInvalidCode
 	}
 	return m.amount > other.amount, nil
 }
@@ -241,35 +240,35 @@ func (m Money) GreaterThan(other Money) (bool, error) {
 //   - Currencies must match.
 //
 // Returns an error if currencies do not match.
-func (m Money) LessThan(other Money) (bool, error) {
+func (m *Money) LessThan(other *Money) (bool, error) {
 	if !m.IsSameCurrency(other) {
-		return false, common.ErrInvalidCurrencyCode
+		return false, currency.ErrInvalidCode
 	}
 	return m.amount < other.amount, nil
 }
 
 // IsSameCurrency checks if the current Money object has the same currency as another Money object.
-func (m Money) IsSameCurrency(other Money) bool {
+func (m *Money) IsSameCurrency(other *Money) bool {
 	return m.currency == other.currency
 }
 
 // IsPositive returns true if the amount is greater than zero.
-func (m Money) IsPositive() bool {
+func (m *Money) IsPositive() bool {
 	return m.amount > 0
 }
 
 // IsNegative returns true if the amount is less than zero.
-func (m Money) IsNegative() bool {
+func (m *Money) IsNegative() bool {
 	return m.amount < 0
 }
 
 // IsZero returns true if the amount is zero.
-func (m Money) IsZero() bool {
+func (m *Money) IsZero() bool {
 	return m.amount == 0
 }
 
 // Abs returns the absolute value of the Money amount.
-func (m Money) Abs() Money {
+func (m *Money) Abs() *Money {
 	if m.amount < 0 {
 		return m.Negate()
 	}
@@ -281,16 +280,16 @@ func (m Money) Abs() Money {
 //   - Result must not overflow int64.
 //
 // Returns Money or an error if overflow would occur.
-func (m Money) Multiply(factor float64) (Money, error) {
+func (m *Money) Multiply(factor float64) (*Money, error) {
 	// Convert to float for multiplication
 	resultFloat := float64(m.amount) * factor
 
 	// Check for overflow
 	if resultFloat > float64(math.MaxInt64) || resultFloat < float64(math.MinInt64) {
-		return Money{}, fmt.Errorf("multiplication result would overflow")
+		return nil, fmt.Errorf("multiplication result would overflow")
 	}
 
-	return Money{
+	return &Money{
 		amount:   Amount(int64(resultFloat)),
 		currency: m.currency,
 	}, nil
@@ -303,9 +302,9 @@ func (m Money) Multiply(factor float64) (Money, error) {
 //   - Division must not lose precision.
 //
 // Returns Money or an error if any invariant is violated.
-func (m Money) Divide(divisor float64) (Money, error) {
+func (m *Money) Divide(divisor float64) (*Money, error) {
 	if divisor == 0 {
-		return Money{}, fmt.Errorf("division by zero")
+		return nil, fmt.Errorf("division by zero")
 	}
 
 	// Convert to float for division
@@ -313,22 +312,22 @@ func (m Money) Divide(divisor float64) (Money, error) {
 
 	// Check for overflow
 	if resultFloat > float64(math.MaxInt64) || resultFloat < float64(math.MinInt64) {
-		return Money{}, fmt.Errorf("division result would overflow")
+		return nil, fmt.Errorf("division result would overflow")
 	}
 
 	// Check if result is an integer (no precision loss)
 	if resultFloat != float64(int64(resultFloat)) {
-		return Money{}, fmt.Errorf("division would result in precision loss")
+		return nil, fmt.Errorf("division would result in precision loss")
 	}
 
-	return Money{
+	return &Money{
 		amount:   Amount(int64(resultFloat)),
 		currency: m.currency,
 	}, nil
 }
 
 // String returns a string representation of the Money object.
-func (m Money) String() string {
+func (m *Money) String() string {
 	meta, err := currency.Get(string(m.currency))
 	if err != nil {
 		slog.Error("invalid currency code in String", "currency", m.currency, "error", err)

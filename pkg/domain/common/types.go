@@ -4,8 +4,6 @@ import (
 	"github.com/amirasaad/fintech/pkg/currency"
 )
 
-type ConversionInfo currency.Info
-
 // ErrInvalidCurrencyCode is returned when a currency code is invalid.
 var ErrInvalidCurrencyCode = currency.ErrInvalidCode
 
@@ -15,4 +13,5 @@ var ErrUnsupportedCurrency = currency.ErrUnsupported
 
 // ErrInvalidDecimalPlaces is returned when a monetary amount
 // has more decimal places than allowed by the currency.
+// Deprecated: use currency.ErrInvalidDecimals
 var ErrInvalidDecimalPlaces = currency.ErrInvalidDecimals

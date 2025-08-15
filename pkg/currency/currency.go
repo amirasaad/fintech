@@ -289,7 +289,6 @@ func New(ctx context.Context, params ...string) (*Registry, error) {
 		EnableEvents:     true,
 		EnableValidation: true,
 		CacheSize:        100,
-		CacheTTL:         10 * time.Minute,
 	}
 
 	var reg registry.Provider

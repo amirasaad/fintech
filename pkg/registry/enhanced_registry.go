@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 	"time"
 )
@@ -102,16 +103,35 @@ func (r *Enhanced) Register(ctx context.Context, entity Entity) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	// Check if entity already exists
+	// Check if this is an update
 	_, exists := r.entities[entity.ID()]
-	r.entities[entity.ID()] = entity
 
-	// Update cache if available
+	// Create a copy of the entity to ensure thread safety
+	if baseEntity, ok := entity.(*BaseEntity); ok {
+		// Create a new BaseEntity to avoid modifying the original
+		copy := *baseEntity
+		copy.BEUpdatedAt = time.Now()
+		if !exists {
+			copy.BECreatedAt = copy.BEUpdatedAt
+		}
+		r.entities[copy.ID()] = &copy
+		entity = &copy
+	} else {
+		// For custom entity types, just store as is
+		r.entities[entity.ID()] = entity
+	}
+
+	// Update cache if enabled
 	if r.cache != nil {
 		if err := r.cache.Set(ctx, entity); err != nil {
-			// Log cache set error but don't fail the operation
-			// as the main registry operation succeeded
-			log.Printf("warning: failed to update cache for entity %s: %v", entity.ID(), err)
+			log.Printf("warning: failed to update cache: %v", err)
+		}
+	}
+
+	// Update persistence if enabled
+	if r.persistence != nil {
+		if err := r.persistence.Save(ctx, r.getAllEntitiesLocked()); err != nil {
+			log.Printf("warning: failed to persist registry: %v", err)
 		}
 	}
 
@@ -119,28 +139,17 @@ func (r *Enhanced) Register(ctx context.Context, entity Entity) error {
 	if r.metrics != nil {
 		r.metrics.IncrementRegistration()
 		r.metrics.SetEntityCount(len(r.entities))
-		if entity.Active() {
-			activeCount := r.countActiveLocked()
-			r.metrics.SetActiveCount(activeCount)
-		}
+		r.metrics.SetActiveCount(r.countActiveLocked())
 	}
 
-	// Publish event
+	// Emit event
 	if r.eventBus != nil {
 		eventType := EventEntityRegistered
 		if exists {
 			eventType = EventEntityUpdated
 		}
-		event := Event{
-			Type:      eventType,
-			EntityID:  entity.ID(),
-			Entity:    entity,
-			Timestamp: time.Now(),
-		}
-		if err := r.eventBus.Emit(ctx, event); err != nil {
-			// Log event emission error but don't fail the operation
-			log.Printf("warning: failed to emit %s event for entity %s: %v",
-				eventType, entity.ID(), err)
+		if err := r.emitEvent(eventType, entity); err != nil {
+			log.Printf("warning: failed to emit %s event: %v", eventType, err)
 		}
 	}
 
@@ -501,10 +510,37 @@ func contains(s, substr string) bool {
 
 // containsSubstring is a helper function for substring search
 func containsSubstring(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
+	s = strings.ToLower(s)
+	substr = strings.ToLower(substr)
+	return strings.Contains(s, substr)
+}
+
+// emitEvent is a helper method to emit events to the event bus
+func (r *Enhanced) emitEvent(eventType string, entity Entity) error {
+	event := Event{
+		Type:      eventType,
+		EntityID:  entity.ID(),
+		Entity:    entity,
+		Timestamp: time.Now(),
+	}
+
+	// Add metadata if available
+	if metadata := entity.Metadata(); len(metadata) > 0 {
+		event.Metadata = make(map[string]interface{})
+		for k, v := range metadata {
+			event.Metadata[k] = v
 		}
 	}
-	return false
+
+	return r.eventBus.Emit(context.Background(), event)
+}
+
+// getAllEntitiesLocked returns a slice of all entities in the registry
+// The caller must hold the write lock
+func (r *Enhanced) getAllEntitiesLocked() []Entity {
+	entities := make([]Entity, 0, len(r.entities))
+	for _, entity := range r.entities {
+		entities = append(entities, entity)
+	}
+	return entities
 }
