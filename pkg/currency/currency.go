@@ -312,7 +312,7 @@ func New(ctx context.Context, params ...string) (*Registry, error) {
 		config = builder.Build()
 
 		// Create registry with Redis cache
-		factory := registry.NewRegistryFactory()
+		factory := registry.NewFactory()
 		reg, err = factory.Create(ctx, config)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create Redis-backed registry: %w", err)
@@ -373,7 +373,7 @@ func NewRegistryWithPersistence(
 		config = builder.Build()
 
 		// Create registry with Redis cache and persistence
-		factory := registry.NewRegistryFactory()
+		factory := registry.NewFactory()
 		reg, err = factory.CreateWithPersistence(
 			ctx,
 			config,

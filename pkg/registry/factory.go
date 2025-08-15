@@ -10,8 +10,8 @@ import (
 // FactoryImpl implements RegistryFactory
 type FactoryImpl struct{}
 
-// NewRegistryFactory creates a new registry factory
-func NewRegistryFactory() Factory {
+// NewFactory creates a new registry factory
+func NewFactory() Factory {
 	return &FactoryImpl{}
 }
 

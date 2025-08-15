@@ -65,7 +65,7 @@ type Event struct {
 	Metadata  map[string]interface{} `json:"metadata,omitempty"`
 }
 
-// RegistryEventType constants
+// EventType constants
 const (
 	EventEntityRegistered   = "entity_registered"
 	EventEntityUnregistered = "entity_unregistered"
