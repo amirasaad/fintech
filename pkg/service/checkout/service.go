@@ -251,15 +251,15 @@ func (s *Service) saveSession(session *Session) error {
 	}
 
 	// Add all fields as metadata for searchability
-	entity.BEMetadata["transaction_id"] = session.TransactionID.String()
-	entity.BEMetadata["user_id"] = session.UserID.String()
-	entity.BEMetadata["account_id"] = session.AccountID.String()
-	entity.BEMetadata["amount"] = fmt.Sprintf("%d", session.Amount)
-	entity.BEMetadata["currency"] = session.Currency
-	entity.BEMetadata["status"] = session.Status
-	entity.BEMetadata["checkout_url"] = session.CheckoutURL
-	entity.BEMetadata["created_at"] = session.CreatedAt.Format(time.RFC3339)
-	entity.BEMetadata["expires_at"] = session.ExpiresAt.Format(time.RFC3339)
+	entity.SetMetadata("transaction_id", session.TransactionID.String())
+	entity.SetMetadata("user_id", session.UserID.String())
+	entity.SetMetadata("account_id", session.AccountID.String())
+	entity.SetMetadata("amount", fmt.Sprintf("%d", session.Amount))
+	entity.SetMetadata("currency", session.Currency)
+	entity.SetMetadata("status", session.Status)
+	entity.SetMetadata("checkout_url", session.CheckoutURL)
+	entity.SetMetadata("created_at", session.CreatedAt.Format(time.RFC3339))
+	entity.SetMetadata("expires_at", session.ExpiresAt.Format(time.RFC3339))
 
 	// Store in registry
 	ctx := context.Background()
@@ -278,6 +278,8 @@ func (s *Service) entityToSession(entity registry.Entity) (*Session, error) {
 	}
 
 	metadata := entity.Metadata()
+	// Debug: Print all metadata keys and values
+	fmt.Printf("Entity metadata: %+v\n", metadata)
 
 	session := &Session{
 		ID:            entity.ID(),
@@ -292,23 +294,29 @@ func (s *Service) entityToSession(entity registry.Entity) (*Session, error) {
 
 	// Parse transaction ID
 	if txID, ok := metadata["transaction_id"]; ok && txID != "" {
-		if id, err := uuid.Parse(txID); err == nil {
-			session.TransactionID = id
+		id, err := uuid.Parse(txID)
+		if err != nil {
+			return nil, fmt.Errorf("invalid transaction ID in metadata: %w", err)
 		}
+		session.TransactionID = id
 	}
 
 	// Parse user ID
 	if userID, ok := metadata["user_id"]; ok && userID != "" {
-		if id, err := uuid.Parse(userID); err == nil {
-			session.UserID = id
+		id, err := uuid.Parse(userID)
+		if err != nil {
+			return nil, fmt.Errorf("invalid user ID in metadata: %w", err)
 		}
+		session.UserID = id
 	}
 
 	// Parse account ID
 	if accountID, ok := metadata["account_id"]; ok && accountID != "" {
-		if id, err := uuid.Parse(accountID); err == nil {
-			session.AccountID = id
+		id, err := uuid.Parse(accountID)
+		if err != nil {
+			return nil, fmt.Errorf("invalid account ID in metadata: %w", err)
 		}
+		session.AccountID = id
 	}
 
 	// Parse amount

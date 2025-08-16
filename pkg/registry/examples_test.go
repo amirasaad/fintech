@@ -5,19 +5,21 @@ import (
 	"time"
 )
 
-// Example demonstrates basic registry usage
-func Example() {
-	// Create a new registry
+// ExampleRegistry demonstrates basic registry usage
+func ExampleRegistry() {
+	// Create a new registry instance
 	registry := New()
 
-	// Create entities using NewBaseEntity
+	// Create entities using NewBaseEntity and set properties using methods
 	user1 := NewBaseEntity("user-1", "John Doe")
-	user1.BEActive = true
-	user1.BEMetadata = map[string]string{"email": "john@example.com", "role": "admin"}
+	user1.SetActive(true)
+	user1.SetMetadata("email", "john@example.com")
+	user1.SetMetadata("role", "admin")
 
 	user2 := NewBaseEntity("user-2", "Jane Smith")
-	user2.BEActive = true
-	user2.BEMetadata = map[string]string{"email": "jane@example.com", "role": "user"}
+	user2.SetActive(true)
+	user2.SetMetadata("email", "jane@example.com")
+	user2.SetMetadata("role", "user")
 
 	// Register entities
 	registry.Register(user1.ID(), user1)
@@ -67,32 +69,34 @@ func Example() {
 // Example_second demonstrates global registry functions
 func Example_second() {
 	// Reset the global registry to ensure a clean state for the example
-	globalRegistry = New() // This avoids pollution from other tests/examples
+	registry := New() // This avoids pollution from other tests/examples
 
 	// Use global registry functions
 	globalUser := NewBaseEntity("global-user", "Global User")
-	globalUser.BEActive = true
-	globalUser.BEMetadata = map[string]string{"type": "global"}
-	Register(globalUser.ID(), globalUser)
+	// Using setter methods (recommended)
+	globalUser.SetActive(true)
+	globalUser.SetMetadata("email", "user@example.com")
+	globalUser.SetMetadata("role", "admin")
+	registry.Register(globalUser.ID(), globalUser)
 
 	// Get from global registry
-	user := Get("global-user")
+	user := registry.Get("global-user")
 	if user != nil {
 		fmt.Printf("Global user: %s\n", user.Name())
 	}
 
 	// Check registration
-	fmt.Printf("Is registered: %t\n", IsRegistered("global-user"))
+	fmt.Printf("Is registered: %t\n", registry.IsRegistered("global-user"))
 
 	// List all
-	all := ListRegistered()
+	all := registry.ListRegistered()
 	fmt.Printf("Global registry count: %d\n", len(all))
 
 	// Set metadata
-	SetMetadata("global-user", "status", "active")
+	registry.SetMetadata("global-user", "status", "active")
 
 	// Get metadata
-	status, found := GetMetadata("global-user", "status")
+	status, found := registry.GetMetadata("global-user", "status")
 	fmt.Printf("Status: %s (found: %t)\n", status, found)
 
 	// Output:
@@ -108,12 +112,10 @@ func Example_third() {
 
 	// Create and register with metadata
 	product := NewBaseEntity("product-1", "Laptop")
-	product.BEActive = true
-	product.BEMetadata = map[string]string{
-		"category": "Electronics",
-		"price":    "999.99",
-		"brand":    "TechCorp",
-	}
+	// Using setter methods (recommended)
+	product.SetActive(true)
+	product.SetMetadata("category", "electronics")
+	product.SetMetadata("price", "99.99")
 	registry.Register("product-1", product)
 
 	// Get specific metadata
@@ -136,8 +138,8 @@ func Example_third() {
 	fmt.Printf("Non-existent: %s (found: %t)\n", nonExistent, found)
 
 	// Output:
-	// Category: Electronics (found: true)
-	// Price: 999.99 (found: true)
+	// Category: electronics (found: true)
+	// Price: 99.99 (found: true)
 	// In stock: true (found: true)
 	// Non-existent:  (found: false)
 }
@@ -148,24 +150,27 @@ func Example_fourth() {
 
 	// Create and register an entity
 	entity := NewBaseEntity("entity-1", "Test Entity")
-	entity.BEActive = true
-	entity.BEMetadata = map[string]string{"version": "1.0"}
+	entity.SetActive(true)
+	entity.SetMetadata("version", "1.0")
 	registry.Register("entity-1", entity)
 
 	fmt.Printf("Initial count: %d\n", registry.Count())
 
 	// Deactivate
-	// Type assertion since we know it's a BaseEntity
-	entity = registry.Get("entity-1").(*BaseEntity)
-	entity.BEActive = false
-	registry.Register("entity-1", entity)
+	entityFromRegistry := registry.Get("entity-1")
+	if be, ok := entityFromRegistry.(*BaseEntity); ok {
+		be.SetActive(false)
+		registry.Register("entity-1", be)
+	}
 
 	fmt.Printf("Active entities: %d\n", len(registry.ListActive()))
 
 	// Reactivate
-	entity = registry.Get("entity-1").(*BaseEntity)
-	entity.BEActive = true
-	registry.Register("entity-1", entity)
+	entityFromRegistry = registry.Get("entity-1")
+	if be, ok := entityFromRegistry.(*BaseEntity); ok {
+		be.SetActive(true)
+		registry.Register("entity-1", be)
+	}
 
 	fmt.Printf("Active entities after reactivation: %d\n", len(registry.ListActive()))
 

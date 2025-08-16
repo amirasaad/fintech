@@ -2,6 +2,7 @@ package registry
 
 import (
 	"sync"
+	"time"
 )
 
 // Registry is a thread-safe registry for managing entities that implement the Entity interface
@@ -22,16 +23,22 @@ func (r *Registry) Register(id string, entity Entity) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	// For BaseEntity, create a copy to ensure thread safety
-	if baseEntity, ok := entity.(*BaseEntity); ok {
-		// Create a new BaseEntity to avoid modifying the original
-		copy := *baseEntity
-		copy.BEId = id // Ensure ID is set
-		r.entities[id] = &copy
-	} else {
-		// For custom entity types, just store as is
-		r.entities[id] = entity
+	// Create a new BaseEntity with the same values
+	entityCopy := &BaseEntity{
+		id:        entity.ID(),
+		name:      entity.Name(),
+		active:    entity.Active(),
+		metadata:  make(map[string]string),
+		createdAt: entity.CreatedAt(),
+		updatedAt: time.Now(),
 	}
+
+	// Copy metadata
+	for k, v := range entity.Metadata() {
+		entityCopy.metadata[k] = v
+	}
+
+	r.entities[id] = entityCopy
 }
 
 // Get returns the entity for the given ID
@@ -126,73 +133,61 @@ func (r *Registry) SetMetadata(id, key, value string) bool {
 		return false
 	}
 
-	// For BaseEntity, we can update the metadata directly
-	if baseEntity, ok := entity.(*BaseEntity); ok {
-		if baseEntity.BEMetadata == nil {
-			baseEntity.BEMetadata = make(map[string]string)
-		}
-		baseEntity.BEMetadata[key] = value
-		return true
+	// copy the metadata to avoid data races
+	metadata := make(map[string]string)
+	for k, v := range entity.Metadata() {
+		metadata[k] = v
 	}
 
-	// For custom entity types, create a new BaseEntity with updated metadata
-	// This is a fallback and might not work for all custom entity types
-	metadata := entity.Metadata()
-	if metadata == nil {
-		metadata = make(map[string]string)
-	}
 	metadata[key] = value
 
 	// Create a new BaseEntity with the updated metadata
 	updatedEntity := &BaseEntity{
-		BEId:        entity.ID(),
-		BEName:      entity.Name(),
-		BEActive:    entity.Active(),
-		BEMetadata:  metadata,
-		BECreatedAt: entity.CreatedAt(),
-		BEUpdatedAt: entity.UpdatedAt(),
+		id:        entity.ID(),
+		name:      entity.Name(),
+		active:    entity.Active(),
+		metadata:  metadata,
+		createdAt: entity.CreatedAt(),
+		updatedAt: entity.UpdatedAt(),
 	}
 	r.entities[id] = updatedEntity
 	return true
 }
 
-// Global registry instance for convenience
-var globalRegistry = New()
+// RemoveMetadata removes a specific metadata key from an entity
+func (r *Registry) RemoveMetadata(id, key string) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 
-// Global convenience functions
-func Register(id string, entity Entity) {
-	globalRegistry.Register(id, entity)
+	entity, exists := r.entities[id]
+	if !exists {
+		return false
+	}
+
+	// copy the metadata to avoid data races
+	metadata := make(map[string]string)
+	for k, v := range entity.Metadata() {
+		metadata[k] = v
+	}
+
+	// Check if the key exists before trying to delete
+	if _, exists := metadata[key]; !exists {
+		return false
+	}
+
+	delete(metadata, key)
+
+	// Create a new BaseEntity with the updated metadata
+	updatedEntity := &BaseEntity{
+		id:        entity.ID(),
+		name:      entity.Name(),
+		active:    entity.Active(),
+		metadata:  metadata,
+		createdAt: entity.CreatedAt(),
+		updatedAt: time.Now(),
+	}
+	r.entities[id] = updatedEntity
+	return true
 }
 
-func Get(id string) Entity {
-	return globalRegistry.Get(id)
-}
-
-func IsRegistered(id string) bool {
-	entity := globalRegistry.Get(id)
-	return entity != nil && entity.ID() != ""
-}
-
-func ListRegistered() []string {
-	return globalRegistry.ListRegistered()
-}
-
-func ListActive() []string {
-	return globalRegistry.ListActive()
-}
-
-func Unregister(id string) bool {
-	return globalRegistry.Unregister(id)
-}
-
-func Count() int {
-	return globalRegistry.Count()
-}
-
-func GetMetadata(id, key string) (string, bool) {
-	return globalRegistry.GetMetadata(id, key)
-}
-
-func SetMetadata(id, key, value string) bool {
-	return globalRegistry.SetMetadata(id, key, value)
-}
+// Create and manage registry instances explicitly in your application code.

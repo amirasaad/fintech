@@ -69,20 +69,23 @@ func TestService_CreateSession(t *testing.T) {
 }
 
 func TestService_GetSession(t *testing.T) {
-	mockEntity := &registry.BaseEntity{
-		BEId:     "valid-session",
-		BEName:   "checkout_session_123",
-		BEActive: true,
-		BEMetadata: map[string]string{
-			"transaction_id": uuid.New().String(),
-			"user_id":        uuid.New().String(),
-			"account_id":     uuid.New().String(),
-			"amount":         "1000",
-			"currency":       "USD",
-			"created_at":     time.Now().Format(time.RFC3339),
-			"expires_at":     time.Now().Add(time.Hour).Format(time.RFC3339),
-		},
-	}
+	transactionID := uuid.New()
+	userID := uuid.New()
+	accountID := uuid.New()
+
+	sessionEntity := registry.NewBaseEntity(
+		"valid-session",
+		"checkout_session_123",
+	)
+	sessionEntity.SetMetadata("transaction_id", transactionID.String())
+	sessionEntity.SetMetadata("user_id", userID.String())
+	sessionEntity.SetMetadata("account_id", accountID.String())
+	sessionEntity.SetMetadata("amount", "1000")
+	sessionEntity.SetMetadata("currency", "USD")
+	sessionEntity.SetMetadata("status", "pending")
+	sessionEntity.SetMetadata("checkout_url", "https://example.com/checkout/123")
+	sessionEntity.SetMetadata("created_at", time.Now().Format(time.RFC3339))
+	sessionEntity.SetMetadata("expires_at", time.Now().Add(time.Hour).Format(time.RFC3339))
 
 	tests := []struct {
 		name      string
@@ -91,7 +94,7 @@ func TestService_GetSession(t *testing.T) {
 		err       error
 		wantErr   bool
 	}{
-		{"valid session", "valid-session", mockEntity, nil, false},
+		{"valid session", "valid-session", sessionEntity, nil, false},
 		{"not found", "missing-session", nil, assert.AnError, true},
 	}
 
@@ -108,7 +111,17 @@ func TestService_GetSession(t *testing.T) {
 				require.Nil(t, session)
 			} else {
 				require.NoError(t, err)
-				require.NotNil(t, session)
+				assert.NotNil(t, session)
+				// Additional assertions for valid session
+				assert.NotEqual(t, uuid.Nil, session.TransactionID)
+				assert.NotEqual(t, uuid.Nil, session.UserID)
+				assert.NotEqual(t, uuid.Nil, session.AccountID)
+				assert.Positive(t, session.Amount)
+				assert.NotEmpty(t, session.Currency)
+				assert.NotEmpty(t, session.Status)
+				assert.NotEmpty(t, session.CheckoutURL)
+				assert.False(t, session.CreatedAt.IsZero())
+				assert.False(t, session.ExpiresAt.IsZero())
 			}
 		})
 	}

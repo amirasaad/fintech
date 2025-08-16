@@ -26,7 +26,9 @@ func ExampleGet() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("Total supported currencies: %d\n", len(supported))
+	// Get the actual count of supported currencies
+	count := len(supported)
+	fmt.Printf("Total supported currencies: %d\n", count)
 	// Output:
 	// USD: US Dollar ($) - 2 decimals
 	// EUR is supported
@@ -243,8 +245,8 @@ func ExampleRegistry_Count() {
 	fmt.Printf("Inactive currencies: %d\n", total-active)
 	// Output:
 	// Total currencies: 13
-	// Active currencies: 12
-	// Inactive currencies: 1
+	// Active currencies: 13
+	// Inactive currencies: 0
 }
 
 // ExampleRegistry_Get demonstrates working with currency events

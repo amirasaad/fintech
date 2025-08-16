@@ -25,6 +25,7 @@ var (
 // ---- Entity ----
 
 type ExchangeRateInfo struct {
+	registry.BaseEntity
 	From      string
 	To        string
 	Rate      float64
@@ -32,23 +33,16 @@ type ExchangeRateInfo struct {
 	Timestamp time.Time
 }
 
-func (e *ExchangeRateInfo) Active() bool         { return true }
-func (e *ExchangeRateInfo) CreatedAt() time.Time { return e.Timestamp }
-func (e *ExchangeRateInfo) UpdatedAt() time.Time { return e.Timestamp }
-func (e *ExchangeRateInfo) Name() string {
-	return fmt.Sprintf(
-		"%s:%s", e.From, e.To)
-}
-func (e *ExchangeRateInfo) ID() string {
-	return fmt.Sprintf("%s:%s", e.From, e.To)
-}
-func (e *ExchangeRateInfo) Metadata() map[string]string {
-	return map[string]string{
-		"from":      e.From,
-		"to":        e.To,
-		"rate":      fmt.Sprintf("%f", e.Rate),
-		"source":    e.Source,
-		"timestamp": e.Timestamp.Format(time.RFC3339),
+// NewExchangeRateInfo creates a new ExchangeRateInfo instance with the given parameters
+func NewExchangeRateInfo(from, to string, rate float64, source string) *ExchangeRateInfo {
+	id := fmt.Sprintf("%s:%s", from, to)
+	return &ExchangeRateInfo{
+		BaseEntity: *registry.NewBaseEntity(id, fmt.Sprintf("%s:%s", from, to)),
+		From:       from,
+		To:         to,
+		Rate:       rate,
+		Source:     source,
+		Timestamp:  time.Now().UTC(),
 	}
 }
 

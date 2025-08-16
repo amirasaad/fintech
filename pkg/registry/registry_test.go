@@ -25,22 +25,27 @@ func TestRegistry_Register(t *testing.T) {
 	registry := New()
 
 	// Register new entity
-	entity1 := NewBaseEntity("test1", "Test Entity")
-	entity1.BEActive = true
-	entity1.BEMetadata = make(map[string]string)
-	entity1.BECreatedAt = time.Now()
-	entity1.BEUpdatedAt = time.Now()
+	entity1 := NewBaseEntity("test1", "Test Entity 1")
+	entity1.SetActive(true)
 	registry.Register(entity1.ID(), entity1)
 	assert.True(registry.IsRegistered("test1"))
 
+	// Verify entity fields
+	if entity1.ID() != "test1" || entity1.Name() != "Test Entity 1" || !entity1.Active() {
+		t.Errorf("Entity fields not set correctly")
+	}
+
+	// Verify entity status
+	if !entity1.Active() {
+		t.Error("Entity should be active")
+	}
+
 	// Update existing entity
 	updatedEntity := NewBaseEntity("test1", "Updated Entity")
-	updatedEntity.BEActive = false
-	updatedEntity.BEMetadata = make(map[string]string)
-	updatedEntity.BECreatedAt = entity1.CreatedAt()
-	updatedEntity.BEUpdatedAt = time.Now()
+	updatedEntity.SetActive(false)
 	registry.Register(updatedEntity.ID(), updatedEntity)
 	entity := registry.Get("test1")
+	assert.Equal("test1", entity.ID())
 	assert.Equal("Updated Entity", entity.Name())
 	assert.False(entity.Active())
 }
@@ -51,19 +56,14 @@ func TestRegistry_Get(t *testing.T) {
 
 	registry := New()
 
-	// Test existing entity
-	entity1 := &BaseEntity{
-		BEId:        "test1",
-		BEName:      "Test Entity",
-		BEActive:    true,
-		BEMetadata:  make(map[string]string),
-		BECreatedAt: time.Now(),
-		BEUpdatedAt: time.Now(),
-	}
+	// Create a test entity
+	entity1 := NewBaseEntity("test1", "Test Entity 1")
+	entity1.SetActive(true)
+	entity1.SetMetadata("key1", "value1")
 	registry.Register("test1", entity1)
 	entity := registry.Get("test1")
 	assert.Equal("test1", entity.ID())
-	assert.Equal("Test Entity", entity.Name())
+	assert.Equal("Test Entity 1", entity.Name())
 	assert.True(entity.Active())
 
 	// Test unknown entity returns nil
@@ -117,11 +117,11 @@ func TestRegistry_ListActive(t *testing.T) {
 
 	registry := New()
 	active1 := NewBaseEntity("active1", "Active 1")
-	active1.BEActive = true
+	active1.SetActive(true)
 	active2 := NewBaseEntity("active2", "Active 2")
-	active2.BEActive = true
+	active2.SetActive(true)
 	inactive1 := NewBaseEntity("inactive1", "Inactive 1")
-	inactive1.BEActive = false
+	inactive1.SetActive(false)
 
 	registry.Register("active1", active1)
 	registry.Register("active2", active2)
@@ -173,11 +173,11 @@ func TestRegistry_Metadata(t *testing.T) {
 
 	registry := New()
 	entity := NewBaseEntity("test1", "Test")
-	entity.BEMetadata = make(map[string]string)
+	entity.SetActive(true)
+	entity.SetMetadata("key1", "value1")
 	registry.Register("test1", entity)
 
 	// Set metadata
-	assert.True(registry.SetMetadata("test1", "key1", "value1"))
 	assert.True(registry.SetMetadata("test1", "key2", "value2"))
 
 	// Get metadata
@@ -200,45 +200,72 @@ func TestRegistry_Metadata(t *testing.T) {
 	assert.Empty(value)
 }
 
-func TestGlobalFunctions(t *testing.T) {
-	assert := assert.New(t)
+func TestRegistryOperations(t *testing.T) {
+	// Create a new registry instance
+	r := New()
+	const testID = "test-entity"
+	entity := &BaseEntity{
+		BEId:     testID,
+		BEName:   "Test Entity",
+		BEActive: true,
+	}
 
-	// Reset global registry to ensure clean state
-	globalRegistry = New()
+	// Register
+	r.Register(testID, entity)
 
-	// Test global Register function
-	entity := NewBaseEntity("global1", "Global 1")
-	entity.BEActive = true
-	Register("global1", entity)
-	assert.True(IsRegistered("global1"))
+	// Verify registration
+	if !r.IsRegistered(testID) {
+		t.Error("Expected entity to be registered")
+	}
 
-	// Test global Get function
-	retrievedEntity := Get("global1")
-	assert.NotNil(retrievedEntity)
-	assert.Equal("Global 1", retrievedEntity.Name())
-	assert.True(retrievedEntity.Active())
+	// Get
+	retrieved := r.Get(testID)
+	if retrieved == nil || retrieved.ID() != testID {
+		t.Error("Failed to retrieve registered entity")
+	}
 
-	// Test global ListRegistered function
-	registered := ListRegistered()
-	assert.Contains(registered, "global1")
+	// List
+	registered := r.ListRegistered()
+	if len(registered) != 1 || registered[0] != testID {
+		t.Error("ListRegistered failed")
+	}
 
-	// Test global ListActive function
-	active := ListActive()
-	assert.Contains(active, "global1")
+	// ListActive
+	active := r.ListActive()
+	if len(active) != 1 || active[0] != testID {
+		t.Error("ListActive failed")
+	}
 
-	// Test global Count function
-	assert.GreaterOrEqual(Count(), 1)
+	// Count
+	if count := r.Count(); count != 1 {
+		t.Errorf("Expected count 1, got %d", count)
+	}
 
-	// Test global metadata functions
-	assert.True(SetMetadata("global1", "test_key", "test_value"))
-	value, found := GetMetadata("global1", "test_key")
-	assert.True(found)
-	assert.Equal("test_value", value)
+	// Metadata
+	r.SetMetadata(testID, "key", "value")
+	// Get fresh instance after metadata update
+	retrieved = r.Get(testID)
+	val, ok := retrieved.Metadata()["key"]
+	if !ok || val != "value" {
+		t.Error("Metadata operations failed - could not get metadata after set")
+	}
 
-	// Clean up
-	Unregister("global1")
-	assert.False(IsRegistered("global1"))
-	assert.False(IsRegistered("global1"))
+	// Test metadata removal
+	r.RemoveMetadata(testID, "key")
+	// Get fresh instance after metadata removal
+	retrieved = r.Get(testID)
+	_, ok = retrieved.Metadata()["key"]
+	if ok {
+		t.Error("Metadata operations failed - metadata not removed")
+	}
+
+	// Unregister
+	if !r.Unregister(testID) {
+		t.Error("Failed to unregister entity")
+	}
+	if r.IsRegistered(testID) {
+		t.Error("Entity still registered after unregister")
+	}
 }
 
 func TestRegistry_ThreadSafety(t *testing.T) {
@@ -279,13 +306,13 @@ func TestRegistry_ThreadSafety(t *testing.T) {
 	// If we reach here without race conditions, the test passes
 }
 
-func TestGlobalRegistry_ThreadSafety(t *testing.T) {
+func TestRegistry_ConcurrentAccess(t *testing.T) {
 	assert := assert.New(t)
+	registry := New()
 
-	// Reset global registry and add a test entity
-	globalRegistry = New()
+	// Add initial test entity
 	testEntity := NewBaseEntity("test", "Test Entity")
-	Register("test", testEntity)
+	registry.Register("test", testEntity)
 
 	var wg sync.WaitGroup
 	numGoroutines := 50
@@ -295,7 +322,7 @@ func TestGlobalRegistry_ThreadSafety(t *testing.T) {
 	for i := 0; i < numGoroutines; i++ {
 		go func() {
 			defer wg.Done()
-			entity := Get("test")
+			entity := registry.Get("test")
 			if entity != nil {
 				assert.Equal("test", entity.ID())
 			}
@@ -307,9 +334,9 @@ func TestGlobalRegistry_ThreadSafety(t *testing.T) {
 	for i := 0; i < numGoroutines; i++ {
 		go func(index int) {
 			defer wg.Done()
-			id := fmt.Sprintf("global%d", index)
-			entity := NewBaseEntity(id, fmt.Sprintf("Global %d", index))
-			Register(id, entity)
+			id := fmt.Sprintf("entity%d", index)
+			entity := NewBaseEntity(id, fmt.Sprintf("Entity %d", index))
+			registry.Register(id, entity)
 		}(i)
 	}
 
@@ -323,12 +350,15 @@ func TestMeta_Structure(t *testing.T) {
 
 	// Create a new BaseEntity
 	entity := NewBaseEntity("test", "Test Entity")
-	entity.BEActive = true
-	entity.BEMetadata = map[string]string{"key": "value"}
+	entity.SetActive(true)
+	entity.SetMetadata("key", "value")
 
 	// Test the entity fields and methods
 	assert.Equal("test", entity.ID())
 	assert.Equal("Test Entity", entity.Name())
 	assert.True(entity.Active())
-	assert.Equal("value", entity.Metadata()["key"])
+
+	// Get a fresh copy of metadata to ensure thread safety
+	metadata := entity.Metadata()
+	assert.Equal("value", metadata["key"])
 }

@@ -619,10 +619,25 @@ func (cr *Registry) Search(query string) ([]Meta, error) {
 		return nil, fmt.Errorf("failed to search currencies: %w", err)
 	}
 
-	currencies := make([]Meta, len(entities))
-	for i, entity := range entities {
+	var currencies []Meta
+	for _, entity := range entities {
 		if currencyEntity, ok := entity.(*Entity); ok {
-			currencies[i] = currencyEntity.Meta()
+			currencies = append(currencies, currencyEntity.Meta())
+		} else {
+			// Fallback for non-Entity types
+			metadata := entity.Metadata()
+			decimals, _ := strconv.Atoi(metadata["decimals"])
+			active, _ := strconv.ParseBool(metadata["active"])
+
+			currencies = append(currencies, Meta{
+				Code:     metadata["code"],
+				Name:     entity.Name(),
+				Symbol:   metadata["symbol"],
+				Decimals: decimals,
+				Country:  metadata["country"],
+				Region:   metadata["region"],
+				Active:   active,
+			})
 		}
 	}
 
@@ -636,10 +651,25 @@ func (cr *Registry) SearchByRegion(region string) ([]Meta, error) {
 		return nil, fmt.Errorf("failed to search currencies by region: %w", err)
 	}
 
-	currencies := make([]Meta, len(entities))
-	for i, entity := range entities {
+	var currencies []Meta
+	for _, entity := range entities {
 		if currencyEntity, ok := entity.(*Entity); ok {
-			currencies[i] = currencyEntity.Meta()
+			currencies = append(currencies, currencyEntity.Meta())
+		} else {
+			// Fallback for non-Entity types
+			metadata := entity.Metadata()
+			decimals, _ := strconv.Atoi(metadata["decimals"])
+			active, _ := strconv.ParseBool(metadata["active"])
+
+			currencies = append(currencies, Meta{
+				Code:     metadata["code"],
+				Name:     entity.Name(),
+				Symbol:   metadata["symbol"],
+				Decimals: decimals,
+				Country:  metadata["country"],
+				Region:   metadata["region"],
+				Active:   active,
+			})
 		}
 	}
 

@@ -195,21 +195,13 @@ func (p *FilePersistence) Load(ctx context.Context) ([]Entity, error) {
 			}
 		}
 
-		// Handle time conversion
-		var createdAt, updatedAt time.Time
-		if ct, ok := item["created_at"].(string); ok {
-			createdAt, _ = time.Parse(time.RFC3339, ct)
-		}
-		if ut, ok := item["updated_at"].(string); ok {
-			updatedAt, _ = time.Parse(time.RFC3339, ut)
-		}
-
 		// Create entity using NewBaseEntity helper
 		entity := NewBaseEntity(id, name)
-		entity.BEActive = active
-		entity.BEMetadata = metadata
-		entity.BECreatedAt = createdAt
-		entity.BEUpdatedAt = updatedAt
+		entity.SetActive(active)
+		for k, v := range metadata {
+			entity.SetMetadata(k, v)
+		}
+		// Note: createdAt and updatedAt are set by NewBaseEntity
 		entities = append(entities, entity)
 	}
 

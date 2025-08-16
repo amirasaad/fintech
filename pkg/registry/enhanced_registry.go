@@ -106,20 +106,21 @@ func (r *Enhanced) Register(ctx context.Context, entity Entity) error {
 	// Check if this is an update
 	_, exists := r.entities[entity.ID()]
 
-	// Create a copy of the entity to ensure thread safety
-	if baseEntity, ok := entity.(*BaseEntity); ok {
-		// Create a new BaseEntity to avoid modifying the original
-		copy := *baseEntity
-		copy.BEUpdatedAt = time.Now()
-		if !exists {
-			copy.BECreatedAt = copy.BEUpdatedAt
-		}
-		r.entities[copy.ID()] = &copy
-		entity = &copy
-	} else {
-		// For custom entity types, just store as is
-		r.entities[entity.ID()] = entity
+	// For any entity type, create a new BaseEntity copy to ensure thread safety
+	copy := NewBaseEntity(entity.ID(), entity.Name())
+
+	// Copy the active state
+	if entity.Active() {
+		copy.SetActive(true)
 	}
+
+	// Copy metadata
+	for k, v := range entity.Metadata() {
+		copy.SetMetadata(k, v)
+	}
+
+	// Store the copy
+	r.entities[copy.ID()] = copy
 
 	// Update cache if enabled
 	if r.cache != nil {
@@ -377,9 +378,15 @@ func (r *Enhanced) SetMetadata(ctx context.Context, id, key, value string) error
 		}
 	}
 
-	// Update the entity's metadata
-	metadata := entity.Metadata()
-	metadata[key] = value
+	// Update the entity's metadata using the proper method
+	switch e := entity.(type) {
+	case *BaseEntity:
+		e.SetMetadata(key, value)
+	default:
+		// Fallback for other implementations
+		metadata := entity.Metadata()
+		metadata[key] = value
+	}
 
 	// Re-register the entity to update it
 	return r.Register(ctx, entity)
@@ -392,8 +399,15 @@ func (r *Enhanced) RemoveMetadata(ctx context.Context, id, key string) error {
 		return err
 	}
 
-	metadata := entity.Metadata()
-	delete(metadata, key)
+	// Remove metadata using the proper method
+	switch e := entity.(type) {
+	case *BaseEntity:
+		e.DeleteMetadata(key)
+	default:
+		// Fallback for other implementations
+		metadata := entity.Metadata()
+		delete(metadata, key)
+	}
 
 	// Re-register the entity to update it
 	return r.Register(ctx, entity)
@@ -407,15 +421,11 @@ func (r *Enhanced) Activate(ctx context.Context, id string) error {
 	}
 
 	// Create a new entity with active status
-	// Note: This is a simplified approach - in a real implementation,
-	// you might want to make the Entity interface mutable or use a different approach
-	baseEntity := &BaseEntity{
-		BEId:        entity.ID(),
-		BEName:      entity.Name(),
-		BEActive:    true,
-		BEMetadata:  entity.Metadata(),
-		BECreatedAt: entity.CreatedAt(),
-		BEUpdatedAt: entity.UpdatedAt(),
+	baseEntity := NewBaseEntity(entity.ID(), entity.Name())
+	baseEntity.SetActive(true)
+	// Copy metadata
+	for k, v := range entity.Metadata() {
+		baseEntity.SetMetadata(k, v)
 	}
 
 	return r.Register(ctx, baseEntity)
@@ -428,18 +438,19 @@ func (r *Enhanced) Deactivate(ctx context.Context, id string) error {
 		return err
 	}
 
-	// Create a new entity with inactive status
-	baseEntity := &BaseEntity{
-		BEId:        entity.ID(),
-		BEName:      entity.Name(),
-		BEActive:    false,
-		BEMetadata:  entity.Metadata(),
-		BECreatedAt: entity.CreatedAt(),
-		BEUpdatedAt: entity.UpdatedAt(),
+	// Create a deep copy of the entity
+	copy := NewBaseEntity(entity.ID(), entity.Name())
+	copy.SetActive(false)
+
+	// Copy metadata
+	for k, v := range entity.Metadata() {
+		copy.SetMetadata(k, v)
 	}
 
-	return r.Register(ctx, baseEntity)
+	return r.Register(ctx, copy)
 }
+
+// ...
 
 // Search performs a simple search on entity names
 func (r *Enhanced) Search(ctx context.Context, query string) ([]Entity, error) {
