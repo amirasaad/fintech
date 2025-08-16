@@ -33,11 +33,16 @@ type ExchangeRateInfo struct {
 	Timestamp time.Time
 }
 
-// NewExchangeRateInfo creates a new ExchangeRateInfo instance with the given parameters
-func NewExchangeRateInfo(from, to string, rate float64, source string) *ExchangeRateInfo {
+// newExchangeRateInfo constructs an ExchangeRateInfo with initialized BaseEntity (ID and Name)
+// to satisfy registry validation requirements and ensure proper caching behavior.
+func newExchangeRateInfo(
+	from, to string,
+	rate float64,
+	source string,
+) *ExchangeRateInfo {
 	id := fmt.Sprintf("%s:%s", from, to)
 	return &ExchangeRateInfo{
-		BaseEntity: *registry.NewBaseEntity(id, fmt.Sprintf("%s:%s", from, to)),
+		BaseEntity: *registry.NewBaseEntity(id, id),
 		From:       from,
 		To:         to,
 		Rate:       rate,
@@ -67,16 +72,6 @@ func identityRate(from, to string) *provider.ExchangeInfo {
 		ConversionRate:    1.0,
 		Source:            "identity",
 		Timestamp:         time.Now(),
-	}
-}
-
-func newExchangeRateInfo(from, to string, rate float64, source string) *ExchangeRateInfo {
-	return &ExchangeRateInfo{
-		From:      from,
-		To:        to,
-		Rate:      rate,
-		Source:    source,
-		Timestamp: time.Now(),
 	}
 }
 
@@ -342,14 +337,13 @@ func (s *Service) getRatesHelper(
 		Timestamp:         time.Now(),
 	}
 
-	// Cache the rate
-	s.saveDirectAndInverseRates(ctx, from, to, &ExchangeRateInfo{
-		From:      from,
-		To:        to,
-		Rate:      info.ConversionRate,
-		Source:    info.Source,
-		Timestamp: time.Now(),
-	})
+	// Cache the rate using helper to ensure BaseEntity (ID/Name) is set
+	s.saveDirectAndInverseRates(
+		ctx,
+		from,
+		to,
+		newExchangeRateInfo(from, to, info.ConversionRate, info.Source),
+	)
 
 	return rateInfo, nil
 }
