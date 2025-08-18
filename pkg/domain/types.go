@@ -4,6 +4,7 @@ import (
 	"github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/amirasaad/fintech/pkg/domain/user"
+	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/amirasaad/fintech/pkg/provider"
 )
 
@@ -54,3 +55,8 @@ type ConversionInfo = provider.ExchangeRate
 
 // Deprecated: Use provider.ExchangeInfo directly.
 type ExchangeRate = provider.ExchangeInfo
+
+// Deprecated: use money.New
+func NewMoney(amount float64, currencyCode money.Code) (m *money.Money, err error) {
+	return money.New(amount, currencyCode)
+}

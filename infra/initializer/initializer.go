@@ -1,7 +1,6 @@
 package initializer
 
 import (
-	"context"
 	"fmt"
 	"log/slog"
 	"os"
@@ -13,7 +12,6 @@ import (
 	infra_repository "github.com/amirasaad/fintech/infra/repository"
 	"github.com/amirasaad/fintech/pkg/app"
 	"github.com/amirasaad/fintech/pkg/config"
-	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/amirasaad/fintech/pkg/provider"
 	"github.com/amirasaad/fintech/pkg/registry"
@@ -24,11 +22,10 @@ import (
 
 // Deps contains all the dependencies needed by the application
 type Deps struct {
-	Uow              repository.UnitOfWork
-	EventBus         eventbus.Bus
-	CurrencyRegistry *currency.Registry
-	PaymentProvider  provider.Payment
-	Logger           *slog.Logger
+	Uow             repository.UnitOfWork
+	EventBus        eventbus.Bus
+	PaymentProvider provider.Payment
+	Logger          *slog.Logger
 }
 
 // InitializeDependencies initializes all the application dependencies
@@ -40,11 +37,6 @@ func InitializeDependencies(cfg *config.App) (
 	deps = &app.Deps{}
 	logger := setupLogger(cfg.Log)
 	deps.Logger = logger
-	// Initialize currency registry
-	deps.CurrencyRegistry, err = initCurrencyRegistry(cfg, logger)
-	if err != nil {
-		return nil, err
-	}
 
 	deps.ExchangeRateRegistryProvider, err = initExchangeRateRegistryProvider(
 		cfg.ExchangeRateCache,
@@ -142,23 +134,6 @@ func initExchangeRateRegistryProvider(
 		"key_prefix", prefix)
 
 	return exchangeRateRegistry, nil
-}
-
-func initCurrencyRegistry(cfg *config.App, logger *slog.Logger) (*currency.Registry, error) {
-	ctx := context.Background()
-	keyPrefix := cfg.Redis.KeyPrefix + "currency:"
-	if err := currency.InitializeGlobalRegistry(ctx, cfg.Redis.URL, keyPrefix); err != nil {
-		logger.Error("Failed to initialize global currency registry with Redis",
-			"error", err,
-			"redis_url_configured", cfg.Redis.URL != "",
-			"key_prefix", keyPrefix)
-		return nil, err
-	}
-	logger.Info("Currency registry initialized with Redis cache",
-		"redis_url_configured", cfg.Redis.URL != "",
-		"key_prefix", keyPrefix)
-
-	return currency.GetGlobalRegistry(), nil
 }
 
 func initCheckoutRegistryProvider(

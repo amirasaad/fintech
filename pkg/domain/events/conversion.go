@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/amirasaad/fintech/pkg/provider"
 	"github.com/google/uuid"
@@ -17,7 +16,7 @@ type CurrencyConversionRequested struct {
 	FlowEvent
 	OriginalRequest Event `json:"-"` // Handle this field manually in MarshalJSON/UnmarshalJSON
 	Amount          *money.Money
-	To              currency.Code
+	To              money.Code
 	TransactionID   uuid.UUID
 
 	// Used for JSON serialization
@@ -129,7 +128,7 @@ func (e CurrencyConverted) MarshalJSON() ([]byte, error) {
 		CorrelationID        uuid.UUID       `json:"correlationId"`
 		Timestamp            time.Time       `json:"timestamp"`
 		Amount               *money.Money    `json:"amount"`
-		To                   currency.Code   `json:"to"`
+		To                   money.Code      `json:"to"`
 		RequestTransactionID uuid.UUID       `json:"requestTransactionId"` // From embedded CCR
 		RequestType          string          `json:"requestType,omitempty"`
 		RequestPayload       json.RawMessage `json:"requestPayload,omitempty"`
@@ -186,7 +185,7 @@ func (e *CurrencyConverted) UnmarshalJSON(data []byte) error {
 		CorrelationID        uuid.UUID       `json:"correlationId"`
 		Timestamp            time.Time       `json:"timestamp"`
 		Amount               money.Money     `json:"amount"`
-		To                   currency.Code   `json:"to"`
+		To                   money.Code      `json:"to"`
 		RequestTransactionID uuid.UUID       `json:"requestTransactionId"` // From embedded CCR
 		RequestType          string          `json:"requestType,omitempty"`
 		RequestPayload       json.RawMessage `json:"requestPayload,omitempty"`
@@ -274,7 +273,7 @@ type CurrencyConversionFailed struct {
 	FlowEvent
 	TransactionID uuid.UUID
 	Amount        money.Money
-	To            currency.Code
+	To            money.Code
 	Reason        string
 }
 

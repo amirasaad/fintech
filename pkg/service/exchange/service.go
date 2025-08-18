@@ -8,7 +8,6 @@ import (
 	"math"
 	"time"
 
-	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/amirasaad/fintech/pkg/provider"
 	"github.com/amirasaad/fintech/pkg/registry"
@@ -203,7 +202,7 @@ func (s *Service) IsHealthy() bool { return true }
 func (s *Service) Convert(
 	ctx context.Context,
 	amount *money.Money,
-	to currency.Code,
+	to money.Code,
 ) (*money.Money, *provider.ExchangeInfo, error) {
 	if err := validateAmount(amount); err != nil {
 		return nil, nil, fmt.Errorf("invalid amount: %w", err)
@@ -503,6 +502,17 @@ func (s *Service) saveDirectAndInverseRates(
 			"key", cacheKey,
 			"from", from,
 			"to", to,
+			"error", err)
+		return
+	}
+
+	// Save the inverse rate to the registry
+	inverseRateInfo := newExchangeRateInfo(to, from, 1/rateInfo.Rate, s.provider.Name())
+	if err := s.exchangeRegistry.Register(ctx, inverseRateInfo); err != nil {
+		log.Error("Failed to save inverse rate to registry",
+			"key", cacheKey,
+			"from", to,
+			"to", from,
 			"error", err)
 		return
 	}

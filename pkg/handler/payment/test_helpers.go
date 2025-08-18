@@ -22,7 +22,7 @@ func createValidPaymentCompletedEvent(
 	amount := h.Amount
 
 	// Create a small fee amount (1% of the amount)
-	feeAmount, err := money.New(amount.AmountFloat(), "USD")
+	feeAmount, err := money.New(amount.AmountFloat(), amount.CurrencyCode())
 	if err != nil {
 		h.T.Fatalf("failed to create fee amount: %v", err)
 	}
@@ -64,11 +64,8 @@ func createValidPaymentFailedEvent(
 
 // setupSuccessfulTest configures mocks for a successful payment completion
 func setupSuccessfulTest(h *testutils.TestHelper) {
-	// Ensure the amount is in the correct currency
-	amount, err := money.New(h.Amount.AmountFloat(), "USD")
-	if err != nil {
-		h.T.Fatalf("failed to create money amount: %v", err)
-	}
+	// Use the amount directly from the test helper
+	amount := h.Amount
 
 	// Setup test transaction
 	tx := &dto.TransactionRead{
@@ -77,7 +74,7 @@ func setupSuccessfulTest(h *testutils.TestHelper) {
 		AccountID: h.AccountID,
 		PaymentID: h.PaymentID,
 		Status:    "pending",
-		Currency:  "USD",
+		Currency:  amount.CurrencyCode().String(),
 		Amount:    amount.AmountFloat(),
 	}
 
@@ -86,7 +83,7 @@ func setupSuccessfulTest(h *testutils.TestHelper) {
 		ID:       h.AccountID,
 		UserID:   h.UserID,
 		Balance:  amount.AmountFloat(),
-		Currency: "USD",
+		Currency: amount.CurrencyCode().String(),
 	}
 
 	doFn := func(ctx context.Context, fn func(uow repository.UnitOfWork) error) error {
@@ -119,14 +116,21 @@ func setupSuccessfulTest(h *testutils.TestHelper) {
 			Return(testAccount, nil).
 			Once()
 
-		h.MockAccRepo.
-			EXPECT().
-			Update(ctx, h.AccountID, mock.AnythingOfType("dto.AccountUpdate")).
+		// Setup mock expectations for account update
+		h.MockAccRepo.EXPECT().
+			Update(ctx, h.AccountID, mock.MatchedBy(func(update dto.AccountUpdate) bool {
+				// Verify the account balance is being updated correctly
+				return update.Balance != nil && *update.Balance > 0
+			})).
 			Return(nil).
 			Once()
-		h.MockTxRepo.
-			EXPECT().
-			Update(ctx, h.TransactionID, mock.AnythingOfType("dto.TransactionUpdate")).
+
+		// Setup mock expectations for transaction update
+		h.MockTxRepo.EXPECT().
+			Update(ctx, h.TransactionID, mock.MatchedBy(func(update dto.TransactionUpdate) bool {
+				// Verify the transaction status is being updated to "completed"
+				return update.Status != nil && *update.Status == "completed"
+			})).
 			Return(nil).
 			Once()
 

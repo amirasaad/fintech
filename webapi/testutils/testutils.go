@@ -22,7 +22,6 @@ import (
 	"github.com/amirasaad/fintech/infra/provider"
 	infrarepo "github.com/amirasaad/fintech/infra/repository"
 	fixturescurrency "github.com/amirasaad/fintech/internal/fixtures/currency"
-	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/domain/user"
 	"github.com/amirasaad/fintech/webapi"
@@ -132,8 +131,9 @@ func (s *E2ETestSuite) setupApp() {
 
 	// Setup currency service
 	ctx := context.Background()
-	currencyRegistry, err := currency.New(ctx)
-	s.Require().NoError(err)
+	currencyRegistry := registry.NewEnhanced(registry.Config{
+		CacheTTL: 10 * time.Minute,
+	})
 
 	// Load currency fixtures
 	_, filename, _, _ := runtime.Caller(0)
@@ -145,7 +145,7 @@ func (s *E2ETestSuite) setupApp() {
 	s.Require().NoError(err)
 
 	for _, meta := range metas {
-		s.Require().NoError(currencyRegistry.Register(meta))
+		s.Require().NoError(currencyRegistry.Register(ctx, meta))
 	}
 
 	// Start Redis container
@@ -179,7 +179,6 @@ func (s *E2ETestSuite) setupApp() {
 	// Create test app
 	s.app = webapi.SetupApp(app.New(
 		&app.Deps{
-			CurrencyRegistry:             currencyRegistry,
 			ExchangeRateProvider:         provider.NewMockExchangeRate(),
 			ExchangeRateRegistryProvider: registry.NewCachedRegistry(10, time.Minute),
 			Uow:                          uow,

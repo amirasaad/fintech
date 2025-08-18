@@ -17,7 +17,6 @@ import (
 
 	"github.com/stripe/stripe-go/v82/webhook"
 
-	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/eventbus"
@@ -538,7 +537,7 @@ func (s *StripePaymentProvider) parseProviderFeeAmount(
 ) (*money.Money, error) {
 	fee, err := money.NewFromSmallestUnit(
 		feeAmount,
-		currency.Code(cur),
+		money.Code(cur),
 	)
 	if err != nil {
 		log.Error("error creating money from smallest unit", "error", err)
@@ -585,7 +584,7 @@ func (s *StripePaymentProvider) parseAmount(
 ) (*money.Money, error) {
 	return money.NewFromSmallestUnit(
 		amount,
-		currency.Code(strings.ToUpper(string(currencyCode))),
+		money.Code(strings.ToUpper(string(currencyCode))),
 	)
 }
 

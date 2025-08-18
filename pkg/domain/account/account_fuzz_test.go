@@ -3,7 +3,6 @@ package account_test
 import (
 	"testing"
 
-	"github.com/amirasaad/fintech/pkg/currency"
 	domainaccount "github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/google/uuid"
@@ -21,7 +20,7 @@ func FuzzAccountDeposit(f *testing.F) {
 		if err != nil {
 			t.Skip()
 		}
-		mon, err := money.New(amount, currency.Code(cc))
+		mon, err := money.New(amount, money.Code(cc))
 		if err != nil {
 			t.Skip()
 		}
@@ -41,9 +40,9 @@ func FuzzAccountDeposit(f *testing.F) {
 				)
 			}
 		}
-		// Invariant: currency format is always valid
-		if !currency.IsValidFormat(acc.Balance.Currency().String()) {
-			t.Errorf("Account currency is invalid: %q", acc.Balance.Currency())
+		// Currency validation is handled by the money package
+		if !acc.Balance.Currency().IsValid() {
+			t.Errorf("Account currency is invalid: %v", acc.Balance.Currency())
 		}
 	})
 }
@@ -60,7 +59,7 @@ func FuzzAccountWithdraw(f *testing.F) {
 		if err != nil {
 			t.Skip()
 		}
-		mon, err := money.New(amount, currency.Code(cc))
+		mon, err := money.New(amount, money.Code(cc))
 		if err != nil {
 			t.Skip()
 		}
@@ -87,7 +86,7 @@ func FuzzAccountWithdraw(f *testing.F) {
 		}
 		// Invariant: currency format is always valid
 		// Explicitly convert string to currency.Code for validation
-		if !currency.IsValidFormat(acc.Balance.Currency().String()) {
+		if !acc.Balance.Currency().Code.IsValid() {
 			t.Errorf("Account currency is invalid: %q", acc.Balance.Currency())
 		}
 	})

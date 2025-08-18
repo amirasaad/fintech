@@ -5,10 +5,10 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"math"
 	"testing"
 
 	"github.com/amirasaad/fintech/internal/fixtures/mocks"
-	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/amirasaad/fintech/pkg/provider"
@@ -53,7 +53,7 @@ func TestConversionHandler(t *testing.T) {
 			userID := uuid.New()
 			accountID := uuid.New()
 			transactionID := uuid.New()
-			amount, _ := money.New(100, currency.USD)
+			amount, _ := money.New(100, money.USD)
 
 			event := &events.CurrencyConversionRequested{
 				FlowEvent: events.FlowEvent{
@@ -63,12 +63,12 @@ func TestConversionHandler(t *testing.T) {
 					CorrelationID: uuid.New(),
 				},
 				Amount:        amount,
-				To:            currency.EUR,
+				To:            money.EUR,
 				TransactionID: transactionID,
 			}
 			convInfo := &provider.ExchangeInfo{
 				OriginalAmount:    100.0,
-				OriginalCurrency:  "USD",
+				OriginalCurrency:  money.USD.String(),
 				ConvertedAmount:   85.0,
 				ConvertedCurrency: "EUR",
 				ConversionRate:    0.85,
@@ -81,7 +81,7 @@ func TestConversionHandler(t *testing.T) {
 						events.FlowEvent{CorrelationID: correlationID},
 						nil,
 						events.WithConversionAmount(amount),
-						events.WithConversionTo(currency.EUR),
+						events.WithConversionTo(money.EUR),
 						events.WithConversionTransactionID(transactionID),
 					),
 				),
@@ -110,14 +110,25 @@ func TestConversionHandler(t *testing.T) {
 				Return(convInfo, nil).
 				Once()
 
-			// Mock registry to save the direct rate (inverse rates are no longer cached)
+			// Mock registry to save the direct rate
 			exchangeRateRegistryProvider.EXPECT().
 				Register(mock.Anything, mock.MatchedBy(func(entity registry.Entity) bool {
 					er, ok := entity.(*exchange.ExchangeRateInfo)
-					return ok && er.From == "USD" && er.To == "EUR" && er.Rate == 0.85
+					if !ok {
+						return false
+					}
+					// Check for direct rate (USD to EUR)
+					if er.From == "USD" && er.To == "EUR" {
+						return math.Abs(er.Rate-0.85) < 0.000001
+					}
+					// Check for inverse rate (EUR to USD)
+					if er.From == "EUR" && er.To == "USD" {
+						return math.Abs(er.Rate-1.17647) < 0.0001
+					}
+					return false
 				})).
 				Return(nil).
-				Once()
+				Twice() // Expect both direct and inverse rates to be registered
 
 			// Expect CurrencyConverted event
 			bus.EXPECT().
@@ -203,7 +214,7 @@ func TestConversionHandler(t *testing.T) {
 		userID := uuid.New()
 		accountID := uuid.New()
 		transactionID := uuid.New()
-		amount, _ := money.New(100, currency.USD)
+		amount, _ := money.New(100, money.USD)
 
 		event := events.NewCurrencyConversionRequested(
 			events.FlowEvent{
@@ -215,7 +226,7 @@ func TestConversionHandler(t *testing.T) {
 			nil,
 			func(ccr *events.CurrencyConversionRequested) {
 				ccr.Amount = amount
-				ccr.To = currency.EUR
+				ccr.To = money.EUR
 				ccr.TransactionID = transactionID
 			},
 		)
@@ -282,7 +293,7 @@ func TestConversionHandler(t *testing.T) {
 		userID := uuid.New()
 		accountID := uuid.New()
 		transactionID := uuid.New()
-		amount, _ := money.New(100, currency.USD)
+		amount, _ := money.New(100, money.USD)
 
 		event := events.NewCurrencyConversionRequested(
 			events.FlowEvent{
@@ -294,7 +305,7 @@ func TestConversionHandler(t *testing.T) {
 			nil,
 			func(ccr *events.CurrencyConversionRequested) {
 				ccr.Amount = amount
-				ccr.To = currency.EUR
+				ccr.To = money.EUR
 				ccr.TransactionID = transactionID
 			},
 		)

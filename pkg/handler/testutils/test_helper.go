@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/amirasaad/fintech/internal/fixtures/mocks"
-	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/dto"
@@ -21,8 +20,8 @@ import (
 )
 
 const (
-	// DefaultCurrency is the default currency used in tests
-	DefaultCurrency = "USD"
+	// DefaultCurrencyCode is the default currency code used in tests
+	DefaultCurrencyCode = "USD"
 	// DefaultAmount is the default amount used in tests (100.00)
 	DefaultAmount = 100.0
 	// DefaultFeeAmount is the default fee amount used in tests (1.00)
@@ -66,6 +65,12 @@ func New(t *testing.T, opts ...TestOption) *TestHelper {
 		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), // Create a new logger for each test
 	}
 
+	// Initialize mocks
+	h.UOW = mocks.NewUnitOfWork(t)
+	h.MockAccRepo = mocks.NewAccountRepository(t)
+	h.MockTxRepo = mocks.NewTransactionRepository(t)
+	h.MockPaymentProvider = mocks.NewPaymentProvider(t)
+
 	// Apply options (excluding default currency initialization since we did it above)
 	for _, opt := range append(defaultTestOptions, opts...) {
 		opt(h)
@@ -86,23 +91,7 @@ func New(t *testing.T, opts ...TestOption) *TestHelper {
 		h.Bus = mocks.NewBus(t)
 	}
 
-	if h.UOW == nil {
-		h.UOW = mocks.NewUnitOfWork(t)
-	}
-
-	if h.MockAccRepo == nil {
-		h.MockAccRepo = mocks.NewAccountRepository(t)
-	}
-
-	if h.MockTxRepo == nil {
-		h.MockTxRepo = mocks.NewTransactionRepository(t)
-	}
-	if h.MockPaymentProvider == nil {
-		h.MockPaymentProvider = mocks.NewPaymentProvider(t)
-		require.NotNil(t, h.MockPaymentProvider, "MockPaymentProvider should not be nil")
-	}
-
-	// Initialize test data
+	// Initialize test data with default values if not set
 	if h.UserID == uuid.Nil {
 		h.UserID = uuid.New()
 	}
@@ -111,8 +100,8 @@ func New(t *testing.T, opts ...TestOption) *TestHelper {
 		h.AccountID = uuid.New()
 	}
 
-	if h.PaymentID == "" {
-		h.PaymentID = "test_payment_" + uuid.New().String()
+	if h.TransactionID == uuid.Nil {
+		h.TransactionID = uuid.New()
 	}
 
 	if h.EventID == uuid.Nil {
@@ -123,19 +112,15 @@ func New(t *testing.T, opts ...TestOption) *TestHelper {
 		h.CorrelationID = uuid.New()
 	}
 
-	if h.TransactionID == uuid.Nil {
-		h.TransactionID = uuid.New()
-	}
-
 	// Initialize amounts if not set
 	if h.Amount == nil {
-		amount, err := money.New(DefaultAmount, DefaultCurrency)
+		amount, err := money.New(DefaultAmount, money.Code(DefaultCurrencyCode).ToCurrency())
 		require.NoError(t, err, "failed to create default amount")
 		h.Amount = amount
 	}
 
 	if h.FeeAmount == nil {
-		feeAmount, err := money.New(DefaultFeeAmount, DefaultCurrency)
+		feeAmount, err := money.New(DefaultFeeAmount, money.Code(DefaultCurrencyCode).ToCurrency())
 		require.NoError(t, err, "failed to create default fee amount")
 		h.FeeAmount = feeAmount
 	}
@@ -155,11 +140,7 @@ var defaultTestOptions = []TestOption{
 	func(h *TestHelper) {
 		// Use sync.Once to ensure initialization happens only once
 		initOnce.Do(func() {
-			// Initialize with background context and default currencies
-			ctx := context.Background()
-			if err := currency.InitializeGlobalRegistry(ctx); err != nil {
-				h.T.Fatal("failed to initialize global currency registry", err)
-			}
+			// No need to initialize currency registry as it's handled by the money package
 		})
 	},
 }
@@ -216,13 +197,14 @@ func (h *TestHelper) WithPaymentID(id string) *TestHelper {
 // CreateValidTransaction creates a test transaction DTO
 func (h *TestHelper) CreateValidTransaction() *dto.TransactionRead {
 	amount := h.Amount.AmountFloat()
+	currency := h.Amount.CurrencyCode().String()
 	return &dto.TransactionRead{
 		ID:        h.TransactionID,
 		UserID:    h.UserID,
 		AccountID: h.AccountID,
 		PaymentID: h.PaymentID,
 		Status:    string(account.TransactionStatusPending),
-		Currency:  DefaultCurrency,
+		Currency:  currency,
 		Amount:    amount,
 	}
 }
@@ -230,11 +212,12 @@ func (h *TestHelper) CreateValidTransaction() *dto.TransactionRead {
 // CreateValidAccount creates a test account DTO
 func (h *TestHelper) CreateValidAccount() *dto.AccountRead {
 	amount := h.Amount.AmountFloat()
+	currency := h.Amount.CurrencyCode().String()
 	return &dto.AccountRead{
 		ID:       h.AccountID,
 		UserID:   h.UserID,
 		Balance:  amount,
-		Currency: DefaultCurrency,
+		Currency: currency,
 	}
 }
 

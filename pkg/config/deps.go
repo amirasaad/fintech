@@ -3,7 +3,6 @@ package config
 import (
 	"log/slog"
 
-	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/amirasaad/fintech/pkg/provider"
 	"github.com/amirasaad/fintech/pkg/registry"
@@ -15,7 +14,7 @@ type Deps struct {
 	Uow                          repository.UnitOfWork
 	ExchangeRateProvider         provider.ExchangeRate
 	ExchangeRateRegistryProvider registry.Provider
-	CurrencyRegistry             *currency.Registry
+	CurrencyRegistry             registry.Provider
 	PaymentProvider              provider.Payment
 	EventBus                     eventbus.Bus
 	Logger                       *slog.Logger

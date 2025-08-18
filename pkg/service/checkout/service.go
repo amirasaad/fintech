@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/amirasaad/fintech/pkg/registry"
 	"github.com/google/uuid"
@@ -15,17 +14,16 @@ import (
 
 // Session represents a checkout session with its metadata
 type Session struct {
-	ID            string         `json:"id"`
-	TransactionID uuid.UUID      `json:"transaction_id"`
-	UserID        uuid.UUID      `json:"user_id"`
-	AccountID     uuid.UUID      `json:"account_id"`
-	Amount        int64          `json:"amount"`
-	Currency      string         `json:"currency"`
-	Status        string         `json:"status"`
-	CheckoutURL   string         `json:"checkout_url"`
-	CreatedAt     time.Time      `json:"created_at"`
-	ExpiresAt     time.Time      `json:"expires_at"`
-	currencyInfo  *currency.Meta // Cached currency info
+	ID            string    `json:"id"`
+	TransactionID uuid.UUID `json:"transaction_id"`
+	UserID        uuid.UUID `json:"user_id"`
+	AccountID     uuid.UUID `json:"account_id"`
+	Amount        int64     `json:"amount"`
+	Currency      string    `json:"currency"`
+	Status        string    `json:"status"`
+	CheckoutURL   string    `json:"checkout_url"`
+	CreatedAt     time.Time `json:"created_at"`
+	ExpiresAt     time.Time `json:"expires_at"`
 }
 
 // Service provides high-level operations for managing checkout sessions
@@ -199,44 +197,21 @@ func (s *Session) Validate() error {
 		return fmt.Errorf("amount must be positive")
 	}
 
-	// Validate currency
-	if !currency.IsSupported(s.Currency) {
-		return fmt.Errorf("unsupported currency: %s", s.Currency)
+	if !money.Code(s.Currency).IsValid() {
+		return fmt.Errorf("invalid currency code: %s", s.Currency)
 	}
-
-	// Get and cache currency info
-	currencyInfo, err := currency.Get(s.Currency)
-	if err != nil {
-		return fmt.Errorf("failed to get currency info: %w", err)
-	}
-	s.currencyInfo = &currencyInfo
-
 	return nil
 }
 
 // FormatAmount formats the amount according to the currency's decimal places
 func (s *Session) FormatAmount() (string, error) {
 	// Create a Money object from the amount and currency
-	m, err := money.NewFromSmallestUnit(s.Amount, currency.Code(s.Currency))
+	m, err := money.NewFromSmallestUnit(s.Amount, money.Code(s.Currency))
 	if err != nil {
 		return "", fmt.Errorf("failed to create money object: %w", err)
 	}
 	// Use Money's String() method which handles the formatting
 	return m.String(), nil
-}
-
-// GetCurrencySymbol returns the currency symbol
-func (s *Session) GetCurrencySymbol() (string, error) {
-	if s.currencyInfo == nil {
-		// Try to get currency info if not cached
-		currencyInfo, err := currency.Get(s.Currency)
-		if err != nil {
-			return "", fmt.Errorf("failed to get currency info: %w", err)
-		}
-		s.currencyInfo = &currencyInfo
-	}
-
-	return s.currencyInfo.Symbol, nil
 }
 
 // saveSession saves the session to the registry
@@ -341,13 +316,6 @@ func (s *Service) entityToSession(entity registry.Entity) (*Session, error) {
 	if expiresAt, ok := metadata["expires_at"]; ok && expiresAt != "" {
 		if t, err := time.Parse(time.RFC3339, expiresAt); err == nil {
 			session.ExpiresAt = t
-		}
-	}
-
-	// Load currency info
-	if session.Currency != "" {
-		if info, err := currency.Get(session.Currency); err == nil {
-			session.currencyInfo = &info
 		}
 	}
 

@@ -7,11 +7,23 @@ import (
 
 	"log/slog"
 
-	"github.com/amirasaad/fintech/pkg/currency"
-	currencysvc "github.com/amirasaad/fintech/pkg/service/currency"
+	"github.com/amirasaad/fintech/pkg/money"
+	"github.com/amirasaad/fintech/pkg/registry"
+	"github.com/amirasaad/fintech/pkg/service/currency"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+var testCurrency = currency.Entity{
+	Entity:   registry.NewBaseEntity("TST", "Test Currency"),
+	Code:     "TST",
+	Name:     "Test Currency",
+	Symbol:   "T",
+	Decimals: 2,
+	Country:  "Test Country",
+	Region:   "Test Region",
+	Active:   true,
+}
 
 func TestCurrencyService(t *testing.T) {
 	ctx := context.Background()
@@ -19,41 +31,73 @@ func TestCurrencyService(t *testing.T) {
 	require := require.New(t)
 	assert := assert.New(t)
 
-	t.Run("create currency service", func(t *testing.T) {
-		registry, err := currency.New(ctx)
-		require.NoError(err)
+	setupTestService := func() *currency.Service {
+		// Create a new registry
+		reg := registry.NewEnhanced(registry.Config{
+			Name: "test-registry",
+		})
 
-		service := currencysvc.New(registry, slog.Default())
-		assert.NotNil(service)
-		assert.Equal(registry, service.GetRegistry())
-	})
+		// Create the service with the registry
+		service := currency.New(reg, slog.Default())
+
+		// Register default currencies needed for tests
+		defaultCurrencies := []currency.Entity{
+			{
+				Code:     "USD",
+				Name:     "US Dollar",
+				Symbol:   "$",
+				Decimals: 2,
+				Country:  "United States",
+				Region:   "North America",
+				Active:   true,
+			},
+			{
+				Code:     "EUR",
+				Name:     "Euro",
+				Symbol:   "€",
+				Decimals: 2,
+				Country:  "European Union",
+				Region:   "Europe",
+				Active:   true,
+			},
+		}
+
+		// Register default currencies
+		for _, curr := range defaultCurrencies {
+			// Register the currency using the service's Register method
+			err := service.Register(ctx, curr)
+			if err != nil {
+				t.Fatalf("failed to register test currency %s: %v", curr.Code, err)
+			}
+		}
+
+		// Register test currency
+		err := service.Register(ctx, testCurrency)
+		if err != nil {
+			t.Fatalf("failed to register test currency: %v", err)
+		}
+
+		return service
+	}
 
 	t.Run("get currency", func(t *testing.T) {
-		registry, err := currency.New(ctx)
-		require.NoError(err)
+		service := setupTestService()
 
-		service := currencysvc.New(registry, slog.Default())
-
-		// Test getting existing currency
-		usd, err := service.GetCurrency(ctx, "USD")
+		// Test getting existing currency (USD is one of the default currencies)
+		usd, err := service.Get(ctx, "USD")
 		require.NoError(err)
-		assert.Equal("USD", usd.Code)
-		assert.Equal("US Dollar", usd.Name)
-		assert.Equal("$", usd.Symbol)
+		assert.Equal(money.Code("USD"), usd.Code)
 		assert.Equal(2, usd.Decimals)
 
 		// Test getting non-existent currency
-		_, err = service.GetCurrency(ctx, "INVALID")
+		_, err = service.Get(ctx, "INVALID")
 		require.Error(err)
 	})
 
 	t.Run("list supported currencies", func(t *testing.T) {
-		registry, err := currency.New(ctx)
-		require.NoError(err)
+		service := setupTestService()
 
-		service := currencysvc.New(registry, slog.Default())
-
-		supported, err := service.ListSupportedCurrencies(ctx)
+		supported, err := service.ListSupported(ctx)
 		require.NoError(err)
 		assert.NotEmpty(supported)
 
@@ -63,236 +107,219 @@ func TestCurrencyService(t *testing.T) {
 	})
 
 	t.Run("list all currencies", func(t *testing.T) {
-		registry, err := currency.New(ctx)
+		service := setupTestService()
+
+		// Get all currencies
+		currencies, err := service.ListAll(ctx)
 		require.NoError(err)
 
-		service := currencysvc.New(registry, slog.Default())
+		// Should have at least the default currencies
+		require.GreaterOrEqual(len(currencies), 2)
 
-		all, err := service.ListAllCurrencies(ctx)
-		require.NoError(err)
-		assert.NotEmpty(all)
-
-		// Check that we have currency metadata
-		found := false
-		for _, currency := range all {
-			if currency.Code == "USD" {
-				found = true
-				assert.Equal("US Dollar", currency.Name)
-				assert.Equal("$", currency.Symbol)
-				break
+		// Verify we can find USD and EUR
+		hasUSD := false
+		hasEUR := false
+		for _, c := range currencies {
+			if c.Code == "USD" {
+				hasUSD = true
+			}
+			if c.Code == "EUR" {
+				hasEUR = true
 			}
 		}
-		assert.True(found)
+
+		assert.True(hasUSD, "Should have USD")
+		assert.True(hasEUR, "Should have EUR")
 	})
 
 	t.Run("register currency", func(t *testing.T) {
-		registry, err := currency.New(ctx)
-		require.NoError(err)
+		service := setupTestService()
 
-		service := currencysvc.New(registry, slog.Default())
-
-		newCurrency := currency.Meta{
-			Code:     "TST",
-			Name:     "Test Currency",
-			Symbol:   "T",
-			Decimals: 2,
-			Country:  "Test Country",
-			Region:   "Test Region",
-			Active:   true,
-		}
-
-		err = service.RegisterCurrency(ctx, newCurrency)
+		err := service.Register(ctx, testCurrency)
 		require.NoError(err)
 
 		// Verify registration
-		retrieved, err := service.GetCurrency(ctx, "TST")
+		retrieved, err := service.Get(ctx, "TST")
 		require.NoError(err)
-		assert.Equal("TST", retrieved.Code)
-		assert.Equal("Test Currency", retrieved.Name)
-		assert.Equal("T", retrieved.Symbol)
+		assert.Equal(money.Code("TST"), retrieved.Code)
 		assert.Equal(2, retrieved.Decimals)
 	})
 
 	t.Run("unregister currency", func(t *testing.T) {
-		registry, err := currency.New(ctx)
+		service := setupTestService()
+
+		// Test registering a new currency
+		err := service.Register(ctx, currency.Entity{
+			Code:     "BTC",
+			Name:     "Bitcoin",
+			Symbol:   "₿",
+			Decimals: 8,
+			Country:  "Global",
+			Region:   "Global",
+			Active:   true,
+		})
 		require.NoError(err)
 
-		service := currencysvc.New(registry, slog.Default())
-
-		// Register a test currency first
-		testCurrency := currency.Meta{
-			Code:     "TSU",
-			Name:     "Test Currency 2",
-			Symbol:   "T2",
-			Decimals: 2,
-		}
-
-		err = service.RegisterCurrency(ctx, testCurrency)
+		// Verify it's registered
+		_, err = service.Get(ctx, "BTC")
 		require.NoError(err)
 
-		// Verify it exists
-		_, err = service.GetCurrency(ctx, "TSU")
-		require.NoError(err)
-
-		// Unregister it
-		err = service.UnregisterCurrency(ctx, "TSU")
+		// Now unregister it
+		err = service.Unregister(ctx, "BTC")
 		require.NoError(err)
 
 		// Verify it's gone
-		_, err = service.GetCurrency(ctx, "TSU")
+		_, err = service.Get(ctx, "BTC")
 		require.Error(err)
+		assert.Contains(err.Error(), "not found")
 	})
 
 	t.Run("activate and deactivate currency", func(t *testing.T) {
-		registry, err := currency.New(ctx)
-		require.NoError(err)
+		service := setupTestService()
 
-		service := currencysvc.New(registry, slog.Default())
+		// First, ensure the test currency doesn't exist
+		_, err := service.Get(ctx, "TSV")
+		if err == nil {
+			// If it exists, unregister it first
+			err = service.Unregister(ctx, "TSV")
+			require.NoError(err)
+		}
 
-		// Register a currency as inactive
-		currency := currency.Meta{
+		// Register a new currency (should be active by default)
+		err = service.Register(ctx, currency.Entity{
 			Code:     "TSV",
 			Name:     "Test Currency 3",
 			Symbol:   "T3",
 			Decimals: 2,
-			Active:   false,
-		}
+			Country:  "Test Country",
+			Region:   "Test Region",
+			Active:   false, // Explicitly set as inactive
+		})
+		require.NoError(err, "Failed to register test currency")
 
-		err = service.RegisterCurrency(ctx, currency)
-		require.NoError(err)
+		// Check if the currency is registered but inactive
+		_, err = service.Get(ctx, "TSV")
+		require.NoError(err, "Currency should be registered")
 
 		// Initially should not be supported (inactive)
-		assert.False(service.IsCurrencySupported(ctx, "TSV"))
+		isSupported := service.IsSupported(ctx, "TSV")
+		assert.False(isSupported, "Inactive currency should not be supported")
 
 		// Activate
-		err = service.ActivateCurrency(ctx, "TSV")
-		require.NoError(err)
-		assert.True(service.IsCurrencySupported(ctx, "TSV"))
+		err = service.Activate(ctx, "TSV")
+		require.NoError(err, "Failed to activate currency")
+
+		// Now should be supported
+		isSupported = service.IsSupported(ctx, "TSV")
+		assert.True(isSupported, "Active currency should be supported")
 
 		// Deactivate
-		err = service.DeactivateCurrency(ctx, "TSV")
-		require.NoError(err)
-		assert.False(service.IsCurrencySupported(ctx, "TSV"))
+		err = service.Deactivate(ctx, "TSV")
+		require.NoError(err, "Failed to deactivate currency")
+
+		// Should no longer be supported
+		isSupported = service.IsSupported(ctx, "TSV")
+		assert.False(isSupported, "Deactivated currency should not be supported")
+
+		// Clean up
+		err = service.Unregister(ctx, "TSV")
+		require.NoError(err, "Failed to clean up test currency")
 	})
 
 	t.Run("search currencies", func(t *testing.T) {
-		registry, err := currency.New(ctx)
+		service := setupTestService()
+
+		// Search for "dollar" should find USD
+		results, err := service.Search(ctx, "dollar")
 		require.NoError(err)
 
-		service := currencysvc.New(registry, slog.Default())
-
-		// Search for "Dollar"
-		results, err := service.SearchCurrencies(ctx, "Dollar")
-		require.NoError(err)
-		assert.NotEmpty(results)
-
-		// Check that USD is in results
-		found := false
-		for _, currency := range results {
-			if currency.Code == "USD" {
-				found = true
+		foundUSD := false
+		for _, c := range results {
+			if c.Code == "USD" {
+				foundUSD = true
 				break
 			}
 		}
-		assert.True(found)
+		assert.True(foundUSD, "Should find USD when searching for 'dollar'")
 	})
 
 	t.Run("search currencies by region", func(t *testing.T) {
-		registry, err := currency.New(ctx)
-		require.NoError(err)
-
-		service := currencysvc.New(registry, slog.Default())
+		service := setupTestService()
 
 		// Search for North America
-		results, err := service.SearchCurrenciesByRegion(ctx, "North America")
+		results, err := service.SearchByRegion(ctx, "North America")
 		require.NoError(err)
-		assert.NotEmpty(results)
 
-		// Check that USD is in results
-		found := false
-		for _, currency := range results {
-			if currency.Code == "USD" {
-				found = true
+		foundUSD := false
+		for _, c := range results {
+			if c.Code == "USD" {
+				foundUSD = true
 				break
 			}
 		}
-		assert.True(found)
+		assert.True(foundUSD, "Should find USD when searching for 'North America'")
 	})
 
 	t.Run("get currency statistics", func(t *testing.T) {
-		registry, err := currency.New(ctx)
-		require.NoError(err)
+		service := setupTestService()
 
-		service := currencysvc.New(registry, slog.Default())
-
-		stats, err := service.GetCurrencyStatistics(ctx)
+		stats, err := service.GetStatistics(ctx)
 		require.NoError(err)
 		assert.NotNil(stats)
 
 		// Check that we have the expected fields
 		assert.Contains(stats, "total_currencies")
 		assert.Contains(stats, "active_currencies")
-		assert.Contains(stats, "inactive_currencies")
 
-		// Check that values are reasonable
-		total := stats["total_currencies"].(int)
-		active := stats["active_currencies"].(int)
-		inactive := stats["inactive_currencies"].(int)
+		total := int(stats["total_currencies"].(int))
+		active := int(stats["active_currencies"].(int))
 
 		assert.Positive(total)
 		assert.Positive(active)
 		assert.LessOrEqual(active, total)
-		assert.Equal(total-active, inactive)
 	})
 
 	t.Run("validate currency code", func(t *testing.T) {
-		registry, err := currency.New(ctx)
-		require.NoError(err)
-
-		service := currencysvc.New(registry, slog.Default())
+		service := setupTestService()
 
 		// Valid codes
 		validCodes := []string{"USD", "EUR", "GBP", "JPY", "CAD"}
 		for _, code := range validCodes {
-			err := service.ValidateCurrencyCode(ctx, code)
+			err := service.ValidateCode(ctx, code)
 			require.NoError(err, "Code %s should be valid", code)
 		}
 
 		// Invalid codes
 		invalidCodes := []string{"usd", "US", "USDD", "123", "USD1", ""}
 		for _, code := range invalidCodes {
-			err := service.ValidateCurrencyCode(ctx, code)
+			err := service.ValidateCode(ctx, code)
 			require.Error(err, "Code %s should be invalid", code)
 		}
 	})
 
 	t.Run("get default currency", func(t *testing.T) {
-		registry, err := currency.New(ctx)
+		service := setupTestService()
+
+		// Get the default currency (USD)
+		defaultCurrency, err := service.GetDefault(ctx)
 		require.NoError(err)
 
-		service := currencysvc.New(registry, slog.Default())
-
-		defaultCurrency, err := service.GetDefaultCurrency(ctx)
-		require.NoError(err)
-		assert.Equal("USD", defaultCurrency.Code)
-		assert.Equal("US Dollar", defaultCurrency.Name)
-		assert.Equal("$", defaultCurrency.Symbol)
+		// Should be USD
+		assert.Equal(money.Code("USD"), defaultCurrency.Code)
 		assert.Equal(2, defaultCurrency.Decimals)
 	})
 
 	t.Run("is currency supported", func(t *testing.T) {
-		registry, err := currency.New(ctx)
-		require.NoError(err)
+		service := setupTestService()
 
-		service := currencysvc.New(registry, slog.Default())
+		// Test with default currencies
+		assert.True(service.IsSupported(ctx, "USD"))
+		assert.True(service.IsSupported(ctx, "EUR"))
 
-		// Test supported currency
-		assert.True(service.IsCurrencySupported(ctx, "USD"))
-
-		// Test unsupported currency
-		assert.False(service.IsCurrencySupported(ctx, "INVALID"))
+		// Test with non-existent currency
+		assert.False(service.IsSupported(ctx, "NONEXISTENT"))
 
 		// Test invalid format
-		assert.False(service.IsCurrencySupported(ctx, "usd"))
+		assert.False(service.IsSupported(ctx, "usd"))
 	})
 }

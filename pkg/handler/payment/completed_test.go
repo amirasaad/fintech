@@ -24,10 +24,10 @@ func TestCompletedHandler(t *testing.T) {
 		h := testutils.New(t)
 
 		// Initialize required fields
-		amount, err := money.New(10.00, "USD")
+		amount, err := money.New(10.00, money.USD)
 		require.NoError(t, err)
 
-		feeAmount, err := money.New(1.00, "USD")
+		feeAmount, err := money.New(1.00, money.USD)
 		require.NoError(t, err)
 
 		// Set the amounts using the helper methods

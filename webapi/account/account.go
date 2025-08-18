@@ -3,9 +3,9 @@ package account
 import (
 	"github.com/amirasaad/fintech/pkg/commands"
 	"github.com/amirasaad/fintech/pkg/config"
-	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/middleware"
+	"github.com/amirasaad/fintech/pkg/money"
 	accountsvc "github.com/amirasaad/fintech/pkg/service/account"
 	authsvc "github.com/amirasaad/fintech/pkg/service/auth"
 	"github.com/amirasaad/fintech/webapi/common"
@@ -180,9 +180,9 @@ func Deposit(
 		if input == nil {
 			return err // error response already written
 		}
-		currencyCode := currency.USD
+		currencyCode := money.USD
 		if input.Currency != "" {
-			currencyCode = currency.Code(input.Currency)
+			currencyCode = money.Code(input.Currency)
 		}
 		depositCmd := commands.Deposit{
 			UserID:    userID,
@@ -276,9 +276,9 @@ func Withdraw(
 				fiber.StatusBadRequest,
 			)
 		}
-		currencyCode := currency.Default
+		currencyCode := money.DefaultCode
 		if input.Currency != "" {
-			currencyCode = currency.Code(input.Currency)
+			currencyCode = money.Code(input.Currency)
 		}
 		err = accountSvc.Withdraw(c.Context(), commands.Withdraw{
 			UserID:    userID,
@@ -363,9 +363,9 @@ func Transfer(
 				fiber.StatusBadRequest,
 			)
 		}
-		currencyCode := currency.USD
+		currencyCode := money.USD
 		if input.Currency != "" {
-			currencyCode = currency.Code(input.Currency)
+			currencyCode = money.Code(input.Currency)
 		}
 		// Construct transfer command
 		cmd := commands.Transfer{

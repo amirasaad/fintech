@@ -1,3 +1,8 @@
+// Package currency provides functionality for working with currency codes and metadata.
+// It includes validation, formatting, and conversion utilities for ISO 4217 currency codes.
+//
+// Deprecated: This package is deprecated and will be removed in a future release.
+// Please use the money package instead: github.com/amirasaad/fintech/pkg/money
 package currency
 
 import (
@@ -9,13 +14,14 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/amirasaad/fintech/pkg/registry"
 )
 
 // Common errors
 var (
-	ErrInvalidCode = errors.New(
-		"invalid currency code: must be 3 uppercase letters")
+	// Deprecated: Use money.ErrInvalidCurrency instead
+	ErrInvalidCode     = money.ErrInvalidCurrency
 	ErrUnsupported     = errors.New("unsupported currency")
 	ErrInvalidDecimals = errors.New("invalid decimals: must be between 0 and 8")
 	ErrInvalidSymbol   = errors.New(
@@ -34,21 +40,13 @@ const (
 	// MaxSymbolLength is the maximum length for currency symbols
 	MaxSymbolLength = 10
 
-	USD = Code("USD")
-	EUR = Code("EUR")
-
+	// Default is the default currency code (USD)
+	// Deprecated: Use money.USD from the money package instead
 	Default = USD
 )
 
-// Code represents a 3-letter ISO currency code
-type Code string
-
-// String return code as string
-func (c Code) String() string {
-	return string(c)
-}
-
 // Meta holds currency-specific metadata
+// Deprecated:
 type Meta struct {
 	Code     string            `json:"code"`
 	Name     string            `json:"name"`

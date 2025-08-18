@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/mapper"
@@ -73,7 +72,7 @@ func (fc *FeeCalculator) updateTransactionFee(
 	fee account.Fee,
 ) error {
 	// Convert existing fee to money type
-	txFee, err := money.New(tx.Fee, currency.Code(tx.Currency))
+	txFee, err := money.New(tx.Fee, money.Code(tx.Currency))
 	if err != nil {
 		fc.logger.Error("invalid transaction fee amount",
 			"error", err,

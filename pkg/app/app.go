@@ -7,7 +7,6 @@ import (
 	"github.com/amirasaad/fintech/pkg/service/exchange"
 
 	"github.com/amirasaad/fintech/pkg/config"
-	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/amirasaad/fintech/pkg/provider"
 	"github.com/amirasaad/fintech/pkg/registry"
@@ -21,10 +20,10 @@ import (
 // Deps contains all the dependencies needed by the SetupBus function
 type Deps struct {
 	Uow                          repository.UnitOfWork
-	CurrencyRegistry             *currency.Registry
 	ExchangeRateProvider         provider.ExchangeRate
 	ExchangeRateRegistryProvider registry.Provider
 	CheckoutRegistryProvider     registry.Provider
+	RegistryProvider             registry.Provider
 	PaymentProvider              provider.Payment
 	EventBus                     eventbus.Bus
 	Logger                       *slog.Logger
@@ -68,7 +67,7 @@ func New(deps *Deps, cfg *config.App) *App {
 		deps.Logger,
 	)
 	app.CurrencyService = currencyScv.New(
-		deps.CurrencyRegistry,
+		deps.RegistryProvider,
 		deps.Logger,
 	)
 	app.CheckoutService = checkout.New(

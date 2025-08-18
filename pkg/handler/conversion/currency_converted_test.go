@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/amirasaad/fintech/internal/fixtures/mocks"
-	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/amirasaad/fintech/pkg/provider"
@@ -31,7 +30,7 @@ func TestHandleCurrencyConverted(t *testing.T) {
 
 		// Create test data
 		transactionID := uuid.New()
-		convertedAmount, _ := money.New(85.0, currency.EUR)
+		convertedAmount, _ := money.New(85.0, money.EUR)
 		convInfo := &provider.ExchangeInfo{
 			OriginalAmount:    100.0,
 			OriginalCurrency:  "USD",
@@ -121,7 +120,7 @@ func TestHandleCurrencyConverted(t *testing.T) {
 		uow := mocks.NewUnitOfWork(t)
 
 		transactionID := uuid.New()
-		convertedAmount, _ := money.New(85.0, currency.EUR)
+		convertedAmount, _ := money.New(85.0, money.EUR)
 
 		event := &events.CurrencyConverted{
 			CurrencyConversionRequested: events.CurrencyConversionRequested{
@@ -151,7 +150,7 @@ func TestHandleCurrencyConverted(t *testing.T) {
 		txRepo := mocks.NewTransactionRepository(t)
 
 		transactionID := uuid.New()
-		convertedAmount, _ := money.New(85.0, currency.EUR)
+		convertedAmount, _ := money.New(85.0, money.EUR)
 		convInfo := &provider.ExchangeInfo{
 			OriginalAmount:    100.0,
 			OriginalCurrency:  "USD",
@@ -200,7 +199,7 @@ func TestHandleCurrencyConverted(t *testing.T) {
 		uow := mocks.NewUnitOfWork(t)
 
 		transactionID := uuid.New()
-		convertedAmount, _ := money.New(85.0, currency.EUR)
+		convertedAmount, _ := money.New(85.0, money.EUR)
 		convInfo := &provider.ExchangeInfo{
 			OriginalAmount:    100.0,
 			OriginalCurrency:  "USD",

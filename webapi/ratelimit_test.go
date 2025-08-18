@@ -12,7 +12,6 @@ import (
 	infra_provider "github.com/amirasaad/fintech/infra/provider"
 	"github.com/amirasaad/fintech/pkg/app"
 	"github.com/amirasaad/fintech/pkg/config"
-	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/amirasaad/fintech/webapi"
 	"github.com/gofiber/fiber/v2"
@@ -31,13 +30,9 @@ func TestRateLimit(t *testing.T) {
 	// Provide dummy services for required arguments
 	dummyUow := repository.UnitOfWork(nil)
 
-	// Create a dummy currency registry and service
-	dummyRegistry := &currency.Registry{}
-
 	app := webapi.SetupApp(app.New(&app.Deps{
 		Uow:                  dummyUow,
 		EventBus:             eventbus.NewWithMemory(slog.Default()),
-		CurrencyRegistry:     dummyRegistry,
 		ExchangeRateProvider: infra_provider.NewMockExchangeRate(),
 		PaymentProvider:      infra_provider.NewMockPaymentProvider(),
 		Logger:               slog.Default(),

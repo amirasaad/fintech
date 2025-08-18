@@ -3,7 +3,6 @@ package events
 import (
 	"time"
 
-	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/google/uuid"
 )
@@ -18,7 +17,7 @@ func WithConversionAmount(amount *money.Money) CurrencyConversionRequestedOpt {
 
 // WithConversionTo sets the target currency for the
 // CurrencyConversionRequested.
-func WithConversionTo(currency currency.Code) CurrencyConversionRequestedOpt {
+func WithConversionTo(currency money.Code) CurrencyConversionRequestedOpt {
 	return func(e *CurrencyConversionRequested) { e.To = currency }
 }
 

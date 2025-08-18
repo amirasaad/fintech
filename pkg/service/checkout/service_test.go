@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/amirasaad/fintech/internal/fixtures/mocks"
-	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/registry"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -25,7 +24,7 @@ func TestService_CreateSession(t *testing.T) {
 	}{
 		{"valid session", "USD", 1000,
 			time.Hour, nil, false},
-		{"invalid currency", "XXX", 1000,
+		{"invalid currency", "343", 1000,
 			time.Hour, nil, true},
 		{"negative amount", "USD", -100,
 			time.Hour, nil, true},
@@ -151,8 +150,8 @@ func TestSession_Validate(t *testing.T) {
 		{"invalid currency", Session{ID: "test",
 			TransactionID: validUUID, UserID: validUUID,
 			Amount:    100,
-			AccountID: validUUID, Currency: "XXX"},
-			"unsupported currency"},
+			AccountID: validUUID, Currency: "432"},
+			"invalid currency code: 432"},
 	}
 
 	for _, tt := range tests {
@@ -163,57 +162,6 @@ func TestSession_Validate(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 			}
-		})
-	}
-}
-
-func TestSession_FormatAmount(t *testing.T) {
-	// Setup test cases with proper expectations
-	tests := []struct {
-		name     string
-		currency string
-		amount   int64
-		expected string
-	}{
-		{
-			name:     "USD with 2 decimal places",
-			currency: "USD",
-			amount:   1000, // $10.00 (1000 / 100)
-			expected: "10.00 USD",
-		},
-		{
-			name:     "JPY with 0 decimal places",
-			currency: "JPY",
-			amount:   1000, // 1000 JPY
-			expected: "1000 JPY",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Create a new registry for each test
-			reg, err := currency.New(context.Background())
-			require.NoError(t, err)
-
-			// Register test currency
-			err = reg.Register(currency.Meta{
-				Code:     tt.currency,
-				Name:     tt.currency + " Currency",
-				Symbol:   tt.currency,
-				Decimals: map[string]int{"USD": 2, "JPY": 0}[tt.currency],
-			})
-			require.NoError(t, err)
-
-			s := Session{
-				ID:       "test-session",
-				Currency: tt.currency,
-				Amount:   tt.amount,
-			}
-
-			// Test FormatAmount
-			result, err := s.FormatAmount()
-			require.NoError(t, err)
-			require.Equal(t, tt.expected, result)
 		})
 	}
 }

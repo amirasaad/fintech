@@ -1,26 +1,26 @@
 package currency
 
 import (
-	"errors"
+	"fmt"
+	"strings"
 
 	"github.com/amirasaad/fintech/pkg/config"
-	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/middleware"
+	"github.com/amirasaad/fintech/pkg/money"
 	authsvc "github.com/amirasaad/fintech/pkg/service/auth"
 	currencysvc "github.com/amirasaad/fintech/pkg/service/currency"
 	"github.com/amirasaad/fintech/webapi/common"
 	"github.com/gofiber/fiber/v2"
 )
 
-// Routes registers HTTP routes for currency-related operations.
-// Sets up endpoints for listing, searching, and managing currencies.
+// Routes sets up the currency routes
 func Routes(
-	app *fiber.App,
+	r fiber.Router,
 	currencySvc *currencysvc.Service,
 	authSvc *authsvc.Service,
 	cfg *config.App,
 ) {
-	currencyGroup := app.Group("/api/currencies")
+	currencyGroup := r.Group("/api/currencies")
 
 	// Public endpoints
 	currencyGroup.Get(
@@ -97,7 +97,7 @@ func ListCurrencies(
 	currencySvc *currencysvc.Service,
 ) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		currencies, err := currencySvc.ListAllCurrencies(c.Context())
+		currencies, err := currencySvc.ListAll(c.Context())
 		if err != nil {
 			return common.ProblemDetailsJSON(
 				c,
@@ -127,7 +127,7 @@ func ListSupportedCurrencies(
 	currencySvc *currencysvc.Service,
 ) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		currencies, err := currencySvc.ListSupportedCurrencies(c.Context())
+		currencies, err := currencySvc.ListSupported(c.Context())
 		if err != nil {
 			return common.ProblemDetailsJSON(
 				c,
@@ -172,7 +172,7 @@ func GetCurrency(
 		}
 
 		// Validate currency code format
-		if err := currencySvc.ValidateCurrencyCode(c.Context(), code); err != nil {
+		if err := currencySvc.ValidateCode(c.Context(), code); err != nil {
 			return common.ProblemDetailsJSON(
 				c,
 				"Invalid currency code",
@@ -182,7 +182,7 @@ func GetCurrency(
 			)
 		}
 
-		currency, err := currencySvc.GetCurrency(c.Context(), code)
+		currency, err := currencySvc.Get(c.Context(), code)
 		if err != nil {
 			return common.ProblemDetailsJSON(
 				c,
@@ -225,7 +225,7 @@ func CheckCurrencySupported(
 		}
 
 		// Validate currency code format
-		if err := currencySvc.ValidateCurrencyCode(c.Context(), code); err != nil {
+		if err := currencySvc.ValidateCode(c.Context(), code); err != nil {
 			return common.ProblemDetailsJSON(
 				c,
 				"Invalid currency code",
@@ -235,7 +235,7 @@ func CheckCurrencySupported(
 			)
 		}
 
-		supported := currencySvc.IsCurrencySupported(c.Context(), code)
+		supported := currencySvc.IsSupported(c.Context(), code)
 		return common.SuccessResponseJSON(
 			c,
 			fiber.StatusOK,
@@ -271,7 +271,7 @@ func SearchCurrencies(
 			)
 		}
 
-		currencies, err := currencySvc.SearchCurrencies(c.Context(), query)
+		currencies, err := currencySvc.Search(c.Context(), query)
 		if err != nil {
 			return common.ProblemDetailsJSON(
 				c,
@@ -314,7 +314,7 @@ func SearchCurrenciesByRegion(
 			)
 		}
 
-		currencies, err := currencySvc.SearchCurrenciesByRegion(c.Context(), region)
+		currencies, err := currencySvc.SearchByRegion(c.Context(), region)
 		if err != nil {
 			return common.ProblemDetailsJSON(
 				c,
@@ -344,7 +344,7 @@ func GetCurrencyStatistics(
 	currencySvc *currencysvc.Service,
 ) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		stats, err := currencySvc.GetCurrencyStatistics(c.Context())
+		stats, err := currencySvc.GetStatistics(c.Context())
 		if err != nil {
 			return common.ProblemDetailsJSON(
 				c,
@@ -374,7 +374,7 @@ func GetDefaultCurrency(
 	currencySvc *currencysvc.Service,
 ) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		defaultCurrency, err := currencySvc.GetDefaultCurrency(c.Context())
+		defaultCurrency, err := currencySvc.GetDefault(c.Context())
 		if err != nil {
 			return common.ProblemDetailsJSON(
 				c,
@@ -397,8 +397,8 @@ func GetDefaultCurrency(
 // @Tags currencies
 // @Accept json
 // @Produce json
-// @Param currency body RegisterCurrencyRequest true "Currency information"
-// @Success 201 {object} currency.Meta
+// @Param currency body RegisterRequest true "Currency information"
+// @Success 201 {object} CurrencyResponse
 // @Failure 400 {object} common.ProblemDetails
 // @Failure 401 {object} common.ProblemDetails
 // @Failure 409 {object} common.ProblemDetails
@@ -408,56 +408,58 @@ func RegisterCurrency(
 	currencySvc *currencysvc.Service,
 ) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		input, err := common.BindAndValidate[RegisterCurrencyRequest](c)
+		input, err := common.BindAndValidate[RegisterRequest](c)
 		if err != nil {
 			return nil // Error already written by BindAndValidate
 		}
 
 		// Validate currency code format
-		if err = currencySvc.ValidateCurrencyCode(c.Context(), input.Code); err != nil {
-			return common.ProblemDetailsJSON(c, "Invalid currency code", err)
+		if err = currencySvc.ValidateCode(c.Context(), input.Code); err != nil {
+			return common.ProblemDetailsJSON(
+				c,
+				"Invalid currency code",
+				err,
+				fiber.StatusBadRequest,
+			)
 		}
 
-		currencyMeta := currency.Meta{
-			Code:     input.Code,
+		// Check if currency already exists
+		if _, err := currencySvc.Get(c.Context(), input.Code); err == nil {
+			return common.ProblemDetailsJSON(
+				c,
+				"Currency already exists",
+				fmt.Errorf("currency with code %s already exists", input.Code),
+				fiber.StatusConflict,
+			)
+		}
+
+		// Register the currency
+		currEntity := currencysvc.Entity{
+			Code:     money.Code(input.Code),
 			Name:     input.Name,
 			Symbol:   input.Symbol,
 			Decimals: input.Decimals,
 			Country:  input.Country,
 			Region:   input.Region,
 			Active:   input.Active,
-			Metadata: input.Metadata,
 		}
-
-		if err = currencySvc.RegisterCurrency(c.Context(), currencyMeta); err != nil {
-			if errors.Is(err, currency.ErrCurrencyExists) {
-				return common.ProblemDetailsJSON(
-					c,
-					"Failed to register currency",
-					err,
-				)
-			}
+		if err = currencySvc.Register(c.Context(), currEntity); err != nil {
 			return common.ProblemDetailsJSON(
 				c,
 				"Failed to register currency",
 				err,
+				fiber.StatusInternalServerError,
 			)
 		}
 
-		// Get the registered currency
-		registered, err := currencySvc.GetCurrency(c.Context(), input.Code)
-		if err != nil {
-			return common.ProblemDetailsJSON(
-				c,
-				"Failed to retrieve registered currency",
-				err,
-			)
-		}
+		// Convert to response DTO
+		resp := ToResponse(&currEntity)
+
 		return common.SuccessResponseJSON(
 			c,
 			fiber.StatusCreated,
 			"Currency registered successfully",
-			registered,
+			resp,
 		)
 	}
 }
@@ -475,7 +477,9 @@ func RegisterCurrency(
 // @Failure 404 {object} common.ProblemDetails
 // @Failure 500 {object} common.ProblemDetails
 // @Router /api/currencies/admin/{code} [delete]
-func UnregisterCurrency(currencySvc *currencysvc.Service) fiber.Handler {
+func UnregisterCurrency(
+	currencySvc *currencysvc.Service,
+) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		code := c.Params("code")
 		if code == "" {
@@ -487,7 +491,7 @@ func UnregisterCurrency(currencySvc *currencysvc.Service) fiber.Handler {
 		}
 
 		// Validate currency code format
-		if err := currencySvc.ValidateCurrencyCode(c.Context(), code); err != nil {
+		if err := currencySvc.ValidateCode(c.Context(), code); err != nil {
 			return common.ProblemDetailsJSON(
 				c,
 				"Invalid currency code",
@@ -495,11 +499,11 @@ func UnregisterCurrency(currencySvc *currencysvc.Service) fiber.Handler {
 			)
 		}
 
-		if err := currencySvc.UnregisterCurrency(c.Context(), code); err != nil {
-			if errors.Is(err, currency.ErrCurrencyNotFound) {
+		if err := currencySvc.Unregister(c.Context(), code); err != nil {
+			if strings.Contains(err.Error(), "not found") {
 				return common.ProblemDetailsJSON(
 					c,
-					"Failed to unregister currency",
+					"Failed to unregister currency: currency not found",
 					err,
 				)
 			}
@@ -531,7 +535,9 @@ func UnregisterCurrency(currencySvc *currencysvc.Service) fiber.Handler {
 // @Failure 404 {object} common.ProblemDetails
 // @Failure 500 {object} common.ProblemDetails
 // @Router /api/currencies/admin/{code}/activate [put]
-func ActivateCurrency(currencySvc *currencysvc.Service) fiber.Handler {
+func ActivateCurrency(
+	currencySvc *currencysvc.Service,
+) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		code := c.Params("code")
 		if code == "" {
@@ -543,7 +549,7 @@ func ActivateCurrency(currencySvc *currencysvc.Service) fiber.Handler {
 		}
 
 		// Validate currency code format
-		if err := currencySvc.ValidateCurrencyCode(c.Context(), code); err != nil {
+		if err := currencySvc.ValidateCode(c.Context(), code); err != nil {
 			return common.ProblemDetailsJSON(
 				c,
 				"Invalid currency code",
@@ -551,11 +557,11 @@ func ActivateCurrency(currencySvc *currencysvc.Service) fiber.Handler {
 			)
 		}
 
-		if err := currencySvc.ActivateCurrency(c.Context(), code); err != nil {
-			if err == currency.ErrCurrencyNotFound {
+		if err := currencySvc.Activate(c.Context(), code); err != nil {
+			if strings.Contains(err.Error(), "not found") {
 				return common.ProblemDetailsJSON(
 					c,
-					"Failed to activate currency",
+					"Failed to activate currency: currency not found",
 					err,
 				)
 			}
@@ -587,7 +593,9 @@ func ActivateCurrency(currencySvc *currencysvc.Service) fiber.Handler {
 // @Failure 404 {object} common.ProblemDetails
 // @Failure 500 {object} common.ProblemDetails
 // @Router /api/currencies/admin/{code}/deactivate [put]
-func DeactivateCurrency(currencySvc *currencysvc.Service) fiber.Handler {
+func DeactivateCurrency(
+	currencySvc *currencysvc.Service,
+) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		code := c.Params("code")
 		if code == "" {
@@ -599,7 +607,7 @@ func DeactivateCurrency(currencySvc *currencysvc.Service) fiber.Handler {
 		}
 
 		// Validate currency code format
-		if err := currencySvc.ValidateCurrencyCode(c.Context(), code); err != nil {
+		if err := currencySvc.ValidateCode(c.Context(), code); err != nil {
 			return common.ProblemDetailsJSON(
 				c,
 				"Invalid currency code",
@@ -607,11 +615,11 @@ func DeactivateCurrency(currencySvc *currencysvc.Service) fiber.Handler {
 			)
 		}
 
-		if err := currencySvc.DeactivateCurrency(c.Context(), code); err != nil {
-			if errors.Is(err, currency.ErrCurrencyNotFound) {
+		if err := currencySvc.Deactivate(c.Context(), code); err != nil {
+			if strings.Contains(err.Error(), "not found") {
 				return common.ProblemDetailsJSON(
 					c,
-					"Failed to deactivate currency",
+					"Failed to deactivate currency: currency not found",
 					err,
 				)
 			}

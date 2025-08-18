@@ -3,7 +3,6 @@ package events
 import (
 	"time"
 
-	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/google/uuid"
 )
@@ -46,7 +45,7 @@ func NewWithdrawRequested(
 			CorrelationID: correlationID,
 			Timestamp:     time.Now(),
 		},
-		Amount: money.Zero(currency.USD),
+		Amount: money.Zero(money.USD),
 	}
 	for _, opt := range opts {
 		opt(wr)

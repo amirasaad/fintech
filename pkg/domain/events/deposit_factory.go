@@ -3,7 +3,6 @@ package events
 import (
 	"time"
 
-	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/google/uuid"
 )
@@ -59,7 +58,7 @@ func NewDepositRequested(
 			Timestamp:     time.Now(),
 		},
 		TransactionID: uuid.New(),
-		Amount:        money.Zero(currency.USD),
+		Amount:        money.Zero(money.USD),
 	}
 
 	for _, opt := range opts {

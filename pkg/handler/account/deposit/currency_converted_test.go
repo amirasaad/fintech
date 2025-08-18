@@ -18,7 +18,7 @@ func TestDepositCurrencyConverted(t *testing.T) {
 		accountID := uuid.New()
 		transactionID := uuid.New()
 		correlationID := uuid.New()
-		amount, err := money.New(100.0, "USD")
+		amount, err := money.New(100.0, money.USD)
 		require.NoError(t, err, "should create money amount without error")
 
 		// 1. Create the base DepositRequested event with all required fields

@@ -1,7 +1,6 @@
 package conversion
 
 import (
-	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/amirasaad/fintech/pkg/provider"
@@ -20,7 +19,7 @@ func NewValidConversionRequestedEvent(
 		flow,
 		nil,
 		events.WithConversionAmount(&amount),
-		events.WithConversionTo(currency.Code(to)),
+		events.WithConversionTo(money.Code(to)),
 		events.WithConversionTransactionID(transactionID),
 	)
 

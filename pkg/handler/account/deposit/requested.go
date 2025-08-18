@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/eventbus"
+	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/amirasaad/fintech/pkg/repository/account"
 	"github.com/amirasaad/fintech/pkg/repository/transaction"
@@ -118,7 +118,7 @@ func HandleRequested(
 			dr.FlowEvent,
 			*dr,
 			events.WithConversionAmount(dr.Amount),
-			events.WithConversionTo(currency.Code(account.Currency)),
+			events.WithConversionTo(money.Code(account.Currency)),
 			events.WithConversionTransactionID(txID),
 		)
 

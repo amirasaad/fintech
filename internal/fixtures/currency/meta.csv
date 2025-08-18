@@ -3,4 +3,18 @@ USD,US Dollar,$,2,United States,North America,true
 EUR,Euro,€,2,European Union,Europe,true
 GBP,British Pound,£,2,United Kingdom,Europe,true
 JPY,Japanese Yen,¥,0,Japan,Asia,true
-TST,Test Currency,T,2,Testland,TestRegion,true
+CAD,Canadian Dollar,CA$,2,Canada,North America,true
+CHF,Swiss Franc,CHF,2,Switzerland,Europe,true
+AUD,Australian Dollar,A$,2,Australia,Oceania,true
+NZD,New Zealand Dollar,NZ$,2,New Zealand,Oceania,true
+CNY,Chinese Yuan,¥,2,China,Asia,true
+INR,Indian Rupee,₹,2,India,Asia,true
+BRL,Brazilian Real,R$,2,Brazil,South America,true
+MXN,Mexican Peso,MX$,2,Mexico,North America,true
+EGP,Egyptian Pound,£,2,Egypt,Africa,true
+KWD,Kuwaiti Dinar,د.ك,3,Kuwait,Asia,true
+SAR,Saudi Riyal,﷼,2,Saudi Arabia,Asia,true
+OMR,Omani Rial,﷼,3,Oman,Asia,true
+AED,Emirati Dirham,د.إ,2,United Arab Emirates,Asia,true
+BHD,Bahraini Dinar,د.ب,3,Bahrain,Asia,true
+QAR,Qatari Riyal,﷼,2,Qatar,Asia,true

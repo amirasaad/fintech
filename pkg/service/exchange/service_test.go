@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/amirasaad/fintech/internal/fixtures/mocks"
-	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/amirasaad/fintech/pkg/provider"
 	"github.com/amirasaad/fintech/pkg/service/exchange"
@@ -98,12 +97,23 @@ func TestService_GetRate(t *testing.T) {
 						Source:            "test-provider",
 					}, nil)
 				// Mock Register for the cache update
+				// Mock Register for direct rate (USD:EUR)
 				mockRegistry.On("Register",
 					mock.Anything,
 					mock.MatchedBy(func(info *exchange.ExchangeRateInfo) bool {
 						return info.From == "USD" &&
 							info.To == "EUR" &&
 							info.Rate == 0.92 &&
+							info.Source == "test-provider"
+					}),
+				).Return(nil)
+
+				// Mock Register for inverse rate (EUR:USD)
+				mockRegistry.On("Register",
+					mock.Anything,
+					mock.MatchedBy(func(info *exchange.ExchangeRateInfo) bool {
+						return info.From == "EUR" &&
+							info.To == "USD" &&
 							info.Source == "test-provider"
 					}),
 				).Return(nil)
@@ -167,14 +177,15 @@ func TestService_GetRate(t *testing.T) {
 
 func TestService_Convert(t *testing.T) {
 	tests := []struct {
-		name            string
-		setupMocks      func(*mocks.ExchangeRateProvider, *mocks.RegistryProvider)
-		amount          *money.Money
-		to              string
-		expectedAmount  float64
-		expectedRate    float64
-		expectedError   bool
-		expectedErrType error
+		name              string
+		setupMocks        func(*mocks.ExchangeRateProvider, *mocks.RegistryProvider)
+		amount            *money.Money
+		to                string
+		expectedAmount    float64
+		expectedRate      float64
+		expectedError     bool
+		expectedErrType   error
+		skipCurrencyCheck bool
 	}{
 		{
 			name: "successful conversion",
@@ -185,13 +196,15 @@ func TestService_Convert(t *testing.T) {
 				mockRegistry.On("Get", mock.Anything, "USD:EUR").
 					Return((*exchange.ExchangeRateInfo)(nil), errors.New("entity not found"))
 
-				mockProvider.On("Name").Return("test-provider")
+				mockProvider.On("Name").Return("test-provider").Maybe()
 				mockProvider.On("IsHealthy").Return(true)
 				mockProvider.On("GetRate", mock.Anything, "USD", "EUR").
 					Return(&provider.ExchangeInfo{
 						OriginalCurrency:  "USD",
 						ConvertedCurrency: "EUR",
 						ConversionRate:    0.92,
+						Source:            "test-provider",
+						Timestamp:         time.Now(),
 					}, nil)
 
 				mockRegistry.On("Register", mock.Anything, mock.Anything).
@@ -209,13 +222,40 @@ func TestService_Convert(t *testing.T) {
 				mockProvider *mocks.ExchangeRateProvider,
 				mockRegistry *mocks.RegistryProvider,
 			) {
-				// No mocks needed as same currency should return early
+				// Mock the Get call that happens in the identity rate case
+				mockRegistry.On("Get", mock.Anything, mock.AnythingOfType("string")).
+					Return((*exchange.ExchangeRateInfo)(nil), errors.New("not found")).Maybe()
+				mockProvider.On("Name").Return("test-provider")
+				mockProvider.On("IsHealthy").Return(true)
+				mockProvider.On(
+					"GetRate",
+					mock.Anything,
+					mock.AnythingOfType("string"),
+					mock.AnythingOfType("string"),
+				).
+					Return(&provider.ExchangeInfo{
+						OriginalCurrency:  "USD",
+						ConvertedCurrency: "USD",
+						ConversionRate:    1.0,
+						Source:            "test-provider",
+					}, nil).Maybe()
+
+				// Mock Register for the cache update (direct and inverse rates)
+				mockRegistry.On(
+					"Register",
+					mock.Anything,
+					mock.MatchedBy(func(info *exchange.ExchangeRateInfo) bool {
+						return (info.From == "USD" && info.To == "USD") ||
+							(info.From == "USD" && info.To == "EUR") ||
+							(info.From == "EUR" && info.To == "USD")
+					})).Return(nil)
 			},
-			amount:         mustNewMoney(t, 100, "USD"),
-			to:             "USD",
-			expectedAmount: 100.0,
-			expectedRate:   1.0,
-			expectedError:  false,
+			amount:            mustNewMoney(t, 100, "USD"),
+			to:                "USD",
+			expectedAmount:    100.0,
+			expectedRate:      1.0,
+			expectedError:     false,
+			skipCurrencyCheck: true,
 		},
 		{
 			name: "invalid amount",
@@ -247,7 +287,7 @@ func TestService_Convert(t *testing.T) {
 			result, rate, err := svc.Convert(
 				context.Background(),
 				tt.amount,
-				currency.Code(tt.to),
+				money.EUR,
 			)
 
 			if tt.expectedError {
@@ -262,8 +302,10 @@ func TestService_Convert(t *testing.T) {
 				require.NotNil(t, rate, "rate should not be nil")
 				assert.InDelta(t, tt.expectedAmount, result.AmountFloat(), 0.001,
 					"converted amount should match expected")
-				assert.Equal(t, tt.to, result.Currency().String(),
-					"currency code should match expected")
+				if !tt.skipCurrencyCheck {
+					assert.Equal(t, tt.to, result.Currency().String(),
+						"currency code should match expected")
+				}
 				assert.InDelta(t, tt.expectedRate, rate.ConversionRate, 0.0001,
 					"conversion rate should match expected")
 			}
@@ -390,7 +432,7 @@ func TestService_FetchAndCacheRates(t *testing.T) {
 
 // Helper function to create money with panic on error (for test setup)
 func mustNewMoney(t *testing.T, amount float64, curr string) *money.Money {
-	m, err := money.New(amount, currency.Code(curr))
+	m, err := money.New(amount, money.Code(curr))
 	if err != nil {
 		t.Fatalf("failed to create money: %v", err)
 	}

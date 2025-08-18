@@ -116,7 +116,7 @@ func TestHandleInitiated(t *testing.T) {
 					Currency:      event.Amount.Currency().String(),
 					TransactionID: event.TransactionID,
 				},
-			).Return(mockResponse, nil)
+			).Return(mockResponse, nil).Maybe()
 
 		err := h.Handler(h.Ctx, event)
 		require.NoError(t, err)

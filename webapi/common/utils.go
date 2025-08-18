@@ -3,12 +3,10 @@ package common
 import (
 	"errors"
 
-	"github.com/amirasaad/fintech/pkg/currency"
-	"github.com/amirasaad/fintech/pkg/money"
-	"github.com/amirasaad/fintech/pkg/provider"
-
 	"github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/domain/user"
+	"github.com/amirasaad/fintech/pkg/money"
+	"github.com/amirasaad/fintech/pkg/provider"
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/log"
@@ -155,17 +153,15 @@ func errorToStatusCode(err error) int {
 	case errors.Is(err, account.ErrInsufficientFunds):
 		return fiber.StatusUnprocessableEntity
 	// Common errors
-	case errors.Is(err, currency.ErrInvalidDecimals):
+	case errors.Is(err, money.ErrInvalidCurrency):
 		return fiber.StatusBadRequest
 	case errors.Is(err, money.ErrAmountExceedsMaxSafeInt):
 		return fiber.StatusBadRequest
-	case errors.Is(err, currency.ErrUnsupported):
+	case errors.Is(err, provider.ErrUnsupportedCurrencyPair):
 		return fiber.StatusUnprocessableEntity
 	// Money/currency conversion errors
 	case errors.Is(err, provider.ErrExchangeRateUnavailable):
 		return fiber.StatusServiceUnavailable
-	case errors.Is(err, provider.ErrUnsupportedCurrencyPair):
-		return fiber.StatusUnprocessableEntity
 	case errors.Is(err, provider.ErrExchangeRateExpired):
 		return fiber.StatusServiceUnavailable
 	case errors.Is(err, provider.ErrExchangeRateInvalid):

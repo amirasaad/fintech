@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -109,15 +110,16 @@ func (r *Enhanced) Register(ctx context.Context, entity Entity) error {
 	// For any entity type, create a new BaseEntity copy to ensure thread safety
 	copy := NewBaseEntity(entity.ID(), entity.Name())
 
-	// Copy the active state
-	if entity.Active() {
-		copy.SetActive(true)
-	}
+	// Copy the active state from the original entity
+	copy.SetActive(entity.Active())
 
 	// Copy metadata
 	for k, v := range entity.Metadata() {
 		copy.SetMetadata(k, v)
 	}
+
+	// Ensure the active status is reflected in metadata for backward compatibility
+	copy.SetMetadata("active", strconv.FormatBool(entity.Active()))
 
 	// Store the copy
 	r.entities[copy.ID()] = copy
@@ -415,39 +417,112 @@ func (r *Enhanced) RemoveMetadata(ctx context.Context, id, key string) error {
 
 // Activate activates an entity
 func (r *Enhanced) Activate(ctx context.Context, id string) error {
-	entity, err := r.Get(ctx, id)
-	if err != nil {
-		return err
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	entity, exists := r.entities[id]
+	if !exists {
+		return fmt.Errorf("entity not found: %s", id)
 	}
 
-	// Create a new entity with active status
-	baseEntity := NewBaseEntity(entity.ID(), entity.Name())
-	baseEntity.SetActive(true)
-	// Copy metadata
-	for k, v := range entity.Metadata() {
-		baseEntity.SetMetadata(k, v)
+	// Use the existing entity's SetActive method if it exists
+	if activator, ok := entity.(interface{ SetActive(bool) }); ok {
+		activator.SetActive(true)
 	}
 
-	return r.Register(ctx, baseEntity)
+	// Also ensure the active status is set in metadata for backward compatibility
+	entity.SetMetadata("active", "true")
+
+	// Update cache if enabled
+	if r.cache != nil {
+		if err := r.cache.Set(ctx, entity); err != nil {
+			log.Printf("warning: failed to update cache: %v", err)
+		}
+	}
+
+	// Update persistence if enabled
+	if r.persistence != nil {
+		if err := r.persistence.Save(ctx, r.getAllEntitiesLocked()); err != nil {
+			log.Printf("warning: failed to persist registry: %v", err)
+		}
+	}
+
+	// Update metrics
+	if r.metrics != nil {
+		// No increment of registration count since it's an update
+		r.metrics.SetActiveCount(r.countActiveLocked())
+	}
+
+	// Emit event
+	if r.eventBus != nil {
+		eventType := EventEntityActivated
+		if !entity.Active() {
+			eventType = EventEntityDeactivated
+		}
+		if err := r.emitEvent(eventType, entity); err != nil {
+			log.Printf("warning: failed to emit %s event: %v", eventType, err)
+		}
+	}
+
+	// Notify observers
+	for _, observer := range r.observers {
+		observer.OnEntityUpdated(ctx, entity)
+	}
+
+	return nil
 }
 
 // Deactivate deactivates an entity
 func (r *Enhanced) Deactivate(ctx context.Context, id string) error {
-	entity, err := r.Get(ctx, id)
-	if err != nil {
-		return err
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	entity, exists := r.entities[id]
+	if !exists {
+		return fmt.Errorf("entity not found: %s", id)
 	}
 
-	// Create a deep copy of the entity
-	copy := NewBaseEntity(entity.ID(), entity.Name())
-	copy.SetActive(false)
-
-	// Copy metadata
-	for k, v := range entity.Metadata() {
-		copy.SetMetadata(k, v)
+	// Use the existing entity's SetActive method if it exists
+	if activator, ok := entity.(interface{ SetActive(bool) }); ok {
+		activator.SetActive(false)
 	}
 
-	return r.Register(ctx, copy)
+	// Also ensure the active status is set in metadata for backward compatibility
+	entity.SetMetadata("active", "false")
+
+	// Update cache if enabled
+	if r.cache != nil {
+		if err := r.cache.Set(ctx, entity); err != nil {
+			log.Printf("warning: failed to update cache: %v", err)
+		}
+	}
+
+	// Update persistence if enabled
+	if r.persistence != nil {
+		if err := r.persistence.Save(ctx, r.getAllEntitiesLocked()); err != nil {
+			log.Printf("warning: failed to persist registry: %v", err)
+		}
+	}
+
+	// Update metrics
+	if r.metrics != nil {
+		// No increment of registration count since it's an update
+		r.metrics.SetActiveCount(r.countActiveLocked())
+	}
+
+	// Emit event
+	if r.eventBus != nil {
+		if err := r.emitEvent(EventEntityDeactivated, entity); err != nil {
+			log.Printf("warning: failed to emit %s event: %v", EventEntityDeactivated, err)
+		}
+	}
+
+	// Notify observers
+	for _, observer := range r.observers {
+		observer.OnEntityUpdated(ctx, entity)
+	}
+
+	return nil
 }
 
 // ...
