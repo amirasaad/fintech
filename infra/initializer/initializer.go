@@ -1,32 +1,24 @@
 package initializer
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
-	"os"
 	"time"
+
+	"github.com/amirasaad/fintech/infra/caching"
+	"github.com/amirasaad/fintech/pkg/provider"
+	"github.com/amirasaad/fintech/pkg/registry"
 
 	"github.com/amirasaad/fintech/infra"
 	infra_eventbus "github.com/amirasaad/fintech/infra/eventbus"
 	infra_provider "github.com/amirasaad/fintech/infra/provider"
 	infra_repository "github.com/amirasaad/fintech/infra/repository"
+	currencyfixtures "github.com/amirasaad/fintech/internal/fixtures/currency"
 	"github.com/amirasaad/fintech/pkg/app"
 	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/eventbus"
-	"github.com/amirasaad/fintech/pkg/provider"
-	"github.com/amirasaad/fintech/pkg/registry"
-	"github.com/amirasaad/fintech/pkg/repository"
-	"github.com/charmbracelet/lipgloss"
-	"github.com/charmbracelet/log"
 )
-
-// Deps contains all the dependencies needed by the application
-type Deps struct {
-	Uow             repository.UnitOfWork
-	EventBus        eventbus.Bus
-	PaymentProvider provider.Payment
-	Logger          *slog.Logger
-}
 
 // InitializeDependencies initializes all the application dependencies
 func InitializeDependencies(cfg *config.App) (
@@ -38,26 +30,63 @@ func InitializeDependencies(cfg *config.App) (
 	logger := setupLogger(cfg.Log)
 	deps.Logger = logger
 
-	deps.ExchangeRateRegistryProvider, err = initExchangeRateRegistryProvider(
-		cfg.ExchangeRateCache,
-		logger,
-	)
+	// Initialize registry providers for each service
+	deps.RegistryProvider, err = GetRegistryProvider("app", cfg, logger)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to initialize main registry provider: %w", err)
 	}
 
-	deps.ExchangeRateProvider, err = initExchangeRateProvider(
+	currencyRegistry, err := GetRegistryProvider("currency", cfg, logger)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize currency registry provider: %w", err)
+	}
+	deps.CurrencyRegistry = currencyRegistry
+
+	ctx := context.Background()
+	// Only load currency fixtures if the registry is empty
+	count, err := currencyRegistry.Count(ctx)
+	if err != nil {
+		logger.Warn("Failed to check currency registry count", "error", err)
+	}
+
+	// Load currency metadata from CSV
+	entities, err := currencyfixtures.LoadCurrencyMetaCSV(
+		"../../internal/fixtures/currency/meta.csv")
+	if err != nil {
+		logger.Warn("Failed to load currency meta from CSV", "error", err)
+	}
+
+	logger.Info("Loading currency meta from fixture", "count", count)
+	for _, entity := range entities {
+		if err := currencyRegistry.Register(ctx, entity); err != nil {
+			logger.Error("Failed to register currency", "code", entity.ID(), "error", err)
+			// Continue with other currencies even if one fails
+		}
+	}
+	logger.Info("Successfully loaded currency fixtures", "count", count)
+
+	deps.CheckoutRegistry, err = GetRegistryProvider("checkout", cfg, logger)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize checkout registry provider: %w", err)
+	}
+
+	// Initialize exchange rate registry
+	exchangeRateRegistry, err := GetRegistryProvider("exchange_rate", cfg, logger)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize exchange rate registry provider: %w", err)
+	}
+	deps.ExchangeRateRegistry = exchangeRateRegistry
+
+	// Create the exchange rate provider
+	exchangeProvider := infra_provider.NewExchangeRateAPIProvider(
 		cfg.ExchangeRateAPIProviders.ExchangeRateApi,
 		logger,
 	)
-	if err != nil {
-		return nil, err
+	if err := initializeExchangeRates(exchangeProvider, exchangeRateRegistry, logger); err != nil {
+		logger.Error("Failed to initialize exchange rates", "error", err)
+		// Don't fail the entire startup for exchange rate initialization
 	}
-	// Initialize checkout registry
-	checkoutRegistry, err := initCheckoutRegistryProvider(cfg, logger)
-	if err != nil {
-		return nil, err
-	}
+	deps.ExchangeRateProvider = exchangeProvider
 
 	// Initialize database
 	db, err := infra.NewDBConnection(cfg.DB, cfg.Env)
@@ -72,22 +101,19 @@ func InitializeDependencies(cfg *config.App) (
 	// Initialize event bus
 	var bus eventbus.Bus
 	if cfg.Redis.URL != "" {
-		redisBus, err := infra_eventbus.NewWithRedis(cfg.Redis.URL, logger)
+		bus, err = infra_eventbus.NewWithRedis(cfg.Redis.URL, logger)
 		if err != nil {
-			return nil, fmt.Errorf("failed to initialize Redis event bus: %w", err)
+			return nil, fmt.Errorf("failed to create Redis event bus: %w", err)
 		}
-		bus = redisBus
 	} else {
-		// Fall back to in-memory event bus if Redis is not configured
 		bus = infra_eventbus.NewWithMemory(logger)
 	}
-
 	deps.EventBus = bus
 
 	// Initialize payment provider
 	deps.PaymentProvider = infra_provider.NewStripePaymentProvider(
 		bus,
-		checkoutRegistry,
+		deps.RegistryProvider, // Use the single registry provider
 		cfg.PaymentProviders.Stripe,
 		logger,
 	)
@@ -95,142 +121,38 @@ func InitializeDependencies(cfg *config.App) (
 	return
 }
 
-func initExchangeRateProvider(
-	cfg *config.ExchangeRateApi,
+// initializeExchangeRates fetches and caches exchange rates during application startup
+func initializeExchangeRates(
+	exchangeRateProvider provider.ExchangeRate,
+	registryProvider registry.Provider,
 	logger *slog.Logger,
-) (provider.ExchangeRate, error) {
-	return infra_provider.NewExchangeRateAPIProvider(
-		cfg,
+) error {
+	// Create a context with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	// Initialize the exchange cache with the provided registry provider
+	exchangeCache := caching.NewExchangeCache(
+		registryProvider,
 		logger,
-	), nil
-}
+		15*time.Minute, // Default cache TTL
+	)
 
-func initExchangeRateRegistryProvider(
-	cfg *config.ExchangeRateCache,
-	logger *slog.Logger,
-) (registry.Provider, error) {
-	// The prefix should be "exr:rate:" from the config
-	prefix := cfg.Prefix
-	if prefix == "" {
-		prefix = "exr:rate:" // Default prefix if not set
-	}
-
-	exchangeRateRegistry, err := registry.NewBuilder().
-		WithName("exchange_rate").
-		WithRedis(cfg.Url).
-		WithKeyPrefix(prefix).
-		WithCache(1000, cfg.TTL).
-		BuildRegistry()
-
+	// Fetch rates from the provider
+	rates, err := exchangeRateProvider.GetRates(ctx, "USD")
 	if err != nil {
-		logger.Error("Failed to create exchange rate registry",
-			"error", err,
-			"redis_url_configured", cfg.Url != "")
-		return nil, err
+		return fmt.Errorf("failed to fetch exchange rates: %w", err)
 	}
 
-	logger.Info("Exchange rate registry initialized with Redis cache",
-		"redis_url_configured", cfg.Url != "",
-		"key_prefix", prefix)
-
-	return exchangeRateRegistry, nil
-}
-
-func initCheckoutRegistryProvider(
-	cfg *config.App,
-	logger *slog.Logger,
-) (registry.Provider, error) {
-	checkoutRegistry, err := registry.NewBuilder().
-		WithName("checkout").
-		WithRedis(cfg.Redis.URL).
-		WithKeyPrefix(cfg.Redis.KeyPrefix+"checkout:").
-		WithCache(1000, 15*time.Minute).
-		BuildRegistry()
-	if err != nil {
-		logger.Error("Failed to create checkout registry",
-			"error", err,
-			"redis_url_configured", cfg.Redis.URL != "")
-		return nil, err
-	}
-	return checkoutRegistry, nil
-}
-
-func setupLogger(cfg *config.Log) *slog.Logger {
-	// Create a new logger with a custom style
-	// Define color styles for different log levels
-	styles := log.DefaultStyles()
-	infoTxtColor := lipgloss.AdaptiveColor{Light: "#04B575", Dark: "#04B575"}
-	warnTxtColor := lipgloss.AdaptiveColor{Light: "#EE6FF8", Dark: "#EE6FF8"}
-	errorTxtColor := lipgloss.AdaptiveColor{Light: "#FF6B6B", Dark: "#FF6B6B"}
-	debugTxtColor := lipgloss.AdaptiveColor{Light: "#7E57C2", Dark: "#7E57C2"}
-
-	// Customize the style for each log level
-	// Error level styling
-	styles.Levels[log.ErrorLevel] = lipgloss.NewStyle().
-		SetString("❌").
-		Bold(true).
-		Padding(0, 1).
-		Foreground(errorTxtColor)
-
-	// Info level styling
-	styles.Levels[log.InfoLevel] = lipgloss.NewStyle().
-		SetString("ℹ️").
-		Bold(true).
-		Padding(0, 1).
-		Foreground(infoTxtColor)
-
-	// Warn level styling
-	styles.Levels[log.WarnLevel] = lipgloss.NewStyle().
-		SetString("⚠️").
-		Bold(true).
-		Padding(0, 1).
-		Foreground(warnTxtColor)
-
-	// Debug level styling
-	styles.Levels[log.DebugLevel] = lipgloss.NewStyle().
-		SetString("🐛").
-		Bold(true).
-		Padding(0, 1).
-		Foreground(debugTxtColor)
-
-	styles.Keys["error"] = lipgloss.NewStyle().Foreground(errorTxtColor)
-	styles.Values["error"] = lipgloss.NewStyle().Bold(true)
-	styles.Keys["info"] = lipgloss.NewStyle().Foreground(infoTxtColor)
-	styles.Values["info"] = lipgloss.NewStyle().Bold(true)
-	styles.Keys["warn"] = lipgloss.NewStyle().Foreground(warnTxtColor)
-	styles.Values["warn"] = lipgloss.NewStyle().Bold(true)
-	styles.Keys["debug"] = lipgloss.NewStyle().Foreground(debugTxtColor)
-	styles.Values["debug"] = lipgloss.NewStyle().Bold(true)
-	styles.Keys["prefix"] = lipgloss.NewStyle().Foreground(debugTxtColor)
-	styles.Values["prefix"] = lipgloss.NewStyle().Bold(true)
-	styles.Keys["caller"] = lipgloss.NewStyle().Foreground(debugTxtColor)
-	styles.Values["caller"] = lipgloss.NewStyle().Bold(true)
-	styles.Keys["time"] = lipgloss.NewStyle().Foreground(debugTxtColor)
-	styles.Values["time"] = lipgloss.NewStyle().Bold(true)
-
-	formattersMap := map[string]log.Formatter{
-		"json": log.JSONFormatter,
-		"text": log.TextFormatter,
-	}
-	formatter := log.TextFormatter
-	if f, ok := formattersMap[cfg.Format]; ok {
-		formatter = f
+	// Cache the rates using ExchangeCache
+	if err := exchangeCache.CacheRates(ctx, rates, exchangeRateProvider.Name()); err != nil {
+		return fmt.Errorf("failed to cache exchange rates: %w", err)
 	}
 
-	// Create a new logger with the custom styles
-	logger := log.NewWithOptions(os.Stdout, log.Options{
-		ReportCaller:    true,
-		ReportTimestamp: true,
-		TimeFormat:      cfg.TimeFormat,
-		Level:           log.Level(cfg.Level),
-		Prefix:          cfg.Prefix,
-		Formatter:       formatter,
-	})
+	logger.Info("Successfully fetched and cached exchange rates",
+		"provider", exchangeRateProvider.Name(),
+		"rates_count", len(rates),
+	)
 
-	logger.SetStyles(styles) // Convert to slog.Logger
-
-	slogger := slog.New(logger)
-	slog.SetDefault(slogger)
-
-	return slogger
+	return nil
 }

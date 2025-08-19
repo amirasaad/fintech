@@ -168,6 +168,7 @@ func persistDepositTransaction(
 			Status:      "created",
 			MoneySource: "deposit",
 			Currency:    dr.Amount.Currency().String(),
+			// PaymentID is intentionally omitted to prevent unique constraint violations
 		}
 
 		if err := txRepo.Create(ctx, tx); err != nil {

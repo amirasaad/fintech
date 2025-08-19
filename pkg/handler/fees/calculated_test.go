@@ -32,6 +32,7 @@ func TestCalculated(t *testing.T) {
 				Balance:  testutils.DefaultAmount,
 				Currency: money.USD.String(),
 			}
+			paymentID := "pm_123456789"
 			// Create test transaction
 			tx := &dto.TransactionRead{
 				ID:        uuid.New(),
@@ -41,7 +42,7 @@ func TestCalculated(t *testing.T) {
 				Amount:    testutils.DefaultAmount,
 				Fee:       0, // Initial fee is 0
 				Currency:  money.USD.String(),
-				PaymentID: "pm_123456789",
+				PaymentID: &paymentID,
 			}
 			fee := account.Fee{
 				Amount: money.Must(

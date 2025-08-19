@@ -178,7 +178,7 @@ func (a *App) setupConversionHandlers(
 		events.EventTypeCurrencyConversionRequested,
 		conversion.HandleRequested(
 			bus,
-			a.Deps.ExchangeRateRegistryProvider,
+			a.Deps.ExchangeRateRegistry, // Use the exchange rate registry provider
 			exchangeRateProvider,
 			logger,
 			conversionFactories,

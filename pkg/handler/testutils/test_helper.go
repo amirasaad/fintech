@@ -47,7 +47,7 @@ type TestHelper struct {
 	// Test data
 	UserID        uuid.UUID
 	AccountID     uuid.UUID
-	PaymentID     string
+	PaymentID     *string
 	EventID       uuid.UUID
 	CorrelationID uuid.UUID
 	TransactionID uuid.UUID
@@ -189,7 +189,7 @@ func (h *TestHelper) WithTransactionID(d uuid.UUID) *TestHelper {
 }
 
 // WithPaymentID sets a custom payment ID for the test helper
-func (h *TestHelper) WithPaymentID(id string) *TestHelper {
+func (h *TestHelper) WithPaymentID(id *string) *TestHelper {
 	h.PaymentID = id
 	return h
 }

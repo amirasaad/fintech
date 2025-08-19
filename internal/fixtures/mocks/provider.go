@@ -113,8 +113,8 @@ func (_c *ExchangeRateProvider_GetRate_Call) RunAndReturn(run func(ctx context.C
 }
 
 // GetRates provides a mock function for the type ExchangeRateProvider
-func (_mock *ExchangeRateProvider) GetRates(ctx context.Context, from string, to []string) (map[string]*provider.ExchangeInfo, error) {
-	ret := _mock.Called(ctx, from, to)
+func (_mock *ExchangeRateProvider) GetRates(ctx context.Context, from string) (map[string]*provider.ExchangeInfo, error) {
+	ret := _mock.Called(ctx, from)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetRates")
@@ -122,18 +122,18 @@ func (_mock *ExchangeRateProvider) GetRates(ctx context.Context, from string, to
 
 	var r0 map[string]*provider.ExchangeInfo
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, []string) (map[string]*provider.ExchangeInfo, error)); ok {
-		return returnFunc(ctx, from, to)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (map[string]*provider.ExchangeInfo, error)); ok {
+		return returnFunc(ctx, from)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, []string) map[string]*provider.ExchangeInfo); ok {
-		r0 = returnFunc(ctx, from, to)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) map[string]*provider.ExchangeInfo); ok {
+		r0 = returnFunc(ctx, from)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(map[string]*provider.ExchangeInfo)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, []string) error); ok {
-		r1 = returnFunc(ctx, from, to)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = returnFunc(ctx, from)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -148,12 +148,11 @@ type ExchangeRateProvider_GetRates_Call struct {
 // GetRates is a helper method to define mock.On call
 //   - ctx context.Context
 //   - from string
-//   - to []string
-func (_e *ExchangeRateProvider_Expecter) GetRates(ctx interface{}, from interface{}, to interface{}) *ExchangeRateProvider_GetRates_Call {
-	return &ExchangeRateProvider_GetRates_Call{Call: _e.mock.On("GetRates", ctx, from, to)}
+func (_e *ExchangeRateProvider_Expecter) GetRates(ctx interface{}, from interface{}) *ExchangeRateProvider_GetRates_Call {
+	return &ExchangeRateProvider_GetRates_Call{Call: _e.mock.On("GetRates", ctx, from)}
 }
 
-func (_c *ExchangeRateProvider_GetRates_Call) Run(run func(ctx context.Context, from string, to []string)) *ExchangeRateProvider_GetRates_Call {
+func (_c *ExchangeRateProvider_GetRates_Call) Run(run func(ctx context.Context, from string)) *ExchangeRateProvider_GetRates_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -163,14 +162,9 @@ func (_c *ExchangeRateProvider_GetRates_Call) Run(run func(ctx context.Context, 
 		if args[1] != nil {
 			arg1 = args[1].(string)
 		}
-		var arg2 []string
-		if args[2] != nil {
-			arg2 = args[2].([]string)
-		}
 		run(
 			arg0,
 			arg1,
-			arg2,
 		)
 	})
 	return _c
@@ -181,7 +175,7 @@ func (_c *ExchangeRateProvider_GetRates_Call) Return(stringToExchangeInfo map[st
 	return _c
 }
 
-func (_c *ExchangeRateProvider_GetRates_Call) RunAndReturn(run func(ctx context.Context, from string, to []string) (map[string]*provider.ExchangeInfo, error)) *ExchangeRateProvider_GetRates_Call {
+func (_c *ExchangeRateProvider_GetRates_Call) RunAndReturn(run func(ctx context.Context, from string) (map[string]*provider.ExchangeInfo, error)) *ExchangeRateProvider_GetRates_Call {
 	_c.Call.Return(run)
 	return _c
 }

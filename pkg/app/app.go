@@ -19,14 +19,18 @@ import (
 
 // Deps contains all the dependencies needed by the SetupBus function
 type Deps struct {
-	Uow                          repository.UnitOfWork
-	ExchangeRateProvider         provider.ExchangeRate
-	ExchangeRateRegistryProvider registry.Provider
-	CheckoutRegistryProvider     registry.Provider
-	RegistryProvider             registry.Provider
-	PaymentProvider              provider.Payment
-	EventBus                     eventbus.Bus
-	Logger                       *slog.Logger
+	// Registry providers
+	RegistryProvider     registry.Provider // Main registry provider
+	CurrencyRegistry     registry.Provider // For currency service
+	CheckoutRegistry     registry.Provider // For checkout service
+	ExchangeRateRegistry registry.Provider // For exchange rate service
+
+	// Other dependencies
+	ExchangeRateProvider provider.ExchangeRate
+	PaymentProvider      provider.Payment
+	Uow                  repository.UnitOfWork
+	EventBus             eventbus.Bus
+	Logger               *slog.Logger
 }
 
 type App struct {
@@ -66,17 +70,22 @@ func New(deps *Deps, cfg *config.App) *App {
 		deps.Uow,
 		deps.Logger,
 	)
+
+	// Initialize services with their respective registry providers
 	app.CurrencyService = currencyScv.New(
-		deps.RegistryProvider,
+		deps.CurrencyRegistry,
 		deps.Logger,
 	)
+
 	app.CheckoutService = checkout.New(
-		deps.CheckoutRegistryProvider,
+		deps.CheckoutRegistry,
 	)
+
 	app.ExchangeRateService = exchange.New(
-		deps.ExchangeRateRegistryProvider,
+		deps.ExchangeRateRegistry,
 		deps.ExchangeRateProvider,
 		deps.Logger,
 	)
+
 	return app
 }

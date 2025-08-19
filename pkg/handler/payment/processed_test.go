@@ -96,7 +96,8 @@ func TestHandleProcessed(t *testing.T) {
 			},
 			func(pp *events.PaymentProcessed) {
 				pp.TransactionID = h.TransactionID
-				pp.PaymentID = h.PaymentID
+				paymentID := "test-payment-id"
+				pp.PaymentID = &paymentID
 			},
 		)
 
@@ -134,7 +135,8 @@ func TestHandleProcessed(t *testing.T) {
 			},
 			func(pp *events.PaymentProcessed) {
 				pp.TransactionID = h.TransactionID
-				pp.PaymentID = h.PaymentID
+				paymentID := "test-payment-id"
+				pp.PaymentID = &paymentID
 			},
 		)
 
@@ -197,7 +199,8 @@ func TestHandleProcessed(t *testing.T) {
 			},
 			func(pp *events.PaymentProcessed) {
 				pp.TransactionID = h.TransactionID
-				pp.PaymentID = h.PaymentID
+				paymentID := "test-payment-id"
+				pp.PaymentID = &paymentID
 			},
 		)
 

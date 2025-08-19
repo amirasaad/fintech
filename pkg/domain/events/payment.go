@@ -11,7 +11,7 @@ type PaymentInitiated struct {
 	FlowEvent
 	Amount        *money.Money
 	TransactionID uuid.UUID
-	PaymentID     string
+	PaymentID     *string // Pointer to allow NULL in database
 	Status        string
 }
 
@@ -28,7 +28,11 @@ func (e *PaymentInitiated) WithTransactionID(id uuid.UUID) *PaymentInitiated {
 }
 
 func (e *PaymentInitiated) WithPaymentID(id string) *PaymentInitiated {
-	e.PaymentID = id
+	if id != "" {
+		e.PaymentID = &id
+	} else {
+		e.PaymentID = nil
+	}
 	return e
 }
 

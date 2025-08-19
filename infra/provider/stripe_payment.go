@@ -161,6 +161,7 @@ func (s *StripePaymentProvider) HandleWebhook(
 		"payment_intent.succeeded":      s.handlePaymentIntentSucceeded,
 		"payment_intent.payment_failed": s.handlePaymentIntentFailed,
 		"charge.succeeded":              s.handleChargeSucceeded,
+		"charge.updated":                s.handleChargeSucceeded,
 	}
 	if handler, ok := handlers[string(event.Type)]; ok {
 		return handler(ctx, event, log)
@@ -243,10 +244,6 @@ func (s *StripePaymentProvider) createCheckoutSession(
 	// Only set PaymentID if PaymentIntent is not nil
 	if session.PaymentIntent != nil {
 		checkoutSession.PaymentID = session.PaymentIntent.ID
-	} else {
-		// For some payment methods, the PaymentIntent might not be immediately available
-		// In this case, we'll use the session ID as the payment ID
-		checkoutSession.PaymentID = session.ID
 	}
 
 	return checkoutSession, nil
@@ -277,7 +274,7 @@ func (s *StripePaymentProvider) handleCheckoutSessionCompleted(
 		return nil, err
 	}
 
-	amount, err := s.parseAmount(session.AmountSubtotal, session.Currency)
+	amount, err := s.parseAmount(session.AmountSubtotal, string(session.Currency))
 	if err != nil {
 		log.Error(
 			"error parsing amount",
@@ -297,7 +294,8 @@ func (s *StripePaymentProvider) handleCheckoutSessionCompleted(
 				CorrelationID: uuid.New(),
 			}, func(pp *events.PaymentProcessed) {
 				pp.TransactionID = se.TransactionID
-				pp.PaymentID = session.PaymentIntent.ID
+				paymentID := session.PaymentIntent.ID
+				pp.PaymentID = &paymentID
 				log.Info("Emitting ", "event_type", pp.Type())
 			},
 		).WithAmount(amount).WithPaymentID(session.PaymentIntent.ID),
@@ -388,67 +386,117 @@ func (s *StripePaymentProvider) handlePaymentIntentSucceeded(
 	*provider.PaymentEvent,
 	error,
 ) {
+	const op = "stripe.handlePaymentIntentSucceeded"
 	var pi stripe.PaymentIntent
 	if err := json.Unmarshal(event.Data.Raw, &pi); err != nil {
-		log.Error("parsing payment_intent.succeeded", "error", err)
-		return nil, fmt.Errorf("error parsing payment_intent.succeeded: %w", err)
+		err = fmt.Errorf("%s: failed to unmarshal payment intent: %w", op, err)
+		log.Error(err.Error())
+		return nil, err
 	}
 	log = log.With("payment_intent_id", pi.ID)
 
-	// Retrieve the expanded PaymentIntent with balance transaction
-	fullPI, err := s.client.V1PaymentIntents.
-		Retrieve(ctx, pi.ID, &stripe.PaymentIntentRetrieveParams{
-			Params: stripe.Params{
-				Expand: []*string{stripe.String("latest_charge.balance_transaction")},
-			},
+	// Expand PaymentIntent to include latest_charge.balance_transaction
+	piFull, err := s.client.V1PaymentIntents.Retrieve(
+		ctx,
+		pi.ID,
+		&stripe.PaymentIntentRetrieveParams{
+			Expand: []*string{stripe.String("latest_charge.balance_transaction")},
 		})
-	if err != nil {
-		log.Error("retrieving expanded payment intent", "error", err)
-		return nil, fmt.Errorf("error retrieving expanded payment intent: %w", err)
+	if err == nil && piFull != nil {
+		pi = *piFull
+	} else if err != nil {
+		log.Warn("Failed to expand payment intent with balance_transaction", "error", err)
 	}
-	pi = *fullPI
 
-	// Log Stripe fee and net info if available
-	var feeAmount int64
-	var feeCurrency string
-	if pi.LatestCharge != nil && pi.LatestCharge.BalanceTransaction != nil {
-		bt := pi.LatestCharge.BalanceTransaction
-		log.Info("📊 Stripe balance transaction info",
-			"fee", bt.Fee,
-			"net", bt.Net,
-			"currency", bt.Currency,
-			"fee_details", bt.FeeDetails,
-		)
-		feeAmount = bt.Fee
-		feeCurrency = strings.ToUpper(string(bt.Currency))
+	// Retrieve the Stripe fee using the balance transaction
+	var feeAmount int64 = 0
+	feeCurrency := strings.ToUpper(string(pi.Currency))
+
+	// Only try to get fee if we have a balance transaction
+	if pi.LatestCharge != nil &&
+		pi.LatestCharge.BalanceTransaction != nil &&
+		pi.LatestCharge.BalanceTransaction.ID != "" {
+		balanceTxID := pi.LatestCharge.BalanceTransaction.ID
+		var feeErr error
+		feeAmount, feeCurrency, feeErr = s.getFeeFromBalanceTransaction(ctx, log, balanceTxID)
+		if feeErr != nil {
+			log.Error("Failed to retrieve fee from balance transaction, using 0 fee",
+				"error", feeErr,
+				"balance_transaction_id", balanceTxID)
+			// Continue with 0 fee but log the error
+		}
 	} else {
-		log.Warn("⚠️ Balance transaction not available via expand")
+		log.Info("No balance transaction found on PaymentIntent, using 0 fee",
+			"payment_intent_id", pi.ID,
+			"has_latest_charge", pi.LatestCharge != nil)
 	}
 
+	// Ensure we have a valid currency
+	if feeCurrency == "" {
+		feeCurrency = strings.ToUpper(string(pi.Currency))
+		log.Warn("Empty fee currency, falling back to payment intent currency",
+			"fallback_currency", feeCurrency)
+	}
 	s.logStripeFeeInfo(log, &pi)
-
+	log.Info("💰 Handling payment_intent.succeeded event", "payment_intent_id", pi.ID)
 	parsedMeta, err := s.parseAndValidateMetadata(pi.Metadata, log)
 	if err != nil {
+		err = fmt.Errorf("%s: invalid metadata: %w", op, err)
+		log.Error(err.Error())
 		return nil, err
 	}
 	metadata := s.copyMetadata(pi.Metadata)
-
-	log.Info("💰 Handling payment_intent.succeeded event", "payment_intent_id", pi.ID)
-
 	fee, err := s.parseProviderFeeAmount(feeAmount, feeCurrency, log)
 	if err != nil {
+		err = fmt.Errorf("%s: failed to parse provider fee: %w", op, err)
+		log.Error(err.Error(),
+			"fee_amount", feeAmount,
+			"fee_currency", feeCurrency,
+			"payment_intent_id", pi.ID,
+		)
 		return nil, err
 	}
-
+	currencyCode := strings.ToUpper(string(pi.Currency))
+	amount, err := money.NewFromSmallestUnit(pi.Amount, money.Code(currencyCode))
+	if err != nil {
+		log.Error("failed to create money amount", "error", err, "currency", currencyCode)
+		return nil, fmt.Errorf("failed to create money amount: %w", err)
+	}
+	pp := &events.PaymentProcessed{
+		PaymentInitiated: events.PaymentInitiated{
+			FlowEvent: events.FlowEvent{
+				ID:            uuid.New(),
+				FlowType:      "payment",
+				UserID:        parsedMeta.UserID,
+				AccountID:     parsedMeta.AccountID,
+				CorrelationID: parsedMeta.TransactionID,
+				Timestamp:     time.Now(),
+			},
+			TransactionID: parsedMeta.TransactionID,
+			PaymentID:     &pi.ID,
+			Amount:        amount,
+		},
+	}
+	log.Info("🔄 Emitting PaymentProcessed event",
+		"transaction_id", parsedMeta.TransactionID,
+		"payment_id", pi.ID)
+	if err := s.bus.Emit(ctx, pp); err != nil {
+		log.Error("error emitting payment processed event", "error", err)
+		return nil, fmt.Errorf("error emitting payment processed event: %w", err)
+	}
+	// Emit PaymentCompleted event with the actual Stripe fee
 	pc := s.buildPaymentCompletedEventPayload(&pi, parsedMeta, *fee, log)
+	if pc == nil {
+		err := fmt.Errorf("failed to build payment completed event payload")
+		log.Error(err.Error())
+		return nil, err
+	}
 	if err := s.bus.Emit(ctx, pc); err != nil {
 		log.Error("error emitting payment completed event", "error", err)
 		return nil, fmt.Errorf("error emitting payment completed event: %w", err)
 	}
-
 	log.Info("✅ Payment intent processed and transaction updated successfully",
 		"transaction_id", parsedMeta.TransactionID, "payment_id", pi.ID)
-
 	return &provider.PaymentEvent{
 		ID:        pi.ID,
 		Status:    provider.PaymentCompleted,
@@ -458,6 +506,33 @@ func (s *StripePaymentProvider) handlePaymentIntentSucceeded(
 		AccountID: parsedMeta.AccountID,
 		Metadata:  metadata,
 	}, nil
+}
+
+// getFeeFromBalanceTransaction retrieves the balance transaction
+// and returns the fee amount and currency.
+func (s *StripePaymentProvider) getFeeFromBalanceTransaction(
+	ctx context.Context,
+	log *slog.Logger,
+	balanceTxID string,
+) (int64, string, error) {
+	bt, err := s.client.V1BalanceTransactions.Retrieve(ctx, balanceTxID, nil)
+	if err != nil {
+		log.Warn(
+			"Failed to retrieve balance transaction",
+			"error", err,
+			"balance_transaction_id", balanceTxID,
+		)
+		return 0, "", err
+	}
+	log.Debug("Retrieved balance transaction", "balance_transaction", bt)
+	feeAmount := bt.Fee
+	feeCurrency := strings.ToUpper(string(bt.Currency))
+	log.Info("Retrieved fee from balance transaction",
+		"fee_amount", feeAmount,
+		"fee_currency", feeCurrency,
+		"balance_transaction_id", balanceTxID,
+	)
+	return feeAmount, feeCurrency, nil
 }
 
 // logStripeFeeInfo logs Stripe fee-related info.
@@ -529,66 +604,123 @@ func (s *StripePaymentProvider) copyMetadata(
 	return copied
 }
 
-// parseProviderFeeAmount parses the provider fee amount.
+// parseAmount converts a Stripe amount and currency to a money.Money object.
+func (s *StripePaymentProvider) parseAmount(
+	amount int64,
+	currency string,
+) (*money.Money, error) {
+	// Convert currency to uppercase to ensure it's valid
+	currencyCode := strings.ToUpper(currency)
+
+	// Create money amount from the smallest unit (cents for USD)
+	moneyAmount, err := money.NewFromSmallestUnit(amount, money.Code(currencyCode))
+	if err != nil {
+		s.logger.Error("failed to create money amount",
+			"error", err,
+			"amount", amount,
+			"currency", currencyCode,
+		)
+		return nil, fmt.Errorf("failed to create money amount: %w", err)
+	}
+
+	return moneyAmount, nil
+}
+
+// parseProviderFeeAmount parses the provider fee amount with validation.
 func (s *StripePaymentProvider) parseProviderFeeAmount(
 	feeAmount int64,
 	cur string,
 	log *slog.Logger,
 ) (*money.Money, error) {
-	fee, err := money.NewFromSmallestUnit(
-		feeAmount,
-		money.Code(cur),
+	// Validate currency code
+	if cur == "" {
+		err := fmt.Errorf("empty currency code provided for fee amount %d", feeAmount)
+		log.Error("invalid currency code", "error", err)
+		return nil, fmt.Errorf("invalid currency code: %w", err)
+	}
+
+	// Convert to uppercase to ensure consistency
+	currency := strings.ToUpper(cur)
+
+	// Log the fee being processed for debugging
+	log = log.With(
+		"fee_amount", feeAmount,
+		"fee_currency", currency,
 	)
+
+	// Create money object with validated currency
+	fee, err := money.NewFromSmallestUnit(feeAmount, money.Code(currency))
 	if err != nil {
+		err = fmt.Errorf("invalid fee amount %d %s: %w", feeAmount, currency, err)
 		log.Error("error creating money from smallest unit", "error", err)
 		return nil, fmt.Errorf("error creating money from smallest unit: %w", err)
 	}
+
+	log.Debug("successfully parsed provider fee")
 	return fee, nil
 }
 
-// buildPaymentCompletedEventPayload builds the arguments for bus.Emit for PaymentCompleted.
+// It ensures the fee amount is properly formatted and logs the fee being included in the event.
 func (s *StripePaymentProvider) buildPaymentCompletedEventPayload(
 	pi *stripe.PaymentIntent,
 	meta *metadataInfo,
 	feeAmount money.Money,
 	log *slog.Logger,
 ) *events.PaymentCompleted {
-	amount, err := s.parseAmount(pi.AmountReceived, pi.Currency)
-	return events.NewPaymentCompleted(
-		&events.FlowEvent{
-			ID:            meta.TransactionID,
-			UserID:        meta.UserID,
-			AccountID:     meta.AccountID,
-			FlowType:      "payment",
-			CorrelationID: uuid.New(),
-		},
-		events.WithPaymentID(pi.ID),
-		events.WithProviderFee(account.Fee{
-			Amount: &feeAmount,
-			Type:   account.FeeProvider,
-		}),
-		func(pc *events.PaymentCompleted) {
-			pc.TransactionID = meta.TransactionID
-			pc.Amount = amount
-			if err != nil {
-				log.Error("error creating money from smallest unit", "error", err)
-			}
-		},
-	)
-}
+	// Create payment amount with proper error handling
+	currency := money.Code(strings.ToUpper(string(pi.Currency)))
+	paymentAmount, err := money.NewFromSmallestUnit(pi.Amount, currency)
+	if err != nil {
+		log.Error("error creating payment amount",
+			"error", err,
+			"amount", pi.Amount,
+			"currency", pi.Currency,
+		)
+		// Fallback to zero amount if we can't parse the payment amount
+		zero, zeroErr := money.NewFromSmallestUnit(0, currency)
+		if zeroErr != nil {
+			log.Error("failed to create zero amount", "error", zeroErr, "currency", currency)
+			// If we can't even create a zero amount, we have to fail
+			return nil
+		}
+		paymentAmount = zero
+	}
 
-// parseAmount parses the received amount and currency into a Money value.
-func (s *StripePaymentProvider) parseAmount(
-	amount int64,
-	currencyCode stripe.Currency,
-) (*money.Money, error) {
-	return money.NewFromSmallestUnit(
-		amount,
-		money.Code(strings.ToUpper(string(currencyCode))),
-	)
-}
+	// Create provider fee with proper initialization
+	// feeAmount is already money.Money value, we need to take its address
+	feeCopy := feeAmount // Create a copy to take address of
+	providerFee := account.Fee{
+		Amount: &feeCopy,
+		Type:   account.FeeProvider,
+	}
 
-// handlePaymentIntentFailed handles the payment_intent.payment_failed event
+	// Build the event with all required fields
+	event := &events.PaymentCompleted{
+		PaymentInitiated: events.PaymentInitiated{
+			FlowEvent: events.FlowEvent{
+				ID:            uuid.New(),
+				FlowType:      "payment",
+				UserID:        meta.UserID,
+				AccountID:     meta.AccountID,
+				CorrelationID: meta.TransactionID,
+				Timestamp:     time.Now(),
+			},
+			TransactionID: meta.TransactionID,
+			PaymentID:     &pi.ID,
+			Amount:        paymentAmount, // This is already a *money.Money
+		},
+		ProviderFee: providerFee,
+	}
+
+	log.Info("built payment completed event",
+		"transaction_id", meta.TransactionID,
+		"amount", paymentAmount.String(),
+		"fee", feeAmount.String(),
+		"currency", pi.Currency,
+	)
+
+	return event
+}
 func (s *StripePaymentProvider) handlePaymentIntentFailed(
 	ctx context.Context,
 	event stripe.Event, log *slog.Logger) (*provider.PaymentEvent, error) {
@@ -662,7 +794,7 @@ func (s *StripePaymentProvider) handlePaymentIntentFailed(
 			FlowType:      "payment",
 			CorrelationID: uuid.New(),
 		},
-		events.WithFailedPaymentID(pi.ID),
+		events.WithFailedPaymentID(&pi.ID),
 	)); err != nil {
 		log.Error(
 			"error emitting payment failed event",
@@ -724,14 +856,107 @@ func (s *StripePaymentProvider) handleChargeSucceeded(
 		return nil, fmt.Errorf(
 			"error parsing charge.succeeded: %w", err)
 	}
-	bt, err := s.client.V1BalanceTransactions.Retrieve(ctx, charge.BalanceTransaction.ID, nil)
-	if err != nil {
-		return nil, err
-
+	// Always attempt to retrieve the Stripe fee from the balance transaction.
+	balanceTxID := ""
+	if charge.BalanceTransaction != nil {
+		balanceTxID = charge.BalanceTransaction.ID
 	}
-	logger = logger.With("charge_id", charge.ID, "balance_transaction_id", bt.ID)
-
-	// Get the charge details
-	logger.Info("✅ Charge succeeded", ", charge_id", charge.ID)
+	feeAmount := int64(0)
+	feeCurrency := string(charge.Currency)
+	var feeErr error
+	if balanceTxID != "" {
+		feeAmount, feeCurrency, feeErr = s.getFeeFromBalanceTransaction(ctx, logger, balanceTxID)
+		if feeErr != nil {
+			logger.Warn("Failed to retrieve fee from balance transaction", "error", feeErr)
+			feeAmount = 0
+			feeCurrency = string(charge.Currency)
+		}
+	} else {
+		logger.Warn("No balance transaction found on Charge, defaulting fee to 0")
+	}
+	if feeCurrency == "" {
+		feeCurrency = string(charge.Currency)
+	}
+	feeCurrency = strings.ToUpper(feeCurrency)
+	logger = logger.With("charge_id", charge.ID, "balance_transaction_id", balanceTxID)
+	logger.Info("✅ Charge succeeded", "fee_amount", feeAmount, "fee_currency", feeCurrency)
+	// Process and emit fee if metadata is valid
+	if feeEvent, err := s.createFeeEvent(
+		charge.Metadata,
+		feeAmount,
+		feeCurrency,
+		logger,
+	); err == nil {
+		logger.Info("Emitting FeesCalculated event", "event", feeEvent)
+		_ = s.bus.Emit(ctx, feeEvent)
+	}
 	return nil, nil
+}
+
+// createFeeEvent creates a FeesCalculated event from the given
+// transaction metadata and fee details.
+// It returns the created event or an error if any required metadata is missing or invalid.
+func (s *StripePaymentProvider) createFeeEvent(
+	metadata map[string]string,
+	feeAmount int64,
+	feeCurrency string,
+	logger *slog.Logger,
+) (*events.FeesCalculated, error) {
+	// Validate metadata exists
+	if len(metadata) == 0 {
+		return nil, fmt.Errorf("missing required metadata")
+	}
+
+	// Parse required metadata fields
+	userID, err := uuid.Parse(metadata["user_id"])
+	if err != nil {
+		logger.Error("Failed to parse user_id from metadata", "error", err)
+		return nil, fmt.Errorf("invalid user_id: %w", err)
+	}
+
+	accountID, err := uuid.Parse(metadata["account_id"])
+	if err != nil {
+		logger.Error("Failed to parse account_id from metadata", "error", err)
+		return nil, fmt.Errorf("invalid account_id: %w", err)
+	}
+
+	transactionID, err := uuid.Parse(metadata["transaction_id"])
+	if err != nil {
+		logger.Error("Failed to parse transaction_id from metadata", "error", err)
+		return nil, fmt.Errorf("invalid transaction_id: %w", err)
+	}
+
+	// Parse fee amount into money type
+	feeMoney, err := s.parseProviderFeeAmount(feeAmount, feeCurrency, logger)
+	if err != nil {
+		logger.Error("Failed to parse provider fee amount",
+			"amount", feeAmount,
+			"currency", feeCurrency,
+			"error", err)
+		return nil, fmt.Errorf("invalid fee amount: %w", err)
+	}
+
+	logger.Debug("Creating fee event",
+		"user_id", userID,
+		"account_id", accountID,
+		"transaction_id", transactionID,
+		"fee_amount", feeMoney.Amount(),
+		"fee_currency", feeMoney.Currency().String())
+
+	// Create and return the fee event
+	feeEvent := events.NewFeesCalculated(
+		&events.FlowEvent{
+			ID:            uuid.New(),
+			UserID:        userID,
+			AccountID:     accountID,
+			FlowType:      "payment",
+			CorrelationID: transactionID,
+			Timestamp:     time.Now(),
+		},
+		events.WithFeeAmountValue(feeMoney),
+		events.WithFeeTransactionID(transactionID),
+		events.WithFeeType(account.FeeProvider),
+	)
+
+	return feeEvent, nil
 }

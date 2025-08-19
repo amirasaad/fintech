@@ -92,8 +92,9 @@ func TestCompletedHandler(t *testing.T) {
 				Return(h.MockTxRepo, nil).
 				Once()
 
+			paymentID := "test-payment-id"
 			h.MockTxRepo.EXPECT().
-				GetByPaymentID(h.Ctx, h.PaymentID).
+				GetByPaymentID(h.Ctx, paymentID).
 				Return(nil, expectedErr).
 				Once()
 
@@ -131,7 +132,11 @@ func TestCompletedHandler(t *testing.T) {
 		doFn := func(ctx context.Context, fn func(uow repository.UnitOfWork) error) error {
 			h.UOW.EXPECT().GetRepository(
 				(*repotransaction.Repository)(nil)).Return(h.MockTxRepo, nil).Once()
-			h.MockTxRepo.EXPECT().GetByPaymentID(h.Ctx, h.PaymentID).Return(tx, nil).Once()
+			// Ensure we have a valid payment ID
+			paymentID := "test-payment-id"
+			h.PaymentID = &paymentID
+			tx.PaymentID = &paymentID
+			h.MockTxRepo.EXPECT().GetByPaymentID(h.Ctx, paymentID).Return(tx, nil).Once()
 
 			h.UOW.EXPECT().GetRepository(
 				(*repoaccount.Repository)(nil)).Return(h.MockAccRepo, nil).Once()

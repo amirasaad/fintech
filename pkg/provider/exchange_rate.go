@@ -38,7 +38,7 @@ type ExchangeRate interface {
 	GetRate(ctx context.Context, from, to string) (*ExchangeInfo, error)
 
 	// GetRates fetches multiple exchange rates in a single request.
-	GetRates(ctx context.Context, from string, to []string) (map[string]*ExchangeInfo, error)
+	GetRates(ctx context.Context, from string) (map[string]*ExchangeInfo, error)
 
 	// IsSupported checks if a currency pair is supported by the provider.
 	IsSupported(from, to string) bool

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log/slog"
 	"math"
+	"reflect"
 	"testing"
 
 	"github.com/amirasaad/fintech/internal/fixtures/mocks"
@@ -13,7 +14,6 @@ import (
 	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/amirasaad/fintech/pkg/provider"
 	"github.com/amirasaad/fintech/pkg/registry"
-	"github.com/amirasaad/fintech/pkg/service/exchange"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -110,25 +110,65 @@ func TestConversionHandler(t *testing.T) {
 				Return(convInfo, nil).
 				Once()
 
-			// Mock registry to save the direct rate
+			// Mock registry to save the rates - both direct and inverse rates
 			exchangeRateRegistryProvider.EXPECT().
-				Register(mock.Anything, mock.MatchedBy(func(entity registry.Entity) bool {
-					er, ok := entity.(*exchange.ExchangeRateInfo)
-					if !ok {
-						return false
-					}
-					// Check for direct rate (USD to EUR)
-					if er.From == "USD" && er.To == "EUR" {
-						return math.Abs(er.Rate-0.85) < 0.000001
-					}
-					// Check for inverse rate (EUR to USD)
-					if er.From == "EUR" && er.To == "USD" {
-						return math.Abs(er.Rate-1.17647) < 0.0001
-					}
-					return false
-				})).
+				Register(
+					mock.Anything,
+					mock.MatchedBy(
+						func(entity registry.Entity) bool {
+							if entity == nil {
+								return false
+							}
+
+							e := reflect.Indirect(reflect.ValueOf(entity))
+
+							// Check for rate entities (have From, To, and Rate fields)
+							fromField := e.FieldByName("From")
+							toField := e.FieldByName("To")
+							rateField := e.FieldByName("Rate")
+
+							if fromField.IsValid() && toField.IsValid() && rateField.IsValid() {
+								from := fromField.String()
+								to := toField.String()
+								rate := rateField.Float()
+
+								// Check for direct rate (USD to EUR)
+								if from == "USD" && to == "EUR" {
+									return math.Abs(rate-0.85) < 0.000001
+								}
+								// Check for inverse rate (EUR to USD)
+								if from == "EUR" && to == "USD" {
+									return math.Abs(rate-1.17647) < 0.0001
+								}
+							}
+							return false
+						})).
 				Return(nil).
-				Twice() // Expect both direct and inverse rates to be registered
+				Twice() // Expect both direct and inverse rates
+
+			// Mock registry for last_updated timestamp
+			exchangeRateRegistryProvider.EXPECT().
+				Register(
+					mock.Anything,
+					mock.MatchedBy(func(entity registry.Entity) bool {
+						if entity == nil {
+							return false
+						}
+
+						e := reflect.Indirect(reflect.ValueOf(entity))
+
+						// Check for last_updated entity (has Timestamp field and specific ID)
+						timestampField := e.FieldByName("Timestamp")
+						idField := e.FieldByName("id")
+
+						if timestampField.IsValid() && idField.IsValid() &&
+							idField.String() == "exr:last_updated" {
+							return true
+						}
+						return false
+					})).
+				Return(nil).
+				Once()
 
 			// Expect CurrencyConverted event
 			bus.EXPECT().

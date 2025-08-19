@@ -34,7 +34,8 @@ func createValidPaymentCompletedEvent(
 			FlowType:      "payment",
 		},
 		func(pc *events.PaymentCompleted) {
-			pc.PaymentID = h.PaymentID
+			paymentID := "test-payment-id"
+			pc.PaymentID = &paymentID
 			pc.TransactionID = h.TransactionID
 			pc.Amount = amount
 			// Set provider fee if needed by the test
@@ -56,7 +57,9 @@ func createValidPaymentFailedEvent(
 			CorrelationID: h.CorrelationID,
 			FlowType:      "payment",
 		}, func(pf *events.PaymentFailed) {
-			pf.PaymentID = h.PaymentID
+			if h.PaymentID != nil {
+				pf.PaymentID = h.PaymentID
+			}
 			pf.TransactionID = h.TransactionID
 		}).WithReason("payment processing failed")
 
@@ -96,9 +99,11 @@ func setupSuccessfulTest(h *testutils.TestHelper) {
 				h.MockTxRepo, nil,
 			)
 
+		// Ensure we pass a string, not a *string
+		paymentID := "test-payment-id"
 		h.MockTxRepo.
 			EXPECT().
-			GetByPaymentID(ctx, h.PaymentID).
+			GetByPaymentID(ctx, paymentID).
 			Return(tx, nil).
 			Once()
 

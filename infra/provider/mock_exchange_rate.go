@@ -13,7 +13,6 @@ type mockExchangeRate struct {
 	GetRatesFunc func(
 		ctx context.Context,
 		from string,
-		to []string,
 	) (map[string]*provider.ExchangeInfo, error)
 	IsSupportedFunc func(from, to string) bool
 	NameFunc        func() string
@@ -32,10 +31,15 @@ func NewMockExchangeRate() *mockExchangeRate {
 		},
 		GetRatesFunc: func(
 			ctx context.Context,
-			from string, to []string,
+			from string,
 		) (map[string]*provider.ExchangeInfo, error) {
 			result := make(map[string]*provider.ExchangeInfo)
-			for _, currency := range to {
+			supportedCurrencies := []string{
+				"EUR", "GBP", "JPY", "USD", "AUD",
+				"CAD", "CHF", "CNY", "HKD", "NZD",
+				"SGD", "ZAR",
+			}
+			for _, currency := range supportedCurrencies {
 				result[currency] = &provider.ExchangeInfo{
 					OriginalCurrency:  from,
 					ConvertedCurrency: currency,
@@ -77,13 +81,17 @@ func (m *mockExchangeRate) GetRate(
 func (m *mockExchangeRate) GetRates(
 	ctx context.Context,
 	from string,
-	to []string,
 ) (map[string]*provider.ExchangeInfo, error) {
 	if m.GetRatesFunc != nil {
-		return m.GetRatesFunc(ctx, from, to)
+		return m.GetRatesFunc(ctx, from)
 	}
 	result := make(map[string]*provider.ExchangeInfo)
-	for _, currency := range to {
+	supportedCurrencies := []string{
+		"EUR", "GBP", "JPY", "USD", "AUD",
+		"CAD", "CHF", "CNY", "HKD", "NZD",
+		"SGD", "ZAR",
+	}
+	for _, currency := range supportedCurrencies {
 		result[currency] = &provider.ExchangeInfo{
 			OriginalCurrency:  from,
 			ConvertedCurrency: currency,

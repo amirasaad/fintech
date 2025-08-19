@@ -61,6 +61,7 @@ type Meta struct {
 }
 
 // Entity implements the registry.Entity interface
+// Deprecated
 type Entity struct {
 	*registry.BaseEntity
 	meta Meta
@@ -95,7 +96,9 @@ func (c *Entity) Active() bool {
 
 // Metadata returns currency metadata
 func (c *Entity) Metadata() map[string]string {
-	metadata := c.BaseEntity.Metadata()
+	metadata := make(map[string]string)
+
+	// Only include core fields in the metadata
 	metadata["code"] = c.meta.Code
 	metadata["symbol"] = c.meta.Symbol
 	metadata["decimals"] = strconv.Itoa(c.meta.Decimals)

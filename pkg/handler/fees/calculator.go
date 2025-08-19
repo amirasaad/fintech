@@ -28,8 +28,11 @@ func NewFeeCalculator(
 	accRepo repoaccount.Repository,
 	logger *slog.Logger,
 ) *FeeCalculator {
-	if txRepo == nil || accRepo == nil || logger == nil {
+	if txRepo == nil || accRepo == nil {
 		return nil
+	}
+	if logger == nil {
+		logger = slog.Default()
 	}
 
 	return &FeeCalculator{
@@ -71,6 +74,16 @@ func (fc *FeeCalculator) updateTransactionFee(
 	tx *dto.TransactionRead,
 	fee account.Fee,
 ) error {
+	// Validate currency is set
+	if tx.Currency == "" {
+		err := fmt.Errorf("transaction %s has no currency set", tx.ID)
+		fc.logger.Error("transaction has no currency",
+			"error", err,
+			"transaction_id", tx.ID,
+		)
+		return err
+	}
+
 	// Convert existing fee to money type
 	txFee, err := money.New(tx.Fee, money.Code(tx.Currency))
 	if err != nil {
@@ -78,6 +91,7 @@ func (fc *FeeCalculator) updateTransactionFee(
 			"error", err,
 			"transaction_id", tx.ID,
 			"fee", tx.Fee,
+			"currency", tx.Currency,
 		)
 		return fmt.Errorf("invalid transaction fee amount: %w", err)
 	}

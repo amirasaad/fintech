@@ -14,6 +14,7 @@ import (
 	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 // HandleProcessed handles PaymentInitiatedEvent and updates the transaction with payment ID.
@@ -41,11 +42,12 @@ func HandleProcessed(
 			)
 			return errors.New("unexpected event type")
 		}
-
-		log.Info(
-			"🔄 [PROCESS] Updating transaction with payment ID",
+		log = log.With(
 			"transaction_id", pp.TransactionID,
-			"payment_id", pp.PaymentID)
+			"payment_id", *pp.PaymentID,
+		)
+		log.Info(
+			"🔄 [PROCESS] Updating transaction with payment ID")
 
 		// Update the transaction with payment ID
 		err := uow.Do(ctx, func(uow repository.UnitOfWork) error {
@@ -59,12 +61,11 @@ func HandleProcessed(
 			}
 
 			transactionID := pp.TransactionID
-			if transactionID == uuid.Nil {
-				tx, getErr := txRepo.GetByPaymentID(ctx, pp.PaymentID)
+			if transactionID == uuid.Nil && pp.PaymentID != nil {
+				tx, getErr := txRepo.GetByPaymentID(ctx, *pp.PaymentID)
 				if getErr != nil {
 					log.Error(
 						"Failed to get transaction by payment ID",
-						"payment_id", pp.PaymentID,
 						"error", getErr,
 					)
 					return fmt.Errorf("failed to get transaction by payment ID: %w", getErr)
@@ -82,23 +83,62 @@ func HandleProcessed(
 			}
 
 			status := "processed"
-			if err = txRepo.Update(ctx, transactionID, dto.TransactionUpdate{
-				Status:    &status,
-				PaymentID: &pp.PaymentID,
-			}); err != nil {
+			// First, try to get the existing transaction
+			tx, getErr := txRepo.Get(ctx, transactionID)
+			if getErr != nil && !errors.Is(getErr, gorm.ErrRecordNotFound) {
 				log.Error(
-					"Failed to update transaction with payment ID",
-					"transaction_id", transactionID,
-					"payment_id", pp.PaymentID,
+					"Failed to get transaction",
+					"error", getErr,
+				)
+				return fmt.Errorf("failed to get transaction: %w", getErr)
+			}
+
+			// If transaction exists, update it with payment ID
+			if tx != nil {
+				update := dto.TransactionUpdate{
+					PaymentID: pp.PaymentID,
+					Status:    &status,
+				}
+				if err := txRepo.Update(ctx, transactionID, update); err != nil {
+					log.Error(
+						"Failed to update transaction with payment ID",
+						"error", err,
+					)
+					return fmt.Errorf("failed to update transaction: %w", err)
+				}
+				log.Info(
+					"Updated existing transaction with payment ID",
+				)
+				return nil
+			}
+
+			// If transaction doesn't exist, create a new one
+			txCreate := dto.TransactionCreate{
+				ID:          transactionID,
+				UserID:      pp.UserID,
+				AccountID:   pp.AccountID,
+				Status:      status,
+				MoneySource: "Stripe", // Default money source for Stripe payments
+				PaymentID:   pp.PaymentID,
+			}
+
+			// Set amount and currency if available
+			if pp.Amount != nil {
+				txCreate.Amount = int64(pp.Amount.Amount())
+				txCreate.Currency = pp.Amount.Currency().String()
+			}
+
+			// Create the transaction using UpsertByPaymentID which handles both create and update
+			if err := txRepo.UpsertByPaymentID(ctx, *pp.PaymentID, txCreate); err != nil {
+				log.Error(
+					"Failed to create/update transaction with payment ID",
 					"error", err,
 				)
-				return fmt.Errorf("failed to update transaction: %w", err)
+				return fmt.Errorf("failed to create/update transaction: %w", err)
 			}
 
 			log.Info(
 				"Transaction updated with payment ID",
-				"transaction_id", transactionID,
-				"payment_id", pp.PaymentID,
 			)
 			return nil
 		})

@@ -24,7 +24,7 @@ type User = user.User
 
 // Error aliases for backward compatibility
 var (
-	// Account errors
+	// ErrDepositAmountExceedsMaxSafeInt Account errors
 	// Deprecated: Use account.ErrDepositAmountExceedsMaxSafeInt directly.
 	ErrDepositAmountExceedsMaxSafeInt = account.ErrDepositAmountExceedsMaxSafeInt
 	// Deprecated: Use account.ErrTransactionAmountMustBePositive directly.

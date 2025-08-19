@@ -234,11 +234,11 @@ func TestNewFeeCalculator(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:    "nil logger",
-			txRepo:  txRepo,
-			accRepo: accRepo,
+			name:    "nil logger uses default logger",
+			txRepo:  &mocks.TransactionRepository{},
+			accRepo: &mocks.AccountRepository{},
 			logger:  nil,
-			wantErr: true,
+			wantErr: false,
 		},
 	}
 

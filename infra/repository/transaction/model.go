@@ -14,8 +14,8 @@ type Transaction struct {
 	Amount    int64
 	Currency  string `gorm:"type:varchar(3);not null;default:'USD'"`
 	Balance   int64
-	Status    string `gorm:"type:varchar(32);not null;default:'pending'"`
-	PaymentID string `gorm:"type:varchar(64);column:payment_id;index"`
+	Status    string  `gorm:"type:varchar(32);not null;default:'pending'"`
+	PaymentID *string `gorm:"type:varchar(64);column:payment_id;index"`
 
 	// Conversion fields (nullable when no conversion occurs)
 	OriginalAmount   *float64 `gorm:"type:decimal(20,8)"`
