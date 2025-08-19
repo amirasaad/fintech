@@ -31,20 +31,20 @@ func InitializeDependencies(cfg *config.App) (
 	deps.Logger = logger
 
 	// Initialize registry providers for each service
-	deps.RegistryProvider, err = GetRegistryProvider("app", cfg, logger)
+	deps.RegistryProvider, err = GetDefaultRegistry(cfg, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize main registry provider: %w", err)
 	}
 
-	currencyRegistry, err := GetRegistryProvider("currency", cfg, logger)
+	// Initialize currency registry
+	deps.CurrencyRegistry, err = GetDefaultRegistry(cfg, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize currency registry provider: %w", err)
 	}
-	deps.CurrencyRegistry = currencyRegistry
 
 	ctx := context.Background()
 	// Only load currency fixtures if the registry is empty
-	count, err := currencyRegistry.Count(ctx)
+	count, err := deps.CurrencyRegistry.Count(ctx)
 	if err != nil {
 		logger.Warn("Failed to check currency registry count", "error", err)
 	}
@@ -58,31 +58,36 @@ func InitializeDependencies(cfg *config.App) (
 
 	logger.Info("Loading currency meta from fixture", "count", count)
 	for _, entity := range entities {
-		if err := currencyRegistry.Register(ctx, entity); err != nil {
+		if err := deps.CurrencyRegistry.Register(ctx, entity); err != nil {
 			logger.Error("Failed to register currency", "code", entity.ID(), "error", err)
 			// Continue with other currencies even if one fails
 		}
 	}
-	logger.Info("Successfully loaded currency fixtures", "count", count)
+	logger.Info("Successfully loaded currency fixtures", "count", len(entities))
 
-	deps.CheckoutRegistry, err = GetRegistryProvider("checkout", cfg, logger)
+	// Initialize checkout registry
+	deps.CheckoutRegistry, err = GetCheckoutRegistry(cfg, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize checkout registry provider: %w", err)
 	}
 
 	// Initialize exchange rate registry
-	exchangeRateRegistry, err := GetRegistryProvider("exchange_rate", cfg, logger)
+	deps.ExchangeRateRegistry, err = GetExchangeRateRegistry(cfg, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize exchange rate registry provider: %w", err)
 	}
-	deps.ExchangeRateRegistry = exchangeRateRegistry
 
 	// Create the exchange rate provider
 	exchangeProvider := infra_provider.NewExchangeRateAPIProvider(
 		cfg.ExchangeRateAPIProviders.ExchangeRateApi,
 		logger,
 	)
-	if err := initializeExchangeRates(exchangeProvider, exchangeRateRegistry, logger); err != nil {
+	if err := initializeExchangeRates(
+		exchangeProvider,
+		deps.ExchangeRateRegistry,
+		cfg.ExchangeRateCache,
+		logger,
+	); err != nil {
 		logger.Error("Failed to initialize exchange rates", "error", err)
 		// Don't fail the entire startup for exchange rate initialization
 	}
@@ -110,10 +115,10 @@ func InitializeDependencies(cfg *config.App) (
 	}
 	deps.EventBus = bus
 
-	// Initialize payment provider
+	// Initialize payment provider with the checkout registry
 	deps.PaymentProvider = infra_provider.NewStripePaymentProvider(
 		bus,
-		deps.RegistryProvider, // Use the single registry provider
+		deps.CheckoutRegistry, // Use the checkout-specific registry
 		cfg.PaymentProviders.Stripe,
 		logger,
 	)
@@ -125,6 +130,7 @@ func InitializeDependencies(cfg *config.App) (
 func initializeExchangeRates(
 	exchangeRateProvider provider.ExchangeRate,
 	registryProvider registry.Provider,
+	cfg *config.ExchangeRateCache,
 	logger *slog.Logger,
 ) error {
 	// Create a context with timeout
@@ -135,7 +141,7 @@ func initializeExchangeRates(
 	exchangeCache := caching.NewExchangeCache(
 		registryProvider,
 		logger,
-		15*time.Minute, // Default cache TTL
+		cfg.TTL,
 	)
 
 	// Fetch rates from the provider
@@ -145,7 +151,11 @@ func initializeExchangeRates(
 	}
 
 	// Cache the rates using ExchangeCache
-	if err := exchangeCache.CacheRates(ctx, rates, exchangeRateProvider.Name()); err != nil {
+	if err := exchangeCache.CacheRates(
+		ctx,
+		rates,
+		exchangeRateProvider.Name(),
+	); err != nil {
 		return fmt.Errorf("failed to cache exchange rates: %w", err)
 	}
 

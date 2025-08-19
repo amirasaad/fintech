@@ -36,8 +36,8 @@ Authorization: Bearer {{login.response.body.$.data.$.token}}
 
 
 {
-    "amount": 10000,
-    "currency": "EGP",
+    "amount": 500,
+    "currency": "USD",
     "money_source": "Cash"
 }
 

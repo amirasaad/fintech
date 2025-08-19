@@ -2,72 +2,110 @@ package initializer
 
 import (
 	"log/slog"
+	"time"
 
 	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/registry"
 )
 
-// GetRegistryProvider returns a configured registry provider for the given service
+// RegistryConfig holds configuration for creating a registry provider
+type RegistryConfig struct {
+	Name      string
+	RedisURL  string
+	KeyPrefix string
+	CacheSize int
+	CacheTTL  time.Duration
+}
+
+// GetRegistryProvider returns a configured registry provider based on the provided config
 func GetRegistryProvider(
-	serviceName string,
-	cfg *config.App,
+	cfg *RegistryConfig,
 	logger *slog.Logger,
 ) (registry.Provider, error) {
-	// Special handling for checkout service
-	if serviceName == "checkout" {
-		builder := registry.NewBuilder().
-			WithName("checkout").
-			WithRedis(cfg.Redis.URL).
-			WithKeyPrefix("checkout:").
-			WithCache(1000, -1)
-
-		logger.Info("Using checkout registry config",
-			"redis_configured", cfg.Redis.URL != "",
-			"key_prefix", "checkout:")
-
-		return builder.BuildRegistry()
-	}
-
-	// Special handling for exchange rate service
-	if serviceName == "exchange_rate" && cfg.ExchangeRateCache != nil {
-		prefix := cfg.ExchangeRateCache.Prefix
-		if prefix == "" {
-			prefix = "exr:rate:" // Default prefix for exchange rates
+	if cfg == nil {
+		cfg = &RegistryConfig{
+			Name:      "default",
+			CacheSize: 1000,
+			CacheTTL:  -1, // No expiration
 		}
-
-		builder := registry.NewBuilder().
-			WithName("exchange_rate").
-			WithRedis(cfg.ExchangeRateCache.Url).
-			WithKeyPrefix(prefix).
-			WithCache(1000, cfg.ExchangeRateCache.TTL)
-
-		logger.Info("Using exchange rate specific registry config",
-			"redis_configured", cfg.ExchangeRateCache.Url != "",
-			"key_prefix", prefix,
-			"ttl", cfg.ExchangeRateCache.TTL)
-
-		return builder.BuildRegistry()
 	}
 
-	// Default registry configuration for other services
+	// Ensure cache size is at least 1 if caching is enabled
+	if cfg.CacheTTL != 0 && cfg.CacheSize <= 0 {
+		cfg.CacheSize = 1000
+	}
+
 	builder := registry.NewBuilder().
-		WithName(serviceName).
-		WithRedis(cfg.Redis.URL).
-		WithKeyPrefix(cfg.Redis.KeyPrefix+serviceName+":").
-		WithCache(1000, -1)
+		WithName(cfg.Name).
+		WithRedis(cfg.RedisURL).
+		WithKeyPrefix(cfg.KeyPrefix).
+		WithCache(cfg.CacheSize, cfg.CacheTTL)
 
-	// Build and return the registry
-	provider, err := builder.BuildRegistry()
-	if err != nil {
-		logger.Error("Failed to create registry provider",
-			"service", serviceName,
-			"error", err)
-		return nil, err
+	logger.Info("Creating registry provider",
+		"name", cfg.Name,
+		"redis_configured", cfg.RedisURL != "",
+		"key_prefix", cfg.KeyPrefix,
+		"cache_size", cfg.CacheSize,
+		"cache_ttl", cfg.CacheTTL,
+	)
+
+	return builder.BuildRegistry()
+}
+
+// GetCheckoutRegistry creates a registry provider for the checkout service
+func GetCheckoutRegistry(cfg *config.App, logger *slog.Logger) (registry.Provider, error) {
+	keyPrefix := ""
+	if cfg.Redis != nil {
+		keyPrefix = cfg.Redis.KeyPrefix
 	}
 
-	logger.Info("Initialized registry provider",
-		"service", serviceName,
-		"redis_configured", cfg.Redis.URL != "")
+	registryCfg := &RegistryConfig{
+		Name:      "checkout",
+		RedisURL:  cfg.Redis.URL,
+		KeyPrefix: keyPrefix + "checkout:",
+		CacheSize: 1000,
+		CacheTTL:  -1, // No expiration for checkout sessions
+	}
 
-	return provider, nil
+	return GetRegistryProvider(registryCfg, logger)
+}
+
+// GetExchangeRateRegistry creates a registry provider for the exchange rate service
+func GetExchangeRateRegistry(cfg *config.App, logger *slog.Logger) (registry.Provider, error) {
+	if cfg.ExchangeRateCache == nil {
+		return nil, nil
+	}
+
+	keyPrefix := cfg.ExchangeRateCache.Prefix
+	if keyPrefix == "" {
+		keyPrefix = "exr:rate:"
+	}
+
+	registryCfg := &RegistryConfig{
+		Name:      "exchange_rate",
+		RedisURL:  cfg.ExchangeRateCache.Url,
+		KeyPrefix: keyPrefix,
+		CacheSize: 1000,
+		CacheTTL:  cfg.ExchangeRateCache.TTL,
+	}
+
+	return GetRegistryProvider(registryCfg, logger)
+}
+
+// GetDefaultRegistry creates a default registry provider
+func GetDefaultRegistry(cfg *config.App, logger *slog.Logger) (registry.Provider, error) {
+	keyPrefix := ""
+	if cfg.Redis != nil {
+		keyPrefix = cfg.Redis.KeyPrefix
+	}
+
+	registryCfg := &RegistryConfig{
+		Name:      "default",
+		RedisURL:  cfg.Redis.URL,
+		KeyPrefix: keyPrefix,
+		CacheSize: 1000,
+		CacheTTL:  -1, // No expiration
+	}
+
+	return GetRegistryProvider(registryCfg, logger)
 }
