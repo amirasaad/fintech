@@ -49,21 +49,25 @@ func InitializeDependencies(cfg *config.App) (
 		logger.Warn("Failed to check currency registry count", "error", err)
 	}
 
-	// Load currency metadata from CSV
-	entities, err := currencyfixtures.LoadCurrencyMetaCSV(
-		"../../internal/fixtures/currency/meta.csv")
-	if err != nil {
-		logger.Warn("Failed to load currency meta from CSV", "error", err)
-	}
-
-	logger.Info("Loading currency meta from fixture", "count", count)
-	for _, entity := range entities {
-		if err := deps.CurrencyRegistry.Register(ctx, entity); err != nil {
-			logger.Error("Failed to register currency", "code", entity.ID(), "error", err)
-			// Continue with other currencies even if one fails
+	if count == 0 {
+		// Load currency metadata from CSV
+		entities, err := currencyfixtures.LoadCurrencyMetaCSV(
+			"../../internal/fixtures/currency/meta.csv")
+		if err != nil {
+			logger.Warn("Failed to load currency meta from CSV", "error", err)
+		} else {
+			logger.Info("Loading currency meta from fixture", "existing_count", count, "to_register", len(entities))
+			for _, entity := range entities {
+				if err := deps.CurrencyRegistry.Register(ctx, entity); err != nil {
+					logger.Error("Failed to register currency", "code", entity.ID(), "error", err)
+					// Continue with other currencies even if one fails
+				}
+			}
+			logger.Info("Successfully loaded currency fixtures", "registered_count", len(entities))
 		}
+	} else {
+		logger.Info("Skipping currency fixtures load; registry not empty", "existing_count", count)
 	}
-	logger.Info("Successfully loaded currency fixtures", "count", len(entities))
 
 	// Initialize checkout registry
 	deps.CheckoutRegistry, err = GetCheckoutRegistry(cfg, logger)
