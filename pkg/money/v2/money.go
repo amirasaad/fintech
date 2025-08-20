@@ -195,7 +195,8 @@ func (m *Money) Add(other *Money) (*Money, error) {
 }
 
 // Subtract returns a new Money object with the difference of amounts.
-// Returns an error if the currencies don't match or if the result would be negative.
+// The result can be negative if the subtrahend is larger than the minuend.
+// Returns an error if the currencies don't match.
 func (m *Money) Subtract(other *Money) (*Money, error) {
 	if m.currency != other.currency {
 		return nil, fmt.Errorf(
@@ -206,9 +207,6 @@ func (m *Money) Subtract(other *Money) (*Money, error) {
 	}
 
 	diff := int64(m.amount) - int64(other.amount)
-	if diff < 0 {
-		return nil, fmt.Errorf("resulting amount cannot be negative")
-	}
 
 	return &Money{
 		amount:   Amount(diff),
@@ -292,10 +290,11 @@ func (m *Money) Abs() *Money {
 // Multiply multiplies the Money amount by a scalar factor.
 // Invariants enforced:
 //   - Result must not overflow int64.
+//   - Result is rounded to the nearest integer to preserve precision.
 //
 // Returns Money or an error if overflow would occur.
 func (m *Money) Multiply(factor float64) (*Money, error) {
-	// Convert to float for multiplication
+	// Convert to float for multiplication and round to nearest integer
 	resultFloat := float64(m.amount) * factor
 
 	// Check for overflow
@@ -303,8 +302,11 @@ func (m *Money) Multiply(factor float64) (*Money, error) {
 		return nil, fmt.Errorf("multiplication result would overflow")
 	}
 
+	// Round to nearest integer to avoid truncation of fractional cents
+	rounded := int64(math.Round(resultFloat))
+
 	return &Money{
-		amount:   Amount(int64(resultFloat)),
+		amount:   Amount(rounded),
 		currency: m.currency,
 	}, nil
 }

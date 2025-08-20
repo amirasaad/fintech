@@ -78,6 +78,22 @@ func TestMoney_Arithmetic(t *testing.T) {
 		assert.Equal(t, usd, result.Currency())
 	})
 
+	t.Run("Subtract larger amount results in negative", func(t *testing.T) {
+		result, err := usd50.Subtract(usd100)
+		require.NoError(t, err)
+		assert.InDelta(t, -50.0, result.AmountFloat(), 0.001)
+		assert.True(t, result.IsNegative())
+		assert.Equal(t, usd, result.Currency())
+	})
+
+	t.Run("Subtract equal amounts results in zero", func(t *testing.T) {
+		result, err := usd100.Subtract(usd100)
+		require.NoError(t, err)
+		assert.InDelta(t, 0.0, result.AmountFloat(), 0.001)
+		assert.True(t, result.IsZero())
+		assert.Equal(t, usd, result.Currency())
+	})
+
 	t.Run("Subtract different currency", func(t *testing.T) {
 		_, err := usd100.Subtract(eur100)
 		require.Error(t, err)
@@ -95,7 +111,26 @@ func TestMoney_Arithmetic(t *testing.T) {
 		require.NoError(t, err)
 		result, err := usd1000.Add(usd100.Negate())
 		require.NoError(t, err)
-		assert.InDelta(t, 900, result.AmountFloat(), 0.01)
+		assert.InDelta(t, 900.0, result.AmountFloat(), 0.001)
+		assert.False(t, result.IsNegative())
+	})
+
+	t.Run("Add negative larger than amount results in negative", func(t *testing.T) {
+		usd1000, err := money.New(100.0, usd)
+		require.NoError(t, err)
+		result, err := usd1000.Add(usd100.Negate())
+		require.NoError(t, err)
+		assert.InDelta(t, 0.0, result.AmountFloat(), 0.001)
+		assert.True(t, result.IsZero())
+	})
+
+	t.Run("Add two negatives results in negative", func(t *testing.T) {
+		neg100 := usd100.Negate()
+		neg50 := usd50.Negate()
+		result, err := neg100.Add(neg50)
+		require.NoError(t, err)
+		assert.InDelta(t, -150.0, result.AmountFloat(), 0.001)
+		assert.True(t, result.IsNegative())
 	})
 }
 

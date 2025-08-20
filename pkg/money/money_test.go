@@ -94,6 +94,26 @@ func TestMoney_Arithmetic(t *testing.T) {
 		}
 	})
 
+	t.Run("Subtract larger amount results in negative", func(t *testing.T) {
+		result, err := usd50.Subtract(usd100)
+		require.NoError(t, err)
+		assert.InDelta(t, -50.0, result.AmountFloat(), 0.001)
+		assert.True(t, result.IsNegative())
+		if got, want := result.CurrencyCode(), money.USD; got != want {
+			t.Errorf("Subtract() currency = %v, want %v", got, want)
+		}
+	})
+
+	t.Run("Subtract equal amounts results in zero", func(t *testing.T) {
+		result, err := usd100.Subtract(usd100)
+		require.NoError(t, err)
+		assert.InDelta(t, 0.0, result.AmountFloat(), 0.001)
+		assert.True(t, result.IsZero())
+		if got, want := result.CurrencyCode(), money.USD; got != want {
+			t.Errorf("Subtract() currency = %v, want %v", got, want)
+		}
+	})
+
 	t.Run("Negate", func(t *testing.T) {
 		result := usd100.Negate()
 		assert.InDelta(t, -100.0, result.AmountFloat(), 0.001)
@@ -310,6 +330,12 @@ func TestMoney_Multiply(t *testing.T) {
 		{"Multiply by 0.5", 100.50, 0.5, 50.25, false},
 		{"Multiply by 0", 100.50, 0.0, 0.0, false},
 		{"Multiply by negative", 100.50, -1.0, -100.50, true},
+		// Test rounding behavior
+		{"Round up on .5", 100.50, 0.1, 10.05, false},   // 100.50 * 0.1 = 10.05
+		{"Round down", 100.51, 0.1, 10.05, false},       // 100.51 * 0.1 = 10.051 -> 10.05
+		{"Round up", 100.54, 0.1, 10.05, false},         // 100.54 * 0.1 = 10.054 -> 10.05
+		{"Round half up", 100.55, 0.1, 10.06, false},    // 100.55 * 0.1 = 10.055 -> 10.06
+		{"Round half down", 100.54, 1.0, 100.54, false}, // 100.54 * 1.0 = 100.54 (no rounding)
 	}
 
 	for _, tc := range tests {
