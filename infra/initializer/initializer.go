@@ -50,13 +50,15 @@ func InitializeDependencies(cfg *config.App) (
 	}
 
 	if count == 0 {
-		// Load currency metadata from CSV
-		entities, err := currencyfixtures.LoadCurrencyMetaCSV(
-			"../../internal/fixtures/currency/meta.csv")
+		// Load currency metadata from embedded CSV
+		logger.Info("Loading embedded currency metadata")
+		entities, err := currencyfixtures.LoadCurrencyMetaCSV("")
 		if err != nil {
 			logger.Warn("Failed to load currency meta from CSV", "error", err)
 		} else {
-			logger.Info("Loading currency meta from fixture", "existing_count", count, "to_register", len(entities))
+			logger.Info("Loading currency meta from fixture",
+				"existing_count", count,
+				"to_register", len(entities))
 			for _, entity := range entities {
 				if err := deps.CurrencyRegistry.Register(ctx, entity); err != nil {
 					logger.Error("Failed to register currency", "code", entity.ID(), "error", err)

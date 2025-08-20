@@ -1,25 +1,47 @@
 package currency
 
 import (
+	_ "embed"
 	"encoding/csv"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
 	"github.com/amirasaad/fintech/pkg/registry"
 )
 
-// LoadCurrencyMetaCSV loads currency metadata from a CSV file for test fixtures.
-func LoadCurrencyMetaCSV(path string) ([]registry.Entity, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close() //nolint:errcheck
+//go:embed meta.csv
+var metaCSV string
 
-	r := csv.NewReader(f)
-	records, err := r.ReadAll()
+// LoadCurrencyMetaCSV loads currency metadata from a CSV file or embedded content.
+// If path is empty, it uses the embedded CSV content.
+func LoadCurrencyMetaCSV(path string) ([]registry.Entity, error) {
+	var r io.Reader
+
+	if path != "" {
+		f, err := os.Open(path)
+		if err != nil {
+			return nil, fmt.Errorf("failed to open file: %w", err)
+		}
+		defer func() {
+			if closeErr := f.Close(); closeErr != nil {
+				// Log the error but don't fail the operation
+				_ = closeErr
+			}
+		}()
+		r = f
+	} else {
+		r = strings.NewReader(metaCSV)
+	}
+
+	return parseCurrencyMetaCSV(r)
+}
+
+func parseCurrencyMetaCSV(r io.Reader) ([]registry.Entity, error) {
+	csvReader := csv.NewReader(r)
+	records, err := csvReader.ReadAll()
 	if err != nil {
 		return nil, err
 	}
