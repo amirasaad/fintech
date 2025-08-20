@@ -492,12 +492,34 @@ func (m *Money) String() string {
 
 // convertToSmallestUnit converts a float64 amount to the smallest currency unit.
 // This ensures precision by avoiding floating-point arithmetic issues.
+// Returns an error if the amount is non-finite or would overflow int64.
 func convertToSmallestUnit(amount float64, currency Currency) (int64, error) {
+	// Validate input is a finite number
+	if math.IsNaN(amount) || math.IsInf(amount, 0) {
+		return 0, fmt.Errorf("%w: non-finite amount", ErrInvalidAmount)
+	}
+
+	// Convert to big.Rat for precise decimal arithmetic
 	factor := new(big.Rat).SetFloat64(math.Pow10(currency.Decimals))
 	amountRat := new(big.Rat).SetFloat64(amount)
+	if amountRat == nil {
+		return 0, fmt.Errorf("%w: failed to convert amount to rational number", ErrInvalidAmount)
+	}
+
+	// Multiply by the decimal factor
 	result := new(big.Rat).Mul(amountRat, factor)
 
-	// Round to nearest integer
+	// Convert to float64 for rounding, then check bounds
 	resultFloat, _ := result.Float64()
-	return int64(math.Round(resultFloat)), nil
+	rounded := math.Round(resultFloat)
+
+	// Check for int64 overflow after rounding
+	if rounded > float64(math.MaxInt64) || rounded < float64(math.MinInt64) {
+		return 0, fmt.Errorf(
+			"%w: amount exceeds maximum representable value",
+			ErrAmountExceedsMaxSafeInt,
+		)
+	}
+
+	return int64(rounded), nil
 }

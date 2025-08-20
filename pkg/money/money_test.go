@@ -1,6 +1,8 @@
 package money_test
 
 import (
+	"fmt"
+	"math"
 	"testing"
 
 	"github.com/amirasaad/fintech/pkg/money"
@@ -452,6 +454,90 @@ func TestMoney_JPY(t *testing.T) {
 		assert.Equal(t, money.JPY, m.CurrencyCode())
 		assert.InDelta(t, 0.0, m.AmountFloat(), 0.001)
 	})
+}
+
+func TestConvertToSmallestUnit(t *testing.T) {
+	tests := []struct {
+		name     string
+		amount   float64
+		decimals int
+		expected int64
+		wantErr  bool
+		errType  error
+	}{
+		{
+			name:     "valid amount with 2 decimals",
+			amount:   12.34,
+			decimals: 2,
+			expected: 1234,
+			wantErr:  false,
+		},
+		{
+			name:     "valid amount with 0 decimals",
+			amount:   100,
+			decimals: 0,
+			expected: 100,
+			wantErr:  false,
+		},
+		{
+			name:     "NaN input",
+			amount:   math.NaN(),
+			decimals: 2,
+			expected: 0,
+			wantErr:  true,
+			errType:  money.ErrInvalidAmount,
+		},
+		{
+			name:     "positive infinity",
+			amount:   math.Inf(1),
+			decimals: 2,
+			expected: 0,
+			wantErr:  true,
+			errType:  money.ErrInvalidAmount,
+		},
+		{
+			name:     "negative infinity",
+			amount:   math.Inf(-1),
+			decimals: 2,
+			expected: 0,
+			wantErr:  true,
+			errType:  money.ErrInvalidAmount,
+		},
+		{
+			name:     "overflow after conversion",
+			amount:   float64(math.MaxInt64) * 10,
+			decimals: 1,
+			expected: 0,
+			wantErr:  true,
+			errType:  money.ErrAmountExceedsMaxSafeInt,
+		},
+		{
+			name:     "underflow after conversion",
+			amount:   float64(math.MinInt64) * 10,
+			decimals: 1,
+			expected: 0,
+			wantErr:  true,
+			errType:  money.ErrAmountExceedsMaxSafeInt,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			currency := money.Currency{Code: money.USD, Decimals: tt.decimals}
+			moneyObj, err := money.New(tt.amount, currency)
+
+			if tt.wantErr {
+				require.Error(t, err)
+				if tt.errType != nil {
+					errMsg := fmt.Sprintf("expected error type %v, got %v", tt.errType, err)
+					require.ErrorIs(t, err, tt.errType, errMsg)
+				}
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tt.expected, moneyObj.Amount(), "converted amount mismatch")
+			}
+		})
+	}
 }
 
 // TestMoney_Add is covered by TestMoney_Arithmetic
