@@ -237,58 +237,6 @@ func (s *Service) GetRate(
 	return rate, nil
 }
 
-// GetRates fetches multiple exchange rates in a single request.
-// Implements provider.ExchangeRate interface.
-func (s *Service) GetRates(
-	ctx context.Context,
-	from string,
-) (map[string]*provider.ExchangeInfo, error) {
-	// First try to get all rates from cache
-	cached, err := s.areRatesCached(from)
-	if err == nil && cached {
-		// If all rates are cached, return them
-		rates := make(map[string]*provider.ExchangeInfo)
-		// Get all supported target currencies
-		targetRates, err := s.provider.GetRates(ctx, from)
-		if err != nil {
-			s.logger.Warn("Failed to get supported currencies from provider",
-				"from", from, "error", err)
-			return nil, err
-		}
-
-		for to := range targetRates {
-			cachedRate, ok := s.getRateFromCache(ctx, from, to)
-			if !ok {
-				s.logger.Warn("Failed to get rate from cache",
-					"from", from, "to", to)
-				continue
-			}
-			rates[to] = cachedRate
-		}
-
-		s.logger.Info("Returning all rates from cache", "from", from, "count", len(rates))
-		return rates, nil
-	}
-
-	// If not all rates are cached or there was an error checking the cache,
-	// fetch them from the provider
-	rates, err := s.provider.GetRates(ctx, from)
-	if err != nil {
-		s.logger.Warn("Failed to get rates from provider",
-			"from", from, "error", err)
-		return nil, err
-	}
-
-	// Process and cache each rate
-	for to, rate := range rates {
-		s.processAndCacheRate(from, to, rate)
-	}
-
-	s.logger.Info("Fetched and cached rates from provider",
-		"from", from, "count", len(rates))
-	return rates, nil
-}
-
 func (s *Service) IsSupported(from, to string) bool {
 	if from == to {
 		return true
@@ -328,9 +276,4 @@ func (s *Service) getRateFromCache(
 	}
 
 	return nil, false
-}
-
-func (s *Service) areRatesCached(from string) (bool, error) {
-	s.logger.Debug("Cache check is disabled in the cleaned-up version")
-	return false, nil
 }

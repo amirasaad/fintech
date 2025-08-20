@@ -160,11 +160,11 @@ type Observer interface {
 
 // Event represents a registry event
 type Event struct {
-	Type      string                 `json:"type"`
-	EntityID  string                 `json:"entity_id"`
-	Entity    Entity                 `json:"entity,omitempty"`
-	Timestamp time.Time              `json:"timestamp"`
-	Metadata  map[string]interface{} `json:"metadata,omitempty"`
+	Type      string         `json:"type"`
+	EntityID  string         `json:"entity_id"`
+	Entity    Entity         `json:"entity,omitempty"`
+	Timestamp time.Time      `json:"timestamp"`
+	Metadata  map[string]any `json:"metadata,omitempty"`
 }
 
 // EventType constants

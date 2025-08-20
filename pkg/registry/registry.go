@@ -1,9 +1,13 @@
 package registry
 
 import (
+	"errors"
+	"maps"
 	"sync"
 	"time"
 )
+
+var ErrNotFound = errors.New("entity not found")
 
 // Registry is a thread-safe registry for managing entities that implement the Entity interface
 type Registry struct {
@@ -34,9 +38,7 @@ func (r *Registry) Register(id string, entity Entity) {
 	}
 
 	// Copy metadata
-	for k, v := range entity.Metadata() {
-		entityCopy.metadata[k] = v
-	}
+	maps.Copy(entityCopy.metadata, entity.Metadata())
 
 	r.entities[id] = entityCopy
 }
