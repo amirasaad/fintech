@@ -3,7 +3,6 @@ package events
 import (
 	"time"
 
-	"github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/google/uuid"
 )
 
@@ -92,11 +91,6 @@ func WithPaymentID(paymentID *string) PaymentCompletedOpt {
 	return func(e *PaymentCompleted) {
 		e.PaymentID = paymentID
 	}
-}
-
-// WithProviderFee sets the provider fee for the PaymentCompletedEvent
-func WithProviderFee(providerFee account.Fee) PaymentCompletedOpt {
-	return func(e *PaymentCompleted) { e.ProviderFee = providerFee }
 }
 
 // WithCorrelationID sets the correlation ID for the PaymentCompletedEvent

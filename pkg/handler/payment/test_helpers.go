@@ -3,11 +3,9 @@ package payment
 import (
 	"context"
 
-	"github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/handler/testutils"
-	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/amirasaad/fintech/pkg/repository"
 	repoaccount "github.com/amirasaad/fintech/pkg/repository/account"
 	"github.com/amirasaad/fintech/pkg/repository/transaction"
@@ -21,12 +19,6 @@ func createValidPaymentCompletedEvent(
 	// Use the amount directly from the test helper
 	amount := h.Amount
 
-	// Create a small fee amount (1% of the amount)
-	feeAmount, err := money.New(amount.AmountFloat(), amount.CurrencyCode())
-	if err != nil {
-		h.T.Fatalf("failed to create fee amount: %v", err)
-	}
-
 	return events.NewPaymentCompleted(
 		&events.FlowEvent{
 			ID:            h.EventID,
@@ -38,10 +30,6 @@ func createValidPaymentCompletedEvent(
 			pc.PaymentID = &paymentID
 			pc.TransactionID = h.TransactionID
 			pc.Amount = amount
-			// Set provider fee if needed by the test
-			pc.ProviderFee = account.Fee{
-				Amount: feeAmount,
-			}
 			pc.Status = "completed"
 		},
 	)

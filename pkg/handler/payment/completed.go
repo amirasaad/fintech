@@ -143,15 +143,12 @@ func HandleCompleted(
 			amount := pc.Amount.Amount()
 			currency := pc.Amount.Currency().String()
 			balance := newBalance.Amount()
-			fee := pc.ProviderFee.Amount.Amount()
-			log.Info("💸 Captured provider fee for transaction", "fee_cents", fee)
 
 			update := dto.TransactionUpdate{
 				Status:   &status,
 				Amount:   &amount,
 				Currency: &currency,
 				Balance:  &balance,
-				Fee:      &fee, // Store the fee with the transaction
 			}
 
 			if err = txRepo.Update(ctx, tx.ID, update); err != nil {
@@ -190,7 +187,7 @@ func HandleCompleted(
 
 			log.Info(
 				"✅ [SUCCESS] emitted FeesCalculated event",
-				"transaction_id", tx.ID, "provider_fee", pc.ProviderFee)
+				"transaction_id", tx.ID)
 			return nil
 		}); err != nil {
 			log.Error(

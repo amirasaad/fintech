@@ -471,16 +471,12 @@ func (s *StripePaymentProvider) handlePaymentIntentSucceeded(
 		return nil, err
 	}
 	metadata := s.copyMetadata(pi.Metadata)
-	fee, err := s.parseProviderFeeAmount(feeAmount, feeCurrency, log)
-	if err != nil {
-		err = fmt.Errorf("%s: failed to parse provider fee: %w", op, err)
-		log.Error(err.Error(),
-			"fee_amount", feeAmount,
-			"fee_currency", feeCurrency,
-			"payment_intent_id", pi.ID,
-		)
-		return nil, err
-	}
+
+	log.Info("Using zero fee for payment completion",
+		"original_fee_amount", feeAmount,
+		"original_fee_currency", feeCurrency,
+		"payment_intent_id", pi.ID,
+	)
 	currencyCode := strings.ToUpper(string(pi.Currency))
 	if currencyCode == "" {
 		err := fmt.Errorf("%s: currency code is empty", op)
@@ -516,8 +512,8 @@ func (s *StripePaymentProvider) handlePaymentIntentSucceeded(
 		log.Error("error emitting payment processed event", "error", err)
 		return nil, fmt.Errorf("error emitting payment processed event: %w", err)
 	}
-	// Emit PaymentCompleted event with the actual Stripe fee
-	pc := s.buildPaymentCompletedEventPayload(&pi, parsedMeta, *fee, log)
+	// Emit PaymentCompleted event with zero fee since we're dropping fees
+	pc := s.buildPaymentCompletedEventPayload(&pi, parsedMeta, log)
 	if pc == nil {
 		err := fmt.Errorf("failed to build payment completed event payload")
 		log.Error(err.Error())
@@ -775,7 +771,6 @@ func (s *StripePaymentProvider) parseProviderFeeAmount(
 func (s *StripePaymentProvider) buildPaymentCompletedEventPayload(
 	pi *stripe.PaymentIntent,
 	meta *metadataInfo,
-	feeAmount money.Money,
 	log *slog.Logger,
 ) *events.PaymentCompleted {
 	// Create payment amount with proper error handling
@@ -797,41 +792,28 @@ func (s *StripePaymentProvider) buildPaymentCompletedEventPayload(
 		paymentAmount = zero
 	}
 
-	// Create provider fee with proper initialization
-	// feeAmount is already money.Money value, we need to take its address
-	feeCopy := feeAmount // Create a copy to take address of
-	providerFee := account.Fee{
-		Amount: &feeCopy,
-		Type:   account.FeeProvider,
-	}
-
 	// Build the event with all required fields
-	event := &events.PaymentCompleted{
-		PaymentInitiated: events.PaymentInitiated{
-			FlowEvent: events.FlowEvent{
-				ID:            uuid.New(),
-				FlowType:      "payment",
-				UserID:        meta.UserID,
-				AccountID:     meta.AccountID,
-				CorrelationID: meta.TransactionID,
-				Timestamp:     time.Now(),
-			},
-			TransactionID: meta.TransactionID,
-			PaymentID:     &pi.ID,
-			Amount:        paymentAmount, // This is already a *money.Money
-		},
-		ProviderFee: providerFee,
-	}
-
+	pc := events.NewPaymentCompleted(&events.FlowEvent{
+		ID:            uuid.New(),
+		FlowType:      "payment",
+		UserID:        meta.UserID,
+		AccountID:     meta.AccountID,
+		CorrelationID: meta.TransactionID,
+		Timestamp:     time.Now(),
+	}, func(pc *events.PaymentCompleted) {
+		pc.Amount = paymentAmount
+		pc.PaymentID = &pi.ID
+		pc.TransactionID = meta.TransactionID
+	})
 	log.Info("built payment completed event",
 		"transaction_id", meta.TransactionID,
 		"amount", paymentAmount.String(),
-		"fee", feeAmount.String(),
 		"currency", pi.Currency,
 	)
 
-	return event
+	return pc
 }
+
 func (s *StripePaymentProvider) handlePaymentIntentFailed(
 	ctx context.Context,
 	event stripe.Event, log *slog.Logger) (*provider.PaymentEvent, error) {

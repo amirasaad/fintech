@@ -1,7 +1,6 @@
 package events
 
 import (
-	"github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/google/uuid"
 )
@@ -68,7 +67,6 @@ func (e *PaymentProcessed) WithAmount(m *money.Money) *PaymentProcessed {
 // PaymentCompleted is an event for when a payment is completed.
 type PaymentCompleted struct {
 	PaymentInitiated
-	ProviderFee account.Fee
 }
 
 func (e PaymentCompleted) Type() string { return EventTypePaymentCompleted.String() }
