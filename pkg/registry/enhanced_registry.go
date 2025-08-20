@@ -455,12 +455,8 @@ func (r *Enhanced) Activate(ctx context.Context, id string) error {
 
 	// Emit event
 	if r.eventBus != nil {
-		eventType := EventEntityActivated
-		if !entity.Active() {
-			eventType = EventEntityDeactivated
-		}
-		if err := r.emitEvent(eventType, entity); err != nil {
-			log.Printf("warning: failed to emit %s event: %v", eventType, err)
+		if err := r.emitEvent(EventEntityActivated, entity); err != nil {
+			log.Printf("warning: failed to emit %s event: %v", EventEntityActivated, err)
 		}
 	}
 
