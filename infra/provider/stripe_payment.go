@@ -318,7 +318,7 @@ func (s *StripePaymentProvider) handleCheckoutSessionCompleted(
 	return &provider.PaymentEvent{
 		ID:        session.PaymentIntent.ID,
 		Status:    provider.PaymentCompleted,
-		Amount:    session.PaymentIntent.Amount,
+		Amount:    session.PaymentIntent.AmountReceived,
 		Currency:  string(session.Currency),
 		UserID:    se.UserID,
 		AccountID: se.AccountID,
@@ -409,54 +409,6 @@ func (s *StripePaymentProvider) handlePaymentIntentSucceeded(
 	}
 	log = log.With("payment_intent_id", pi.ID)
 
-	// Expand PaymentIntent to include latest_charge.balance_transaction
-	piFull, err := s.client.V1PaymentIntents.Retrieve(
-		ctx,
-		pi.ID,
-		&stripe.PaymentIntentRetrieveParams{
-			Expand: []*string{stripe.String("latest_charge.balance_transaction")},
-		})
-	if err == nil && piFull != nil {
-		pi = *piFull
-	} else if err != nil {
-		log.Warn("Failed to expand payment intent with balance_transaction", "error", err)
-	}
-
-	// Retrieve the Stripe fee using the balance transaction
-	var feeAmount int64 = 0
-	feeCurrency := strings.ToUpper(string(pi.Currency))
-
-	// Only try to get fee if we have a balance transaction
-	if pi.LatestCharge != nil &&
-		pi.LatestCharge.BalanceTransaction != nil &&
-		pi.LatestCharge.BalanceTransaction.ID != "" {
-		balanceTxID := pi.LatestCharge.BalanceTransaction.ID
-		var feeErr error
-		feeAmount, feeCurrency, feeErr = s.getFeeFromBalanceTransaction(ctx, log, balanceTxID)
-		if feeErr != nil {
-			log.Error("Failed to retrieve fee from balance transaction, using 0 fee",
-				"error", feeErr,
-				"balance_transaction_id", balanceTxID)
-			// Continue with 0 fee but log the error
-		}
-	} else {
-		log.Info("No balance transaction found on PaymentIntent, using 0 fee",
-			"payment_intent_id", pi.ID,
-			"has_latest_charge", pi.LatestCharge != nil)
-	}
-
-	// Ensure we have a valid currency
-	if feeCurrency == "" {
-		if pi.Currency == "" {
-			err := fmt.Errorf("%s: currency is empty in payment intent", op)
-			log.Error(err.Error())
-			return nil, err
-		}
-		feeCurrency = strings.ToUpper(string(pi.Currency))
-		log.Warn("Empty fee currency, falling back to payment intent currency",
-			"fallback_currency", feeCurrency)
-	}
-	s.logStripeFeeInfo(log, &pi)
 	log.Info("💰 Handling payment_intent.succeeded event", "payment_intent_id", pi.ID)
 	if pi.Metadata == nil {
 		err := fmt.Errorf("%s: payment intent metadata is nil", op)
@@ -472,23 +424,17 @@ func (s *StripePaymentProvider) handlePaymentIntentSucceeded(
 	}
 	metadata := s.copyMetadata(pi.Metadata)
 
-	log.Info("Using zero fee for payment completion",
-		"original_fee_amount", feeAmount,
-		"original_fee_currency", feeCurrency,
-		"payment_intent_id", pi.ID,
-	)
 	currencyCode := strings.ToUpper(string(pi.Currency))
 	if currencyCode == "" {
 		err := fmt.Errorf("%s: currency code is empty", op)
 		log.Error(err.Error())
 		return nil, err
 	}
-
-	amount, err := money.NewFromSmallestUnit(pi.Amount, money.Code(currencyCode))
+	amount, err := s.parseAmount(pi.AmountReceived, currencyCode)
 	if err != nil {
 		log.Error("failed to create money amount",
 			"error", err,
-			"amount", pi.Amount,
+			"amount", pi.AmountReceived,
 			"currency", currencyCode)
 		return nil, fmt.Errorf("failed to create money amount: %w", err)
 	}
@@ -528,7 +474,7 @@ func (s *StripePaymentProvider) handlePaymentIntentSucceeded(
 	return &provider.PaymentEvent{
 		ID:        pi.ID,
 		Status:    provider.PaymentCompleted,
-		Amount:    pi.Amount,
+		Amount:    pi.AmountReceived,
 		Currency:  string(pi.Currency),
 		UserID:    parsedMeta.UserID,
 		AccountID: parsedMeta.AccountID,
@@ -561,16 +507,6 @@ func (s *StripePaymentProvider) getFeeFromBalanceTransaction(
 		"balance_transaction_id", balanceTxID,
 	)
 	return feeAmount, feeCurrency, nil
-}
-
-// logStripeFeeInfo logs Stripe fee-related info.
-func (s *StripePaymentProvider) logStripeFeeInfo(log *slog.Logger, pi *stripe.PaymentIntent) {
-	log.Info("Stripe fees",
-		"amount_received", pi.AmountReceived,
-		"amount_details", pi.AmountDetails,
-		"application_fee", pi.ApplicationFeeAmount,
-		"currency", pi.Currency,
-	)
 }
 
 // metadataInfo holds parsed metadata fields.
@@ -756,11 +692,11 @@ func (s *StripePaymentProvider) parseProviderFeeAmount(
 	)
 
 	// Create money object with validated currency
-	fee, err := money.NewFromSmallestUnit(feeAmount, money.Code(currency))
+	fee, err := s.parseAmount(feeAmount, currency)
 	if err != nil {
 		err = fmt.Errorf("invalid fee amount %d %s: %w", feeAmount, currency, err)
-		log.Error("error creating money from smallest unit", "error", err)
-		return nil, fmt.Errorf("error creating money from smallest unit: %w", err)
+		log.Error("error parsing fee amount", "error", err)
+		return nil, fmt.Errorf("error parsing fee amount: %w", err)
 	}
 
 	log.Debug("successfully parsed provider fee")
@@ -774,18 +710,17 @@ func (s *StripePaymentProvider) buildPaymentCompletedEventPayload(
 	log *slog.Logger,
 ) *events.PaymentCompleted {
 	// Create payment amount with proper error handling
-	currency := money.Code(strings.ToUpper(string(pi.Currency)))
-	paymentAmount, err := money.NewFromSmallestUnit(pi.Amount, currency)
+	paymentAmount, err := s.parseAmount(pi.Amount, string(pi.Currency))
 	if err != nil {
-		log.Error("error creating payment amount",
+		log.Error("error parsing payment amount",
 			"error", err,
 			"amount", pi.Amount,
 			"currency", pi.Currency,
 		)
 		// Fallback to zero amount if we can't parse the payment amount
-		zero, zeroErr := money.NewFromSmallestUnit(0, currency)
+		zero, zeroErr := s.parseAmount(0, string(pi.Currency))
 		if zeroErr != nil {
-			log.Error("failed to create zero amount", "error", zeroErr, "currency", currency)
+			log.Error("failed to parse zero amount", "error", zeroErr, "currency", pi.Currency)
 			// If we can't even create a zero amount, we have to fail
 			return nil
 		}
