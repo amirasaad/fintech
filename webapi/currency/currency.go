@@ -151,7 +151,7 @@ func ListSupportedCurrencies(
 // @Accept json
 // @Produce json
 // @Param code path string true "Currency code (e.g., USD, EUR)"
-// @Success 200 {object} currency.Meta
+// @Success 200 {object} common.Response
 // @Failure 400 {object} common.ProblemDetails
 // @Failure 404 {object} common.ProblemDetails
 // @Failure 500 {object} common.ProblemDetails
@@ -252,7 +252,7 @@ func CheckCurrencySupported(
 // @Accept json
 // @Produce json
 // @Param q query string true "Search query"
-// @Success 200 {array} currency.Meta
+// @Success 200 {object} common.Response
 // @Failure 400 {object} common.ProblemDetails
 // @Failure 500 {object} common.ProblemDetails
 // @Router /api/currencies/search [get]
@@ -295,7 +295,7 @@ func SearchCurrencies(
 // @Accept json
 // @Produce json
 // @Param region path string true "Region name"
-// @Success 200 {array} currency.Meta
+// @Success 200 {object} common.Response
 // @Failure 400 {object} common.ProblemDetails
 // @Failure 500 {object} common.ProblemDetails
 // @Router /api/currencies/region/{region} [get]
@@ -367,7 +367,7 @@ func GetCurrencyStatistics(
 // @Tags currencies
 // @Accept json
 // @Produce json
-// @Success 200 {object} currency.Meta
+// @Success 200 {object} common.Response
 // @Failure 500 {object} common.ProblemDetails
 // @Router /api/currencies/default [get]
 func GetDefaultCurrency(
@@ -398,7 +398,7 @@ func GetDefaultCurrency(
 // @Accept json
 // @Produce json
 // @Param currency body RegisterRequest true "Currency information"
-// @Success 201 {object} CurrencyResponse
+// @Success 201 {object} common.Response
 // @Failure 400 {object} common.ProblemDetails
 // @Failure 401 {object} common.ProblemDetails
 // @Failure 409 {object} common.ProblemDetails
