@@ -146,30 +146,6 @@ func TestConversionHandler(t *testing.T) {
 				Return(nil).
 				Twice() // Expect both direct and inverse rates
 
-			// Mock registry for last_updated timestamp
-			exchangeRateRegistryProvider.EXPECT().
-				Register(
-					mock.Anything,
-					mock.MatchedBy(func(entity registry.Entity) bool {
-						if entity == nil {
-							return false
-						}
-
-						e := reflect.Indirect(reflect.ValueOf(entity))
-
-						// Check for last_updated entity (has Timestamp field and specific ID)
-						timestampField := e.FieldByName("Timestamp")
-						idField := e.FieldByName("id")
-
-						if timestampField.IsValid() && idField.IsValid() &&
-							idField.String() == "exr:last_updated" {
-							return true
-						}
-						return false
-					})).
-				Return(nil).
-				Once()
-
 			// Expect CurrencyConverted event
 			bus.EXPECT().
 				Emit(mock.Anything, mock.AnythingOfType("*events.CurrencyConverted")).

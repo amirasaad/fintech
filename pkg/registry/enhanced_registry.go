@@ -380,6 +380,12 @@ func (r *Enhanced) SetMetadata(ctx context.Context, id, key, value string) error
 		}
 	}
 
+	// Skip protected fields with a warning
+	if isProtectedField(key) {
+		log.Printf("warning: skipping metadata set for protected field: %s", key)
+		return nil
+	}
+
 	// Update the entity's metadata using the proper method
 	switch e := entity.(type) {
 	case *BaseEntity:

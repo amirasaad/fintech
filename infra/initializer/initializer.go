@@ -4,13 +4,12 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"path/filepath"
+	"runtime"
 	"time"
 
-	"github.com/amirasaad/fintech/infra/caching"
-	"github.com/amirasaad/fintech/pkg/provider"
-	"github.com/amirasaad/fintech/pkg/registry"
-
 	"github.com/amirasaad/fintech/infra"
+	"github.com/amirasaad/fintech/infra/caching"
 	infra_eventbus "github.com/amirasaad/fintech/infra/eventbus"
 	infra_provider "github.com/amirasaad/fintech/infra/provider"
 	infra_repository "github.com/amirasaad/fintech/infra/repository"
@@ -18,7 +17,40 @@ import (
 	"github.com/amirasaad/fintech/pkg/app"
 	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/eventbus"
+	"github.com/amirasaad/fintech/pkg/provider"
+	"github.com/amirasaad/fintech/pkg/registry"
 )
+
+// loadCurrencyFixtures loads currency metadata from embedded CSV into the registry
+func loadCurrencyFixtures(ctx context.Context, registry registry.Provider, logger *slog.Logger) {
+	// Load currency metadata from embedded CSV
+	logger.Info("Loading embedded currency metadata")
+	_, filename, _, _ := runtime.Caller(0)
+	fixturePath := filepath.Join(
+		filepath.Dir(filename),
+		"../../internal/fixtures/currency/meta.csv",
+	)
+	entities, err := currencyfixtures.LoadCurrencyMetaCSV(fixturePath)
+	if err != nil {
+		logger.Warn("Failed to load currency meta from CSV", "error", err)
+		return
+	}
+
+	logger.Info("Loading currency meta from fixture",
+		"to_register", len(entities))
+
+	var registeredCount int
+	for _, entity := range entities {
+		if err := registry.Register(ctx, entity); err != nil {
+			logger.Error("Failed to register currency", "code", entity.ID(), "error", err)
+			// Continue with other currencies even if one fails
+		} else {
+			registeredCount++
+		}
+	}
+
+	logger.Info("Successfully loaded currency fixtures", "registered_count", registeredCount)
+}
 
 // InitializeDependencies initializes all the application dependencies
 func InitializeDependencies(cfg *config.App) (
@@ -50,23 +82,7 @@ func InitializeDependencies(cfg *config.App) (
 	}
 
 	if count == 0 {
-		// Load currency metadata from embedded CSV
-		logger.Info("Loading embedded currency metadata")
-		entities, err := currencyfixtures.LoadCurrencyMetaCSV("")
-		if err != nil {
-			logger.Warn("Failed to load currency meta from CSV", "error", err)
-		} else {
-			logger.Info("Loading currency meta from fixture",
-				"existing_count", count,
-				"to_register", len(entities))
-			for _, entity := range entities {
-				if err := deps.CurrencyRegistry.Register(ctx, entity); err != nil {
-					logger.Error("Failed to register currency", "code", entity.ID(), "error", err)
-					// Continue with other currencies even if one fails
-				}
-			}
-			logger.Info("Successfully loaded currency fixtures", "registered_count", len(entities))
-		}
+		loadCurrencyFixtures(ctx, deps.CurrencyRegistry, logger)
 	} else {
 		logger.Info("Skipping currency fixtures load; registry not empty", "existing_count", count)
 	}
@@ -88,6 +104,9 @@ func InitializeDependencies(cfg *config.App) (
 		cfg.ExchangeRateAPIProviders.ExchangeRateApi,
 		logger,
 	)
+	deps.ExchangeRateProvider = exchangeProvider
+
+	// Initialize exchange rates
 	if err := initializeExchangeRates(
 		exchangeProvider,
 		deps.ExchangeRateRegistry,
@@ -97,7 +116,6 @@ func InitializeDependencies(cfg *config.App) (
 		logger.Error("Failed to initialize exchange rates", "error", err)
 		// Don't fail the entire startup for exchange rate initialization
 	}
-	deps.ExchangeRateProvider = exchangeProvider
 
 	// Initialize database
 	db, err := infra.NewDBConnection(cfg.DB, cfg.Env)
@@ -143,32 +161,47 @@ func initializeExchangeRates(
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	// Initialize the exchange cache with the provided registry provider
+	// Initialize the exchange cache with the provided registry provider and config
 	exchangeCache := caching.NewExchangeCache(
 		registryProvider,
 		logger,
-		cfg.TTL,
+		cfg,
 	)
 
-	// Fetch rates from the provider
-	rates, err := exchangeRateProvider.GetRates(ctx, "USD")
+	// Check if cache is stale
+	isStale, err := exchangeCache.IsCacheStale(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to fetch exchange rates: %w", err)
+		logger.Warn("Failed to check cache status, will fetch new rates", "error", err)
 	}
 
-	// Cache the rates using ExchangeCache
-	if err := exchangeCache.CacheRates(
-		ctx,
-		rates,
-		exchangeRateProvider.Name(),
-	); err != nil {
-		return fmt.Errorf("failed to cache exchange rates: %w", err)
-	}
+	// Only fetch new rates if cache is stale or non-existent
+	if isStale {
+		logger.Debug("Cache is stale, fetching new rates")
+		// Fetch rates from the provider
+		rates, err := exchangeRateProvider.GetRates(ctx, "USD")
+		if err != nil {
+			return fmt.Errorf("failed to fetch exchange rates: %w", err)
+		}
 
-	logger.Info("Successfully fetched and cached exchange rates",
-		"provider", exchangeRateProvider.Name(),
-		"rates_count", len(rates),
-	)
+		// Cache the rates using ExchangeCache with exchange prefix
+		if err := exchangeCache.CacheRates(
+			ctx,
+			rates,
+			exchangeRateProvider.Name(),
+		); err != nil {
+			logger.Error("Failed to cache exchange rates", "error", err)
+			return fmt.Errorf("failed to cache exchange rates: %w", err)
+		}
+
+		logger.Info("Successfully fetched and cached exchange rates",
+			"provider", exchangeRateProvider.Name(),
+			"rates_count", len(rates),
+		)
+	} else {
+		logger.Info("Using cached exchange rates",
+			"next_update_in", time.Until(time.Now().Add(cfg.TTL)),
+		)
+	}
 
 	return nil
 }
