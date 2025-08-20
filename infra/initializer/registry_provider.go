@@ -92,20 +92,30 @@ func GetExchangeRateRegistry(cfg *config.App, logger *slog.Logger) (registry.Pro
 	return GetRegistryProvider(registryCfg, logger)
 }
 
+// GetCurrencyRegistry creates a dedicated registry provider for currency data
+func GetCurrencyRegistry(cfg *config.App, logger *slog.Logger) (registry.Provider, error) {
+	return GetRegistryProvider(
+		&RegistryConfig{
+			Name:      "currency",
+			RedisURL:  cfg.Redis.URL,
+			KeyPrefix: "currency:",
+			CacheSize: 200, // Currency data is relatively small but frequently accessed
+			CacheTTL:  -1,  // No expiration for currency data
+		},
+		logger,
+	)
+}
+
 // GetDefaultRegistry creates a default registry provider
 func GetDefaultRegistry(cfg *config.App, logger *slog.Logger) (registry.Provider, error) {
-	keyPrefix := ""
-	if cfg.Redis != nil {
-		keyPrefix = cfg.Redis.KeyPrefix
-	}
-
-	registryCfg := &RegistryConfig{
-		Name:      "default",
-		RedisURL:  cfg.Redis.URL,
-		KeyPrefix: keyPrefix,
-		CacheSize: 1000,
-		CacheTTL:  -1, // No expiration
-	}
-
-	return GetRegistryProvider(registryCfg, logger)
+	return GetRegistryProvider(
+		&RegistryConfig{
+			Name:      "default",
+			RedisURL:  cfg.Redis.URL,
+			KeyPrefix: "registry:default:",
+			CacheSize: 1000,
+			CacheTTL:  time.Hour * 24,
+		},
+		logger,
+	)
 }

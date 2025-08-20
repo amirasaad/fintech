@@ -36,8 +36,8 @@ func InitializeDependencies(cfg *config.App) (
 		return nil, fmt.Errorf("failed to initialize main registry provider: %w", err)
 	}
 
-	// Initialize currency registry
-	deps.CurrencyRegistry, err = GetDefaultRegistry(cfg, logger)
+	// Initialize currency registry with dedicated provider
+	deps.CurrencyRegistry, err = GetCurrencyRegistry(cfg, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize currency registry provider: %w", err)
 	}
