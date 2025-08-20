@@ -111,7 +111,7 @@ type CurrencyConverted struct {
 	CurrencyConversionRequested
 	TransactionID   uuid.UUID
 	ConvertedAmount *money.Money
-	ConversionInfo  *provider.ExchangeInfo `json:"-"`
+	ConversionInfo  *provider.ExchangeInfo `json:"conversionInfo"`
 }
 
 func (e CurrencyConverted) Type() string { return EventTypeCurrencyConverted.String() }
@@ -223,6 +223,15 @@ func (e *CurrencyConverted) UnmarshalJSON(data []byte) error {
 	// Copy CurrencyConverted specific fields
 	e.TransactionID = aux.TransactionID
 	e.ConvertedAmount = aux.ConvertedAmount
+
+	// Parse ConversionInfo if present
+	if len(aux.ConversionInfo) > 0 {
+		var info provider.ExchangeInfo
+		if err := json.Unmarshal(aux.ConversionInfo, &info); err != nil {
+			return fmt.Errorf("failed to unmarshal ConversionInfo: %w", err)
+		}
+		e.ConversionInfo = &info
+	}
 
 	// Handle the OriginalRequest reconstruction
 	if aux.RequestType != "" && len(aux.RequestPayload) > 0 {
