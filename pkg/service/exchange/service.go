@@ -99,11 +99,13 @@ func New(
 	}
 }
 
-// processAndCacheRate validates, logs, and caches a rate.
+// processAndCacheRate validates, logs, and caches a rate with TTL support.
 // It uses the exchange cache to handle the actual caching.
 // This is a convenience method that wraps the bulk caching functionality
 // for a single rate.
+// The context is used for cancellation and deadline propagation to the registry.
 func (s *Service) processAndCacheRate(
+	ctx context.Context,
 	from, to string,
 	rate *provider.ExchangeInfo,
 ) {
@@ -118,10 +120,16 @@ func (s *Service) processAndCacheRate(
 		return
 	}
 
+	// Create rate info with current timestamp
+	rateInfo := newExchangeRateInfo(from, to, rate.ConversionRate, s.provider.Name())
+
+	// Store last updated timestamp in metadata
+	rateInfo.SetMetadata("last_updated", time.Now().UTC().Format(time.RFC3339Nano))
+
 	// Register the direct rate (from -> to)
 	if err := s.registry.Register(
-		context.Background(),
-		newExchangeRateInfo(from, to, rate.ConversionRate, s.provider.Name()),
+		ctx,
+		rateInfo,
 	); err != nil {
 		s.logger.Error("Failed to cache exchange rate",
 			"from", from,
@@ -133,9 +141,13 @@ func (s *Service) processAndCacheRate(
 	// Also register the inverse rate (to -> from) if not 1:1
 	if math.Abs(rate.ConversionRate) > 1e-10 { // Avoid division by zero
 		inverseRate := 1.0 / rate.ConversionRate
+		// Create inverse rate info with current timestamp
+		inverseInfo := newExchangeRateInfo(to, from, inverseRate, s.provider.Name())
+		inverseInfo.SetMetadata("last_updated", time.Now().UTC().Format(time.RFC3339Nano))
+
 		if err := s.registry.Register(
-			context.Background(),
-			newExchangeRateInfo(to, from, inverseRate, s.provider.Name()),
+			ctx,
+			inverseInfo,
 		); err != nil {
 			s.logger.Error("Failed to cache inverse exchange rate",
 				"from", to,
@@ -233,7 +245,7 @@ func (s *Service) GetRate(
 		return nil, fmt.Errorf("failed to fetch rates from provider: %w", err)
 	}
 
-	s.processAndCacheRate(from, to, rate)
+	s.processAndCacheRate(ctx, from, to, rate)
 	return rate, nil
 }
 
