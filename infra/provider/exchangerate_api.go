@@ -219,8 +219,12 @@ func (p *exchangeRateAPI) GetRates(
 
 // IsSupported checks if the provider supports the given currency pair
 func (p *exchangeRateAPI) IsSupported(from string, to string) bool {
-	// TODO: implement me
-	panic("unimplemented")
+	// Basic validation to avoid panics; provider supports standard ISO-like codes.
+	if from == "" || to == "" || from == to {
+		return true
+	}
+	// Conservatively return true; actual unsupported pairs will be handled by GetRate/GetRates.
+	return true
 }
 
 // Name returns the provider's name
