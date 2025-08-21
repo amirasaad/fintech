@@ -79,32 +79,7 @@ definitions:
         description: HTTP status code
         type: integer
     type: object
-  currency.Meta:
-    properties:
-      active:
-        type: boolean
-      code:
-        type: string
-      country:
-        type: string
-      created:
-        type: string
-      decimals:
-        type: integer
-      metadata:
-        additionalProperties:
-          type: string
-        type: object
-      name:
-        type: string
-      region:
-        type: string
-      symbol:
-        type: string
-      updated:
-        type: string
-    type: object
-  currency.RegisterCurrencyRequest:
+  currency.RegisterRequest:
     properties:
       active:
         type: boolean
@@ -458,7 +433,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/currency.Meta'
+            $ref: '#/definitions/common.Response'
         "400":
           description: Bad Request
           schema:
@@ -510,14 +485,14 @@ paths:
         name: currency
         required: true
         schema:
-          $ref: '#/definitions/currency.RegisterCurrencyRequest'
+          $ref: '#/definitions/currency.RegisterRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/currency.Meta'
+            $ref: '#/definitions/common.Response'
         "400":
           description: Bad Request
           schema:
@@ -659,7 +634,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/currency.Meta'
+            $ref: '#/definitions/common.Response'
         "500":
           description: Internal Server Error
           schema:
@@ -684,9 +659,7 @@ paths:
         "200":
           description: OK
           schema:
-            items:
-              $ref: '#/definitions/currency.Meta'
-            type: array
+            $ref: '#/definitions/common.Response'
         "400":
           description: Bad Request
           schema:
@@ -715,9 +688,7 @@ paths:
         "200":
           description: OK
           schema:
-            items:
-              $ref: '#/definitions/currency.Meta'
-            type: array
+            $ref: '#/definitions/common.Response'
         "400":
           description: Bad Request
           schema:

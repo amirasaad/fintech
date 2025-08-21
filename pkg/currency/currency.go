@@ -1,3 +1,8 @@
+// Package currency provides functionality for working with currency codes and metadata.
+// It includes validation, formatting, and conversion utilities for ISO 4217 currency codes.
+//
+// Deprecated: This package is deprecated and will be removed in a future release.
+// Please use the money package instead: github.com/amirasaad/fintech/pkg/money
 package currency
 
 import (
@@ -9,13 +14,14 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/amirasaad/fintech/pkg/registry"
 )
 
 // Common errors
 var (
-	ErrInvalidCode = errors.New(
-		"invalid currency code: must be 3 uppercase letters")
+	// Deprecated: Use money.ErrInvalidCurrency instead
+	ErrInvalidCode     = money.ErrInvalidCurrency
 	ErrUnsupported     = errors.New("unsupported currency")
 	ErrInvalidDecimals = errors.New("invalid decimals: must be between 0 and 8")
 	ErrInvalidSymbol   = errors.New(
@@ -34,21 +40,13 @@ const (
 	// MaxSymbolLength is the maximum length for currency symbols
 	MaxSymbolLength = 10
 
-	USD = Code("USD")
-	EUR = Code("EUR")
-
+	// Default is the default currency code (USD)
+	// Deprecated: Use money.USD from the money package instead
 	Default = USD
 )
 
-// Code represents a 3-letter ISO currency code
-type Code string
-
-// String return code as string
-func (c Code) String() string {
-	return string(c)
-}
-
 // Meta holds currency-specific metadata
+// Deprecated:
 type Meta struct {
 	Code     string            `json:"code"`
 	Name     string            `json:"name"`
@@ -63,6 +61,7 @@ type Meta struct {
 }
 
 // Entity implements the registry.Entity interface
+// Deprecated
 type Entity struct {
 	*registry.BaseEntity
 	meta Meta
@@ -97,7 +96,9 @@ func (c *Entity) Active() bool {
 
 // Metadata returns currency metadata
 func (c *Entity) Metadata() map[string]string {
-	metadata := c.BaseEntity.Metadata()
+	metadata := make(map[string]string)
+
+	// Only include core fields in the metadata
 	metadata["code"] = c.meta.Code
 	metadata["symbol"] = c.meta.Symbol
 	metadata["decimals"] = strconv.Itoa(c.meta.Decimals)
@@ -289,7 +290,6 @@ func New(ctx context.Context, params ...string) (*Registry, error) {
 		EnableEvents:     true,
 		EnableValidation: true,
 		CacheSize:        100,
-		CacheTTL:         10 * time.Minute,
 	}
 
 	var reg registry.Provider
@@ -313,7 +313,7 @@ func New(ctx context.Context, params ...string) (*Registry, error) {
 		config = builder.Build()
 
 		// Create registry with Redis cache
-		factory := registry.NewRegistryFactory()
+		factory := registry.NewFactory()
 		reg, err = factory.Create(ctx, config)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create Redis-backed registry: %w", err)
@@ -374,7 +374,7 @@ func NewRegistryWithPersistence(
 		config = builder.Build()
 
 		// Create registry with Redis cache and persistence
-		factory := registry.NewRegistryFactory()
+		factory := registry.NewFactory()
 		reg, err = factory.CreateWithPersistence(
 			ctx,
 			config,
@@ -620,10 +620,25 @@ func (cr *Registry) Search(query string) ([]Meta, error) {
 		return nil, fmt.Errorf("failed to search currencies: %w", err)
 	}
 
-	currencies := make([]Meta, len(entities))
-	for i, entity := range entities {
+	var currencies []Meta
+	for _, entity := range entities {
 		if currencyEntity, ok := entity.(*Entity); ok {
-			currencies[i] = currencyEntity.Meta()
+			currencies = append(currencies, currencyEntity.Meta())
+		} else {
+			// Fallback for non-Entity types
+			metadata := entity.Metadata()
+			decimals, _ := strconv.Atoi(metadata["decimals"])
+			active, _ := strconv.ParseBool(metadata["active"])
+
+			currencies = append(currencies, Meta{
+				Code:     metadata["code"],
+				Name:     entity.Name(),
+				Symbol:   metadata["symbol"],
+				Decimals: decimals,
+				Country:  metadata["country"],
+				Region:   metadata["region"],
+				Active:   active,
+			})
 		}
 	}
 
@@ -637,10 +652,25 @@ func (cr *Registry) SearchByRegion(region string) ([]Meta, error) {
 		return nil, fmt.Errorf("failed to search currencies by region: %w", err)
 	}
 
-	currencies := make([]Meta, len(entities))
-	for i, entity := range entities {
+	var currencies []Meta
+	for _, entity := range entities {
 		if currencyEntity, ok := entity.(*Entity); ok {
-			currencies[i] = currencyEntity.Meta()
+			currencies = append(currencies, currencyEntity.Meta())
+		} else {
+			// Fallback for non-Entity types
+			metadata := entity.Metadata()
+			decimals, _ := strconv.Atoi(metadata["decimals"])
+			active, _ := strconv.ParseBool(metadata["active"])
+
+			currencies = append(currencies, Meta{
+				Code:     metadata["code"],
+				Name:     entity.Name(),
+				Symbol:   metadata["symbol"],
+				Decimals: decimals,
+				Country:  metadata["country"],
+				Region:   metadata["region"],
+				Active:   active,
+			})
 		}
 	}
 

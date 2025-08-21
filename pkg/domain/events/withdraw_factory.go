@@ -3,7 +3,6 @@ package events
 import (
 	"time"
 
-	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/google/uuid"
 )
@@ -11,7 +10,7 @@ import (
 // --- WithdrawRequested ---
 type WithdrawRequestedOpt func(*WithdrawRequested)
 
-func WithWithdrawAmount(m money.Money) WithdrawRequestedOpt {
+func WithWithdrawAmount(m *money.Money) WithdrawRequestedOpt {
 	return func(e *WithdrawRequested) { e.Amount = m }
 }
 
@@ -46,7 +45,7 @@ func NewWithdrawRequested(
 			CorrelationID: correlationID,
 			Timestamp:     time.Now(),
 		},
-		Amount: money.Zero(currency.USD),
+		Amount: money.Zero(money.USD),
 	}
 	for _, opt := range opts {
 		opt(wr)

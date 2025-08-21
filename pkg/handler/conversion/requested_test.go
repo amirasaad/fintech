@@ -5,13 +5,15 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"math"
+	"reflect"
 	"testing"
 
 	"github.com/amirasaad/fintech/internal/fixtures/mocks"
-	"github.com/amirasaad/fintech/pkg/currency"
-	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/money"
+	"github.com/amirasaad/fintech/pkg/provider"
+	"github.com/amirasaad/fintech/pkg/registry"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -44,13 +46,14 @@ func TestConversionHandler(t *testing.T) {
 		) {
 			// Setup
 			bus := mocks.NewBus(t)
-			mockConverter := mocks.NewCurrencyConverter(t)
+			exchangeRateProvider := mocks.NewExchangeRateProvider(t)
+			exchangeRateRegistryProvider := mocks.NewRegistryProvider(t)
 			mockFactory := &MockEventFactory{}
 
 			userID := uuid.New()
 			accountID := uuid.New()
 			transactionID := uuid.New()
-			amount, _ := money.New(100, currency.USD)
+			amount, _ := money.New(100, money.USD)
 
 			event := &events.CurrencyConversionRequested{
 				FlowEvent: events.FlowEvent{
@@ -60,12 +63,12 @@ func TestConversionHandler(t *testing.T) {
 					CorrelationID: uuid.New(),
 				},
 				Amount:        amount,
-				To:            currency.EUR,
+				To:            money.EUR,
 				TransactionID: transactionID,
 			}
-			convInfo := &domain.ConversionInfo{
+			convInfo := &provider.ExchangeInfo{
 				OriginalAmount:    100.0,
-				OriginalCurrency:  "USD",
+				OriginalCurrency:  money.USD.String(),
 				ConvertedAmount:   85.0,
 				ConvertedCurrency: "EUR",
 				ConversionRate:    0.85,
@@ -78,47 +81,101 @@ func TestConversionHandler(t *testing.T) {
 						events.FlowEvent{CorrelationID: correlationID},
 						nil,
 						events.WithConversionAmount(amount),
-						events.WithConversionTo(currency.EUR),
+						events.WithConversionTo(money.EUR),
 						events.WithConversionTransactionID(transactionID),
 					),
 				),
 			)
 
 			// Mock expectations - use currency.Code types for currency codes
-			mockConverter.EXPECT().
-				Convert(100.0, currency.USD, currency.EUR).
+			exchangeRateRegistryProvider.EXPECT().
+				Get(mock.Anything, "USD:EUR").
+				Return(nil, provider.ErrExchangeRateUnavailable).
+				Once()
+
+			// Mock provider name and health check (called multiple times in the provider loop)
+			exchangeRateProvider.EXPECT().
+				Name().
+				Return("mock-provider").
+				Maybe()
+
+			exchangeRateProvider.EXPECT().
+				IsHealthy().
+				Return(true).
+				Maybe()
+
+			// Mock provider to return exchange rate
+			exchangeRateProvider.EXPECT().
+				GetRate(mock.Anything, "USD", "EUR").
 				Return(convInfo, nil).
 				Once()
 
+			// Mock registry to save the rates - both direct and inverse rates
+			exchangeRateRegistryProvider.EXPECT().
+				Register(
+					mock.Anything,
+					mock.MatchedBy(
+						func(entity registry.Entity) bool {
+							if entity == nil {
+								return false
+							}
+
+							e := reflect.Indirect(reflect.ValueOf(entity))
+
+							// Check for rate entities (have From, To, and Rate fields)
+							fromField := e.FieldByName("From")
+							toField := e.FieldByName("To")
+							rateField := e.FieldByName("Rate")
+
+							if fromField.IsValid() && toField.IsValid() && rateField.IsValid() {
+								from := fromField.String()
+								to := toField.String()
+								rate := rateField.Float()
+
+								// Check for direct rate (USD to EUR)
+								if from == "USD" && to == "EUR" {
+									return math.Abs(rate-0.85) < 0.000001
+								}
+								// Check for inverse rate (EUR to USD)
+								if from == "EUR" && to == "USD" {
+									return math.Abs(rate-1.17647) < 0.0001
+								}
+							}
+							return false
+						})).
+				Return(nil).
+				Twice() // Expect both direct and inverse rates
+
+			// Expect CurrencyConverted event
 			bus.EXPECT().
-				Emit(mock.Anything, mock.MatchedBy(func(e events.Event) bool {
-					_, ok := e.(*events.CurrencyConverted)
-					return ok
-				})).
+				Emit(mock.Anything, mock.AnythingOfType("*events.CurrencyConverted")).
 				Return(nil).
 				Once()
 
+			// Expect DepositCurrencyConverted event
+			bus.EXPECT().
+				Emit(mock.Anything, mock.AnythingOfType("*events.DepositCurrencyConverted")).
+				Return(nil).
+				Once()
+
+			// Setup mock for next event creation - accept any CurrencyConverted event
 			mockFactory.On(
 				"CreateNextEvent",
-				mock.MatchedBy(func(e *events.CurrencyConverted) bool {
-					return e != nil
-				}),
+				mock.AnythingOfType("*events.CurrencyConverted"),
 			).Return(nextEvent).Once()
-
-			bus.EXPECT().
-				Emit(mock.Anything, mock.MatchedBy(func(e events.Event) bool {
-					_, ok := e.(*events.DepositCurrencyConverted)
-					return ok
-				})).
-				Return(nil).
-				Once()
 
 			factories := map[string]EventFactory{
 				"deposit": mockFactory,
 			}
 
 			// Execute
-			handler := HandleRequested(bus, mockConverter, logger, factories)
+			handler := HandleRequested(
+				bus,
+				exchangeRateRegistryProvider,
+				exchangeRateProvider,
+				logger,
+				factories,
+			)
 			err := handler(ctx, event)
 
 			// Assert
@@ -128,7 +185,8 @@ func TestConversionHandler(t *testing.T) {
 	t.Run("handles unexpected event type gracefully", func(t *testing.T) {
 		// Setup
 		bus := mocks.NewBus(t)
-		mockConverter := mocks.NewCurrencyConverter(t)
+		exchangeRateProvider := mocks.NewExchangeRateProvider(t)
+		exchangeRateRegistryProvider := mocks.NewRegistryProvider(t)
 
 		// Use a different event type
 		event := events.DepositRequested{}
@@ -138,26 +196,41 @@ func TestConversionHandler(t *testing.T) {
 		}
 
 		// Execute
-		handler := HandleRequested(bus, mockConverter, logger, factories)
+		handler := HandleRequested(
+			bus,
+			exchangeRateRegistryProvider,
+			exchangeRateProvider,
+			logger,
+			factories,
+		)
 		err := handler(ctx, event)
 
 		// Assert
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "unexpected event type")
 		// No interactions should occur with mocks
-		mockConverter.AssertNotCalled(t, "Convert", mock.Anything, mock.Anything, mock.Anything)
+
+		exchangeRateRegistryProvider.AssertNotCalled(t, "Get", mock.Anything, mock.Anything)
+		exchangeRateProvider.AssertNotCalled(
+			t,
+			"GetRate",
+			mock.Anything,
+			mock.Anything,
+			mock.Anything,
+		)
 		bus.AssertNotCalled(t, "Emit", mock.Anything, mock.Anything)
 	})
 
 	t.Run("handles conversion error", func(t *testing.T) {
 		// Setup
 		bus := mocks.NewBus(t)
-		mockConverter := mocks.NewCurrencyConverter(t)
+		exchangeRateProvider := mocks.NewExchangeRateProvider(t)
+		exchangeRateRegistryProvider := mocks.NewRegistryProvider(t)
 
 		userID := uuid.New()
 		accountID := uuid.New()
 		transactionID := uuid.New()
-		amount, _ := money.New(100, currency.USD)
+		amount, _ := money.New(100, money.USD)
 
 		event := events.NewCurrencyConversionRequested(
 			events.FlowEvent{
@@ -169,14 +242,31 @@ func TestConversionHandler(t *testing.T) {
 			nil,
 			func(ccr *events.CurrencyConversionRequested) {
 				ccr.Amount = amount
-				ccr.To = currency.EUR
+				ccr.To = money.EUR
 				ccr.TransactionID = transactionID
 			},
 		)
 
-		// Mock conversion error
-		mockConverter.EXPECT().
-			Convert(100.0, currency.USD, currency.EUR).
+		// Mock registry to return rate not found (we no longer check for inverse rates)
+		exchangeRateRegistryProvider.EXPECT().
+			Get(mock.Anything, "USD:EUR").
+			Return(nil, provider.ErrExchangeRateUnavailable).
+			Once()
+
+		// Mock provider name and health check
+		exchangeRateProvider.EXPECT().
+			Name().
+			Return("mock-provider").
+			Maybe()
+
+		exchangeRateProvider.EXPECT().
+			IsHealthy().
+			Return(true).
+			Maybe()
+
+		// Mock provider to return error
+		exchangeRateProvider.EXPECT().
+			GetRate(mock.Anything, "USD", "EUR").
 			Return(nil, errors.New("conversion error")).
 			Once()
 
@@ -185,7 +275,13 @@ func TestConversionHandler(t *testing.T) {
 		}
 
 		// Execute
-		handler := HandleRequested(bus, mockConverter, logger, factories)
+		handler := HandleRequested(
+			bus,
+			exchangeRateRegistryProvider,
+			exchangeRateProvider,
+			logger,
+			factories,
+		)
 		err := handler(ctx, event)
 
 		// Assert
@@ -194,7 +290,7 @@ func TestConversionHandler(t *testing.T) {
 			t,
 			"Emit",
 			mock.Anything,
-			mock.AnythingOfType("*events.ConversionDoneEvent"),
+			mock.AnythingOfType("*events.CurrencyConverted"),
 		)
 		bus.AssertNotCalled(
 			t,
@@ -207,12 +303,13 @@ func TestConversionHandler(t *testing.T) {
 	t.Run("handles unknown flow type", func(t *testing.T) {
 		// Setup
 		bus := mocks.NewBus(t)
-		mockConverter := mocks.NewCurrencyConverter(t)
+		exchangeRateProvider := mocks.NewExchangeRateProvider(t)
+		exchangeRateRegistryProvider := mocks.NewRegistryProvider(t)
 
 		userID := uuid.New()
 		accountID := uuid.New()
 		transactionID := uuid.New()
-		amount, _ := money.New(100, currency.USD)
+		amount, _ := money.New(100, money.USD)
 
 		event := events.NewCurrencyConversionRequested(
 			events.FlowEvent{
@@ -224,7 +321,7 @@ func TestConversionHandler(t *testing.T) {
 			nil,
 			func(ccr *events.CurrencyConversionRequested) {
 				ccr.Amount = amount
-				ccr.To = currency.EUR
+				ccr.To = money.EUR
 				ccr.TransactionID = transactionID
 			},
 		)
@@ -236,7 +333,13 @@ func TestConversionHandler(t *testing.T) {
 		}
 
 		// Execute
-		handler := HandleRequested(bus, mockConverter, logger, factories)
+		handler := HandleRequested(
+			bus,
+			exchangeRateRegistryProvider,
+			exchangeRateProvider,
+			logger,
+			factories,
+		)
 		err := handler(ctx, event)
 
 		// Assert

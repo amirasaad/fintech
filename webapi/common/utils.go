@@ -2,11 +2,11 @@ package common
 
 import (
 	"errors"
-	"github.com/amirasaad/fintech/pkg/money"
 
-	"github.com/amirasaad/fintech/pkg/domain"
-	"github.com/amirasaad/fintech/pkg/domain/common"
+	"github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/domain/user"
+	"github.com/amirasaad/fintech/pkg/money"
+	"github.com/amirasaad/fintech/pkg/provider"
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/log"
@@ -144,31 +144,27 @@ func SuccessResponseJSON(c *fiber.Ctx, status int, message string, data any) err
 func errorToStatusCode(err error) int {
 	switch {
 	// Account errors
-	case errors.Is(err, domain.ErrAccountNotFound):
+	case errors.Is(err, account.ErrAccountNotFound):
 		return fiber.StatusNotFound
-	case errors.Is(err, domain.ErrDepositAmountExceedsMaxSafeInt):
+	case errors.Is(err, account.ErrDepositAmountExceedsMaxSafeInt):
 		return fiber.StatusBadRequest
-	case errors.Is(err, domain.ErrTransactionAmountMustBePositive):
+	case errors.Is(err, account.ErrTransactionAmountMustBePositive):
 		return fiber.StatusBadRequest
-	case errors.Is(err, domain.ErrInsufficientFunds):
+	case errors.Is(err, account.ErrInsufficientFunds):
 		return fiber.StatusUnprocessableEntity
 	// Common errors
-	case errors.Is(err, domain.ErrInvalidCurrencyCode):
-		return fiber.StatusUnprocessableEntity
-	case errors.Is(err, common.ErrInvalidDecimalPlaces):
+	case errors.Is(err, money.ErrInvalidCurrency):
 		return fiber.StatusBadRequest
 	case errors.Is(err, money.ErrAmountExceedsMaxSafeInt):
 		return fiber.StatusBadRequest
-	case errors.Is(err, common.ErrUnsupportedCurrency):
+	case errors.Is(err, provider.ErrUnsupportedCurrencyPair):
 		return fiber.StatusUnprocessableEntity
 	// Money/currency conversion errors
-	case errors.Is(err, domain.ErrExchangeRateUnavailable):
+	case errors.Is(err, provider.ErrExchangeRateUnavailable):
 		return fiber.StatusServiceUnavailable
-	case errors.Is(err, domain.ErrUnsupportedCurrencyPair):
-		return fiber.StatusUnprocessableEntity
-	case errors.Is(err, domain.ErrExchangeRateExpired):
+	case errors.Is(err, provider.ErrExchangeRateExpired):
 		return fiber.StatusServiceUnavailable
-	case errors.Is(err, domain.ErrExchangeRateInvalid):
+	case errors.Is(err, provider.ErrExchangeRateInvalid):
 		return fiber.StatusUnprocessableEntity
 	// User errors
 	case errors.Is(err, user.ErrUserNotFound):

@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/amirasaad/fintech/internal/fixtures/mocks"
-	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/handler/account/transfer"
@@ -56,9 +55,11 @@ func TestInitialPersistence(t *testing.T) {
 		txCreateMatcher := mock.MatchedBy(func(tx dto.TransactionCreate) bool {
 			return tx.AccountID == accountID &&
 				tx.UserID == userID &&
-				tx.Currency == currency.USD.String() &&
+				tx.Currency == "USD" &&
 				tx.Status == "pending" &&
-				tx.ID != uuid.Nil
+				tx.ID != uuid.Nil &&
+				tx.MoneySource == "transfer" &&
+				tx.Amount == -10000 // Negative amount in smallest currency unit (100.00 USD * 100)
 		})
 
 		// Mock the unit of work Do function
@@ -98,7 +99,7 @@ func TestInitialPersistence(t *testing.T) {
 						ID:       destAccountID,
 						UserID:   userID,
 						Balance:  1000,
-						Currency: currency.USD.String(),
+						Currency: "USD",
 					}, nil).
 					Once()
 
@@ -109,7 +110,7 @@ func TestInitialPersistence(t *testing.T) {
 
 				// Execute the function under test
 				err := fn(uow)
-				require.NoError(t, err, "Unexpected error in Do callback")
+				require.NoError(t, err)
 			})
 
 		bus.On(

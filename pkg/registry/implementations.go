@@ -127,21 +127,21 @@ func (p *FilePersistence) Save(ctx context.Context, entities []Entity) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	// Convert entities to serializable format
-	data := make([]map[string]interface{}, len(entities))
-	for i, entity := range entities {
-		data[i] = map[string]interface{}{
+	// Convert entities to a serializable format
+	var serializable []map[string]interface{}
+	for _, entity := range entities {
+		serializable = append(serializable, map[string]interface{}{
 			"id":         entity.ID(),
 			"name":       entity.Name(),
 			"active":     entity.Active(),
 			"metadata":   entity.Metadata(),
 			"created_at": entity.CreatedAt(),
 			"updated_at": entity.UpdatedAt(),
-		}
+		})
 	}
 
 	// Marshal to JSON
-	jsonData, err := json.MarshalIndent(data, "", "  ")
+	jsonData, err := json.MarshalIndent(serializable, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal entities: %w", err)
 	}
@@ -170,37 +170,39 @@ func (p *FilePersistence) Load(ctx context.Context) ([]Entity, error) {
 		return nil, fmt.Errorf("failed to read file: %w", err)
 	}
 
-	// Unmarshal JSON
-	var rawData []map[string]interface{}
-	if err := json.Unmarshal(data, &rawData); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal data: %w", err)
+	// Parse JSON
+	var serializable []map[string]interface{}
+	if err := json.Unmarshal(data, &serializable); err != nil {
+		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}
 
 	// Convert to entities
-	entities := make([]Entity, len(rawData))
-	for i, raw := range rawData {
-		// Parse timestamps
-		createdAt, _ := time.Parse(time.RFC3339, raw["created_at"].(string))
-		updatedAt, _ := time.Parse(time.RFC3339, raw["updated_at"].(string))
+	var entities []Entity
+	for _, item := range serializable {
+		// Extract fields with type assertions
+		id, _ := item["id"].(string)
+		name, _ := item["name"].(string)
+		active, _ := item["active"].(bool)
 
-		// Parse metadata
-		metadata := make(map[string]string)
-		if rawMetadata, ok := raw["metadata"].(map[string]interface{}); ok {
-			for k, v := range rawMetadata {
-				if str, ok := v.(string); ok {
-					metadata[k] = str
+		// Handle metadata conversion
+		var metadata map[string]string
+		if m, ok := item["metadata"].(map[string]interface{}); ok {
+			metadata = make(map[string]string)
+			for k, v := range m {
+				if s, ok := v.(string); ok {
+					metadata[k] = s
 				}
 			}
 		}
 
-		entities[i] = &BaseEntity{
-			BEId:        raw["id"].(string),
-			BEName:      raw["name"].(string),
-			BEActive:    raw["active"].(bool),
-			BEMetadata:  metadata,
-			BECreatedAt: createdAt,
-			BEUpdatedAt: updatedAt,
+		// Create entity using NewBaseEntity helper
+		entity := NewBaseEntity(id, name)
+		entity.SetActive(active)
+		for k, v := range metadata {
+			entity.SetMetadata(k, v)
 		}
+		// Note: createdAt and updatedAt are set by NewBaseEntity
+		entities = append(entities, entity)
 	}
 
 	return entities, nil
@@ -416,15 +418,12 @@ func (v *SimpleValidator) WithValidator(
 
 // Validate validates an entity
 func (v *SimpleValidator) Validate(ctx context.Context, entity Entity) error {
-	// Validate required fields
 	if entity.ID() == "" {
-		return fmt.Errorf("entity ID cannot be empty")
+		return fmt.Errorf("entity ID is required")
 	}
 	if entity.Name() == "" {
-		return fmt.Errorf("entity name cannot be empty")
+		return fmt.Errorf("entity name is required")
 	}
-
-	// Validate metadata
 	return v.ValidateMetadata(ctx, entity.Metadata())
 }
 

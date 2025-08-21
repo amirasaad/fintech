@@ -1,2 +1,2 @@
 ALTER TABLE transactions
-DROP COLUMN currency; 
+DROP COLUMN currency;

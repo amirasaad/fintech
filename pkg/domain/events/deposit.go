@@ -8,7 +8,7 @@ import (
 // DepositRequested is emitted after deposit validation and persistence.
 type DepositRequested struct {
 	FlowEvent
-	Amount        money.Money
+	Amount        *money.Money
 	Source        string
 	TransactionID uuid.UUID
 }

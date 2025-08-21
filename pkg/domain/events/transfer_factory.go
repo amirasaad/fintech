@@ -3,7 +3,6 @@ package events
 import (
 	"time"
 
-	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/google/uuid"
 )
@@ -11,7 +10,7 @@ import (
 // --- TransferRequested ---
 type TransferRequestedOpt func(*TransferRequested)
 
-func WithTransferRequestedAmount(m money.Money) TransferRequestedOpt {
+func WithTransferRequestedAmount(m *money.Money) TransferRequestedOpt {
 	return func(e *TransferRequested) { e.Amount = m }
 }
 
@@ -36,7 +35,7 @@ func NewTransferRequested(
 			AccountID:     accountID,
 			CorrelationID: correlationID,
 		},
-		Amount:    money.Zero(currency.USD),
+		Amount:    money.Zero(money.USD),
 		Timestamp: time.Now(),
 	}
 	for _, opt := range opts {
@@ -108,7 +107,7 @@ func NewTransferFailed(
 // TransferCompletedOpt --- TransferCompleted factory ---
 type TransferCompletedOpt func(*TransferCompleted)
 
-func WithTransferAmount(m money.Money) TransferCompletedOpt {
+func WithTransferAmount(m *money.Money) TransferCompletedOpt {
 	return func(e *TransferCompleted) { e.Amount = m }
 }
 

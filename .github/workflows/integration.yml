@@ -26,4 +26,3 @@ jobs:
         with:
           paths: "report.xml" # Or specify a glob pattern if you have multiple files
         if: always() # Ensures the summary is displayed even if tests fail
-

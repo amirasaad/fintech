@@ -7,7 +7,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/amirasaad/fintech/pkg/currency"
 	domainaccount "github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/google/uuid"
@@ -36,12 +35,12 @@ func TestValidateWithdraw(t *testing.T) {
 	userID := uuid.New()
 	acc, err := domainaccount.New().
 		WithUserID(userID).
-		WithCurrency(currency.USD).
+		WithCurrency("USD").
 		WithBalance(10000). // 100.00 USD
 		Build()
 	require.NoError(t, err)
 
-	amount, err := money.New(50.0, "USD")
+	amount, err := money.New(50.0, money.USD)
 	require.NoError(t, err)
 
 	// Test case 1: Successful withdrawal
@@ -58,7 +57,7 @@ func TestValidateWithdraw(t *testing.T) {
 
 	// Test case 3: Insufficient funds
 	t.Run("insufficient funds", func(t *testing.T) {
-		amount, err := money.New(200.0, "USD")
+		amount, err := money.New(200.0, money.USD)
 		require.NoError(t, err)
 		err = acc.ValidateWithdraw(userID, amount)
 		assert.ErrorIs(t, err, domainaccount.ErrInsufficientFunds)
@@ -72,18 +71,18 @@ func TestValidateTransfer(t *testing.T) {
 
 	sourceAcc, err := domainaccount.New().
 		WithUserID(senderID).
-		WithCurrency(currency.USD).
+		WithCurrency("USD").
 		WithBalance(10000). // 100.00 USD
 		Build()
 	require.NoError(t, err)
 
 	destAcc, err := domainaccount.New().
 		WithUserID(receiverID).
-		WithCurrency(currency.USD).
+		WithCurrency("USD").
 		Build()
 	require.NoError(t, err)
 
-	amount, err := money.New(50.0, "USD")
+	amount, err := money.New(50.0, money.USD)
 	require.NoError(t, err)
 
 	// Test case 1: Successful transfer
@@ -101,7 +100,7 @@ func TestValidateTransfer(t *testing.T) {
 
 	// Test case 3: Insufficient funds
 	t.Run("insufficient funds", func(t *testing.T) {
-		amount, err := money.New(200.0, "USD")
+		amount, err := money.New(200.0, money.USD)
 		require.NoError(t, err)
 		err = sourceAcc.ValidateTransfer(senderID, receiverID, destAcc, amount)
 		assert.ErrorIs(t, err, domainaccount.ErrInsufficientFunds)
@@ -115,7 +114,7 @@ func TestValidateTransfer(t *testing.T) {
 
 	// Test case 5: Currency mismatch
 	t.Run("currency mismatch", func(t *testing.T) {
-		amountEUR, err := money.New(50.0, "EUR")
+		amountEUR, err := money.New(50.0, money.EUR)
 		require.NoError(t, err)
 		err = sourceAcc.ValidateTransfer(senderID, receiverID, destAcc, amountEUR)
 		assert.ErrorIs(t, err, domainaccount.ErrCurrencyMismatch)

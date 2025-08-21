@@ -3,7 +3,6 @@ package conversion
 import (
 	"testing"
 
-	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/google/uuid"
@@ -16,7 +15,7 @@ func TestEventFactories(t *testing.T) {
 		factory := &DepositEventFactory{}
 
 		// Create a test CurrencyConverted event
-		convertedAmount, _ := money.New(85.0, currency.EUR)
+		convertedAmount, _ := money.New(85.0, money.EUR)
 		cc := &events.CurrencyConverted{
 			CurrencyConversionRequested: events.CurrencyConversionRequested{
 				FlowEvent: events.FlowEvent{
@@ -47,7 +46,7 @@ func TestEventFactories(t *testing.T) {
 		factory := &WithdrawEventFactory{}
 
 		// Create a test CurrencyConverted event
-		convertedAmount, _ := money.New(85.0, currency.EUR)
+		convertedAmount, _ := money.New(85.0, money.EUR)
 		cc := &events.CurrencyConverted{
 			CurrencyConversionRequested: events.CurrencyConversionRequested{
 				FlowEvent: events.FlowEvent{
@@ -78,7 +77,7 @@ func TestEventFactories(t *testing.T) {
 		factory := &TransferEventFactory{}
 
 		// Create a test CurrencyConverted event
-		convertedAmount, _ := money.New(85.0, currency.EUR)
+		convertedAmount, _ := money.New(85.0, money.EUR)
 		cc := &events.CurrencyConverted{
 			CurrencyConversionRequested: events.CurrencyConversionRequested{
 				FlowEvent: events.FlowEvent{

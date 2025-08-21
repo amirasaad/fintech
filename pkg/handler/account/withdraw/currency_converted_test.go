@@ -3,7 +3,6 @@ package withdraw
 import (
 	"testing"
 
-	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/google/uuid"
@@ -18,7 +17,8 @@ func TestWithdrawCurrencyConverted(t *testing.T) {
 		accountID := uuid.New()
 		transactionID := uuid.New()
 		correlationID := uuid.New()
-		amount, _ := money.New(100.0, "USD")
+		amount, err := money.New(100.0, money.USD)
+		require.NoError(t, err)
 
 		// Create a WithdrawRequested event first
 		withdrawRequested := events.NewWithdrawRequested(
@@ -41,7 +41,7 @@ func TestWithdrawCurrencyConverted(t *testing.T) {
 				},
 				withdrawRequested, // Pass the WithdrawRequested as the original request
 				events.WithConversionAmount(amount),
-				events.WithConversionTo(currency.Code("EUR")),
+				events.WithConversionTo(money.EUR),
 				events.WithConversionTransactionID(transactionID),
 			),
 			TransactionID:   transactionID,

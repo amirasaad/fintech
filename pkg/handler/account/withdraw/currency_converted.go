@@ -5,7 +5,7 @@ import (
 	"errors"
 	"log/slog"
 
-	"github.com/amirasaad/fintech/pkg/domain"
+	"github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/amirasaad/fintech/pkg/handler/common"
@@ -69,7 +69,7 @@ func HandleCurrencyConverted(
 		}
 
 		accRead, err := accRepo.Get(ctx, wce.AccountID)
-		if err != nil && !errors.Is(err, domain.ErrAccountNotFound) {
+		if err != nil && !errors.Is(err, account.ErrAccountNotFound) {
 			log.Error(
 				"failed to get account",
 				"error", err,
@@ -83,7 +83,7 @@ func HandleCurrencyConverted(
 				"account not found",
 				"account_id", wce.AccountID,
 			)
-			return domain.ErrAccountNotFound
+			return account.ErrAccountNotFound
 		}
 
 		acc, err := mapper.MapAccountReadToDomain(accRead)
@@ -123,13 +123,13 @@ func HandleCurrencyConverted(
 		)
 
 		// Emit WithdrawBusinessValidated event
-		businessValidatedEvent := events.NewWithdrawValidated(wce)
+		wv := events.NewWithdrawValidated(wce)
 
 		log.Info(
-			"📤 [EMIT] Emitting WithdrawBusinessValidated",
-			"event", businessValidatedEvent,
+			"📤 [EMIT] Emitting",
+			"event", wv.Type(),
 			"correlation_id", wce.CorrelationID.String(),
 		)
-		return bus.Emit(ctx, businessValidatedEvent)
+		return bus.Emit(ctx, wv)
 	}
 }

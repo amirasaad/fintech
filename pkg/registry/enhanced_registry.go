@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -102,16 +104,37 @@ func (r *Enhanced) Register(ctx context.Context, entity Entity) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	// Check if entity already exists
+	// Check if this is an update
 	_, exists := r.entities[entity.ID()]
-	r.entities[entity.ID()] = entity
 
-	// Update cache if available
+	// For any entity type, create a new BaseEntity copy to ensure thread safety
+	copy := NewBaseEntity(entity.ID(), entity.Name())
+
+	// Copy the active state from the original entity
+	copy.SetActive(entity.Active())
+
+	// Copy metadata
+	for k, v := range entity.Metadata() {
+		copy.SetMetadata(k, v)
+	}
+
+	// Ensure the active status is reflected in metadata for backward compatibility
+	copy.SetMetadata("active", strconv.FormatBool(entity.Active()))
+
+	// Store the copy
+	r.entities[copy.ID()] = copy
+
+	// Update cache if enabled
 	if r.cache != nil {
 		if err := r.cache.Set(ctx, entity); err != nil {
-			// Log cache set error but don't fail the operation
-			// as the main registry operation succeeded
-			log.Printf("warning: failed to update cache for entity %s: %v", entity.ID(), err)
+			log.Printf("warning: failed to update cache: %v", err)
+		}
+	}
+
+	// Update persistence if enabled
+	if r.persistence != nil {
+		if err := r.persistence.Save(ctx, r.getAllEntitiesLocked()); err != nil {
+			log.Printf("warning: failed to persist registry: %v", err)
 		}
 	}
 
@@ -119,28 +142,17 @@ func (r *Enhanced) Register(ctx context.Context, entity Entity) error {
 	if r.metrics != nil {
 		r.metrics.IncrementRegistration()
 		r.metrics.SetEntityCount(len(r.entities))
-		if entity.Active() {
-			activeCount := r.countActiveLocked()
-			r.metrics.SetActiveCount(activeCount)
-		}
+		r.metrics.SetActiveCount(r.countActiveLocked())
 	}
 
-	// Publish event
+	// Emit event
 	if r.eventBus != nil {
 		eventType := EventEntityRegistered
 		if exists {
 			eventType = EventEntityUpdated
 		}
-		event := Event{
-			Type:      eventType,
-			EntityID:  entity.ID(),
-			Entity:    entity,
-			Timestamp: time.Now(),
-		}
-		if err := r.eventBus.Emit(ctx, event); err != nil {
-			// Log event emission error but don't fail the operation
-			log.Printf("warning: failed to emit %s event for entity %s: %v",
-				eventType, entity.ID(), err)
+		if err := r.emitEvent(eventType, entity); err != nil {
+			log.Printf("warning: failed to emit %s event: %v", eventType, err)
 		}
 	}
 
@@ -368,9 +380,21 @@ func (r *Enhanced) SetMetadata(ctx context.Context, id, key, value string) error
 		}
 	}
 
-	// Update the entity's metadata
-	metadata := entity.Metadata()
-	metadata[key] = value
+	// Skip protected fields with a warning
+	if isProtectedField(key) {
+		log.Printf("warning: skipping metadata set for protected field: %s", key)
+		return nil
+	}
+
+	// Update the entity's metadata using the proper method
+	switch e := entity.(type) {
+	case *BaseEntity:
+		e.SetMetadata(key, value)
+	default:
+		// Fallback for other implementations
+		metadata := entity.Metadata()
+		metadata[key] = value
+	}
 
 	// Re-register the entity to update it
 	return r.Register(ctx, entity)
@@ -383,8 +407,15 @@ func (r *Enhanced) RemoveMetadata(ctx context.Context, id, key string) error {
 		return err
 	}
 
-	metadata := entity.Metadata()
-	delete(metadata, key)
+	// Remove metadata using the proper method
+	switch e := entity.(type) {
+	case *BaseEntity:
+		e.DeleteMetadata(key)
+	default:
+		// Fallback for other implementations
+		metadata := entity.Metadata()
+		delete(metadata, key)
+	}
 
 	// Re-register the entity to update it
 	return r.Register(ctx, entity)
@@ -392,45 +423,111 @@ func (r *Enhanced) RemoveMetadata(ctx context.Context, id, key string) error {
 
 // Activate activates an entity
 func (r *Enhanced) Activate(ctx context.Context, id string) error {
-	entity, err := r.Get(ctx, id)
-	if err != nil {
-		return err
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	entity, exists := r.entities[id]
+	if !exists {
+		return fmt.Errorf("entity not found: %s", id)
 	}
 
-	// Create a new entity with active status
-	// Note: This is a simplified approach - in a real implementation,
-	// you might want to make the Entity interface mutable or use a different approach
-	baseEntity := &BaseEntity{
-		BEId:        entity.ID(),
-		BEName:      entity.Name(),
-		BEActive:    true,
-		BEMetadata:  entity.Metadata(),
-		BECreatedAt: entity.CreatedAt(),
-		BEUpdatedAt: entity.UpdatedAt(),
+	// Use the existing entity's SetActive method if it exists
+	if activator, ok := entity.(interface{ SetActive(bool) }); ok {
+		activator.SetActive(true)
 	}
 
-	return r.Register(ctx, baseEntity)
+	// Also ensure the active status is set in metadata for backward compatibility
+	entity.SetMetadata("active", "true")
+
+	// Update cache if enabled
+	if r.cache != nil {
+		if err := r.cache.Set(ctx, entity); err != nil {
+			log.Printf("warning: failed to update cache: %v", err)
+		}
+	}
+
+	// Update persistence if enabled
+	if r.persistence != nil {
+		if err := r.persistence.Save(ctx, r.getAllEntitiesLocked()); err != nil {
+			log.Printf("warning: failed to persist registry: %v", err)
+		}
+	}
+
+	// Update metrics
+	if r.metrics != nil {
+		// No increment of registration count since it's an update
+		r.metrics.SetActiveCount(r.countActiveLocked())
+	}
+
+	// Emit event
+	if r.eventBus != nil {
+		if err := r.emitEvent(EventEntityActivated, entity); err != nil {
+			log.Printf("warning: failed to emit %s event: %v", EventEntityActivated, err)
+		}
+	}
+
+	// Notify observers
+	for _, observer := range r.observers {
+		observer.OnEntityUpdated(ctx, entity)
+	}
+
+	return nil
 }
 
 // Deactivate deactivates an entity
 func (r *Enhanced) Deactivate(ctx context.Context, id string) error {
-	entity, err := r.Get(ctx, id)
-	if err != nil {
-		return err
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	entity, exists := r.entities[id]
+	if !exists {
+		return fmt.Errorf("entity not found: %s", id)
 	}
 
-	// Create a new entity with inactive status
-	baseEntity := &BaseEntity{
-		BEId:        entity.ID(),
-		BEName:      entity.Name(),
-		BEActive:    false,
-		BEMetadata:  entity.Metadata(),
-		BECreatedAt: entity.CreatedAt(),
-		BEUpdatedAt: entity.UpdatedAt(),
+	// Use the existing entity's SetActive method if it exists
+	if activator, ok := entity.(interface{ SetActive(bool) }); ok {
+		activator.SetActive(false)
 	}
 
-	return r.Register(ctx, baseEntity)
+	// Also ensure the active status is set in metadata for backward compatibility
+	entity.SetMetadata("active", "false")
+
+	// Update cache if enabled
+	if r.cache != nil {
+		if err := r.cache.Set(ctx, entity); err != nil {
+			log.Printf("warning: failed to update cache: %v", err)
+		}
+	}
+
+	// Update persistence if enabled
+	if r.persistence != nil {
+		if err := r.persistence.Save(ctx, r.getAllEntitiesLocked()); err != nil {
+			log.Printf("warning: failed to persist registry: %v", err)
+		}
+	}
+
+	// Update metrics
+	if r.metrics != nil {
+		// No increment of registration count since it's an update
+		r.metrics.SetActiveCount(r.countActiveLocked())
+	}
+
+	// Emit event
+	if r.eventBus != nil {
+		if err := r.emitEvent(EventEntityDeactivated, entity); err != nil {
+			log.Printf("warning: failed to emit %s event: %v", EventEntityDeactivated, err)
+		}
+	}
+
+	// Notify observers
+	for _, observer := range r.observers {
+		observer.OnEntityUpdated(ctx, entity)
+	}
+
+	return nil
 }
+
+// ...
 
 // Search performs a simple search on entity names
 func (r *Enhanced) Search(ctx context.Context, query string) ([]Entity, error) {
@@ -501,10 +598,37 @@ func contains(s, substr string) bool {
 
 // containsSubstring is a helper function for substring search
 func containsSubstring(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
+	s = strings.ToLower(s)
+	substr = strings.ToLower(substr)
+	return strings.Contains(s, substr)
+}
+
+// emitEvent is a helper method to emit events to the event bus
+func (r *Enhanced) emitEvent(eventType string, entity Entity) error {
+	event := Event{
+		Type:      eventType,
+		EntityID:  entity.ID(),
+		Entity:    entity,
+		Timestamp: time.Now(),
+	}
+
+	// Add metadata if available
+	if metadata := entity.Metadata(); len(metadata) > 0 {
+		event.Metadata = make(map[string]interface{})
+		for k, v := range metadata {
+			event.Metadata[k] = v
 		}
 	}
-	return false
+
+	return r.eventBus.Emit(context.Background(), event)
+}
+
+// getAllEntitiesLocked returns a slice of all entities in the registry
+// The caller must hold the write lock
+func (r *Enhanced) getAllEntitiesLocked() []Entity {
+	entities := make([]Entity, 0, len(r.entities))
+	for _, entity := range r.entities {
+		entities = append(entities, entity)
+	}
+	return entities
 }

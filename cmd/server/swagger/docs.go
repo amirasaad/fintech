@@ -433,7 +433,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/currency.RegisterCurrencyRequest"
+                            "$ref": "#/definitions/currency.RegisterRequest"
                         }
                     }
                 ],
@@ -441,7 +441,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/currency.Meta"
+                            "$ref": "#/definitions/common.Response"
                         }
                     },
                     "400": {
@@ -656,7 +656,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/currency.Meta"
+                            "$ref": "#/definitions/common.Response"
                         }
                     },
                     "500": {
@@ -694,10 +694,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/currency.Meta"
-                            }
+                            "$ref": "#/definitions/common.Response"
                         }
                     },
                     "400": {
@@ -741,10 +738,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/currency.Meta"
-                            }
+                            "$ref": "#/definitions/common.Response"
                         }
                     },
                     "400": {
@@ -849,7 +843,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/currency.Meta"
+                            "$ref": "#/definitions/common.Response"
                         }
                     },
                     "400": {
@@ -1427,45 +1421,7 @@ const docTemplate = `{
                 }
             }
         },
-        "currency.Meta": {
-            "type": "object",
-            "properties": {
-                "active": {
-                    "type": "boolean"
-                },
-                "code": {
-                    "type": "string"
-                },
-                "country": {
-                    "type": "string"
-                },
-                "created": {
-                    "type": "string"
-                },
-                "decimals": {
-                    "type": "integer"
-                },
-                "metadata": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                },
-                "name": {
-                    "type": "string"
-                },
-                "region": {
-                    "type": "string"
-                },
-                "symbol": {
-                    "type": "string"
-                },
-                "updated": {
-                    "type": "string"
-                }
-            }
-        },
-        "currency.RegisterCurrencyRequest": {
+        "currency.RegisterRequest": {
             "type": "object",
             "required": [
                 "code",

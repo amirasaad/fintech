@@ -5,7 +5,6 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/dto"
@@ -31,8 +30,9 @@ func TestCalculated(t *testing.T) {
 				ID:       uuid.New(),
 				UserID:   uuid.New(),
 				Balance:  testutils.DefaultAmount,
-				Currency: "USD",
+				Currency: money.USD.String(),
 			}
+			paymentID := "pm_123456789"
 			// Create test transaction
 			tx := &dto.TransactionRead{
 				ID:        uuid.New(),
@@ -41,12 +41,15 @@ func TestCalculated(t *testing.T) {
 				Status:    "completed",
 				Amount:    testutils.DefaultAmount,
 				Fee:       0, // Initial fee is 0
-				Currency:  "USD",
-				PaymentID: "pm_123456789",
+				Currency:  money.USD.String(),
+				PaymentID: &paymentID,
 			}
 			fee := account.Fee{
-				Amount: money.Must(testutils.DefaultFeeAmount, currency.Code(tx.Currency)),
-				Type:   account.FeeProvider,
+				Amount: money.Must(
+					testutils.DefaultFeeAmount,
+					money.Code(tx.Currency).ToCurrency(),
+				),
+				Type: account.FeeProvider,
 			}
 
 			h := testutils.New(t).
@@ -141,7 +144,7 @@ func TestCalculated(t *testing.T) {
 			},
 			TransactionID: transactionID,
 			Fee: account.Fee{
-				Amount: money.Must(testutils.DefaultFeeAmount, currency.USD),
+				Amount: money.Must(testutils.DefaultFeeAmount, money.USD.ToCurrency()),
 				Type:   account.FeeProvider,
 			},
 		}

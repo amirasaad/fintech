@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/amirasaad/fintech/infra/eventbus"
-	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/google/uuid"
@@ -22,7 +21,7 @@ func TestCompleteEventFlows(t *testing.T) {
 	sourceAccountID := uuid.New()
 	destAccountID := uuid.New()
 	correlationID := uuid.New()
-	amount, err := money.New(100.0, "USD")
+	amount, err := money.New(100.0, money.USD)
 	require.NoError(t, err)
 
 	// Create a test event bus
@@ -39,7 +38,7 @@ func TestCompleteEventFlows(t *testing.T) {
 		)
 
 		// 2. Create CurrencyConverted (simulating conversion)
-		convertedAmount, _ := money.New(90.0, "EUR") // Example conversion
+		convertedAmount, _ := money.New(90.0, money.EUR) // Example conversion
 		cc := &events.CurrencyConverted{
 			CurrencyConversionRequested: *events.NewCurrencyConversionRequested(
 				events.FlowEvent{
@@ -51,7 +50,7 @@ func TestCompleteEventFlows(t *testing.T) {
 				},
 				dr,
 				events.WithConversionAmount(amount),
-				events.WithConversionTo(currency.EUR),
+				events.WithConversionTo(money.EUR),
 				events.WithConversionTransactionID(dr.TransactionID),
 			),
 			TransactionID:   dr.TransactionID,
@@ -90,7 +89,7 @@ func TestCompleteEventFlows(t *testing.T) {
 		)
 
 		// 3. Create WithdrawCurrencyConverted
-		convertedAmount, _ := money.New(90.0, "EUR") // Example conversion
+		convertedAmount, _ := money.New(90.0, money.EUR) // Example conversion
 		cc := &events.CurrencyConverted{
 			CurrencyConversionRequested: *events.NewCurrencyConversionRequested(
 				events.FlowEvent{
@@ -102,7 +101,7 @@ func TestCompleteEventFlows(t *testing.T) {
 				},
 				wr,
 				events.WithConversionAmount(amount),
-				events.WithConversionTo(currency.EUR),
+				events.WithConversionTo(money.EUR),
 				events.WithConversionTransactionID(wr.TransactionID),
 			),
 			ConvertedAmount: convertedAmount,
@@ -156,7 +155,7 @@ func TestCompleteEventFlows(t *testing.T) {
 		}
 
 		// 2. Create CurrencyConverted
-		convertedAmount, _ := money.New(90.0, "EUR") // Example conversion
+		convertedAmount, _ := money.New(90.0, money.EUR) // Example conversion
 		cc := &events.CurrencyConverted{
 			CurrencyConversionRequested: *events.NewCurrencyConversionRequested(
 				events.FlowEvent{
@@ -168,7 +167,7 @@ func TestCompleteEventFlows(t *testing.T) {
 				},
 				tr,
 				events.WithConversionAmount(amount),
-				events.WithConversionTo(currency.EUR),
+				events.WithConversionTo(money.EUR),
 				events.WithConversionTransactionID(tr.TransactionID),
 			),
 			TransactionID:   tr.TransactionID,

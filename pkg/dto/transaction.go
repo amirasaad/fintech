@@ -15,7 +15,7 @@ type TransactionRead struct {
 	Currency        string    // Transaction currency
 	Balance         float64   // Account balance after transaction
 	Status          string    // Transaction status (e.g., completed, pending)
-	PaymentID       string    // External payment provider ID
+	PaymentID       *string   // External payment provider ID
 	CreatedAt       time.Time // Timestamp of transaction creation
 	Fee             float64   // Total transaction fee
 	ConvertedAmount float64   // Converted amount after conversion
@@ -25,11 +25,13 @@ type TransactionRead struct {
 
 // TransactionCreate is a DTO for creating a new transaction.
 type TransactionCreate struct {
-	ID                   uuid.UUID
-	UserID               uuid.UUID // User who owns the transaction
-	AccountID            uuid.UUID // Account associated with the transaction
-	Amount               int64     // Transaction amount
-	Status               string    // Initial status
+	ID        uuid.UUID
+	UserID    uuid.UUID // User who owns the transaction
+	AccountID uuid.UUID // Account associated with the transaction
+	// External payment provider ID (pointer to allow NULL in database)
+	PaymentID            *string
+	Amount               int64  // Transaction amount
+	Status               string // Initial status
 	Currency             string
 	MoneySource          string
 	ExternalTargetMasked string

@@ -22,15 +22,18 @@ func TestEntityInterface(t *testing.T) {
 		t.Error("Expected entity to be active")
 	}
 
+	// Test metadata operations
+	entity.SetMetadata("key", "value")
+
+	// Get metadata and verify
 	metadata := entity.Metadata()
 	if metadata == nil {
 		t.Error("Expected metadata to be initialized")
 	}
 
-	// Test metadata operations
-	metadata["key"] = "value"
-	if entity.Metadata()["key"] != "value" {
-		t.Error("Failed to set metadata")
+	// Check the value using the metadata map
+	if val, exists := metadata["key"]; !exists || val != "value" {
+		t.Errorf("Expected metadata['key'] = 'value', got '%s' (exists: %v)", val, exists)
 	}
 }
 
@@ -302,13 +305,16 @@ func TestEnhancedRegistry_MetadataOperations(t *testing.T) {
 		t.Fatalf("Failed to set metadata: %v", err)
 	}
 
-	value, err := registry.GetMetadata(ctx, "test-1", "key1")
+	// Get the entity and verify metadata
+	retrieved, err := registry.Get(ctx, "test-1")
 	if err != nil {
-		t.Fatalf("Failed to get metadata: %v", err)
+		t.Fatalf("Failed to get entity: %v", err)
 	}
 
-	if value != "value1" {
-		t.Errorf("Expected metadata value 'value1', got '%s'", value)
+	// Get metadata and check the value
+	metadata := retrieved.Metadata()
+	if val, exists := metadata["key1"]; !exists || val != "value1" {
+		t.Errorf("Expected metadata['key1'] = 'value1', got '%s' (exists: %v)", val, exists)
 	}
 
 	// Test metadata removal
@@ -317,9 +323,15 @@ func TestEnhancedRegistry_MetadataOperations(t *testing.T) {
 		t.Fatalf("Failed to remove metadata: %v", err)
 	}
 
-	_, err = registry.GetMetadata(ctx, "test-1", "key1")
-	if err == nil {
-		t.Error("Should fail to get removed metadata")
+	// Get the entity again and verify metadata is gone
+	retrieved, err = registry.Get(ctx, "test-1")
+	if err != nil {
+		t.Fatalf("Failed to get entity: %v", err)
+	}
+
+	metadata = retrieved.Metadata()
+	if _, exists := metadata["key1"]; exists {
+		t.Error("Should not find removed metadata")
 	}
 }
 
@@ -359,8 +371,8 @@ func TestEnhancedRegistry_SearchOperations(t *testing.T) {
 
 	// Test metadata search
 	entity := NewBaseEntity("test-4", "Test Entity")
-	entity.Metadata()["category"] = "fruit"
-	entity.Metadata()["color"] = "red"
+	entity.SetMetadata("category", "fruit")
+	entity.SetMetadata("color", "red")
 
 	err = registry.Register(ctx, entity)
 	if err != nil {

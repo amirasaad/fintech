@@ -3,21 +3,22 @@ package conversion
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 
-	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/eventbus"
-	currencyScv "github.com/amirasaad/fintech/pkg/service/currency"
+	"github.com/amirasaad/fintech/pkg/provider"
+	"github.com/amirasaad/fintech/pkg/registry"
+	"github.com/amirasaad/fintech/pkg/service/exchange"
 )
 
 // HandleRequested processes ConversionRequestedEvent and
 // delegates to a flow-specific factory to create the next event.
 func HandleRequested(
 	bus eventbus.Bus,
-	converter currency.Converter,
+	exchangeRegistry registry.Provider,
+	exchangeRateProvider provider.ExchangeRate,
 	logger *slog.Logger,
 	factories map[string]EventFactory,
 ) func(ctx context.Context, e events.Event) error {
@@ -51,61 +52,25 @@ func HandleRequested(
 			return fmt.Errorf("unknown flow type %s", ccr.FlowType)
 		}
 
-		// If no conversion is needed, create the next event directly
-		if ccr.Amount.IsCurrency(ccr.To.String()) {
-			log.Debug(
-				"No conversion needed, creating CurrencyConverted event",
-				"original_request_type", fmt.Sprintf("%T", ccr.OriginalRequest),
-				"original_request_nil", ccr.OriginalRequest == nil,
-				"transaction_id", ccr.TransactionID,
+		srv := exchange.New(exchangeRegistry, exchangeRateProvider, log)
+
+		convertedMoney,
+			convInfo,
+			err := srv.
+			Convert(
+				ctx,
+				ccr.Amount,
+				ccr.To,
 			)
-
-			// Create a CurrencyConverted event with the same amount
-			cc := events.NewCurrencyConverted(
-				ccr,
-				func(cc *events.CurrencyConverted) {
-					cc.ConvertedAmount = ccr.Amount
-					cc.TransactionID = ccr.TransactionID
-					// Ensure OriginalRequest is preserved
-					cc.OriginalRequest = ccr.OriginalRequest
-				},
-			)
-
-			// Use the factory to create the next event in the flow
-			nextEvent := factory.CreateNextEvent(cc)
-			if nextEvent == nil {
-				log.Error(
-					"Factory returned nil next event for non-converted amount")
-				return errors.New("factory returned nil event")
-			}
-
-			log.Info(
-				"🔄 [PROCESS] No conversion needed, proceeding to next event",
-				"amount", ccr.Amount,
-				"currency", ccr.To,
-				"event_type", nextEvent.Type(),
-				"correlation_id", ccr.CorrelationID,
-			)
-
-			return bus.Emit(ctx, nextEvent)
-		}
-
-		convertedMoney, convInfo, err := currencyScv.ConvertMoney(converter, ccr.Amount, ccr.To)
 		if err != nil {
 			log.Error(
-				"Currency conversion failed",
+				"Failed to convert currency",
 				"error", err,
-				"amount", ccr.Amount,
-				"to_currency", ccr.To,
+				"event_type", ccr.Type(),
+				"event_id", ccr.ID,
 			)
 			return err
 		}
-
-		log.Debug(
-			"[DEBUG] ConversionInfo",
-			"convInfo", convInfo,
-		)
-
 		// Log OriginalRequest details for debugging
 		log.Debug(
 			"[DEBUG] Creating CurrencyConverted event",
@@ -117,7 +82,7 @@ func HandleRequested(
 		cc := events.NewCurrencyConverted(
 			ccr,
 			func(cc *events.CurrencyConverted) {
-				cc.ConvertedAmount = *convertedMoney
+				cc.ConvertedAmount = convertedMoney
 				cc.ConversionInfo = convInfo
 				cc.TransactionID = ccr.TransactionID
 				// Ensure OriginalRequest is preserved

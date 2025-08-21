@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -9,21 +10,27 @@ import (
 	"time"
 
 	"github.com/amirasaad/fintech/pkg/config"
-
-	"github.com/amirasaad/fintech/pkg/cache"
-	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/provider"
 )
 
-// ExchangeRateAPIProvider implements the ExchangeRate interface for exchangerate-api.com
-// Updated to use v6 endpoint and config
-type ExchangeRateAPIProvider struct {
+// exchangeRateAPI implements the ExchangeRate interface for exchangerate-api.com v6 API
+type exchangeRateAPI struct {
 	apiKey     string
 	baseURL    string
 	httpClient *http.Client
 	logger     *slog.Logger
 	timeout    time.Duration
 }
+
+// API error types
+const (
+	errorTypeUnsupportedCode  = "unsupported-code"
+	errorTypeMalformedRequest = "malformed-request"
+	errorTypeInvalidKey       = "invalid-key"
+	errorTypeInactiveAccount  = "inactive-account"
+	errorTypeQuotaReached     = "quota-reached"
+	errorTypeUnknown          = "unknown-code"
+)
 
 // ExchangeRateAPIResponseV6 represents the v6 response from the ExchangeRate API
 // See: https://www.exchangerate-api.com/docs/standard-requests
@@ -46,12 +53,16 @@ type ExchangeRateAPIResponseV6 struct {
 
 // NewExchangeRateAPIProvider creates a new ExchangeRate API provider using config
 func NewExchangeRateAPIProvider(
-	cfg config.ExchangeRate,
+	cfg *config.ExchangeRateApi,
 	logger *slog.Logger,
-) *ExchangeRateAPIProvider {
-	return &ExchangeRateAPIProvider{
+) *exchangeRateAPI {
+	if logger == nil {
+		logger = slog.Default()
+	}
+
+	return &exchangeRateAPI{
 		apiKey:  cfg.ApiKey,
-		baseURL: cfg.ApiUrl, // Should be like https://v6.exchangerate-api.com/v6
+		baseURL: fmt.Sprintf("%s/%s", cfg.ApiUrl, cfg.ApiKey),
 		httpClient: &http.Client{
 			Timeout: cfg.HTTPTimeout,
 		},
@@ -60,95 +71,14 @@ func NewExchangeRateAPIProvider(
 	}
 }
 
-// FetchAndCacheRates fetches all rates for the base currency and caches them
-func (p *ExchangeRateAPIProvider) FetchAndCacheRates(
-	base string,
-	cache cache.ExchangeRateCache,
-	ttl time.Duration,
-) error {
-	// Check last update before fetching
-	lastUpdate, err := cache.GetLastUpdate(base)
-	if err != nil {
-		p.logger.Warn(
-			"Could not check last update for exchange rates",
-			"error", err,
-		)
-	}
-	if !lastUpdate.IsZero() && time.Since(lastUpdate) < ttl {
-		p.logger.Info(
-			"Exchange rates cache is still valid, skipping fetch",
-			"base", base,
-			"lastUpdate", lastUpdate,
-		)
-		return nil
-	}
-
-	url := fmt.Sprintf("%s/%s/latest/%s", p.baseURL, p.apiKey, base)
-	p.logger.Info(
-		"Fetching exchange rates from",
-		"baseUrl", p.baseURL,
-	)
-
-	resp, err := p.httpClient.Get(url)
-	if err != nil {
-		return fmt.Errorf("failed to fetch rates: %w", err)
-	}
-	defer func() {
-		if cerr := resp.Body.Close(); cerr != nil {
-			p.logger.Warn(
-				"Failed to close response body",
-				"error", cerr,
-			)
-		}
-	}()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("API returned status %d: %s", resp.StatusCode, string(body))
-	}
-
-	var apiResp ExchangeRateAPIResponseV6
-	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
-		return fmt.Errorf("failed to decode response: %w", err)
-	}
-
-	if apiResp.Result != "success" {
-		return fmt.Errorf("API returned result=%s", apiResp.Result)
-	}
-
-	// Cache each rate as base:to
-	for to, rate := range apiResp.ConversionRates {
-		key := fmt.Sprintf("%s:%s", base, to)
-		rateObj := &domain.ExchangeRate{
-			FromCurrency: base,
-			ToCurrency:   to,
-			Rate:         rate,
-			LastUpdated:  time.Now(),
-			Source:       "exchangerate-api",
-			ExpiresAt:    time.Now().Add(ttl),
-		}
-		if err := cache.Set(key, rateObj, ttl); err != nil {
-			p.logger.Warn(
-				"Failed to cache exchange rate",
-				"key", key,
-				"error", err,
-			)
-		}
-	}
-	// Set last update for this base
-	_ = cache.SetLastUpdate(base, time.Now())
-	p.logger.Info(
-		"Exchange rates cached successfully",
-		"base", base,
-		"count", len(apiResp.ConversionRates))
-	return nil
-}
-
 // GetRate fetches the current exchange rate for a currency pair
-func (p *ExchangeRateAPIProvider) GetRate(from, to string) (*domain.ExchangeRate, error) {
+func (p *exchangeRateAPI) GetRate(
+	ctx context.Context,
+	from, to string,
+) (*provider.ExchangeInfo, error) {
 	// Update GetRate to use the v6 endpoint and response if needed, or rely on cache for POC
 	// For now, we'll assume a simple call to the base URL with the API key
-	url := fmt.Sprintf("%s/%s", p.baseURL, from)
+	url := fmt.Sprintf("%s/%s/%s", p.baseURL, "latest", from)
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -188,102 +118,125 @@ func (p *ExchangeRateAPIProvider) GetRate(from, to string) (*domain.ExchangeRate
 
 	rate, exists := apiResp.ConversionRates[to]
 	if !exists {
-		return nil, fmt.Errorf("currency %s not found in response", to)
+		return nil, fmt.Errorf("rate for %s not found in response", to)
 	}
 
-	// Parse the date from the API response
-	date, err := time.Parse("2006-01-02", "2006-01-02") // No date field in v6 response
-	if err != nil {
-		date = time.Now()
-	}
-
-	return &domain.ExchangeRate{
-		FromCurrency: from,
-		ToCurrency:   to,
-		Rate:         rate,
-		LastUpdated:  time.Now(),
-		Source:       "exchangerate-api",
-		ExpiresAt:    date.Add(24 * time.Hour), // Rates typically valid for 24 hours
+	return &provider.ExchangeInfo{
+		OriginalCurrency:  from,
+		ConvertedCurrency: to,
+		ConversionRate:    rate,
+		Timestamp:         time.Now(),
+		Source:            p.Name(),
 	}, nil
 }
 
 // GetRates fetches multiple exchange rates in a single request
-func (p *ExchangeRateAPIProvider) GetRates(
+func (p *exchangeRateAPI) GetRates(
+	ctx context.Context,
 	from string,
-	to []string,
-) (map[string]*domain.ExchangeRate, error) {
-	// For this provider, we need to make a single request and extract the rates we need
-	// We'll make a direct request to get all rates for the base currency
+) (map[string]*provider.ExchangeInfo, error) {
 
-	// Since this provider returns all rates in one call, we need to make a full request
-	url := fmt.Sprintf("%s/%s", p.baseURL, from)
+	// Build the URL for the latest rates endpoint
+	url := fmt.Sprintf("%s/latest/%s", p.baseURL, from)
 
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
-	if p.apiKey != "" {
-		req.Header.Set("Authorization", "Bearer "+p.apiKey)
-	}
+	// Set content type header
+	req.Header.Set("Accept", "application/json")
 
+	// Execute the request
 	resp, err := p.httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to make request: %w", err)
 	}
 	defer func() {
 		if cerr := resp.Body.Close(); cerr != nil {
-			p.logger.Warn("Failed to close response body", "error", cerr)
+			p.logger.Warn("failed to close response body", "error", cerr)
 		}
 	}()
 
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("API returned status %d: %s", resp.StatusCode, string(body))
+	// Read the response body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 
+	// Parse the response
 	var apiResp ExchangeRateAPIResponseV6
-	if err = json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
+	if err := json.Unmarshal(body, &apiResp); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
+	// Check for API errors
 	if apiResp.Result != "success" {
-		return nil, fmt.Errorf("API returned result=%s", apiResp.Result)
-	}
-
-	// Parse the date from the API response
-	date, err := time.Parse("2006-01-02", "2006-01-02") // No date field in v6 response
-	if err != nil {
-		date = time.Now()
-	}
-
-	results := make(map[string]*domain.ExchangeRate)
-	for _, currency := range to {
-		if rate, exists := apiResp.ConversionRates[currency]; exists {
-			results[currency] = &domain.ExchangeRate{
-				FromCurrency: from,
-				ToCurrency:   currency,
-				Rate:         rate,
-				LastUpdated:  time.Now(),
-				Source:       "exchangerate-api",
-				ExpiresAt:    date.Add(24 * time.Hour),
-			}
+		switch apiResp.ErrorType {
+		case errorTypeUnsupportedCode:
+			return nil, fmt.Errorf("unsupported currency code")
+		case errorTypeMalformedRequest:
+			return nil, fmt.Errorf("malformed request")
+		case errorTypeInvalidKey:
+			return nil, fmt.Errorf("invalid API key")
+		case errorTypeInactiveAccount:
+			return nil, fmt.Errorf("inactive account")
+		case errorTypeQuotaReached:
+			return nil, fmt.Errorf("API quota reached")
+		case errorTypeUnknown, "":
+			fallthrough
+		default:
+			return nil, fmt.Errorf("API error: %s", apiResp.ErrorType)
 		}
+	}
+
+	// Process the requested rates
+	results := make(map[string]*provider.ExchangeInfo)
+	now := time.Now()
+
+	for currency := range apiResp.ConversionRates {
+		rate, exists := apiResp.ConversionRates[currency]
+		if !exists {
+			p.logger.Warn("currency not found in response", "currency", currency)
+			continue
+		}
+
+		results[currency] = &provider.ExchangeInfo{
+			OriginalCurrency:  from,
+			ConvertedCurrency: currency,
+			ConversionRate:    rate,
+			Timestamp:         now,
+			Source:            p.Name(),
+		}
+	}
+
+	if len(results) == 0 {
+		return nil, fmt.Errorf("none of the requested currencies were found in the response")
 	}
 
 	return results, nil
 }
 
+// IsSupported checks if the provider supports the given currency pair
+func (p *exchangeRateAPI) IsSupported(from string, to string) bool {
+	// Basic validation to avoid panics; provider supports standard ISO-like codes.
+	if from == "" || to == "" || from == to {
+		return true
+	}
+	// Conservatively return true; actual unsupported pairs will be handled by GetRate/GetRates.
+	return true
+}
+
 // Name returns the provider's name
-func (p *ExchangeRateAPIProvider) Name() string {
+func (p *exchangeRateAPI) Name() string {
 	return "exchangerate-api"
 }
 
 // IsHealthy checks if the provider is currently available
-func (p *ExchangeRateAPIProvider) IsHealthy() bool {
+func (p *exchangeRateAPI) IsHealthy() bool {
 	// Make a simple health check request
 	return true
 }
 
 // Ensure ExchangeRateAPIProvider implements provider.ExchangeRate
-var _ provider.ExchangeRate = (*ExchangeRateAPIProvider)(nil)
+var _ provider.ExchangeRate = (*exchangeRateAPI)(nil)

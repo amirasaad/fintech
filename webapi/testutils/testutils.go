@@ -10,7 +10,6 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"path/filepath"
 	"runtime"
 	"time"
@@ -23,7 +22,6 @@ import (
 	"github.com/amirasaad/fintech/infra/provider"
 	infrarepo "github.com/amirasaad/fintech/infra/repository"
 	fixturescurrency "github.com/amirasaad/fintech/internal/fixtures/currency"
-	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/domain/user"
 	"github.com/amirasaad/fintech/webapi"
@@ -101,7 +99,7 @@ func (s *E2ETestSuite) SetupSuite() {
 	}
 
 	// Load config
-	envTest, err := s.findEnvTest()
+	envTest, err := config.FindEnvTest(".env.test")
 	s.Require().NoError(err)
 	s.cfg, err = config.Load(envTest)
 	s.Require().NoError(err)
@@ -127,15 +125,20 @@ func (s *E2ETestSuite) setupApp() {
 	// Create deps with debug logging
 	uow := infrarepo.NewUoW(s.db)
 	// Enable debug logging
-	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{
 		Level: slog.LevelDebug,
 	}))
-	currencyConverter := provider.NewStubCurrencyConverter()
 
 	// Setup currency service
 	ctx := context.Background()
-	currencyRegistry, err := currency.New(ctx)
-	s.Require().NoError(err)
+	currencyRegistry, err := registry.NewBuilder().
+		WithName("test_currency").
+		WithRedis("").
+		WithCache(100, time.Minute).
+		BuildRegistry()
+	if err != nil {
+		panic(fmt.Errorf("failed to create test currency registry provider: %w", err))
+	}
 
 	// Load currency fixtures
 	_, filename, _, _ := runtime.Caller(0)
@@ -147,7 +150,7 @@ func (s *E2ETestSuite) setupApp() {
 	s.Require().NoError(err)
 
 	for _, meta := range metas {
-		s.Require().NoError(currencyRegistry.Register(meta))
+		s.Require().NoError(currencyRegistry.Register(ctx, meta))
 	}
 
 	// Start Redis container
@@ -178,41 +181,81 @@ func (s *E2ETestSuite) setupApp() {
 		_ = redisContainer.Terminate(ctx)
 	})
 
+	// Create registry providers for each service with in-memory storage
+	mainReg, err := registry.NewBuilder().
+		WithName("test").
+		WithRedis(""). // Empty URL for in-memory
+		WithCache(100, time.Minute).
+		BuildRegistry()
+	if err != nil {
+		panic(fmt.Errorf("failed to create test main registry provider: %w", err))
+	}
+	mainRegistry, ok := mainReg.(*registry.Enhanced)
+	if !ok {
+		panic("main registry is not of type *registry.Enhanced")
+	}
+
+	// Create currency registry
+	currencyReg, err := registry.NewBuilder().
+		WithName("test_currency").
+		WithRedis("").
+		WithCache(100, time.Minute).
+		BuildRegistry()
+	if err != nil {
+		panic(fmt.Errorf("failed to create test currency registry provider: %w", err))
+	}
+	currencyRegistry, ok = currencyReg.(*registry.Enhanced)
+	if !ok {
+		panic("currency registry is not of type *registry.Enhanced")
+	}
+
+	// Create checkout registry
+	checkoutReg, err := registry.NewBuilder().
+		WithName("test_checkout").
+		WithRedis("").
+		WithCache(100, time.Minute).
+		BuildRegistry()
+	if err != nil {
+		panic(fmt.Errorf("failed to create test checkout registry provider: %w", err))
+	}
+	checkoutRegistry, ok := checkoutReg.(*registry.Enhanced)
+	if !ok {
+		panic("checkout registry is not of type *registry.Enhanced")
+	}
+
+	// Create exchange rate registry
+	exchangeRateReg, err := registry.NewBuilder().
+		WithName("test_exchange_rate").
+		WithRedis("").
+		WithCache(100, time.Minute).
+		BuildRegistry()
+	if err != nil {
+		panic(fmt.Errorf("failed to create test exchange rate registry provider: %w", err))
+	}
+	exchangeRateRegistry, ok := exchangeRateReg.(*registry.Enhanced)
+	if !ok {
+		panic("exchange rate registry is not of type *registry.Enhanced")
+	}
+	exchangeRateProvider := provider.NewMockExchangeRate()
+	mockPaymentProvider := provider.NewMockPaymentProvider()
+
+	deps := &app.Deps{
+		RegistryProvider:     mainRegistry,
+		CurrencyRegistry:     currencyRegistry,
+		CheckoutRegistry:     checkoutRegistry,
+		ExchangeRateRegistry: exchangeRateRegistry,
+		ExchangeRateProvider: exchangeRateProvider,
+		PaymentProvider:      mockPaymentProvider,
+		Uow:                  uow,
+		EventBus:             eventBus,
+		Logger:               logger,
+	}
+
 	// Create test app
 	s.app = webapi.SetupApp(app.New(
-		&app.Deps{
-			CurrencyConverter:        currencyConverter,
-			CurrencyRegistry:         currencyRegistry,
-			Uow:                      uow,
-			PaymentProvider:          provider.NewMockPaymentProvider(),
-			CheckoutRegistryProvider: registry.NewCachedRegistry(10, time.Minute),
-			EventBus:                 eventBus,
-			Logger:                   logger,
-		},
+		deps,
 		s.cfg,
 	))
-}
-
-// findEnvTest searches for the nearest .env.test file
-func (s *E2ETestSuite) findEnvTest() (string, error) {
-	startDir, err := os.Getwd()
-	if err != nil {
-		return "", err
-	}
-
-	curr := startDir
-	for {
-		candidate := filepath.Join(curr, ".env.test")
-		if _, err = os.Stat(candidate); err == nil {
-			return candidate, nil
-		}
-		parent := filepath.Dir(curr)
-		if parent == curr {
-			break
-		}
-		curr = parent
-	}
-	return "", os.ErrNotExist
 }
 
 // MakeRequest is a helper for making HTTP requests in tests

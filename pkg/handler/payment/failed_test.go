@@ -39,7 +39,7 @@ func TestFailedHandler(t *testing.T) {
 		status := "failed"
 		h.MockTxRepo.EXPECT().
 			Update(h.Ctx, h.TransactionID, dto.TransactionUpdate{
-				PaymentID: &h.PaymentID,
+				PaymentID: h.PaymentID,
 				Status:    &status,
 			}).
 			Return(nil).
@@ -72,7 +72,7 @@ func TestFailedHandler(t *testing.T) {
 		status := "failed"
 		h.MockTxRepo.EXPECT().
 			Update(h.Ctx, h.TransactionID, dto.TransactionUpdate{
-				PaymentID: &h.PaymentID,
+				PaymentID: h.PaymentID,
 				Status:    &status,
 			}).
 			Return(nil).

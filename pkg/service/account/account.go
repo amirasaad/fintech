@@ -20,7 +20,6 @@ import (
 	"github.com/amirasaad/fintech/pkg/commands"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 
-	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/money"
@@ -60,9 +59,9 @@ func (s *Service) CreateAccount(
 		acctRepo := repoAny.(repoaccount.Repository)
 
 		// Enforce domain invariants
-		curr := currency.Code(create.Currency)
+		curr := money.Code(create.Currency)
 		if curr == "" {
-			curr = currency.DefaultCode
+			curr = money.DefaultCode
 		}
 		domainAcc, err := account.New().WithUserID(create.UserID).WithCurrency(curr).Build()
 		if err != nil {
@@ -101,7 +100,7 @@ func (s *Service) Deposit(
 	cmd commands.Deposit,
 ) error {
 	// Always use the source currency for the initial deposit event
-	amount, err := money.New(cmd.Amount, currency.Code(cmd.Currency))
+	amount, err := money.New(cmd.Amount, money.Code(cmd.Currency))
 	if err != nil {
 		return err
 	}
@@ -120,7 +119,7 @@ func (s *Service) Withdraw(
 	ctx context.Context,
 	cmd commands.Withdraw,
 ) error {
-	amount, err := money.New(cmd.Amount, currency.Code(cmd.Currency))
+	amount, err := money.New(cmd.Amount, money.Code(cmd.Currency))
 	if err != nil {
 		return err
 	}
@@ -153,7 +152,7 @@ func (s *Service) Transfer(
 	ctx context.Context,
 	cmd commands.Transfer,
 ) error {
-	amount, err := money.New(cmd.Amount, currency.Code(cmd.Currency))
+	amount, err := money.New(cmd.Amount, money.Code(cmd.Currency))
 	if err != nil {
 		return err
 	}

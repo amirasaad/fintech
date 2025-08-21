@@ -46,7 +46,7 @@ func HandleFailed(
 		// Update the transaction status to failed
 		status := string(account.TransactionStatusFailed)
 		updateErr := txRepo.Update(ctx, txID, dto.TransactionUpdate{
-			PaymentID: &pf.PaymentID,
+			PaymentID: pf.PaymentID, // Update to handle PaymentID as a pointer
 			Status:    &status,
 		})
 

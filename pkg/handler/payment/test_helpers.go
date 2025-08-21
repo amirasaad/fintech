@@ -3,11 +3,9 @@ package payment
 import (
 	"context"
 
-	"github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/handler/testutils"
-	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/amirasaad/fintech/pkg/repository"
 	repoaccount "github.com/amirasaad/fintech/pkg/repository/account"
 	"github.com/amirasaad/fintech/pkg/repository/transaction"
@@ -21,12 +19,6 @@ func createValidPaymentCompletedEvent(
 	// Use the amount directly from the test helper
 	amount := h.Amount
 
-	// Create a small fee amount (1% of the amount)
-	feeAmount, err := money.New(amount.AmountFloat(), "USD")
-	if err != nil {
-		h.T.Fatalf("failed to create fee amount: %v", err)
-	}
-
 	return events.NewPaymentCompleted(
 		&events.FlowEvent{
 			ID:            h.EventID,
@@ -34,13 +26,10 @@ func createValidPaymentCompletedEvent(
 			FlowType:      "payment",
 		},
 		func(pc *events.PaymentCompleted) {
-			pc.PaymentID = h.PaymentID
+			paymentID := "test-payment-id"
+			pc.PaymentID = &paymentID
 			pc.TransactionID = h.TransactionID
 			pc.Amount = amount
-			// Set provider fee if needed by the test
-			pc.ProviderFee = account.Fee{
-				Amount: feeAmount,
-			}
 			pc.Status = "completed"
 		},
 	)
@@ -56,7 +45,9 @@ func createValidPaymentFailedEvent(
 			CorrelationID: h.CorrelationID,
 			FlowType:      "payment",
 		}, func(pf *events.PaymentFailed) {
-			pf.PaymentID = h.PaymentID
+			if h.PaymentID != nil {
+				pf.PaymentID = h.PaymentID
+			}
 			pf.TransactionID = h.TransactionID
 		}).WithReason("payment processing failed")
 
@@ -64,11 +55,8 @@ func createValidPaymentFailedEvent(
 
 // setupSuccessfulTest configures mocks for a successful payment completion
 func setupSuccessfulTest(h *testutils.TestHelper) {
-	// Ensure the amount is in the correct currency
-	amount, err := money.New(h.Amount.AmountFloat(), "USD")
-	if err != nil {
-		h.T.Fatalf("failed to create money amount: %v", err)
-	}
+	// Use the amount directly from the test helper
+	amount := h.Amount
 
 	// Setup test transaction
 	tx := &dto.TransactionRead{
@@ -77,7 +65,7 @@ func setupSuccessfulTest(h *testutils.TestHelper) {
 		AccountID: h.AccountID,
 		PaymentID: h.PaymentID,
 		Status:    "pending",
-		Currency:  "USD",
+		Currency:  amount.CurrencyCode().String(),
 		Amount:    amount.AmountFloat(),
 	}
 
@@ -86,7 +74,7 @@ func setupSuccessfulTest(h *testutils.TestHelper) {
 		ID:       h.AccountID,
 		UserID:   h.UserID,
 		Balance:  amount.AmountFloat(),
-		Currency: "USD",
+		Currency: amount.CurrencyCode().String(),
 	}
 
 	doFn := func(ctx context.Context, fn func(uow repository.UnitOfWork) error) error {
@@ -99,9 +87,11 @@ func setupSuccessfulTest(h *testutils.TestHelper) {
 				h.MockTxRepo, nil,
 			)
 
+		// Ensure we pass a string, not a *string
+		paymentID := "test-payment-id"
 		h.MockTxRepo.
 			EXPECT().
-			GetByPaymentID(ctx, h.PaymentID).
+			GetByPaymentID(ctx, paymentID).
 			Return(tx, nil).
 			Once()
 
@@ -119,14 +109,21 @@ func setupSuccessfulTest(h *testutils.TestHelper) {
 			Return(testAccount, nil).
 			Once()
 
-		h.MockAccRepo.
-			EXPECT().
-			Update(ctx, h.AccountID, mock.AnythingOfType("dto.AccountUpdate")).
+		// Setup mock expectations for account update
+		h.MockAccRepo.EXPECT().
+			Update(ctx, h.AccountID, mock.MatchedBy(func(update dto.AccountUpdate) bool {
+				// Verify the account balance is being updated correctly
+				return update.Balance != nil && *update.Balance > 0
+			})).
 			Return(nil).
 			Once()
-		h.MockTxRepo.
-			EXPECT().
-			Update(ctx, h.TransactionID, mock.AnythingOfType("dto.TransactionUpdate")).
+
+		// Setup mock expectations for transaction update
+		h.MockTxRepo.EXPECT().
+			Update(ctx, h.TransactionID, mock.MatchedBy(func(update dto.TransactionUpdate) bool {
+				// Verify the transaction status is being updated to "completed"
+				return update.Status != nil && *update.Status == "completed"
+			})).
 			Return(nil).
 			Once()
 

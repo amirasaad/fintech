@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/mapper"
@@ -29,8 +28,11 @@ func NewFeeCalculator(
 	accRepo repoaccount.Repository,
 	logger *slog.Logger,
 ) *FeeCalculator {
-	if txRepo == nil || accRepo == nil || logger == nil {
+	if txRepo == nil || accRepo == nil {
 		return nil
+	}
+	if logger == nil {
+		logger = slog.Default()
 	}
 
 	return &FeeCalculator{
@@ -72,13 +74,24 @@ func (fc *FeeCalculator) updateTransactionFee(
 	tx *dto.TransactionRead,
 	fee account.Fee,
 ) error {
+	// Validate currency is set
+	if tx.Currency == "" {
+		err := fmt.Errorf("transaction %s has no currency set", tx.ID)
+		fc.logger.Error("transaction has no currency",
+			"error", err,
+			"transaction_id", tx.ID,
+		)
+		return err
+	}
+
 	// Convert existing fee to money type
-	txFee, err := money.New(tx.Fee, currency.Code(tx.Currency))
+	txFee, err := money.New(tx.Fee, money.Code(tx.Currency))
 	if err != nil {
 		fc.logger.Error("invalid transaction fee amount",
 			"error", err,
 			"transaction_id", tx.ID,
 			"fee", tx.Fee,
+			"currency", tx.Currency,
 		)
 		return fmt.Errorf("invalid transaction fee amount: %w", err)
 	}
@@ -119,7 +132,7 @@ func (fc *FeeCalculator) updateTransactionFee(
 func (fc *FeeCalculator) updateAccountBalance(
 	ctx context.Context,
 	accountID uuid.UUID,
-	feeAmount money.Money,
+	feeAmount *money.Money,
 ) error {
 	// Get the account
 	acc, err := fc.accRepo.Get(ctx, accountID)
@@ -143,7 +156,7 @@ func (fc *FeeCalculator) updateAccountBalance(
 			"current_balance", domainAcc.Balance,
 			"account_id", accountID,
 		)
-		return err
+		return fmt.Errorf("failed to subtract fee from balance: %w", err)
 	}
 
 	// Update account balance

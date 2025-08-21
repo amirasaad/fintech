@@ -40,14 +40,6 @@ packages:
       structname: "{{.InterfaceName}}"
     interfaces:
       Strategy:
-  github.com/amirasaad/fintech/pkg/domain:
-    config:
-      dir: "internal/fixtures/mocks"
-      filename: "domain.go"
-      pkgname: "mocks"
-      structname: "{{.InterfaceName}}"
-    interfaces:
-      CurrencyConverter:
   github.com/amirasaad/fintech/pkg/eventbus:
     config:
       dir: "internal/fixtures/mocks"
@@ -59,10 +51,12 @@ packages:
   github.com/amirasaad/fintech/pkg/provider:
     config:
       dir: "internal/fixtures/mocks"
+      filename: "provider.go"
       pkgname: "mocks"
+      structname: "{{.InterfaceName}}Provider"
     interfaces:
-      ExchangeRateProvider:
-      PaymentProvider:
+      ExchangeRate:
+      Payment:
   github.com/amirasaad/fintech/pkg/registry:
     config:
       dir: "internal/fixtures/mocks"

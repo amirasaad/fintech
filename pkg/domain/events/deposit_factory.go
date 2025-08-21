@@ -3,7 +3,6 @@ package events
 import (
 	"time"
 
-	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/google/uuid"
 )
@@ -12,7 +11,7 @@ import (
 type DepositRequestedOpt func(*DepositRequested)
 
 // WithDepositAmount sets the deposit amount
-func WithDepositAmount(m money.Money) DepositRequestedOpt {
+func WithDepositAmount(m *money.Money) DepositRequestedOpt {
 	return func(e *DepositRequested) { e.Amount = m }
 }
 
@@ -59,7 +58,7 @@ func NewDepositRequested(
 			Timestamp:     time.Now(),
 		},
 		TransactionID: uuid.New(),
-		Amount:        money.Zero(currency.USD),
+		Amount:        money.Zero(money.USD),
 	}
 
 	for _, opt := range opts {

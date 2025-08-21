@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/amirasaad/fintech/pkg/dto"
+	"github.com/amirasaad/fintech/pkg/money"
 	repo "github.com/amirasaad/fintech/pkg/repository/transaction"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -73,7 +74,9 @@ func (r *repository) UpsertByPaymentID(
 	create dto.TransactionCreate,
 ) error {
 	tx := mapCreateDTOToModel(create)
-	tx.PaymentID = paymentID
+	if paymentID != "" {
+		tx.PaymentID = &paymentID
+	}
 	return r.db.WithContext(
 		ctx,
 	).Clauses(
@@ -170,15 +173,21 @@ func (r *repository) ListByAccount(
 // --- Mappers ---
 
 func mapCreateDTOToModel(create dto.TransactionCreate) Transaction {
-	return Transaction{
+	tx := Transaction{
 		ID:          create.ID,
 		UserID:      create.UserID,
 		AccountID:   create.AccountID,
 		Amount:      create.Amount,
 		Status:      create.Status,
 		MoneySource: create.MoneySource,
-		// Add more fields as needed
 	}
+
+	// Set PaymentID if it's not nil
+	if create.PaymentID != nil && *create.PaymentID != "" {
+		tx.PaymentID = create.PaymentID
+	}
+
+	return tx
 }
 
 func mapUpdateDTOToModel(update dto.TransactionUpdate) map[string]any {
@@ -216,14 +225,23 @@ func mapUpdateDTOToModel(update dto.TransactionUpdate) map[string]any {
 }
 
 func mapModelToReadDTO(tx *Transaction) *dto.TransactionRead {
-	return &dto.TransactionRead{
+	amount, err := money.NewFromSmallestUnit(tx.Amount, money.Code(tx.Currency))
+	if err != nil {
+		panic(err)
+	}
+	dto := &dto.TransactionRead{
 		ID:        tx.ID,
 		UserID:    tx.UserID,
 		AccountID: tx.AccountID,
-		Amount:    float64(tx.Amount),
+		Amount:    amount.AmountFloat(),
+		Currency:  tx.Currency, // Include the currency
 		Status:    tx.Status,
-		PaymentID: tx.PaymentID,
 		CreatedAt: tx.CreatedAt,
-		// Add more fields as needed
 	}
+
+	if tx.PaymentID != nil {
+		dto.PaymentID = tx.PaymentID
+	}
+
+	return dto
 }

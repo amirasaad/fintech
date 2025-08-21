@@ -47,7 +47,7 @@ func WithFeeType(feeType account.FeeType) FeesCalculatedOpt {
 }
 
 // WithFeeAmountValue sets the fee amount for the FeesCalculated event
-func WithFeeAmountValue(amount money.Money) FeesCalculatedOpt {
+func WithFeeAmountValue(amount *money.Money) FeesCalculatedOpt {
 	return func(e *FeesCalculated) {
 		e.Fee.Amount = amount
 	}

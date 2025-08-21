@@ -8,12 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/amirasaad/fintech/pkg/config"
-
 	"github.com/amirasaad/fintech/infra/eventbus"
 	infra_provider "github.com/amirasaad/fintech/infra/provider"
 	"github.com/amirasaad/fintech/pkg/app"
-	"github.com/amirasaad/fintech/pkg/currency"
+	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/amirasaad/fintech/webapi"
 	"github.com/gofiber/fiber/v2"
@@ -28,22 +26,16 @@ func TestRateLimit(t *testing.T) {
 			Jwt: &config.Jwt{},
 		},
 	}
-	cfg.RateLimit.MaxRequests = 5
-	cfg.RateLimit.Window = 1 * time.Second
 
 	// Provide dummy services for required arguments
 	dummyUow := repository.UnitOfWork(nil)
 
-	// Create a dummy currency registry and service
-	dummyRegistry := &currency.Registry{}
-
 	app := webapi.SetupApp(app.New(&app.Deps{
-		Uow:               dummyUow,
-		EventBus:          eventbus.NewWithMemory(slog.Default()),
-		CurrencyConverter: infra_provider.NewStubCurrencyConverter(),
-		CurrencyRegistry:  dummyRegistry,
-		PaymentProvider:   infra_provider.NewMockPaymentProvider(),
-		Logger:            slog.Default(),
+		Uow:                  dummyUow,
+		EventBus:             eventbus.NewWithMemory(slog.Default()),
+		ExchangeRateProvider: infra_provider.NewMockExchangeRate(),
+		PaymentProvider:      infra_provider.NewMockPaymentProvider(),
+		Logger:               slog.Default(),
 	}, cfg))
 
 	// Helper function to make requests

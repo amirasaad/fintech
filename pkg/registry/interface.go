@@ -6,14 +6,116 @@ import (
 	"time"
 )
 
-// Entity represents any entity that can be registered
-type Entity interface {
+// Core interfaces following Go's idiomatic naming conventions
+
+// Basic interfaces (single-method)
+type Identifier interface {
 	ID() string
+}
+
+type IDSetter interface {
+	SetID(id string) error
+}
+
+type Named interface {
 	Name() string
+}
+
+type NameSetter interface {
+	SetName(name string) error
+}
+
+// ActiveStatusChecker defines the interface for checking if an entity is active
+type ActiveStatusChecker interface {
 	Active() bool
+}
+
+type ActivationSetter interface {
+	SetActive(active bool)
+}
+
+type MetadataReader interface {
 	Metadata() map[string]string
+}
+
+type MetadataWriter interface {
+	SetMetadata(key, value string)
+}
+
+type MetadataRemover interface {
+	RemoveMetadata(key string)
+}
+
+type MetadataClearer interface {
+	ClearMetadata()
+}
+
+type Timestamped interface {
 	CreatedAt() time.Time
 	UpdatedAt() time.Time
+}
+
+// Composite interfaces
+type Identity interface {
+	Identifier
+	IDSetter
+}
+
+type Nameable interface {
+	Named
+	NameSetter
+}
+
+type ActivationController interface {
+	ActiveStatusChecker
+	ActivationSetter
+}
+
+type MetadataController interface {
+	MetadataReader
+	MetadataWriter
+	MetadataRemover
+	MetadataClearer
+}
+
+type EntityCore interface {
+	Identity
+	Nameable
+	ActivationController
+	MetadataController
+	Timestamped
+}
+
+// Entity is the main interface that all registry entities must implement
+// It's a composition of smaller, focused interfaces
+// Deprecated: Use EntityCore for new code
+type Entity = EntityCore
+
+// EntityFactory creates new entity instances
+type EntityFactory interface {
+	NewEntity(id, name string) (EntityCore, error)
+}
+
+// EntityValidator validates entity state
+type EntityValidator interface {
+	Validate() error
+}
+
+// EntityLifecycle defines hooks for entity lifecycle events
+type EntityLifecycle interface {
+	BeforeCreate() error
+	AfterCreate() error
+	BeforeUpdate() error
+	AfterUpdate() error
+	BeforeDelete() error
+	AfterDelete() error
+}
+
+// EntityFull combines all entity-related interfaces
+type EntityFull interface {
+	EntityCore
+	EntityValidator
+	EntityLifecycle
 }
 
 // Provider defines the interface for registry implementations
@@ -58,14 +160,14 @@ type Observer interface {
 
 // Event represents a registry event
 type Event struct {
-	Type      string                 `json:"type"`
-	EntityID  string                 `json:"entity_id"`
-	Entity    Entity                 `json:"entity,omitempty"`
-	Timestamp time.Time              `json:"timestamp"`
-	Metadata  map[string]interface{} `json:"metadata,omitempty"`
+	Type      string         `json:"type"`
+	EntityID  string         `json:"entity_id"`
+	Entity    Entity         `json:"entity,omitempty"`
+	Timestamp time.Time      `json:"timestamp"`
+	Metadata  map[string]any `json:"metadata,omitempty"`
 }
 
-// RegistryEventType constants
+// EventType constants
 const (
 	EventEntityRegistered   = "entity_registered"
 	EventEntityUnregistered = "entity_unregistered"
@@ -179,45 +281,6 @@ type Factory interface {
 		config Config,
 		metrics Metrics,
 	) (Provider, error)
-}
-
-// BaseEntity provides a default implementation of the Entity interface
-type BaseEntity struct {
-	BEId        string            `json:"id"`
-	BEName      string            `json:"name"`
-	BEActive    bool              `json:"active"`
-	BEMetadata  map[string]string `json:"metadata,omitempty"`
-	BECreatedAt time.Time         `json:"created_at"`
-	BEUpdatedAt time.Time         `json:"updated_at"`
-}
-
-// Property-style getter methods to implement Entity interface
-func (e *BaseEntity) ID() string   { return e.BEId }
-func (e *BaseEntity) Name() string { return e.BEName }
-func (e *BaseEntity) Active() bool { return e.BEActive }
-func (e *BaseEntity) Metadata() map[string]string {
-	if e.BEMetadata == nil {
-		e.BEMetadata = make(map[string]string)
-	}
-	return e.BEMetadata
-}
-func (e *BaseEntity) CreatedAt() time.Time { return e.BECreatedAt }
-func (e *BaseEntity) UpdatedAt() time.Time { return e.BEUpdatedAt }
-
-// Add a compile-time check to ensure BaseEntity implements the Entity interface.
-var _ Entity = (*BaseEntity)(nil)
-
-// NewBaseEntity creates a new base entity
-func NewBaseEntity(id, name string) *BaseEntity {
-	now := time.Now()
-	return &BaseEntity{
-		BEId:        id,
-		BEName:      name,
-		BEActive:    true,
-		BEMetadata:  make(map[string]string),
-		BECreatedAt: now,
-		BEUpdatedAt: now,
-	}
 }
 
 // Builder provides a fluent interface for building registry configurations

@@ -2,6 +2,8 @@ package payment
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log/slog"
 
 	"github.com/amirasaad/fintech/pkg/domain/account"
@@ -11,6 +13,8 @@ import (
 	"github.com/amirasaad/fintech/pkg/handler/common"
 	"github.com/amirasaad/fintech/pkg/mapper"
 	"github.com/amirasaad/fintech/pkg/repository"
+	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 // ErrInvalidRepositoryType Define custom error for invalid repository type
@@ -48,7 +52,7 @@ func HandleCompleted(
 		log = log.With(
 			"user_id", pc.UserID,
 			"account_id", pc.AccountID,
-			"payment_id", pc.PaymentID,
+			"payment_id", *pc.PaymentID,
 			"transaction_id", pc.TransactionID,
 		)
 		if err := uow.Do(ctx, func(uow repository.UnitOfWork) error {
@@ -61,13 +65,45 @@ func HandleCompleted(
 				log.Error("failed to get transaction repository", "error", err)
 				return err
 			}
-			tx, err := txRepo.GetByPaymentID(ctx, pc.PaymentID)
+			if pc.PaymentID == nil {
+				log.Error("payment ID is nil")
+				return fmt.Errorf("payment ID is nil")
+			}
+
+			// First try to get by payment ID
+			tx, err := txRepo.GetByPaymentID(ctx, *pc.PaymentID)
 			if err != nil {
-				log.Error(
-					"failed to get transaction by payment ID",
-					"error", err,
-				)
-				return err
+				// If not found by payment ID, try to get by transaction ID
+				if errors.Is(err, gorm.ErrRecordNotFound) && pc.TransactionID != uuid.Nil {
+					tx, err = txRepo.Get(ctx, pc.TransactionID)
+				}
+
+				if err != nil {
+					log.Error(
+						"failed to get transaction by payment ID or transaction ID",
+						"payment_id", *pc.PaymentID,
+						"transaction_id", pc.TransactionID,
+						"error", err,
+					)
+					return fmt.Errorf("failed to find transaction: %w", err)
+				}
+
+				// Update the transaction with the payment ID if it wasn't set
+				if tx.PaymentID == nil || *tx.PaymentID != *pc.PaymentID {
+					update := dto.TransactionUpdate{
+						PaymentID: pc.PaymentID,
+					}
+					if err := txRepo.Update(ctx, tx.ID, update); err != nil {
+						log.Error(
+							"failed to update transaction with payment ID",
+							"transaction_id", tx.ID,
+							"payment_id", pc.PaymentID,
+							"error", err,
+						)
+						return fmt.Errorf("failed to update transaction: %w", err)
+					}
+					tx.PaymentID = pc.PaymentID
+				}
 			}
 			log = log.With(
 				"transaction_id", tx.ID,
@@ -91,23 +127,7 @@ func HandleCompleted(
 			}
 
 			// Log provider fee details before calculation
-			log.Info("💸 Provider fee details",
-				"fee_amount_struct", pc.ProviderFee.Amount,
-				"fee_amount_cents", pc.ProviderFee.Amount.Amount(),
-			)
-
-			// Calculate the net amount after deducting fees
-			netAmount, err := pc.Amount.Subtract(pc.ProviderFee.Amount)
-			if err != nil {
-				log.Error(
-					"failed to calculate net amount after fees",
-					"error", err,
-				)
-				return err
-			}
-
-			// Update balance with net amount
-			newBalance, err := domainAcc.Balance.Add(netAmount)
+			newBalance, err := domainAcc.Balance.Add(pc.Amount)
 			if err != nil {
 				log.Error(
 					"failed to add net transaction amount to balance",
@@ -115,24 +135,20 @@ func HandleCompleted(
 				)
 				return err
 			}
-
 			oldStatus := tx.Status
 			status := string(account.TransactionStatusCompleted)
 			tx.Status = status
 
 			// Store the gross amount in the transaction
-			amount := netAmount.Amount()
+			amount := pc.Amount.Amount()
 			currency := pc.Amount.Currency().String()
 			balance := newBalance.Amount()
-			fee := pc.ProviderFee.Amount.Amount()
-			log.Info("💸 Captured provider fee for transaction", "fee_cents", fee)
 
 			update := dto.TransactionUpdate{
 				Status:   &status,
 				Amount:   &amount,
 				Currency: &currency,
 				Balance:  &balance,
-				Fee:      &fee, // Store the fee with the transaction
 			}
 
 			if err = txRepo.Update(ctx, tx.ID, update); err != nil {
@@ -168,6 +184,10 @@ func HandleCompleted(
 				"new_balance", newBalance,
 				"balance", domainAcc.Balance,
 			)
+
+			log.Info(
+				"✅ [SUCCESS] emitted FeesCalculated event",
+				"transaction_id", tx.ID)
 			return nil
 		}); err != nil {
 			log.Error(

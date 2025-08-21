@@ -1,18 +1,20 @@
 package common
 
 import (
-	"github.com/amirasaad/fintech/pkg/currency"
+	"errors"
+
+	"github.com/amirasaad/fintech/pkg/money"
 )
 
-type ConversionInfo currency.Info
-
 // ErrInvalidCurrencyCode is returned when a currency code is invalid.
-var ErrInvalidCurrencyCode = currency.ErrInvalidCode
+// Deprecated: Use money.ErrInvalidCurrency instead
+var ErrInvalidCurrencyCode = money.ErrInvalidCurrency
 
 // ErrUnsupportedCurrency is return when currency
 // is not supported by global registry #see: /pkg/currency
-var ErrUnsupportedCurrency = currency.ErrUnsupported
+var ErrUnsupportedCurrency = errors.New("currency not supported")
 
 // ErrInvalidDecimalPlaces is returned when a monetary amount
 // has more decimal places than allowed by the currency.
-var ErrInvalidDecimalPlaces = currency.ErrInvalidDecimals
+// Deprecated: use currency.ErrInvalidDecimals
+var ErrInvalidDecimalPlaces = money.ErrInvalidAmount

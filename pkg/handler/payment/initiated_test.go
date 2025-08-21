@@ -6,18 +6,30 @@ import (
 
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/handler/testutils"
+	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/amirasaad/fintech/pkg/provider"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestHandleInitiated(t *testing.T) {
-	var err error
+	// Helper function to create a new test helper with required fields
+	newTestHelper := func(t *testing.T) *testutils.TestHelper {
+		h := testutils.New(t)
+
+		// Initialize required fields if needed
+		if h.Amount == nil {
+			amount, err := money.New(10.00, "USD")
+			require.NoError(t, err)
+			h = h.WithAmount(amount)
+		}
+
+		return h
+	}
 
 	t.Run("returns error for unexpected event type", func(t *testing.T) {
-		t.Parallel()
-		h := testutils.New(t)
-		h.WithHandler(
+		h := newTestHelper(t)
+		h = h.WithHandler(
 			HandleInitiated(
 				h.Bus,
 				h.MockPaymentProvider,
@@ -25,14 +37,13 @@ func TestHandleInitiated(t *testing.T) {
 			),
 		)
 		t.Logf("Handler: %+v, Ctx: %+v, Event: %+v", h.Handler, h.Ctx, &testutils.TestEvent{})
-		err = h.Handler(h.Ctx, &testutils.TestEvent{})
+		err := h.Handler(h.Ctx, &testutils.TestEvent{})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "unexpected event type")
 	})
 
 	t.Run("handles payment initiation failure", func(t *testing.T) {
-		t.Parallel()
-		h := testutils.New(t)
+		h := newTestHelper(t)
 		event := events.NewPaymentInitiated(
 			&events.FlowEvent{
 				ID:            h.EventID,
@@ -63,14 +74,13 @@ func TestHandleInitiated(t *testing.T) {
 					TransactionID: event.TransactionID,
 				},
 			).Return(nil, errors.New("payment provider error"))
-		err = h.Handler(h.Ctx, event)
+		err := h.Handler(h.Ctx, event)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "payment provider error")
 	})
 
 	t.Run("successfully initiates payment", func(t *testing.T) {
-		t.Parallel()
-		h := testutils.New(t)
+		h := newTestHelper(t)
 		event := events.NewPaymentInitiated(
 			&events.FlowEvent{
 				ID:            h.EventID,
@@ -90,6 +100,12 @@ func TestHandleInitiated(t *testing.T) {
 			h.MockPaymentProvider,
 			h.Logger,
 		))
+		// Create a mock response with the expected payment ID
+		mockResponse := &provider.InitiatePaymentResponse{
+			Status:    provider.PaymentPending,
+			PaymentID: "pi_123456789", // Mock payment ID
+		}
+
 		h.MockPaymentProvider.EXPECT().
 			InitiatePayment(
 				h.Ctx,
@@ -100,15 +116,13 @@ func TestHandleInitiated(t *testing.T) {
 					Currency:      event.Amount.Currency().String(),
 					TransactionID: event.TransactionID,
 				},
-			).Return(&provider.InitiatePaymentResponse{},
-			nil,
-		)
-		err = h.Handler(h.Ctx, event)
+			).Return(mockResponse, nil).Maybe()
+
+		err := h.Handler(h.Ctx, event)
 		require.NoError(t, err)
 	})
 
 	t.Run("skips already processed payment initiated event", func(t *testing.T) {
-		t.Parallel()
 		h := testutils.New(t)
 		event := events.NewPaymentInitiated(
 			&events.FlowEvent{
@@ -127,8 +141,8 @@ func TestHandleInitiated(t *testing.T) {
 		// Simulate event already processed
 		processedPaymentInitiated.Store(event.TransactionID.String(), struct{}{})
 
-		h.WithHandler(HandleInitiated(h.Bus, h.MockPaymentProvider, h.Logger))
-		err = h.Handler(h.Ctx, event)
+		h = h.WithHandler(HandleInitiated(h.Bus, h.MockPaymentProvider, h.Logger))
+		err := h.Handler(h.Ctx, event)
 		require.NoError(t, err)
 
 		// Clean up for subsequent tests

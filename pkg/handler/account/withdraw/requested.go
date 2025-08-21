@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/amirasaad/fintech/pkg/handler/common"
+	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/google/uuid"
 )
@@ -103,7 +103,7 @@ func HandleRequested(
 			wr.FlowEvent,
 			wr,
 			events.WithConversionAmount(wr.Amount),
-			events.WithConversionTo(currency.Code("USD")),
+			events.WithConversionTo(money.Code("USD")),
 		)
 
 		if err := bus.Emit(ctx, ccr); err != nil {

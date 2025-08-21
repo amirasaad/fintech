@@ -11,7 +11,7 @@ import (
 // TransferRequested is emitted after transfer validation and persistence.
 type TransferRequested struct {
 	FlowEvent
-	Amount        money.Money
+	Amount        *money.Money
 	Source        string
 	DestAccountID uuid.UUID
 	Timestamp     time.Time
@@ -32,7 +32,7 @@ func (e *TransferRequested) WithDestAccountID(id uuid.UUID) *TransferRequested {
 	)
 }
 
-func (e *TransferRequested) WithAmount(m money.Money) *TransferRequested {
+func (e *TransferRequested) WithAmount(m *money.Money) *TransferRequested {
 	return NewTransferRequested(
 		e.UserID,
 		e.AccountID,

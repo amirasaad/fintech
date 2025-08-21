@@ -330,8 +330,8 @@ func (_c *RegistryProvider_Get_Call) Run(run func(ctx context.Context, id string
 	return _c
 }
 
-func (_c *RegistryProvider_Get_Call) Return(entity registry.Entity, err error) *RegistryProvider_Get_Call {
-	_c.Call.Return(entity, err)
+func (_c *RegistryProvider_Get_Call) Return(v registry.Entity, err error) *RegistryProvider_Get_Call {
+	_c.Call.Return(v, err)
 	return _c
 }
 
@@ -521,8 +521,8 @@ func (_c *RegistryProvider_List_Call) Run(run func(ctx context.Context)) *Regist
 	return _c
 }
 
-func (_c *RegistryProvider_List_Call) Return(entitys []registry.Entity, err error) *RegistryProvider_List_Call {
-	_c.Call.Return(entitys, err)
+func (_c *RegistryProvider_List_Call) Return(vs []registry.Entity, err error) *RegistryProvider_List_Call {
+	_c.Call.Return(vs, err)
 	return _c
 }
 
@@ -583,8 +583,8 @@ func (_c *RegistryProvider_ListActive_Call) Run(run func(ctx context.Context)) *
 	return _c
 }
 
-func (_c *RegistryProvider_ListActive_Call) Return(entitys []registry.Entity, err error) *RegistryProvider_ListActive_Call {
-	_c.Call.Return(entitys, err)
+func (_c *RegistryProvider_ListActive_Call) Return(vs []registry.Entity, err error) *RegistryProvider_ListActive_Call {
+	_c.Call.Return(vs, err)
 	return _c
 }
 
@@ -657,8 +657,8 @@ func (_c *RegistryProvider_ListByMetadata_Call) Run(run func(ctx context.Context
 	return _c
 }
 
-func (_c *RegistryProvider_ListByMetadata_Call) Return(entitys []registry.Entity, err error) *RegistryProvider_ListByMetadata_Call {
-	_c.Call.Return(entitys, err)
+func (_c *RegistryProvider_ListByMetadata_Call) Return(vs []registry.Entity, err error) *RegistryProvider_ListByMetadata_Call {
+	_c.Call.Return(vs, err)
 	return _c
 }
 
@@ -845,8 +845,8 @@ func (_c *RegistryProvider_Search_Call) Run(run func(ctx context.Context, query 
 	return _c
 }
 
-func (_c *RegistryProvider_Search_Call) Return(entitys []registry.Entity, err error) *RegistryProvider_Search_Call {
-	_c.Call.Return(entitys, err)
+func (_c *RegistryProvider_Search_Call) Return(vs []registry.Entity, err error) *RegistryProvider_Search_Call {
+	_c.Call.Return(vs, err)
 	return _c
 }
 
@@ -913,8 +913,8 @@ func (_c *RegistryProvider_SearchByMetadata_Call) Run(run func(ctx context.Conte
 	return _c
 }
 
-func (_c *RegistryProvider_SearchByMetadata_Call) Return(entitys []registry.Entity, err error) *RegistryProvider_SearchByMetadata_Call {
-	_c.Call.Return(entitys, err)
+func (_c *RegistryProvider_SearchByMetadata_Call) Return(vs []registry.Entity, err error) *RegistryProvider_SearchByMetadata_Call {
+	_c.Call.Return(vs, err)
 	return _c
 }
 

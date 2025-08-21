@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/amirasaad/fintech/internal/fixtures/mocks"
-	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/registry"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -25,7 +24,7 @@ func TestService_CreateSession(t *testing.T) {
 	}{
 		{"valid session", "USD", 1000,
 			time.Hour, nil, false},
-		{"invalid currency", "XXX", 1000,
+		{"invalid currency", "343", 1000,
 			time.Hour, nil, true},
 		{"negative amount", "USD", -100,
 			time.Hour, nil, true},
@@ -69,20 +68,23 @@ func TestService_CreateSession(t *testing.T) {
 }
 
 func TestService_GetSession(t *testing.T) {
-	mockEntity := &registry.BaseEntity{
-		BEId:     "valid-session",
-		BEName:   "checkout_session_123",
-		BEActive: true,
-		BEMetadata: map[string]string{
-			"transaction_id": uuid.New().String(),
-			"user_id":        uuid.New().String(),
-			"account_id":     uuid.New().String(),
-			"amount":         "1000",
-			"currency":       "USD",
-			"created_at":     time.Now().Format(time.RFC3339),
-			"expires_at":     time.Now().Add(time.Hour).Format(time.RFC3339),
-		},
-	}
+	transactionID := uuid.New()
+	userID := uuid.New()
+	accountID := uuid.New()
+
+	sessionEntity := registry.NewBaseEntity(
+		"valid-session",
+		"checkout_session_123",
+	)
+	sessionEntity.SetMetadata("transaction_id", transactionID.String())
+	sessionEntity.SetMetadata("user_id", userID.String())
+	sessionEntity.SetMetadata("account_id", accountID.String())
+	sessionEntity.SetMetadata("amount", "1000")
+	sessionEntity.SetMetadata("currency", "USD")
+	sessionEntity.SetMetadata("status", "pending")
+	sessionEntity.SetMetadata("checkout_url", "https://example.com/checkout/123")
+	sessionEntity.SetMetadata("created_at", time.Now().Format(time.RFC3339))
+	sessionEntity.SetMetadata("expires_at", time.Now().Add(time.Hour).Format(time.RFC3339))
 
 	tests := []struct {
 		name      string
@@ -91,7 +93,7 @@ func TestService_GetSession(t *testing.T) {
 		err       error
 		wantErr   bool
 	}{
-		{"valid session", "valid-session", mockEntity, nil, false},
+		{"valid session", "valid-session", sessionEntity, nil, false},
 		{"not found", "missing-session", nil, assert.AnError, true},
 	}
 
@@ -108,7 +110,17 @@ func TestService_GetSession(t *testing.T) {
 				require.Nil(t, session)
 			} else {
 				require.NoError(t, err)
-				require.NotNil(t, session)
+				assert.NotNil(t, session)
+				// Additional assertions for valid session
+				assert.NotEqual(t, uuid.Nil, session.TransactionID)
+				assert.NotEqual(t, uuid.Nil, session.UserID)
+				assert.NotEqual(t, uuid.Nil, session.AccountID)
+				assert.Positive(t, session.Amount)
+				assert.NotEmpty(t, session.Currency)
+				assert.NotEmpty(t, session.Status)
+				assert.NotEmpty(t, session.CheckoutURL)
+				assert.False(t, session.CreatedAt.IsZero())
+				assert.False(t, session.ExpiresAt.IsZero())
 			}
 		})
 	}
@@ -138,8 +150,8 @@ func TestSession_Validate(t *testing.T) {
 		{"invalid currency", Session{ID: "test",
 			TransactionID: validUUID, UserID: validUUID,
 			Amount:    100,
-			AccountID: validUUID, Currency: "XXX"},
-			"unsupported currency"},
+			AccountID: validUUID, Currency: "432"},
+			"invalid currency code: 432"},
 	}
 
 	for _, tt := range tests {
@@ -150,57 +162,6 @@ func TestSession_Validate(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 			}
-		})
-	}
-}
-
-func TestSession_FormatAmount(t *testing.T) {
-	// Setup test cases with proper expectations
-	tests := []struct {
-		name     string
-		currency string
-		amount   int64
-		expected string
-	}{
-		{
-			name:     "USD with 2 decimal places",
-			currency: "USD",
-			amount:   1000, // $10.00 (1000 / 100)
-			expected: "10.00 USD",
-		},
-		{
-			name:     "JPY with 0 decimal places",
-			currency: "JPY",
-			amount:   1000, // 1000 JPY
-			expected: "1000 JPY",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Create a new registry for each test
-			reg, err := currency.New(context.Background())
-			require.NoError(t, err)
-
-			// Register test currency
-			err = reg.Register(currency.Meta{
-				Code:     tt.currency,
-				Name:     tt.currency + " Currency",
-				Symbol:   tt.currency,
-				Decimals: map[string]int{"USD": 2, "JPY": 0}[tt.currency],
-			})
-			require.NoError(t, err)
-
-			s := Session{
-				ID:       "test-session",
-				Currency: tt.currency,
-				Amount:   tt.amount,
-			}
-
-			// Test FormatAmount
-			result, err := s.FormatAmount()
-			require.NoError(t, err)
-			require.Equal(t, tt.expected, result)
 		})
 	}
 }

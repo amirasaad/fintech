@@ -16,6 +16,6 @@ const (
 
 // Fee represents a fee associated with a transaction.
 type Fee struct {
-	Amount money.Money
+	Amount *money.Money
 	Type   FeeType
 }

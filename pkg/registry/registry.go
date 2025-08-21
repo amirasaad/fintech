@@ -1,51 +1,60 @@
 package registry
 
 import (
+	"errors"
+	"maps"
 	"sync"
+	"time"
 )
 
-// Meta represents generic metadata that can be associated with any entity
-type Meta struct {
-	// Generic fields that can be used by any registry
-	ID       string            `json:"id"`
-	Name     string            `json:"name"`
-	Active   bool              `json:"active"`
-	Metadata map[string]string `json:"metadata,omitempty"`
-}
+var ErrNotFound = errors.New("entity not found")
 
-// Registry is a generic, thread-safe registry for managing any type of entity
+// Registry is a thread-safe registry for managing entities that implement the Entity interface
 type Registry struct {
-	entities map[string]Meta
+	entities map[string]Entity
 	mu       sync.RWMutex
 }
 
 // New creates a new empty registry
 func New() *Registry {
 	return &Registry{
-		entities: make(map[string]Meta),
+		entities: make(map[string]Entity),
 	}
 }
 
 // Register adds or updates an entity in the registry
-func (r *Registry) Register(id string, meta Meta) {
+func (r *Registry) Register(id string, entity Entity) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	meta.ID = id // Ensure ID is set
-	r.entities[id] = meta
+
+	// Create a new BaseEntity with the same values
+	entityCopy := &BaseEntity{
+		id:        entity.ID(),
+		name:      entity.Name(),
+		active:    entity.Active(),
+		metadata:  make(map[string]string),
+		createdAt: entity.CreatedAt(),
+		updatedAt: time.Now(),
+	}
+
+	// Copy metadata
+	maps.Copy(entityCopy.metadata, entity.Metadata())
+
+	r.entities[id] = entityCopy
 }
 
-// Get returns entity metadata for the given ID
-// Returns empty Meta if the entity is not found
-func (r *Registry) Get(id string) Meta {
+// Get returns the entity for the given ID
+// Returns nil if the entity is not found
+func (r *Registry) Get(id string) Entity {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	if meta, exists := r.entities[id]; exists {
-		return meta
+	if entity, exists := r.entities[id]; exists {
+		return entity
 	}
 
-	// Return empty meta for unknown entities
-	return Meta{ID: id, Active: false}
+	// Return nil for unknown entities
+	return nil
 }
 
 // IsRegistered checks if an entity ID is registered
@@ -73,13 +82,13 @@ func (r *Registry) ListActive() []string {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	ids := make([]string, 0)
-	for id, meta := range r.entities {
-		if meta.Active {
-			ids = append(ids, id)
+	var active []string
+	for id, entity := range r.entities {
+		if entity.Active() {
+			active = append(active, id)
 		}
 	}
-	return ids
+	return active
 }
 
 // Unregister removes an entity from the registry
@@ -106,9 +115,10 @@ func (r *Registry) GetMetadata(id, key string) (string, bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	if meta, exists := r.entities[id]; exists {
-		if meta.Metadata != nil {
-			value, found := meta.Metadata[key]
+	if entity, exists := r.entities[id]; exists {
+		metadata := entity.Metadata()
+		if metadata != nil {
+			value, found := metadata[key]
 			return value, found
 		}
 	}
@@ -120,53 +130,66 @@ func (r *Registry) SetMetadata(id, key, value string) bool {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if meta, exists := r.entities[id]; exists {
-		if meta.Metadata == nil {
-			meta.Metadata = make(map[string]string)
-		}
-		meta.Metadata[key] = value
-		r.entities[id] = meta
-		return true
+	entity, exists := r.entities[id]
+	if !exists {
+		return false
 	}
-	return false
+
+	// copy the metadata to avoid data races
+	metadata := make(map[string]string)
+	for k, v := range entity.Metadata() {
+		metadata[k] = v
+	}
+
+	metadata[key] = value
+
+	// Create a new BaseEntity with the updated metadata
+	updatedEntity := &BaseEntity{
+		id:        entity.ID(),
+		name:      entity.Name(),
+		active:    entity.Active(),
+		metadata:  metadata,
+		createdAt: entity.CreatedAt(),
+		updatedAt: entity.UpdatedAt(),
+	}
+	r.entities[id] = updatedEntity
+	return true
 }
 
-// Global registry instance for convenience
-var globalRegistry = New()
+// RemoveMetadata removes a specific metadata key from an entity
+func (r *Registry) RemoveMetadata(id, key string) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 
-// Global convenience functions
-func Register(id string, meta Meta) {
-	globalRegistry.Register(id, meta)
+	entity, exists := r.entities[id]
+	if !exists {
+		return false
+	}
+
+	// copy the metadata to avoid data races
+	metadata := make(map[string]string)
+	for k, v := range entity.Metadata() {
+		metadata[k] = v
+	}
+
+	// Check if the key exists before trying to delete
+	if _, exists := metadata[key]; !exists {
+		return false
+	}
+
+	delete(metadata, key)
+
+	// Create a new BaseEntity with the updated metadata
+	updatedEntity := &BaseEntity{
+		id:        entity.ID(),
+		name:      entity.Name(),
+		active:    entity.Active(),
+		metadata:  metadata,
+		createdAt: entity.CreatedAt(),
+		updatedAt: time.Now(),
+	}
+	r.entities[id] = updatedEntity
+	return true
 }
 
-func Get(id string) Meta {
-	return globalRegistry.Get(id)
-}
-
-func IsRegistered(id string) bool {
-	return globalRegistry.IsRegistered(id)
-}
-
-func ListRegistered() []string {
-	return globalRegistry.ListRegistered()
-}
-
-func ListActive() []string {
-	return globalRegistry.ListActive()
-}
-
-func Unregister(id string) bool {
-	return globalRegistry.Unregister(id)
-}
-
-func Count() int {
-	return globalRegistry.Count()
-}
-
-func GetMetadata(id, key string) (string, bool) {
-	return globalRegistry.GetMetadata(id, key)
-}
-
-func SetMetadata(id, key, value string) bool {
-	return globalRegistry.SetMetadata(id, key, value)
-}
+// Create and manage registry instances explicitly in your application code.

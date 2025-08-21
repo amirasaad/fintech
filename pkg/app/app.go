@@ -1,11 +1,12 @@
 package app
 
 import (
-	"github.com/amirasaad/fintech/pkg/service/checkout"
 	"log/slog"
 
+	"github.com/amirasaad/fintech/pkg/service/checkout"
+	"github.com/amirasaad/fintech/pkg/service/exchange"
+
 	"github.com/amirasaad/fintech/pkg/config"
-	"github.com/amirasaad/fintech/pkg/currency"
 	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/amirasaad/fintech/pkg/provider"
 	"github.com/amirasaad/fintech/pkg/registry"
@@ -18,23 +19,29 @@ import (
 
 // Deps contains all the dependencies needed by the SetupBus function
 type Deps struct {
-	Uow                      repository.UnitOfWork
-	CurrencyConverter        currency.Converter
-	CurrencyRegistry         *currency.Registry
-	CheckoutRegistryProvider registry.Provider
-	PaymentProvider          provider.Payment
-	EventBus                 eventbus.Bus
-	Logger                   *slog.Logger
+	// Registry providers
+	RegistryProvider     registry.Provider // Main registry provider
+	CurrencyRegistry     registry.Provider // For currency service
+	CheckoutRegistry     registry.Provider // For checkout service
+	ExchangeRateRegistry registry.Provider // For exchange rate service
+
+	// Other dependencies
+	ExchangeRateProvider provider.ExchangeRate
+	PaymentProvider      provider.Payment
+	Uow                  repository.UnitOfWork
+	EventBus             eventbus.Bus
+	Logger               *slog.Logger
 }
 
 type App struct {
-	Deps            *Deps
-	Config          *config.App
-	AuthService     *auth.Service
-	UserService     *user.Service
-	AccountService  *account.Service
-	CurrencyService *currencyScv.Service
-	CheckoutService *checkout.Service
+	Deps                *Deps
+	Config              *config.App
+	AuthService         *auth.Service
+	UserService         *user.Service
+	AccountService      *account.Service
+	CurrencyService     *currencyScv.Service
+	CheckoutService     *checkout.Service
+	ExchangeRateService *exchange.Service
 }
 
 func New(deps *Deps, cfg *config.App) *App {
@@ -54,9 +61,31 @@ func New(deps *Deps, cfg *config.App) *App {
 	} else {
 		app.AuthService = auth.NewWithBasic(deps.Uow, deps.Logger)
 	}
-	app.UserService = user.New(deps.Uow, deps.Logger)
-	app.AccountService = account.New(deps.EventBus, deps.Uow, deps.Logger)
-	app.CurrencyService = currencyScv.New(deps.CurrencyRegistry, deps.Logger)
-	app.CheckoutService = checkout.New(deps.CheckoutRegistryProvider)
+	app.UserService = user.New(
+		deps.Uow,
+		deps.Logger,
+	)
+	app.AccountService = account.New(
+		deps.EventBus,
+		deps.Uow,
+		deps.Logger,
+	)
+
+	// Initialize services with their respective registry providers
+	app.CurrencyService = currencyScv.New(
+		deps.CurrencyRegistry,
+		deps.Logger,
+	)
+
+	app.CheckoutService = checkout.New(
+		deps.CheckoutRegistry,
+	)
+
+	app.ExchangeRateService = exchange.New(
+		deps.ExchangeRateRegistry,
+		deps.ExchangeRateProvider,
+		deps.Logger,
+	)
+
 	return app
 }

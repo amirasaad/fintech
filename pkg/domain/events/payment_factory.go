@@ -3,7 +3,6 @@ package events
 import (
 	"time"
 
-	"github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/google/uuid"
 )
 
@@ -24,7 +23,11 @@ func WithInitiatedPaymentID(paymentID string) PaymentInitiatedOpt {
 	return func(
 		pi *PaymentInitiated,
 	) {
-		pi.PaymentID = paymentID
+		if paymentID != "" {
+			pi.PaymentID = &paymentID
+		} else {
+			pi.PaymentID = nil
+		}
 	}
 }
 
@@ -84,13 +87,10 @@ func NewPaymentProcessed(
 type PaymentCompletedOpt func(*PaymentCompleted)
 
 // WithPaymentID sets the payment ID for the PaymentCompletedEvent
-func WithPaymentID(paymentID string) PaymentCompletedOpt {
-	return func(e *PaymentCompleted) { e.PaymentID = paymentID }
-}
-
-// WithProviderFee sets the provider fee for the PaymentCompletedEvent
-func WithProviderFee(providerFee account.Fee) PaymentCompletedOpt {
-	return func(e *PaymentCompleted) { e.ProviderFee = providerFee }
+func WithPaymentID(paymentID *string) PaymentCompletedOpt {
+	return func(e *PaymentCompleted) {
+		e.PaymentID = paymentID
+	}
 }
 
 // WithCorrelationID sets the correlation ID for the PaymentCompletedEvent
@@ -122,8 +122,10 @@ func NewPaymentCompleted(
 type PaymentFailedOpt func(*PaymentFailed)
 
 // WithPaymentID sets the payment ID for the PaymentFailedEvent
-func WithFailedPaymentID(paymentID string) PaymentFailedOpt {
-	return func(e *PaymentFailed) { e.PaymentID = paymentID }
+func WithFailedPaymentID(paymentID *string) PaymentFailedOpt {
+	return func(e *PaymentFailed) {
+		e.PaymentID = paymentID
+	}
 }
 
 // NewPaymentFailed creates a new PaymentFailed with the given options

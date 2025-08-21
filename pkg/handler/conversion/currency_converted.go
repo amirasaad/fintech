@@ -11,7 +11,6 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/amirasaad/fintech/pkg/domain/events"
-
 	"github.com/amirasaad/fintech/pkg/repository"
 )
 
@@ -65,6 +64,7 @@ func HandleCurrencyConverted(
 			// Create money object for transaction amount
 			amount := cc.ConvertedAmount.Amount()
 			currency := cc.ConvertedAmount.Currency().String()
+
 			return transactionRepo.Update(ctx, cc.TransactionID, dto.TransactionUpdate{
 				OriginalAmount:   &cc.ConversionInfo.OriginalAmount,
 				Amount:           &amount,

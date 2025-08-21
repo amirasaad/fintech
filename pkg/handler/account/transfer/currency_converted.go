@@ -96,11 +96,36 @@ func HandleCurrencyConverted(
 			)
 			return fmt.Errorf("unexpected event type: %T", tcc.OriginalRequest)
 		}
+		// Get destination account DTO
+		destAccDto, err := accRepo.Get(ctx, tr.DestAccountID)
+		if err != nil {
+			log.Warn(
+				"destination account not found",
+				"account_id", tr.DestAccountID,
+				"error", err,
+			)
+			return bus.Emit(ctx, events.NewTransferFailed(
+				tr,
+				"destination account not found: "+err.Error(),
+			))
+		}
+
+		// Map DTO to domain model
+		destAcc, err := mapper.MapAccountReadToDomain(destAccDto)
+		if err != nil {
+			log.Error(
+				"failed to map destination account read to domain",
+				"error", err,
+			)
+			return fmt.Errorf("failed to map destination account read to domain: %w", err)
+		}
+
 		// Perform domain validation
 		if err := sourceAcc.ValidateTransfer(
 			tcc.UserID,
-			tr.DestAccountID,
-			sourceAcc,
+			// Pass the user ID of the destination account owner for validation
+			destAcc.UserID,
+			destAcc,
 			tcc.ConvertedAmount,
 		); err != nil {
 			log.Warn(

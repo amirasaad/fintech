@@ -36,8 +36,8 @@ Authorization: Bearer {{login.response.body.$.data.$.token}}
 
 
 {
-    "amount": 100,
-    "currency": "EUR",
+    "amount": 500,
+    "currency": "USD",
     "money_source": "Cash"
 }
 
@@ -176,4 +176,9 @@ Authorization: Bearer {{login.response.body.$.data.$.token}}
 ### 8. Rate Limiting (429)
 # This would require multiple rapid requests to trigger
 GET {{host}}/account/{{account.response.body.$.data.$.ID}}/balance
+Authorization: Bearer {{login.response.body.$.data.$.token}}
+
+
+###
+GET {{host}}/checkout/sessions/pending
 Authorization: Bearer {{login.response.body.$.data.$.token}}

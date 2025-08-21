@@ -2,10 +2,9 @@ package account
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
-	"github.com/amirasaad/fintech/pkg/currency"
-	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/google/uuid"
 )
@@ -55,7 +54,7 @@ var (
 type Account struct {
 	ID        uuid.UUID
 	UserID    uuid.UUID
-	Balance   money.Money // Account balance as a Money value object.
+	Balance   *money.Money // Account balance as a Money value object.
 	UpdatedAt time.Time
 	CreatedAt time.Time
 }
@@ -67,7 +66,7 @@ type Builder struct {
 	id        uuid.UUID
 	userID    uuid.UUID
 	balance   int64
-	currency  currency.Code
+	currency  money.Code
 	updatedAt time.Time
 	createdAt time.Time
 }
@@ -76,7 +75,7 @@ type Builder struct {
 func New() *Builder {
 	return &Builder{
 		id:        uuid.New(),
-		currency:  currency.DefaultCode,
+		currency:  money.DefaultCode,
 		createdAt: time.Now(),
 	}
 }
@@ -95,8 +94,18 @@ func (b *Builder) WithUserID(userID uuid.UUID) *Builder {
 
 // WithCurrency sets the currency for the account being built.
 // If not set, it defaults to the system's default currency.
-func (b *Builder) WithCurrency(currencyCode currency.Code) *Builder {
-	b.currency = currencyCode
+// This method accepts string, money.Code, or money.Currency types for backward compatibility.
+func (b *Builder) WithCurrency(currencyCode interface{}) *Builder {
+	switch v := currencyCode.(type) {
+	case string:
+		b.currency = money.Code(v)
+	case money.Code:
+		b.currency = v
+	case money.Currency:
+		b.currency = v.Code
+	default:
+		b.currency = money.DefaultCode
+	}
 	return b
 }
 
@@ -125,39 +134,39 @@ func (b *Builder) WithUpdatedAt(t time.Time) *Builder {
 // such as ensuring a valid currency and a non-nil UserID, before returning the
 // new Account instance.
 func (b *Builder) Build() (*Account, error) {
-	if !currency.IsValidFormat(string(b.currency)) {
-		return nil, common.ErrInvalidCurrencyCode
-	}
-	if !currency.IsSupported(string(b.currency)) {
-		return nil, common.ErrUnsupportedCurrency
-	}
 	if b.userID == uuid.Nil {
-		return nil, errors.New("userID is required")
+		return nil, errors.New("user ID is required")
 	}
-	bal, err := money.NewFromSmallestUnit(b.balance, b.currency)
+
+	if b.currency == "" {
+		b.currency = money.DefaultCode
+	}
+
+	// Create a zero-amount money object in the specified currency
+	balance, err := money.NewFromSmallestUnit(b.balance, b.currency)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("invalid balance: %w", err)
 	}
+
 	return &Account{
 		ID:        b.id,
 		UserID:    b.userID,
-		Balance:   bal,
-		CreatedAt: b.createdAt,
+		Balance:   balance,
 		UpdatedAt: b.updatedAt,
+		CreatedAt: b.createdAt,
 	}, nil
 }
 
-func (a *Account) Currency() currency.Code {
-	return a.Balance.Currency()
-}
-
-func (a *Account) SetCurrency(c currency.Code) error {
-	newBalance, err := money.NewFromSmallestUnit(a.Balance.Amount(), c)
-	if err != nil {
-		return err
+// SetCurrency sets the account's currency.
+// This is typically only used during account creation or migration.
+func (a *Account) SetCurrency(c money.Code) error {
+	if a.Balance.Amount() != 0 {
+		return errors.New("cannot change currency of account with non-zero balance")
 	}
-	a.Balance = newBalance
-	return nil
+
+	var err error
+	a.Balance, err = money.NewFromSmallestUnit(0, c)
+	return err
 }
 
 // validate checks all business invariants for an operation (common validation logic).
@@ -169,7 +178,7 @@ func (a *Account) validate(userID uuid.UUID) error {
 	return nil
 }
 
-func (a *Account) validateAmount(amount money.Money) error {
+func (a *Account) validateAmount(amount *money.Money) error {
 	if !amount.IsPositive() {
 		return ErrTransactionAmountMustBePositive
 	}
@@ -178,7 +187,7 @@ func (a *Account) validateAmount(amount money.Money) error {
 }
 
 // ValidateDeposit checks all business invariants for a deposit operation.
-func (a *Account) ValidateDeposit(userID uuid.UUID, amount money.Money) (err error) {
+func (a *Account) ValidateDeposit(userID uuid.UUID, amount *money.Money) (err error) {
 	if err = a.validate(userID); err != nil {
 		return
 	}
@@ -202,7 +211,7 @@ func (a *Account) ValidateDeposit(userID uuid.UUID, amount money.Money) (err err
 //   - Cannot withdraw more than the current balance.
 //
 // Returns a Transaction or an error if any invariant is violated.
-func (a *Account) ValidateWithdraw(userID uuid.UUID, amount money.Money) error {
+func (a *Account) ValidateWithdraw(userID uuid.UUID, amount *money.Money) error {
 	if a.UserID != userID {
 		return ErrNotOwner
 	}
@@ -224,7 +233,7 @@ func (a *Account) ValidateWithdraw(userID uuid.UUID, amount money.Money) error {
 func (a *Account) ValidateTransfer(
 	senderUserID, receiverUserID uuid.UUID,
 	dest *Account,
-	amount money.Money,
+	amount *money.Money,
 ) error {
 	if a == nil || dest == nil {
 		return ErrNilAccount
