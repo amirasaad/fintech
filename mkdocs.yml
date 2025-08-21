@@ -34,8 +34,8 @@ theme:
 
 markdown_extensions:
   - pymdownx.emoji:
-      emoji_index:
-      emoji_generator:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
   - pymdownx.highlight:
       anchor_linenums: true
       line_spans: __span
@@ -113,7 +113,9 @@ nav:
     - Dependency Injection:
       - Layered-dependency-injection: refactoring/layered-dependency-injection.md
   - API Reference:
-    - api/index.md
+    - OpenAPI:
+      - api/index.md
+      - api/openapi.md
     - Requests(REST Client):
       - requests/index.md
       - Account: requests/account.http
