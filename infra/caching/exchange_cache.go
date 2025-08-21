@@ -102,7 +102,12 @@ func (c *ExchangeCache) CacheRates(
 			continue
 		}
 		if rate.ConversionRate <= 0 {
-			c.logger.Warn("Skipping non-positive conversion rate", "from", rate.OriginalCurrency, "to", to, "rate", rate.ConversionRate)
+			c.logger.Warn(
+				"Skipping non-positive conversion rate",
+				"from", rate.OriginalCurrency,
+				"to", to,
+				"rate", rate.ConversionRate,
+			)
 			continue
 		}
 
@@ -118,12 +123,19 @@ func (c *ExchangeCache) CacheRates(
 		cacheEntry.SetActive(true)
 		cacheEntry.SetMetadata("source", source)
 		cacheEntry.SetMetadata("rate", fmt.Sprintf("%f", rate.ConversionRate))
-		cacheEntry.SetMetadata("timestamp", time.Now().UTC().Format(time.RFC3339Nano))
+		cacheEntry.SetMetadata(
+			"timestamp", time.Now().UTC().Format(time.RFC3339Nano),
+		)
 		cacheEntry.SetMetadata("from", rate.OriginalCurrency)
 		cacheEntry.SetMetadata("to", to)
 
 		if err := c.exchangeRegistry.Register(ctx, cacheEntry); err != nil {
-			c.logger.Error("Failed to cache rate", "from", rate.OriginalCurrency, "to", to, "error", err)
+			c.logger.Error(
+				"Failed to cache rate",
+				"from", rate.OriginalCurrency,
+				"to", to,
+				"error", err,
+			)
 			continue
 		}
 		count++
@@ -142,13 +154,20 @@ func (c *ExchangeCache) CacheRates(
 		inverseEntry.SetActive(true)
 		inverseEntry.SetMetadata("source", source)
 		inverseEntry.SetMetadata("rate", fmt.Sprintf("%f", inverseRate))
-		inverseEntry.SetMetadata("timestamp", time.Now().UTC().Format(time.RFC3339Nano))
+		inverseEntry.SetMetadata(
+			"timestamp", time.Now().UTC().Format(time.RFC3339Nano),
+		)
 		inverseEntry.SetMetadata("from", to)
 		inverseEntry.SetMetadata("to", rate.OriginalCurrency)
 		inverseEntry.SetMetadata("original_currency", rate.OriginalCurrency)
 
 		if err := c.exchangeRegistry.Register(ctx, inverseEntry); err != nil {
-			c.logger.Error("Failed to cache inverse rate", "from", to, "to", rate.OriginalCurrency, "error", err)
+			c.logger.Error(
+				"Failed to cache inverse rate",
+				"from", to,
+				"to", rate.OriginalCurrency,
+				"error", err,
+			)
 		} else {
 			count++
 		}
@@ -161,7 +180,9 @@ func (c *ExchangeCache) CacheRates(
 		Timestamp:  time.Now().UTC(),
 	}
 	lastUpdated.SetActive(true)
-	lastUpdated.SetMetadata("timestamp", time.Now().UTC().Format(time.RFC3339Nano))
+	lastUpdated.SetMetadata(
+		"timestamp", time.Now().UTC().Format(time.RFC3339Nano),
+	)
 
 	if err := c.exchangeRegistry.Register(ctx, lastUpdated); err != nil {
 		c.logger.Error("Failed to update last_updated timestamp", "error", err)
