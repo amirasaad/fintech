@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## v1.3.0 (2025-08-21)
+
+### Feat
+
+- 💳 Implement payment processing (#20)
+
+### Refactor
+
+- **service**: ♻️ enhance exchange rate service with improved configuration and error handling (#21)
+
 ## v1.2.0 (2025-08-09)
 
 ### Feat
