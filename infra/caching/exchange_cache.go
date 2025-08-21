@@ -101,8 +101,11 @@ func (c *ExchangeCache) CacheRates(
 			c.logger.Error("Skipping nil rate", "to", to)
 			continue
 		}
+		if rate.ConversionRate <= 0 {
+			c.logger.Warn("Skipping non-positive conversion rate", "from", rate.OriginalCurrency, "to", to, "rate", rate.ConversionRate)
+			continue
+		}
 
-		// Create cache entry
 		cacheKey := fmt.Sprintf("%s:%s", rate.OriginalCurrency, to)
 		cacheEntry := &exchangeRateInfo{
 			BaseEntity: *registry.NewBaseEntity(cacheKey, cacheKey),
@@ -119,16 +122,13 @@ func (c *ExchangeCache) CacheRates(
 		cacheEntry.SetMetadata("from", rate.OriginalCurrency)
 		cacheEntry.SetMetadata("to", to)
 
-		// Save to registry
 		if err := c.exchangeRegistry.Register(ctx, cacheEntry); err != nil {
-			c.logger.Error("Failed to cache rate",
-				"from", rate.OriginalCurrency,
-				"to", to,
-				"error", err)
+			c.logger.Error("Failed to cache rate", "from", rate.OriginalCurrency, "to", to, "error", err)
 			continue
 		}
+		count++
 
-		// Cache the inverse rate as well
+		// Cache the inverse rate as well (rate is guaranteed > 0 here)
 		inverseRate := 1 / rate.ConversionRate
 		inverseKey := fmt.Sprintf("%s:%s", to, rate.OriginalCurrency)
 		inverseEntry := &exchangeRateInfo{
@@ -148,10 +148,9 @@ func (c *ExchangeCache) CacheRates(
 		inverseEntry.SetMetadata("original_currency", rate.OriginalCurrency)
 
 		if err := c.exchangeRegistry.Register(ctx, inverseEntry); err != nil {
-			c.logger.Error("Failed to cache inverse rate",
-				"from", to,
-				"to", rate.OriginalCurrency,
-				"error", err)
+			c.logger.Error("Failed to cache inverse rate", "from", to, "to", rate.OriginalCurrency, "error", err)
+		} else {
+			count++
 		}
 	}
 
