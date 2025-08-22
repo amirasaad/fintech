@@ -22,7 +22,7 @@ func TestService_Convert(t *testing.T) {
 		name        string
 		amount      *money.Money
 		to          string
-		setupMocks  func(*mocks.ExchangeRateProvider, *mocks.RegistryProvider)
+		setupMocks  func(*mocks.ExchangeProvider, *mocks.RegistryProvider)
 		expected    float64
 		expectedErr string
 	}{
@@ -30,14 +30,14 @@ func TestService_Convert(t *testing.T) {
 			name:       "same currency",
 			amount:     amount,
 			to:         "USD",
-			setupMocks: func(ep *mocks.ExchangeRateProvider, rp *mocks.RegistryProvider) {},
+			setupMocks: func(ep *mocks.ExchangeProvider, rp *mocks.RegistryProvider) {},
 			expected:   100.0,
 		},
 		{
 			name:   "successful conversion",
 			amount: amount,
 			to:     "EUR",
-			setupMocks: func(ep *mocks.ExchangeRateProvider, rp *mocks.RegistryProvider) {
+			setupMocks: func(ep *mocks.ExchangeProvider, rp *mocks.RegistryProvider) {
 				rp.On("Get", ctx, "USD:EUR").Return(&ExchangeRateInfo{
 					BaseEntity: registry.BaseEntity{},
 					From:       "USD",
@@ -51,8 +51,10 @@ func TestService_Convert(t *testing.T) {
 			name:   "error getting rate",
 			amount: amount,
 			to:     "JPY",
-			setupMocks: func(ep *mocks.ExchangeRateProvider, rp *mocks.RegistryProvider) {
-				ep.On("GetRate", ctx, "USD", "JPY").Return(nil, fmt.Errorf("rate not found")).Once()
+			setupMocks: func(ep *mocks.ExchangeProvider, rp *mocks.RegistryProvider) {
+				ep.On("FetchRate", ctx, "USD", "JPY").
+					Return(nil, fmt.Errorf("rate not found")).
+					Once()
 				rp.On("Get", ctx, "USD:JPY").Return(nil, fmt.Errorf("rate not found")).Once()
 			},
 			expectedErr: "failed to get exchange rate",
@@ -61,7 +63,7 @@ func TestService_Convert(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockProvider := mocks.NewExchangeRateProvider(t)
+			mockProvider := mocks.NewExchangeProvider(t)
 			mockRegistry := mocks.NewRegistryProvider(t)
 
 			if tt.setupMocks != nil {
@@ -85,7 +87,7 @@ func TestService_Convert(t *testing.T) {
 			require.NoError(t, err)
 			assert.NotNil(t, rate)
 			assert.InDelta(t, tt.expected, result.AmountFloat(), 0.0001)
-			assert.InDelta(t, tt.expected/100, rate.ConversionRate, 0.0001)
+			assert.InDelta(t, tt.expected/100, rate.Rate, 0.0001)
 		})
 	}
 }

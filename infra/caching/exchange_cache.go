@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/amirasaad/fintech/pkg/config"
-	"github.com/amirasaad/fintech/pkg/provider"
+	"github.com/amirasaad/fintech/pkg/provider/exchange"
 	"github.com/amirasaad/fintech/pkg/registry"
 )
 
@@ -87,7 +87,7 @@ func (c *ExchangeCache) IsCacheStale(ctx context.Context) (bool, error) {
 // CacheRates caches multiple exchange rates in a single operation
 func (c *ExchangeCache) CacheRates(
 	ctx context.Context,
-	rates map[string]*provider.ExchangeInfo,
+	rates map[string]*exchange.RateInfo,
 	source string,
 ) error {
 	if len(rates) == 0 {
@@ -101,38 +101,38 @@ func (c *ExchangeCache) CacheRates(
 			c.logger.Error("Skipping nil rate", "to", to)
 			continue
 		}
-		if rate.ConversionRate <= 0 {
+		if rate.Rate <= 0 {
 			c.logger.Warn(
 				"Skipping non-positive conversion rate",
-				"from", rate.OriginalCurrency,
+				"from", rate.FromCurrency,
 				"to", to,
-				"rate", rate.ConversionRate,
+				"rate", rate.Rate,
 			)
 			continue
 		}
 
-		cacheKey := fmt.Sprintf("%s:%s", rate.OriginalCurrency, to)
+		cacheKey := fmt.Sprintf("%s:%s", rate.FromCurrency, to)
 		cacheEntry := &exchangeRateInfo{
 			BaseEntity: *registry.NewBaseEntity(cacheKey, cacheKey),
-			From:       rate.OriginalCurrency,
+			From:       rate.FromCurrency,
 			To:         to,
-			Rate:       rate.ConversionRate,
+			Rate:       rate.Rate,
 			Source:     source,
 			Timestamp:  time.Now().UTC(),
 		}
 		cacheEntry.SetActive(true)
 		cacheEntry.SetMetadata("source", source)
-		cacheEntry.SetMetadata("rate", fmt.Sprintf("%f", rate.ConversionRate))
+		cacheEntry.SetMetadata("rate", fmt.Sprintf("%f", rate.Rate))
 		cacheEntry.SetMetadata(
 			"timestamp", time.Now().UTC().Format(time.RFC3339Nano),
 		)
-		cacheEntry.SetMetadata("from", rate.OriginalCurrency)
+		cacheEntry.SetMetadata("from", rate.FromCurrency)
 		cacheEntry.SetMetadata("to", to)
 
 		if err := c.exchangeRegistry.Register(ctx, cacheEntry); err != nil {
 			c.logger.Error(
 				"Failed to cache rate",
-				"from", rate.OriginalCurrency,
+				"from", rate.FromCurrency,
 				"to", to,
 				"error", err,
 			)
@@ -141,12 +141,12 @@ func (c *ExchangeCache) CacheRates(
 		count++
 
 		// Cache the inverse rate as well (rate is guaranteed > 0 here)
-		inverseRate := 1 / rate.ConversionRate
-		inverseKey := fmt.Sprintf("%s:%s", to, rate.OriginalCurrency)
+		inverseRate := 1 / rate.Rate
+		inverseKey := fmt.Sprintf("%s:%s", to, rate.FromCurrency)
 		inverseEntry := &exchangeRateInfo{
 			BaseEntity: *registry.NewBaseEntity(inverseKey, inverseKey),
 			From:       to,
-			To:         rate.OriginalCurrency,
+			To:         rate.FromCurrency,
 			Rate:       inverseRate,
 			Source:     source,
 			Timestamp:  time.Now().UTC(),
@@ -158,14 +158,14 @@ func (c *ExchangeCache) CacheRates(
 			"timestamp", time.Now().UTC().Format(time.RFC3339Nano),
 		)
 		inverseEntry.SetMetadata("from", to)
-		inverseEntry.SetMetadata("to", rate.OriginalCurrency)
-		inverseEntry.SetMetadata("original_currency", rate.OriginalCurrency)
+		inverseEntry.SetMetadata("to", rate.FromCurrency)
+		inverseEntry.SetMetadata("original_currency", rate.FromCurrency)
 
 		if err := c.exchangeRegistry.Register(ctx, inverseEntry); err != nil {
 			c.logger.Error(
 				"Failed to cache inverse rate",
 				"from", to,
-				"to", rate.OriginalCurrency,
+				"to", rate.FromCurrency,
 				"error", err,
 			)
 		} else {
@@ -199,7 +199,6 @@ func (c *ExchangeCache) CacheRates(
 
 // exchangeRateInfo is a private type used for caching exchange rates
 // It implements registry.Entity
-// This is a copy of the ExchangeRateInfo from the exchange package
 type exchangeRateInfo struct {
 	registry.BaseEntity
 	From      string
@@ -207,14 +206,4 @@ type exchangeRateInfo struct {
 	Rate      float64
 	Source    string
 	Timestamp time.Time
-}
-
-// ID returns the unique identifier for the rate info
-func (e *exchangeRateInfo) ID() string {
-	return e.BaseEntity.ID()
-}
-
-// Name returns a human-readable name for the rate info
-func (e *exchangeRateInfo) Name() string {
-	return e.BaseEntity.Name()
 }

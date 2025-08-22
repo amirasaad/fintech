@@ -4,11 +4,12 @@ import (
 	"log/slog"
 
 	"github.com/amirasaad/fintech/pkg/service/checkout"
-	"github.com/amirasaad/fintech/pkg/service/exchange"
+	exchangeSvc "github.com/amirasaad/fintech/pkg/service/exchange"
 
 	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/eventbus"
-	"github.com/amirasaad/fintech/pkg/provider"
+	"github.com/amirasaad/fintech/pkg/provider/exchange"
+	"github.com/amirasaad/fintech/pkg/provider/payment"
 	"github.com/amirasaad/fintech/pkg/registry"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/amirasaad/fintech/pkg/service/account"
@@ -26,8 +27,8 @@ type Deps struct {
 	ExchangeRateRegistry registry.Provider // For exchange rate service
 
 	// Other dependencies
-	ExchangeRateProvider provider.ExchangeRate
-	PaymentProvider      provider.Payment
+	ExchangeRateProvider exchange.Exchange
+	PaymentProvider      payment.Payment
 	Uow                  repository.UnitOfWork
 	EventBus             eventbus.Bus
 	Logger               *slog.Logger
@@ -41,7 +42,7 @@ type App struct {
 	AccountService      *account.Service
 	CurrencyService     *currencyScv.Service
 	CheckoutService     *checkout.Service
-	ExchangeRateService *exchange.Service
+	ExchangeRateService *exchangeSvc.Service
 }
 
 func New(deps *Deps, cfg *config.App) *App {
@@ -81,7 +82,7 @@ func New(deps *Deps, cfg *config.App) *App {
 		deps.CheckoutRegistry,
 	)
 
-	app.ExchangeRateService = exchange.New(
+	app.ExchangeRateService = exchangeSvc.New(
 		deps.ExchangeRateRegistry,
 		deps.ExchangeRateProvider,
 		deps.Logger,

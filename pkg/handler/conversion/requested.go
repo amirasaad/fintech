@@ -8,7 +8,7 @@ import (
 
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/eventbus"
-	"github.com/amirasaad/fintech/pkg/provider"
+	exchangeprovider "github.com/amirasaad/fintech/pkg/provider/exchange"
 	"github.com/amirasaad/fintech/pkg/registry"
 	"github.com/amirasaad/fintech/pkg/service/exchange"
 )
@@ -18,7 +18,7 @@ import (
 func HandleRequested(
 	bus eventbus.Bus,
 	exchangeRegistry registry.Provider,
-	exchangeRateProvider provider.ExchangeRate,
+	exchangeRateProvider exchangeprovider.Exchange,
 	logger *slog.Logger,
 	factories map[string]EventFactory,
 ) func(ctx context.Context, e events.Event) error {

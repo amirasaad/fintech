@@ -7,7 +7,7 @@ import (
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/handler/testutils"
 	"github.com/amirasaad/fintech/pkg/money"
-	"github.com/amirasaad/fintech/pkg/provider"
+	"github.com/amirasaad/fintech/pkg/provider/payment"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -66,7 +66,7 @@ func TestHandleInitiated(t *testing.T) {
 		h.MockPaymentProvider.EXPECT().
 			InitiatePayment(
 				h.Ctx,
-				&provider.InitiatePaymentParams{
+				&payment.InitiatePaymentParams{
 					UserID:        event.UserID,
 					AccountID:     event.AccountID,
 					Amount:        event.Amount.Amount(),
@@ -101,15 +101,15 @@ func TestHandleInitiated(t *testing.T) {
 			h.Logger,
 		))
 		// Create a mock response with the expected payment ID
-		mockResponse := &provider.InitiatePaymentResponse{
-			Status:    provider.PaymentPending,
+		mockResponse := &payment.InitiatePaymentResponse{
+			Status:    payment.PaymentPending,
 			PaymentID: "pi_123456789", // Mock payment ID
 		}
 
 		h.MockPaymentProvider.EXPECT().
 			InitiatePayment(
 				h.Ctx,
-				&provider.InitiatePaymentParams{
+				&payment.InitiatePaymentParams{
 					UserID:        event.UserID,
 					AccountID:     event.AccountID,
 					Amount:        event.Amount.Amount(),

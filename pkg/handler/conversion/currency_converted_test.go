@@ -3,6 +3,7 @@ package conversion
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"testing"
@@ -10,7 +11,7 @@ import (
 	"github.com/amirasaad/fintech/internal/fixtures/mocks"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/money"
-	"github.com/amirasaad/fintech/pkg/provider"
+	"github.com/amirasaad/fintech/pkg/provider/exchange"
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/mock"
@@ -31,12 +32,10 @@ func TestHandleCurrencyConverted(t *testing.T) {
 		// Create test data
 		transactionID := uuid.New()
 		convertedAmount, _ := money.New(85.0, money.EUR)
-		convInfo := &provider.ExchangeInfo{
-			OriginalAmount:    100.0,
-			OriginalCurrency:  "USD",
-			ConvertedAmount:   85.0,
-			ConvertedCurrency: "EUR",
-			ConversionRate:    0.85,
+		convInfo := &exchange.RateInfo{
+			FromCurrency: "USD",
+			ToCurrency:   "EUR",
+			Rate:         0.85,
 		}
 
 		event := &events.CurrencyConverted{
@@ -151,12 +150,10 @@ func TestHandleCurrencyConverted(t *testing.T) {
 
 		transactionID := uuid.New()
 		convertedAmount, _ := money.New(85.0, money.EUR)
-		convInfo := &provider.ExchangeInfo{
-			OriginalAmount:    100.0,
-			OriginalCurrency:  "USD",
-			ConvertedAmount:   85.0,
-			ConvertedCurrency: "EUR",
-			ConversionRate:    0.85,
+		convInfo := &exchange.RateInfo{
+			FromCurrency: fmt.Sprintf("%f", 100.0),
+			ToCurrency:   "EUR",
+			Rate:         0.85,
 		}
 
 		event := &events.CurrencyConverted{
@@ -200,12 +197,10 @@ func TestHandleCurrencyConverted(t *testing.T) {
 
 		transactionID := uuid.New()
 		convertedAmount, _ := money.New(85.0, money.EUR)
-		convInfo := &provider.ExchangeInfo{
-			OriginalAmount:    100.0,
-			OriginalCurrency:  "USD",
-			ConvertedAmount:   85.0,
-			ConvertedCurrency: "EUR",
-			ConversionRate:    0.85,
+		convInfo := &exchange.RateInfo{
+			FromCurrency: fmt.Sprintf("%f", 100.0),
+			ToCurrency:   "EUR",
+			Rate:         0.85,
 		}
 
 		event := &events.CurrencyConverted{

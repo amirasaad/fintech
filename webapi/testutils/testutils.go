@@ -19,7 +19,8 @@ import (
 	"github.com/amirasaad/fintech/pkg/registry"
 
 	"github.com/amirasaad/fintech/infra/eventbus"
-	"github.com/amirasaad/fintech/infra/provider"
+	mockexchangerate "github.com/amirasaad/fintech/infra/provider/mockexchangerate"
+	"github.com/amirasaad/fintech/infra/provider/mockpayment"
 	infrarepo "github.com/amirasaad/fintech/infra/repository"
 	fixturescurrency "github.com/amirasaad/fintech/internal/fixtures/currency"
 	"github.com/amirasaad/fintech/pkg/domain"
@@ -236,8 +237,8 @@ func (s *E2ETestSuite) setupApp() {
 	if !ok {
 		panic("exchange rate registry is not of type *registry.Enhanced")
 	}
-	exchangeRateProvider := provider.NewMockExchangeRate()
-	mockPaymentProvider := provider.NewMockPaymentProvider()
+	exchangeRateProvider := mockexchangerate.NewMockExchangeRate()
+	mockPaymentProvider := mockpayment.NewMockPaymentProvider()
 
 	deps := &app.Deps{
 		RegistryProvider:     mainRegistry,

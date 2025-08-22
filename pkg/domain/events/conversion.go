@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/amirasaad/fintech/pkg/money"
-	"github.com/amirasaad/fintech/pkg/provider"
+	"github.com/amirasaad/fintech/pkg/provider/exchange"
 	"github.com/google/uuid"
 )
 
@@ -111,7 +111,7 @@ type CurrencyConverted struct {
 	CurrencyConversionRequested
 	TransactionID   uuid.UUID
 	ConvertedAmount *money.Money
-	ConversionInfo  *provider.ExchangeInfo `json:"conversionInfo"`
+	ConversionInfo  *exchange.RateInfo `json:"conversionInfo"`
 }
 
 func (e CurrencyConverted) Type() string { return EventTypeCurrencyConverted.String() }
@@ -134,9 +134,9 @@ func (e CurrencyConverted) MarshalJSON() ([]byte, error) {
 		RequestPayload       json.RawMessage `json:"requestPayload,omitempty"`
 
 		// CurrencyConverted specific fields
-		TransactionID   uuid.UUID              `json:"transactionId"`
-		ConvertedAmount *money.Money           `json:"convertedAmount"`
-		ConversionInfo  *provider.ExchangeInfo `json:"conversionInfo"`
+		TransactionID   uuid.UUID          `json:"transactionId"`
+		ConvertedAmount *money.Money       `json:"convertedAmount"`
+		ConversionInfo  *exchange.RateInfo `json:"conversionInfo"`
 	}{
 		// Copy from embedded CurrencyConversionRequested
 		ID:                   e.ID,
@@ -226,7 +226,7 @@ func (e *CurrencyConverted) UnmarshalJSON(data []byte) error {
 
 	// Parse ConversionInfo if present
 	if len(aux.ConversionInfo) > 0 {
-		var info provider.ExchangeInfo
+		var info exchange.RateInfo
 		if err := json.Unmarshal(aux.ConversionInfo, &info); err != nil {
 			return fmt.Errorf("failed to unmarshal ConversionInfo: %w", err)
 		}

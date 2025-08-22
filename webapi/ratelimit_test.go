@@ -9,7 +9,8 @@ import (
 	"time"
 
 	"github.com/amirasaad/fintech/infra/eventbus"
-	infra_provider "github.com/amirasaad/fintech/infra/provider"
+	exchangerateapi "github.com/amirasaad/fintech/infra/provider/exchangerateapi"
+	mockpayment "github.com/amirasaad/fintech/infra/provider/mockpayment"
 	"github.com/amirasaad/fintech/pkg/app"
 	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/repository"
@@ -31,11 +32,14 @@ func TestRateLimit(t *testing.T) {
 	dummyUow := repository.UnitOfWork(nil)
 
 	app := webapi.SetupApp(app.New(&app.Deps{
-		Uow:                  dummyUow,
-		EventBus:             eventbus.NewWithMemory(slog.Default()),
-		ExchangeRateProvider: infra_provider.NewMockExchangeRate(),
-		PaymentProvider:      infra_provider.NewMockPaymentProvider(),
-		Logger:               slog.Default(),
+		Uow:      dummyUow,
+		EventBus: eventbus.NewWithMemory(slog.Default()),
+		ExchangeRateProvider: exchangerateapi.NewExchangeRateAPIProvider(
+			&config.ExchangeRateApi{},
+			slog.Default(),
+		),
+		PaymentProvider: mockpayment.NewMockPaymentProvider(),
+		Logger:          slog.Default(),
 	}, cfg))
 
 	// Helper function to make requests

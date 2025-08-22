@@ -11,13 +11,15 @@ import (
 	"github.com/amirasaad/fintech/infra"
 	"github.com/amirasaad/fintech/infra/caching"
 	infra_eventbus "github.com/amirasaad/fintech/infra/eventbus"
-	infra_provider "github.com/amirasaad/fintech/infra/provider"
+	exchangerateapi "github.com/amirasaad/fintech/infra/provider/exchangerateapi"
+	stripepayment "github.com/amirasaad/fintech/infra/provider/stripepayment"
 	infra_repository "github.com/amirasaad/fintech/infra/repository"
 	currencyfixtures "github.com/amirasaad/fintech/internal/fixtures/currency"
 	"github.com/amirasaad/fintech/pkg/app"
 	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/eventbus"
-	"github.com/amirasaad/fintech/pkg/provider"
+	"github.com/amirasaad/fintech/pkg/provider/exchange"
+
 	"github.com/amirasaad/fintech/pkg/registry"
 )
 
@@ -100,7 +102,7 @@ func InitializeDependencies(cfg *config.App) (
 	}
 
 	// Create the exchange rate provider
-	exchangeProvider := infra_provider.NewExchangeRateAPIProvider(
+	exchangeProvider := exchangerateapi.NewExchangeRateAPIProvider(
 		cfg.ExchangeRateAPIProviders.ExchangeRateApi,
 		logger,
 	)
@@ -140,7 +142,7 @@ func InitializeDependencies(cfg *config.App) (
 	deps.EventBus = bus
 
 	// Initialize payment provider with the checkout registry
-	deps.PaymentProvider = infra_provider.NewStripePaymentProvider(
+	deps.PaymentProvider = stripepayment.NewStripePaymentProvider(
 		bus,
 		deps.CheckoutRegistry, // Use the checkout-specific registry
 		cfg.PaymentProviders.Stripe,
@@ -152,7 +154,7 @@ func InitializeDependencies(cfg *config.App) (
 
 // initializeExchangeRates fetches and caches exchange rates during application startup
 func initializeExchangeRates(
-	exchangeRateProvider provider.ExchangeRate,
+	exchangeRateProvider exchange.Exchange,
 	registryProvider registry.Provider,
 	cfg *config.ExchangeRateCache,
 	logger *slog.Logger,
@@ -178,7 +180,11 @@ func initializeExchangeRates(
 	if isStale {
 		logger.Debug("Cache is stale, fetching new rates")
 		// Fetch rates from the provider
-		rates, err := exchangeRateProvider.GetRates(ctx, "USD")
+		rates, err := exchangeRateProvider.FetchRates(
+			ctx,
+			"USD",
+			exchangeRateProvider.SupportedPairs(),
+		)
 		if err != nil {
 			return fmt.Errorf("failed to fetch exchange rates: %w", err)
 		}
@@ -187,14 +193,14 @@ func initializeExchangeRates(
 		if err := exchangeCache.CacheRates(
 			ctx,
 			rates,
-			exchangeRateProvider.Name(),
+			exchangeRateProvider.Metadata().Name,
 		); err != nil {
 			logger.Error("Failed to cache exchange rates", "error", err)
 			return fmt.Errorf("failed to cache exchange rates: %w", err)
 		}
 
 		logger.Info("Successfully fetched and cached exchange rates",
-			"provider", exchangeRateProvider.Name(),
+			"provider", exchangeRateProvider.Metadata().Name,
 			"rates_count", len(rates),
 		)
 	} else {

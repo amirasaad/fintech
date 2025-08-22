@@ -1,10 +1,6 @@
-package provider
+package payment
 
-import (
-	"context"
-
-	"github.com/google/uuid"
-)
+import "github.com/google/uuid"
 
 // PaymentStatus represents the status of a payment in the mock provider.
 type PaymentStatus string
@@ -55,17 +51,4 @@ type UpdatePaymentStatusParams struct {
 	TransactionID uuid.UUID
 	PaymentID     string
 	Status        PaymentStatus
-}
-
-// Payment is a interface for payment provider
-type Payment interface {
-	InitiatePayment(
-		ctx context.Context,
-		params *InitiatePaymentParams,
-	) (*InitiatePaymentResponse, error)
-	HandleWebhook(
-		ctx context.Context,
-		payload []byte,
-		signature string,
-	) (*PaymentEvent, error)
 }

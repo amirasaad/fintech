@@ -1,4 +1,4 @@
-package provider
+package exchange
 
 import (
 	"context"
@@ -58,7 +58,7 @@ type ProviderMetadata struct {
 }
 
 // Provider defines the complete interface for a rate provider
-type Provider interface {
+type Exchange interface {
 	RateFetcher
 	HealthChecker
 	SupportedChecker

@@ -48,15 +48,22 @@ packages:
       structname: "{{.InterfaceName}}"
     interfaces:
       Bus:
-  github.com/amirasaad/fintech/pkg/provider:
+  github.com/amirasaad/fintech/pkg/provider/exchange:
     config:
       dir: "internal/fixtures/mocks"
-      filename: "provider.go"
+      filename: "exchange_provider.go"
       pkgname: "mocks"
       structname: "{{.InterfaceName}}Provider"
     interfaces:
-      ExchangeRate:
-      Payment:
+      Exchange: # This is the new Provider interface in pkg/provider/exchange
+  github.com/amirasaad/fintech/pkg/provider/payment:
+    config:
+      dir: "internal/fixtures/mocks"
+      filename: "payment_provider.go"
+      pkgname: "mocks"
+      structname: "{{.InterfaceName}}Provider"
+    interfaces:
+      Payment: # This is the Payment interface in pkg/provider/payment
   github.com/amirasaad/fintech/pkg/registry:
     config:
       dir: "internal/fixtures/mocks"

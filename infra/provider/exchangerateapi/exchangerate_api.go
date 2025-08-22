@@ -1,4 +1,4 @@
-package provider
+package exchangerateapi
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/amirasaad/fintech/pkg/config"
-	"github.com/amirasaad/fintech/pkg/provider"
+	"github.com/amirasaad/fintech/pkg/provider/exchange"
 )
 
 // exchangeRateAPI implements the ExchangeRate interface for exchangerate-api.com v6 API
@@ -42,7 +42,6 @@ type ExchangeRateAPIResponseV6 struct {
 	Documentation      string             `json:"documentation"`
 	TermsOfUse         string             `json:"terms_of_use"`
 	TimeLastUpdateUnix int64              `json:"time_last_update_unix"`
-	TimeLastUpdateUTC  string             `json:"time_last_update_utc"`
 	TimeNextUpdateUnix int64              `json:"time_next_update_unix"`
 	TimeNextUpdateUTC  string             `json:"time_next_update_utc"`
 	BaseCode           string             `json:"base_code"`
@@ -72,10 +71,10 @@ func NewExchangeRateAPIProvider(
 }
 
 // GetRate fetches the current exchange rate for a currency pair
-func (p *exchangeRateAPI) GetRate(
+func (p *exchangeRateAPI) FetchRate(
 	ctx context.Context,
 	from, to string,
-) (*provider.ExchangeInfo, error) {
+) (*exchange.RateInfo, error) {
 	// Update GetRate to use the v6 endpoint and response if needed, or rely on cache for POC
 	// For now, we'll assume a simple call to the base URL with the API key
 	url := fmt.Sprintf("%s/%s/%s", p.baseURL, "latest", from)
@@ -121,20 +120,21 @@ func (p *exchangeRateAPI) GetRate(
 		return nil, fmt.Errorf("rate for %s not found in response", to)
 	}
 
-	return &provider.ExchangeInfo{
-		OriginalCurrency:  from,
-		ConvertedCurrency: to,
-		ConversionRate:    rate,
-		Timestamp:         time.Now(),
-		Source:            p.Name(),
+	return &exchange.RateInfo{
+		FromCurrency: from,
+		ToCurrency:   to,
+		Rate:         rate,
+		Timestamp:    time.Now(),
+		Provider:     p.Metadata().Name,
 	}, nil
 }
 
 // GetRates fetches multiple exchange rates in a single request
-func (p *exchangeRateAPI) GetRates(
+func (p *exchangeRateAPI) FetchRates(
 	ctx context.Context,
 	from string,
-) (map[string]*provider.ExchangeInfo, error) {
+	to []string,
+) (map[string]*exchange.RateInfo, error) {
 
 	// Build the URL for the latest rates endpoint
 	url := fmt.Sprintf("%s/latest/%s", p.baseURL, from)
@@ -191,22 +191,22 @@ func (p *exchangeRateAPI) GetRates(
 	}
 
 	// Process the requested rates
-	results := make(map[string]*provider.ExchangeInfo)
+	results := make(map[string]*exchange.RateInfo)
 	now := time.Now()
 
-	for currency := range apiResp.ConversionRates {
-		rate, exists := apiResp.ConversionRates[currency]
+	for _, targetCurrency := range to {
+		rate, exists := apiResp.ConversionRates[targetCurrency]
 		if !exists {
-			p.logger.Warn("currency not found in response", "currency", currency)
+			p.logger.Warn("target currency not found in response", "currency", targetCurrency)
 			continue
 		}
 
-		results[currency] = &provider.ExchangeInfo{
-			OriginalCurrency:  from,
-			ConvertedCurrency: currency,
-			ConversionRate:    rate,
-			Timestamp:         now,
-			Source:            p.Name(),
+		results[targetCurrency] = &exchange.RateInfo{
+			FromCurrency: from,
+			ToCurrency:   targetCurrency,
+			Rate:         rate,
+			Timestamp:    now,
+			Provider:     p.Metadata().Name,
 		}
 	}
 
@@ -227,16 +227,27 @@ func (p *exchangeRateAPI) IsSupported(from string, to string) bool {
 	return true
 }
 
-// Name returns the provider's name
-func (p *exchangeRateAPI) Name() string {
-	return "exchangerate-api"
+// Metadata returns the provider's metadata
+func (p *exchangeRateAPI) Metadata() exchange.ProviderMetadata {
+	return exchange.ProviderMetadata{
+		Name:    "exchangerate-api",
+		Version: "v6", // Assuming a version, adjust as needed
+		// Add other metadata fields if available
+	}
 }
 
-// IsHealthy checks if the provider is currently available
-func (p *exchangeRateAPI) IsHealthy() bool {
+// CheckHealth checks if the provider is currently available
+func (p *exchangeRateAPI) CheckHealth(ctx context.Context) error {
 	// Make a simple health check request
-	return true
+	return nil
 }
 
 // Ensure ExchangeRateAPIProvider implements provider.ExchangeRate
-var _ provider.ExchangeRate = (*exchangeRateAPI)(nil)
+var _ exchange.Exchange = (*exchangeRateAPI)(nil)
+
+// SupportedPairs returns all supported currency pairs
+func (p *exchangeRateAPI) SupportedPairs() []string {
+	// For simplicity, return a hardcoded list or derive from a configuration
+	// In a real scenario, this would query the API or a local cache of supported pairs.
+	return []string{"USD/EUR", "EUR/USD", "USD/GBP", "GBP/USD", "USD/JPY", "JPY/USD"}
+}

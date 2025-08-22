@@ -1,15 +1,15 @@
-package provider
+package mockpayment
 
 import (
 	"context"
 	"sync"
 	"time"
 
-	"github.com/amirasaad/fintech/pkg/provider"
+	"github.com/amirasaad/fintech/pkg/provider/payment"
 )
 
 type mockPayment struct {
-	status provider.PaymentStatus
+	status payment.PaymentStatus
 }
 
 // MockPaymentProvider simulates a payment provider for tests and local development.
@@ -39,22 +39,22 @@ func NewMockPaymentProvider() *MockPaymentProvider {
 // InitiatePayment simulates initiating a deposit payment.
 func (m *MockPaymentProvider) InitiatePayment(
 	ctx context.Context,
-	params *provider.InitiatePaymentParams,
-) (*provider.InitiatePaymentResponse, error) {
+	params *payment.InitiatePaymentParams,
+) (*payment.InitiatePaymentResponse, error) {
 	m.mu.Lock()
 	m.payments[params.TransactionID.String()] = &mockPayment{
-		status: provider.PaymentPending,
+		status: payment.PaymentPending,
 	}
 	m.mu.Unlock()
 	// Simulate async completion
 	go func() {
 		time.Sleep(2 * time.Second)
 		m.mu.Lock()
-		m.payments[params.TransactionID.String()].status = provider.PaymentCompleted
+		m.payments[params.TransactionID.String()].status = payment.PaymentCompleted
 		m.mu.Unlock()
 	}()
-	return &provider.InitiatePaymentResponse{
-		Status: provider.PaymentPending,
+	return &payment.InitiatePaymentResponse{
+		Status: payment.PaymentPending,
 	}, nil
 }
 
@@ -63,7 +63,7 @@ func (m *MockPaymentProvider) HandleWebhook(
 	ctx context.Context,
 	payload []byte,
 	signature string,
-) (*provider.PaymentEvent, error) {
+) (*payment.PaymentEvent, error) {
 	// TODO: implement me
 	panic("implement me")
 }

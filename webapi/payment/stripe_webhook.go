@@ -3,13 +3,13 @@ package payment
 import (
 	"fmt"
 
-	"github.com/amirasaad/fintech/pkg/provider"
+	"github.com/amirasaad/fintech/pkg/provider/payment"
 	"github.com/gofiber/fiber/v2"
 )
 
 // StripeWebhookHandler handles incoming Stripe webhook events
 func StripeWebhookHandler(
-	paymentProvider provider.Payment,
+	paymentProvider payment.Payment,
 ) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		// Get the signature from the request headers
@@ -44,7 +44,7 @@ func StripeWebhookHandler(
 // StripeWebhookRoutes sets up the Stripe webhook routes
 func StripeWebhookRoutes(
 	app *fiber.App,
-	paymentProvider provider.Payment,
+	paymentProvider payment.Payment,
 ) {
 	// Webhook endpoint for Stripe events
 	app.Post("/api/v1/webhooks/stripe", StripeWebhookHandler(paymentProvider))

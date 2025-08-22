@@ -1,4 +1,4 @@
-package provider
+package stripepayment
 
 import (
 	"context"
@@ -22,7 +22,7 @@ import (
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/amirasaad/fintech/pkg/money"
-	"github.com/amirasaad/fintech/pkg/provider"
+	"github.com/amirasaad/fintech/pkg/provider/payment"
 	"github.com/google/uuid"
 	"github.com/stripe/stripe-go/v82"
 )
@@ -68,8 +68,8 @@ func NewStripePaymentProvider(
 // InitiatePayment creates a PaymentIntent in Stripe and returns its ID.
 func (s *StripePaymentProvider) InitiatePayment(
 	ctx context.Context,
-	params *provider.InitiatePaymentParams,
-) (*provider.InitiatePaymentResponse, error) {
+	params *payment.InitiatePaymentParams,
+) (*payment.InitiatePaymentResponse, error) {
 	log := s.logger.With(
 		"handler", "stripe.InitiatePayment",
 		"user_id", params.UserID,
@@ -131,8 +131,8 @@ func (s *StripePaymentProvider) InitiatePayment(
 	// Note: We're using the transaction ID as the payment ID to maintain consistency
 	// with our internal transaction tracking. The checkout session ID is stored in the
 	// checkout service for reference.
-	return &provider.InitiatePaymentResponse{
-		Status:    provider.PaymentPending,
+	return &payment.InitiatePaymentResponse{
+		Status:    payment.PaymentPending,
 		PaymentID: co.PaymentID, // Use transaction ID as payment ID
 	}, nil
 }
@@ -142,7 +142,7 @@ func (s *StripePaymentProvider) HandleWebhook(
 	ctx context.Context,
 	payload []byte,
 	signature string,
-) (*provider.PaymentEvent, error) {
+) (*payment.PaymentEvent, error) {
 	log := s.logger.With("handler", "stripe.HandleWebhook")
 	event, err := webhook.ConstructEvent(payload, signature, s.cfg.SigningSecret)
 	if err != nil {
@@ -156,7 +156,7 @@ func (s *StripePaymentProvider) HandleWebhook(
 		context.Context,
 		stripe.Event,
 		*slog.Logger,
-	) (*provider.PaymentEvent, error){
+	) (*payment.PaymentEvent, error){
 		"checkout.session.completed":    s.handleCheckoutSessionCompleted,
 		"checkout.session.expired":      s.handleCheckoutSessionExpired,
 		"payment_intent.succeeded":      s.handlePaymentIntentSucceeded,
@@ -255,7 +255,7 @@ func (s *StripePaymentProvider) handleCheckoutSessionCompleted(
 	ctx context.Context,
 	event stripe.Event,
 	log *slog.Logger,
-) (*provider.PaymentEvent, error) {
+) (*payment.PaymentEvent, error) {
 	var session stripe.CheckoutSession
 	if err := json.Unmarshal(event.Data.Raw, &session); err != nil {
 		log.Error(
@@ -315,9 +315,9 @@ func (s *StripePaymentProvider) handleCheckoutSessionCompleted(
 		"payment_intent_id", session.PaymentIntent.ID,
 	)
 
-	return &provider.PaymentEvent{
+	return &payment.PaymentEvent{
 		ID:        session.PaymentIntent.ID,
-		Status:    provider.PaymentCompleted,
+		Status:    payment.PaymentCompleted,
 		Amount:    session.PaymentIntent.AmountReceived,
 		Currency:  string(session.Currency),
 		UserID:    se.UserID,
@@ -330,7 +330,7 @@ func (s *StripePaymentProvider) handleCheckoutSessionExpired(
 	ctx context.Context,
 	event stripe.Event,
 	log *slog.Logger,
-) (*provider.PaymentEvent, error) {
+) (*payment.PaymentEvent, error) {
 	var session stripe.CheckoutSession
 	if err := json.Unmarshal(event.Data.Raw, &session); err != nil {
 		log.Error(
@@ -384,7 +384,7 @@ func (s *StripePaymentProvider) handlePaymentIntentSucceeded(
 	event stripe.Event,
 	log *slog.Logger,
 ) (
-	*provider.PaymentEvent,
+	*payment.PaymentEvent,
 	error,
 ) {
 	const op = "stripe.handlePaymentIntentSucceeded"
@@ -471,9 +471,9 @@ func (s *StripePaymentProvider) handlePaymentIntentSucceeded(
 	}
 	log.Info("✅ Payment intent processed and transaction updated successfully",
 		"transaction_id", parsedMeta.TransactionID, "payment_id", pi.ID)
-	return &provider.PaymentEvent{
+	return &payment.PaymentEvent{
 		ID:        pi.ID,
-		Status:    provider.PaymentCompleted,
+		Status:    payment.PaymentCompleted,
 		Amount:    pi.AmountReceived,
 		Currency:  string(pi.Currency),
 		UserID:    parsedMeta.UserID,
@@ -751,7 +751,7 @@ func (s *StripePaymentProvider) buildPaymentCompletedEventPayload(
 
 func (s *StripePaymentProvider) handlePaymentIntentFailed(
 	ctx context.Context,
-	event stripe.Event, log *slog.Logger) (*provider.PaymentEvent, error) {
+	event stripe.Event, log *slog.Logger) (*payment.PaymentEvent, error) {
 	var paymentIntent stripe.PaymentIntent
 	if err := json.Unmarshal(event.Data.Raw, &paymentIntent); err != nil {
 		log.Error(
@@ -837,9 +837,9 @@ func (s *StripePaymentProvider) handlePaymentIntentFailed(
 		"payment_id", paymentIntent.ID,
 	)
 
-	return &provider.PaymentEvent{
+	return &payment.PaymentEvent{
 		ID:        pi.ID,
-		Status:    provider.PaymentFailed,
+		Status:    payment.PaymentFailed,
 		Amount:    pi.Amount,
 		Currency:  string(pi.Currency),
 		UserID:    userID,
@@ -872,7 +872,7 @@ func (s *StripePaymentProvider) handleChargeSucceeded(
 	event stripe.Event,
 	logger *slog.Logger,
 ) (
-	*provider.PaymentEvent,
+	*payment.PaymentEvent,
 	error,
 ) {
 	var charge stripe.Charge
