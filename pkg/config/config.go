@@ -33,10 +33,13 @@ type RateLimit struct {
 
 //revive:disable
 type Stripe struct {
-	ApiKey        string `envconfig:"API_KEY"`
-	SigningSecret string `envconfig:"SIGNING_SECRET"`
-	SuccessPath   string `envconfig:"SUCCESS_PATH" default:"http://localhost:3000/payment/stripe/success/"`
-	CancelPath    string `envconfig:"CANCEL_PATH" default:"http://localhost:3000/payment/stripe/cancel/"`
+	Env                  string `envconfig:"ENV" default:"test oneof(test, development, production)"`
+	ApiKey               string `envconfig:"API_KEY"`
+	SigningSecret        string `envconfig:"SIGNING_SECRET"`
+	SuccessPath          string `envconfig:"SUCCESS_PATH" default:"http://localhost:3000/payment/stripe/success/"`
+	CancelPath           string `envconfig:"CANCEL_PATH" default:"http://localhost:3000/payment/stripe/cancel/"`
+	OnboardingReturnURL  string `envconfig:"ONBOARDING_RETURN_URL" default:"http://localhost:3000/onboarding/return"`
+	OnboardingRefreshURL string `envconfig:"ONBOARDING_REFRESH_URL" default:"http://localhost:3000/onboarding/refresh"`
 }
 
 //revive:enable

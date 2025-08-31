@@ -17,19 +17,21 @@ type UserCreate struct {
 
 // UserUpdate represents the data that can be updated for a user.
 type UserUpdate struct {
-	Username *string `json:"username,omitempty" validate:"omitempty,min=3,max=50"`
-	Email    *string `json:"email,omitempty" validate:"omitempty,email"`
-	Password *string `json:"password,omitempty" validate:"omitempty,min=6"`
-	Names    *string `json:"names,omitempty"`
+	Username               *string `json:"username,omitempty" validate:"omitempty,min=3,max=50"`
+	Email                  *string `json:"email,omitempty" validate:"omitempty,email"`
+	Password               *string `json:"password,omitempty" validate:"omitempty,min=6"`
+	Names                  *string `json:"names,omitempty"`
+	StripeConnectAccountID *string `json:"stripe_connect_account_id,omitempty"`
 }
 
 // UserRead represents a read-optimized view of a user.
 type UserRead struct {
-	ID             uuid.UUID `json:"id"`
-	Username       string    `json:"username"`
-	HashedPassword string    `json:"hashed_password"`
-	Email          string    `json:"email"`
-	Names          string    `json:"names,omitempty"`
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	ID                     uuid.UUID `json:"id"`
+	Username               string    `json:"username"`
+	HashedPassword         string    `json:"hashed_password,omitempty"`
+	Email                  string    `json:"email"`
+	Names                  string    `json:"names,omitempty"`
+	StripeConnectAccountID string    `json:"stripe_connect_account_id,omitempty"`
+	CreatedAt              time.Time `json:"created_at"`
+	UpdatedAt              time.Time `json:"updated_at"`
 }

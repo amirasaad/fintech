@@ -69,3 +69,14 @@ type WithdrawFailed struct {
 }
 
 func (e WithdrawFailed) Type() string { return EventTypeWithdrawFailed.String() }
+
+// UserOnboardingCompleted is emitted when a user completes the Stripe onboarding process.
+
+type UserOnboardingCompleted struct {
+	FlowEvent
+	StripeAccountID string
+}
+
+func (e UserOnboardingCompleted) Type() string {
+	return EventTypeUserOnboardingCompleted.String()
+}

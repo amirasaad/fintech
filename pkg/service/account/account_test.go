@@ -40,14 +40,32 @@ func TestCreateAccount_Success(t *testing.T) {
 	uow := mocks.NewUnitOfWork(t)
 	accountRepo := mocks.NewAccountRepository(t)
 	userID := uuid.New()
+	accountID := uuid.New()
+
 	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).RunAndReturn(
 		func(ctx context.Context, fn func(repository.UnitOfWork) error) error {
 			return fn(uow)
 		},
 	).Once()
+
+	// First GetRepository call is for getting the account repository
 	uow.EXPECT().GetRepository(mock.Anything).Return(accountRepo, nil).Once()
-	accountRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Once()
-	accountRepo.EXPECT().Get(mock.Anything, mock.Anything).Return(&dto.AccountRead{}, nil).Once()
+
+	// Setup mock expectations for the account repository methods
+	accountRepo.EXPECT().ListByUser(mock.Anything, userID).Return([]*dto.AccountRead{}, nil).Once()
+	accountRepo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(arg any) bool {
+		createDTO, ok := arg.(dto.AccountCreate)
+		if !ok {
+			return false
+		}
+		return createDTO.UserID == userID
+	})).Return(nil).Once()
+	accountRepo.EXPECT().Get(mock.Anything, mock.Anything).Return(&dto.AccountRead{
+		ID:       accountID, // This will be the ID we return, but we accept any ID in the mock
+		UserID:   userID,
+		Balance:  0,
+		Currency: "USD",
+	}, nil).Once()
 
 	svc := accountsvc.New(nil, uow, slog.Default())
 	_, err := svc.CreateAccount(context.Background(), dto.AccountCreate{UserID: userID})
@@ -58,16 +76,19 @@ func TestCreateAccount_RepoError(t *testing.T) {
 	uow := mocks.NewUnitOfWork(t)
 	accountRepo := mocks.NewAccountRepository(t)
 	userID := uuid.New()
+
 	uow.EXPECT().Do(mock.Anything, mock.Anything).Return(nil).RunAndReturn(
 		func(ctx context.Context, fn func(repository.UnitOfWork) error) error {
 			return fn(uow)
 		},
 	).Once()
+
+	// Expect 1 call to GetRepository for ListByUser
 	uow.EXPECT().GetRepository(mock.Anything).Return(accountRepo, nil).Once()
-	accountRepo.EXPECT().Create(
-		mock.Anything,
-		mock.Anything,
-	).Return(errors.New("repo error")).Once()
+
+	// Simulate an error when listing user accounts
+	expectedErr := errors.New("database error")
+	accountRepo.EXPECT().ListByUser(mock.Anything, userID).Return(nil, expectedErr).Once()
 
 	svc := accountsvc.New(nil, uow, slog.Default())
 	gotAccount, err := svc.CreateAccount(context.Background(), dto.AccountCreate{UserID: userID})

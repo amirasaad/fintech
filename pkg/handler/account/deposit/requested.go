@@ -109,8 +109,8 @@ func HandleRequested(
 		)
 
 		// Emit CurrencyConversionRequested event
-		log.Info(
-			"🔧 [DEBUG] Creating CurrencyConversionRequested event",
+		log.Debug(
+			"🔧 CurrencyConversionRequested event created",
 			"deposit_request", fmt.Sprintf("%+v", *dr),
 			"original_request_type", fmt.Sprintf("%T", *dr))
 
@@ -122,14 +122,14 @@ func HandleRequested(
 			events.WithConversionTransactionID(txID),
 		)
 
-		log.Info(
-			"🔧 [DEBUG] CurrencyConversionRequested event created",
+		log.Debug(
+			"🔧 CurrencyConversionRequested event created",
 			"ccr_original_request_nil", ccr.OriginalRequest == nil,
 			"ccr_original_request_type", fmt.Sprintf("%T", ccr.OriginalRequest),
 			"ccr_transaction_id", ccr.TransactionID,
 		)
 		if err := bus.Emit(ctx, ccr); err != nil {
-			log.Error("❌ [ERROR] Failed to emit CurrencyConversionRequested event", "error", err)
+			log.Error("Failed to emit CurrencyConversionRequested event", "error", err)
 			return nil
 		}
 

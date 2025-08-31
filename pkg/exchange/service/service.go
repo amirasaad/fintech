@@ -7,20 +7,20 @@ import (
 	"log/slog"
 
 	"github.com/amirasaad/fintech/pkg/exchange/core"
-	"github.com/amirasaad/fintech/pkg/provider"
+	"github.com/amirasaad/fintech/pkg/provider/exchange"
 )
 
 // Service handles currency exchange operations using a provider and cache
 type Service struct {
-	provider provider.Provider // Single provider that may be a composite
-	cache    *provider.Cache   // Optional cache
+	provider exchange.Exchange // Single provider that may be a composite
+	cache    *exchange.Cache   // Optional cache
 	logger   *slog.Logger      // Logger for the service
 }
 
 // New creates a new exchange service with the given provider and cache
 func New(
-	provider provider.Provider,
-	cache *provider.Cache,
+	provider exchange.Exchange,
+	cache *exchange.Cache,
 	logger *slog.Logger,
 ) *Service {
 	if logger == nil {
@@ -144,7 +144,7 @@ func (s *Service) GetRates(
 	// Fetch missing rates from provider
 	fetchedRates := make(map[string]*core.Rate)
 	if len(toFetch) > 0 {
-		rates, err := s.provider.FetchRates(ctx, from, toFetch)
+		rates, err := s.provider.FetchRates(ctx, from)
 		if err != nil {
 			return nil, fmt.Errorf("failed to fetch rates: %w", err)
 		}

@@ -5,7 +5,7 @@ import (
 	"github.com/amirasaad/fintech/pkg/domain/common"
 	"github.com/amirasaad/fintech/pkg/domain/user"
 	"github.com/amirasaad/fintech/pkg/money"
-	"github.com/amirasaad/fintech/pkg/provider"
+	"github.com/amirasaad/fintech/pkg/provider/exchange"
 )
 
 // Type aliases for backward compatibility
@@ -39,22 +39,19 @@ var (
 	ErrUserUnauthorized = user.ErrUserUnauthorized
 
 	// Currency-related errors
-	// Deprecated: Use provider.ErrExchangeRateUnavailable directly.
-	ErrExchangeRateUnavailable = provider.ErrExchangeRateUnavailable
-	// Deprecated: Use provider.ErrUnsupportedCurrencyPair directly.
-	ErrUnsupportedCurrencyPair = provider.ErrUnsupportedCurrencyPair
-	// Deprecated: Use provider.ErrExchangeRateExpired directly.
-	ErrExchangeRateExpired = provider.ErrExchangeRateExpired
-	// Deprecated: Use provider.ErrExchangeRateInvalid directly.
-	ErrExchangeRateInvalid = provider.ErrExchangeRateInvalid
+	// Deprecated: Use exchange.ErrProviderUnavailable directly.
+	ErrExchangeRateUnavailable = exchange.ErrProviderUnavailable
+	// Deprecated: Use exchange.ErrUnsupportedPair directly.
+	ErrUnsupportedCurrencyPair = exchange.ErrUnsupportedPair
 )
 
-// ExchangeRate is an alias for provider.ExchangeRate
-// Deprecated: Use provider.ExchangeRate directly.
-type ConversionInfo = provider.ExchangeRate
+// ConversionInfo is an alias for exchange.RateInfo
+// Deprecated: Use exchange.RateInfo directly.
+type ConversionInfo = exchange.RateInfo
 
-// Deprecated: Use provider.ExchangeInfo directly.
-type ExchangeRate = provider.ExchangeInfo
+// ExchangeRate is an alias for exchange.RateInfo
+// Deprecated: Use exchange.RateInfo directly.
+type ExchangeRate = exchange.RateInfo
 
 // Deprecated: use money.New
 func NewMoney(amount float64, currencyCode money.Code) (m *money.Money, err error) {

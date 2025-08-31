@@ -179,7 +179,7 @@ func TestCompleteEventFlows(t *testing.T) {
 		tc := events.NewTransferCurrencyConverted(cc)
 
 		// 4. Create TransferValidated
-		tv := events.NewTransferBusinessValidated(tc)
+		tv := events.NewTransferValidated(tc)
 
 		// 4. Publish and test the flow
 		err := bus.Emit(context.Background(), tv)

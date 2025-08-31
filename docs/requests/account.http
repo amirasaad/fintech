@@ -3,8 +3,8 @@ POST {{host}}/user HTTP/1.1
 Content-Type: application/json
 
 {
-    "email": "test@example.mail",
-    "username": "test",
+    "email": "testaccount6@example.com",
+    "username": "testaccount6",
     "password": "R4g&BejL5P3j"
 }
 
@@ -14,7 +14,7 @@ POST {{host}}/auth/login HTTP/1.1
 Content-Type: application/json
 
 {
-    "identity": "test",
+    "identity": "testaccount4",
     "password": "R4g&BejL5P3j"
 }
 
@@ -25,12 +25,18 @@ Content-Type: application/json
 Authorization: Bearer {{login.response.body.$.data.$.token}}
 
 {
-    "currency": "USD"
+    "currency": "JPY"
 }
+
+### List Accounts
+# @name accounts
+GET {{host}}/accounts
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.$.data.$.token}}
 
 ### Deposit to account
 # @name deposit
-POST {{host}}/account/{{account.response.body.$.data.$.ID}}/deposit HTTP/1.1
+POST {{host}}/account/{{accounts.response.body.$.data.1.ID}}/deposit HTTP/1.1
 Content-Type: application/json
 Authorization: Bearer {{login.response.body.$.data.$.token}}
 
@@ -53,14 +59,14 @@ Content-Type: application/json
 
 ### Withdraw from account
 # @name withdraw
-POST {{host}}/account/53f9921c-2929-4513-980a-3a4af785e74e/withdraw HTTP/1.1
+POST {{host}}/account/{{accounts.response.body.$.data.1.ID}}/withdraw HTTP/1.1
 Content-Type: application/json
 Authorization: Bearer {{login.response.body.$.data.$.token}}
 
 
 {
-    "amount": 678,
-    "currency": "JPY",
+    "amount": 100,
+    "currency": "USD",
     "external_target": {
         "bank_account_number": "123212321"
     }
@@ -165,7 +171,7 @@ GET {{host}}/account/{{account.response.body.$.data.$.ID}}/balance
 
 ### 7. Forbidden Access (403) - Wrong User
 # This would require a different user's token to demonstrate
-PUT {{host}}/user/00000000-0000-0000-0000-000000000000/ HTTP/1.1
+PUT {{host}}/user/55ed5efc-e08b-471e-ad4d-3bcc036273bb/ HTTP/1.1
 Content-Type: application/json
 Authorization: Bearer {{login.response.body.$.data.$.token}}
 

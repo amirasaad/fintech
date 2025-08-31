@@ -1,4 +1,4 @@
-package provider
+package exchange
 
 import (
 	"context"
@@ -31,7 +31,7 @@ type RateFetcher interface {
 	FetchRate(ctx context.Context, from, to string) (*RateInfo, error)
 
 	// FetchRates gets multiple exchange rates in a single request
-	FetchRates(ctx context.Context, from string, to []string) (map[string]*RateInfo, error)
+	FetchRates(ctx context.Context, from string) (map[string]*RateInfo, error)
 }
 
 // HealthChecker defines the interface for checking provider health
@@ -58,7 +58,7 @@ type ProviderMetadata struct {
 }
 
 // Provider defines the complete interface for a rate provider
-type Provider interface {
+type Exchange interface {
 	RateFetcher
 	HealthChecker
 	SupportedChecker

@@ -66,12 +66,11 @@ func HandleCurrencyConverted(
 			currency := cc.ConvertedAmount.Currency().String()
 
 			return transactionRepo.Update(ctx, cc.TransactionID, dto.TransactionUpdate{
-				OriginalAmount:   &cc.ConversionInfo.OriginalAmount,
 				Amount:           &amount,
 				Currency:         &currency,
-				OriginalCurrency: &cc.ConversionInfo.OriginalCurrency,
-				TargetCurrency:   &cc.ConversionInfo.ConvertedCurrency,
-				ConversionRate:   &cc.ConversionInfo.ConversionRate,
+				OriginalCurrency: &cc.ConversionInfo.FromCurrency,
+				TargetCurrency:   &cc.ConversionInfo.ToCurrency,
+				ConversionRate:   &cc.ConversionInfo.Rate,
 			})
 		}); err != nil {
 			log.Error("Failed to persist conversion data", "error", err)

@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/amirasaad/fintech/pkg/money"
-	"github.com/amirasaad/fintech/pkg/provider"
+	"github.com/amirasaad/fintech/pkg/provider/exchange"
 	"github.com/amirasaad/fintech/pkg/registry"
 )
 
@@ -77,7 +77,7 @@ func validateAmount(amount *money.Money) error {
 
 // Service handles currency exchange operations with cache-first approach
 type Service struct {
-	provider provider.ExchangeRate
+	provider exchange.Exchange
 	registry registry.Provider // Registry for cached exchange rates
 	logger   *slog.Logger
 }
@@ -85,7 +85,7 @@ type Service struct {
 // New creates a new exchange service with the given registry and provider
 func New(
 	registry registry.Provider,
-	provider provider.ExchangeRate,
+	provider exchange.Exchange,
 	log *slog.Logger,
 ) *Service {
 	if log == nil {
@@ -107,21 +107,21 @@ func New(
 func (s *Service) processAndCacheRate(
 	ctx context.Context,
 	from, to string,
-	rate *provider.ExchangeInfo,
+	rate *exchange.RateInfo,
 ) {
 	if rate == nil {
-		err := fmt.Errorf("provider %s returned nil rate", s.provider.Name())
+		err := fmt.Errorf("provider %s returned nil rate", s.provider.Metadata().Name)
 		s.logger.Error("Failed to fetch exchange rate",
 			"from", from,
 			"to", to,
-			"provider", s.provider.Name(),
+			"provider", s.provider.Metadata().Name,
 			"error", err,
 		)
 		return
 	}
 
 	// Create rate info with current timestamp
-	rateInfo := newExchangeRateInfo(from, to, rate.ConversionRate, s.provider.Name())
+	rateInfo := newExchangeRateInfo(from, to, rate.Rate, s.provider.Metadata().Name)
 
 	// Store last updated timestamp in metadata
 	rateInfo.SetMetadata("last_updated", time.Now().UTC().Format(time.RFC3339Nano))
@@ -139,10 +139,10 @@ func (s *Service) processAndCacheRate(
 	}
 
 	// Also register the inverse rate (to -> from) if not 1:1
-	if math.Abs(rate.ConversionRate) > 1e-10 { // Avoid division by zero
-		inverseRate := 1.0 / rate.ConversionRate
+	if math.Abs(rate.Rate) > 1e-10 { // Avoid division by zero
+		inverseRate := 1.0 / rate.Rate
 		// Create inverse rate info with current timestamp
-		inverseInfo := newExchangeRateInfo(to, from, inverseRate, s.provider.Name())
+		inverseInfo := newExchangeRateInfo(to, from, inverseRate, s.provider.Metadata().Name)
 		inverseInfo.SetMetadata("last_updated", time.Now().UTC().Format(time.RFC3339Nano))
 
 		if err := s.registry.Register(
@@ -169,7 +169,7 @@ func (s *Service) Convert(
 	ctx context.Context,
 	amount *money.Money,
 	to money.Code,
-) (*money.Money, *provider.ExchangeInfo, error) {
+) (*money.Money, *exchange.RateInfo, error) {
 	if err := validateAmount(amount); err != nil {
 		return nil, nil, fmt.Errorf("invalid amount: %w", err)
 	}
@@ -179,12 +179,12 @@ func (s *Service) Convert(
 
 	// Check if conversion is needed
 	if from == toStr {
-		return amount, &provider.ExchangeInfo{
-			OriginalCurrency:  from,
-			ConvertedCurrency: toStr,
-			ConversionRate:    1.0,
-			Source:            "identity",
-			Timestamp:         time.Now(),
+		return amount, &exchange.RateInfo{
+			FromCurrency: from,
+			ToCurrency:   toStr,
+			Rate:         1.0,
+			Provider:     "identity",
+			Timestamp:    time.Now(),
 		}, nil
 	}
 
@@ -195,7 +195,7 @@ func (s *Service) Convert(
 	}
 
 	// Convert the amount
-	converted, err := amount.Multiply(rate.ConversionRate)
+	converted, err := amount.Multiply(rate.Rate)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to convert amount: %w", err)
 	}
@@ -213,7 +213,7 @@ func (s *Service) GetRate(
 	ctx context.Context,
 	from,
 	to string,
-) (*provider.ExchangeInfo, error) {
+) (*exchange.RateInfo, error) {
 	// Check for invalid input
 	if from == "" || to == "" {
 		return nil, fmt.Errorf("invalid currency codes: from='%s', to='%s'", from, to)
@@ -221,12 +221,12 @@ func (s *Service) GetRate(
 
 	// Check if it's the same currency
 	if from == to {
-		return &provider.ExchangeInfo{
-			OriginalCurrency:  from,
-			ConvertedCurrency: to,
-			ConversionRate:    1.0,
-			Source:            "identity",
-			Timestamp:         time.Now(),
+		return &exchange.RateInfo{
+			FromCurrency: from,
+			ToCurrency:   to,
+			Rate:         1.0,
+			Provider:     "identity",
+			Timestamp:    time.Now(),
 		}, nil
 	}
 
@@ -240,7 +240,7 @@ func (s *Service) GetRate(
 		return nil, ErrNoProvidersAvailable
 	}
 
-	rate, err := s.provider.GetRate(ctx, from, to)
+	rate, err := s.provider.FetchRate(ctx, from, to)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch rates from provider: %w", err)
 	}
@@ -261,7 +261,7 @@ func (s *Service) IsSupported(from, to string) bool {
 func (s *Service) getRateFromCache(
 	ctx context.Context,
 	from, to string,
-) (*provider.ExchangeInfo, bool) {
+) (*exchange.RateInfo, bool) {
 	key := fmt.Sprintf("%s:%s", from, to)
 
 	entity, err := s.registry.Get(ctx, key)
@@ -278,12 +278,12 @@ func (s *Service) getRateFromCache(
 	// Check if we can get the rate directly
 	if rateInfo, ok := entity.(*ExchangeRateInfo); ok {
 		s.logger.Debug("Cache hit", "key", key, "rate", rateInfo.Rate)
-		return &provider.ExchangeInfo{
-			OriginalCurrency:  rateInfo.From,
-			ConvertedCurrency: rateInfo.To,
-			ConversionRate:    rateInfo.Rate,
-			Source:            rateInfo.Source,
-			Timestamp:         rateInfo.Timestamp,
+		return &exchange.RateInfo{
+			FromCurrency: rateInfo.From,
+			ToCurrency:   rateInfo.To,
+			Rate:         rateInfo.Rate,
+			Provider:     rateInfo.Source,
+			Timestamp:    rateInfo.Timestamp,
 		}, true
 	}
 

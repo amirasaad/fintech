@@ -8,7 +8,7 @@ import (
 
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/eventbus"
-	"github.com/amirasaad/fintech/pkg/provider"
+	exchangeprovider "github.com/amirasaad/fintech/pkg/provider/exchange"
 	"github.com/amirasaad/fintech/pkg/registry"
 	"github.com/amirasaad/fintech/pkg/service/exchange"
 )
@@ -18,7 +18,7 @@ import (
 func HandleRequested(
 	bus eventbus.Bus,
 	exchangeRegistry registry.Provider,
-	exchangeRateProvider provider.ExchangeRate,
+	exchangeRateProvider exchangeprovider.Exchange,
 	logger *slog.Logger,
 	factories map[string]EventFactory,
 ) func(ctx context.Context, e events.Event) error {
@@ -73,7 +73,7 @@ func HandleRequested(
 		}
 		// Log OriginalRequest details for debugging
 		log.Debug(
-			"[DEBUG] Creating CurrencyConverted event",
+			"Creating CurrencyConverted event",
 			"original_request_type", fmt.Sprintf("%T", ccr.OriginalRequest),
 			"original_request_nil", ccr.OriginalRequest == nil,
 			"transaction_id", ccr.TransactionID,
@@ -82,9 +82,9 @@ func HandleRequested(
 		cc := events.NewCurrencyConverted(
 			ccr,
 			func(cc *events.CurrencyConverted) {
+				cc.TransactionID = ccr.TransactionID
 				cc.ConvertedAmount = convertedMoney
 				cc.ConversionInfo = convInfo
-				cc.TransactionID = ccr.TransactionID
 				// Ensure OriginalRequest is preserved
 				cc.OriginalRequest = ccr.OriginalRequest
 			},
@@ -115,7 +115,7 @@ func HandleRequested(
 			"correlation_id", ccr.CorrelationID,
 		)
 		log.Debug(
-			"[DEBUG] Next event details",
+			"🔧 Next event details",
 			"event", nextEvent,
 			"event_type", fmt.Sprintf("%T", nextEvent),
 			"correlation_id", ccr.CorrelationID,

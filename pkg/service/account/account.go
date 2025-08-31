@@ -13,6 +13,7 @@ package account
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 
 	"github.com/amirasaad/fintech/pkg/eventbus"
@@ -48,15 +49,27 @@ func New(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) *Serv
 func (s *Service) CreateAccount(
 	ctx context.Context,
 	create dto.AccountCreate,
-) (dto.AccountRead, error) {
+) (*dto.AccountRead, error) {
 	uow := s.uow
 	var result *dto.AccountRead
+
 	err := uow.Do(ctx, func(uow repository.UnitOfWork) error {
 		repoAny, err := uow.GetRepository((*repoaccount.Repository)(nil))
 		if err != nil {
 			return err
 		}
 		acctRepo := repoAny.(repoaccount.Repository)
+
+		// Check if user already has an account with the same currency
+		existingAccounts, err := acctRepo.ListByUser(ctx, create.UserID)
+		if err != nil {
+			return fmt.Errorf("failed to check existing accounts: %w", err)
+		}
+		for _, acc := range existingAccounts {
+			if acc.Currency == create.Currency {
+				return fmt.Errorf("user already has an account with currency %s", create.Currency)
+			}
+		}
 
 		// Enforce domain invariants
 		curr := money.Code(create.Currency)
@@ -74,24 +87,24 @@ func (s *Service) CreateAccount(
 			UserID:   domainAcc.UserID,
 			Balance:  int64(domainAcc.Balance.Amount()), // or 0 if always zero at creation
 			Currency: curr.String(),
-			// Add more fields as needed
 		}
 		if err = acctRepo.Create(ctx, createDTO); err != nil {
-			return err
+			return fmt.Errorf("failed to create account: %w", err)
 		}
 
 		// Fetch for read DTO
 		read, err := acctRepo.Get(ctx, domainAcc.ID)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to fetch created account: %w", err)
 		}
 		result = read
 		return nil
 	})
+
 	if err != nil {
-		return dto.AccountRead{}, err
+		return nil, fmt.Errorf("account creation failed: %w", err)
 	}
-	return *result, nil
+	return result, nil
 }
 
 // Deposit adds funds to the specified account and creates a transaction record.
@@ -145,6 +158,37 @@ func (s *Service) Withdraw(
 		opts...,
 	)
 	return s.bus.Emit(ctx, wr)
+}
+
+// ListUserAccounts returns all accounts for a specific user.
+func (s *Service) ListUserAccounts(
+	ctx context.Context,
+	userID uuid.UUID,
+) ([]*dto.AccountRead, error) {
+	uow := s.uow
+	var accounts []*dto.AccountRead
+
+	err := uow.Do(ctx, func(uow repository.UnitOfWork) error {
+		repoAny, err := uow.GetRepository((*repoaccount.Repository)(nil))
+		if err != nil {
+			return fmt.Errorf("failed to get account repository: %w", err)
+		}
+		acctRepo := repoAny.(repoaccount.Repository)
+
+		accounts, err = acctRepo.ListByUser(ctx, userID)
+		if err != nil {
+			return fmt.Errorf("failed to list user accounts: %w", err)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		s.logger.Error("Failed to list user accounts", "error", err, "userID", userID)
+		return nil, err
+	}
+
+	return accounts, nil
 }
 
 // Transfer moves funds from one account to another account.

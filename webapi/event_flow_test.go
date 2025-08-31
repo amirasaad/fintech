@@ -138,12 +138,13 @@ func (s *E2EFlowsTestSuite) TestTransferE2E() {
 	user := s.CreateTestUser()
 	token := s.LoginUser(user)
 
-	// Create two accounts for user
-	accountBody := fmt.Sprintf(`{"user_id":"%s","currency":"USD"}`, user.ID)
+	// Create two accounts for user with different currencies
+	accountBody1 := fmt.Sprintf(`{"user_id":"%s","currency":"USD"}`, user.ID)
+	accountBody2 := fmt.Sprintf(`{"user_id":"%s","currency":"EUR"}`, user.ID)
 	resp := s.MakeRequest(
 		"POST",
 		"/account",
-		accountBody,
+		accountBody1,
 		token,
 	)
 
@@ -169,7 +170,7 @@ func (s *E2EFlowsTestSuite) TestTransferE2E() {
 	resp = s.MakeRequest(
 		"POST",
 		"/account",
-		accountBody,
+		accountBody2,
 		token,
 	)
 	s.Require().Equal(http.StatusCreated, resp.StatusCode)

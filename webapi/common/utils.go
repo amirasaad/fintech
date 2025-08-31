@@ -6,7 +6,7 @@ import (
 	"github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/domain/user"
 	"github.com/amirasaad/fintech/pkg/money"
-	"github.com/amirasaad/fintech/pkg/provider"
+	"github.com/amirasaad/fintech/pkg/provider/exchange"
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/log"
@@ -157,15 +157,12 @@ func errorToStatusCode(err error) int {
 		return fiber.StatusBadRequest
 	case errors.Is(err, money.ErrAmountExceedsMaxSafeInt):
 		return fiber.StatusBadRequest
-	case errors.Is(err, provider.ErrUnsupportedCurrencyPair):
+	case errors.Is(err, exchange.ErrUnsupportedPair):
 		return fiber.StatusUnprocessableEntity
 	// Money/currency conversion errors
-	case errors.Is(err, provider.ErrExchangeRateUnavailable):
+	case errors.Is(err, exchange.ErrProviderUnavailable):
 		return fiber.StatusServiceUnavailable
-	case errors.Is(err, provider.ErrExchangeRateExpired):
-		return fiber.StatusServiceUnavailable
-	case errors.Is(err, provider.ErrExchangeRateInvalid):
-		return fiber.StatusUnprocessableEntity
+
 	// User errors
 	case errors.Is(err, user.ErrUserNotFound):
 		return fiber.StatusNotFound

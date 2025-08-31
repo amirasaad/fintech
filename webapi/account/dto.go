@@ -2,7 +2,7 @@ package account
 
 import (
 	"github.com/amirasaad/fintech/pkg/dto"
-	"github.com/amirasaad/fintech/pkg/provider"
+	"github.com/amirasaad/fintech/pkg/provider/exchange"
 )
 
 //revive:disable
@@ -87,21 +87,21 @@ func ToTransactionDTO(tx *dto.TransactionRead) *TransactionDTO {
 }
 
 // ToConversionInfoDTO maps provider.ExchangeRate to ConversionInfoDTO.
-func ToConversionInfoDTO(convInfo *provider.ExchangeInfo) *ConversionInfoDTO {
+func ToConversionInfoDTO(convInfo *exchange.RateInfo) *ConversionInfoDTO {
 	if convInfo == nil {
 		return nil
 	}
 	return &ConversionInfoDTO{
-		OriginalAmount:    convInfo.OriginalAmount,
-		OriginalCurrency:  convInfo.OriginalCurrency,
-		ConvertedAmount:   convInfo.ConvertedAmount,
-		ConvertedCurrency: convInfo.ConvertedCurrency,
-		ConversionRate:    convInfo.ConversionRate,
+		OriginalAmount:    0, // Not directly available from RateInfo
+		OriginalCurrency:  convInfo.FromCurrency,
+		ConvertedAmount:   0, // Not directly available from RateInfo
+		ConvertedCurrency: convInfo.ToCurrency,
+		ConversionRate:    convInfo.Rate,
 	}
 }
 
 // ToTransferResponseDTO maps domain transactions and conversion info to a TransferResponseDTO with a single conversion_info field.
-func ToTransferResponseDTO(txOut, txIn *dto.TransactionRead, convInfo *provider.ExchangeInfo) *TransferResponseDTO {
+func ToTransferResponseDTO(txOut, txIn *dto.TransactionRead, convInfo *exchange.RateInfo) *TransferResponseDTO {
 	return &TransferResponseDTO{
 		Outgoing:       ToTransactionDTO(txOut),
 		Incoming:       ToTransactionDTO(txIn),

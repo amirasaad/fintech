@@ -60,13 +60,13 @@ func NewTransferCurrencyConverted(
 	return tr
 }
 
-// TransferBusinessValidatedOpt --- TransferBusinessValidated ---
-type TransferBusinessValidatedOpt func(*TransferValidated)
+// TransferValidatedOpt --- TransferValidated ---
+type TransferValidatedOpt func(*TransferValidated)
 
-// NewTransferBusinessValidated creates a new TransferBusinessValidated event
-func NewTransferBusinessValidated(
+// NewTransferValidated creates a new TransferValidated event
+func NewTransferValidated(
 	tr *TransferCurrencyConverted,
-	opts ...TransferBusinessValidatedOpt,
+	opts ...TransferValidatedOpt,
 ) *TransferValidated {
 	tf := &TransferValidated{
 		TransferCurrencyConverted: *tr,

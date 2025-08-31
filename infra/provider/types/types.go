@@ -1,22 +1,24 @@
-package provider
+package provider_types
 
 import (
 	"log/slog"
 
+	exchangerateapi "github.com/amirasaad/fintech/infra/provider/exchangerateapi"
 	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/domain"
-	"github.com/amirasaad/fintech/pkg/provider"
+	"github.com/amirasaad/fintech/pkg/provider/exchange"
 	"github.com/amirasaad/fintech/pkg/registry"
+	exchangescv "github.com/amirasaad/fintech/pkg/service/exchange"
 )
 
-// Deprecated: Use provider.ExchangeRate interface directly.
-type ExchangeRateCurrencyConverter = provider.ExchangeRate
+// Deprecated: Use exchange.Exchange interface directly.
+type ExchangeRateCurrencyConverter = exchange.Exchange
 
 // exchangeRateService provides real-time exchange rates with caching and fallback providers.
 //
 // Deprecated: Use exchange.Service from github.com/amirasaad/fintech/pkg/service/exchange instead.
 type exchangeRateService struct {
-	providers []provider.ExchangeRate
+	providers []exchange.Exchange
 	cache     registry.Provider
 	logger    *slog.Logger
 	cfg       *config.ExchangeRateProviders
@@ -26,7 +28,7 @@ type exchangeRateService struct {
 //
 // Deprecated: Use exchange.New from github.com/amirasaad/fintech/pkg/service/exchange instead.
 func NewExchangeRateService(
-	providers []provider.ExchangeRate,
+	providers []exchange.Exchange,
 	cache registry.Provider,
 	logger *slog.Logger,
 	cfg *config.ExchangeRateProviders,
@@ -60,9 +62,9 @@ func (s *exchangeRateService) GetRates(
 
 // Deprecated: Use NewExchangeRateAPIProvider instead.
 func NewExchangeRateCurrencyConverter(
-	exchangeRateService *exchangeRateService,
+	exchangeRateService *exchangescv.Service,
 	fallback ExchangeRateCurrencyConverter,
 	logger *slog.Logger,
 ) ExchangeRateCurrencyConverter {
-	return NewExchangeRateAPIProvider(&config.ExchangeRateApi{}, logger)
+	return exchangerateapi.NewExchangeRateAPIProvider(&config.ExchangeRateApi{}, logger)
 }

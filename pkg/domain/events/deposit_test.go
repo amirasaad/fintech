@@ -3,7 +3,7 @@ package events_test
 import (
 	"testing"
 
-	"github.com/amirasaad/fintech/pkg/provider"
+	"github.com/amirasaad/fintech/pkg/provider/exchange"
 
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/money"
@@ -60,12 +60,10 @@ func TestDepositCurrencyConverted(t *testing.T) {
 					},
 					TransactionID:   uuid.New(),
 					ConvertedAmount: amount,
-					ConversionInfo: &provider.ExchangeInfo{
-						OriginalAmount:    1000.0,
-						OriginalCurrency:  "USD",
-						ConvertedAmount:   850.0,
-						ConvertedCurrency: "EUR",
-						ConversionRate:    0.85,
+					ConversionInfo: &exchange.RateInfo{
+						FromCurrency: "USD",
+						ToCurrency:   "EUR",
+						Rate:         0.85,
 					},
 				},
 			}
@@ -94,12 +92,10 @@ func TestDepositValidated(t *testing.T) {
 					},
 					TransactionID:   uuid.New(),
 					ConvertedAmount: amount,
-					ConversionInfo: &provider.ExchangeInfo{
-						OriginalAmount:    1000.0,
-						OriginalCurrency:  "USD",
-						ConvertedAmount:   850.0,
-						ConvertedCurrency: "EUR",
-						ConversionRate:    0.85,
+					ConversionInfo: &exchange.RateInfo{
+						FromCurrency: "USD",
+						ToCurrency:   "EUR",
+						Rate:         0.85,
 					},
 				},
 			},

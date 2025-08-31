@@ -7,7 +7,7 @@ import (
 
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/money"
-	"github.com/amirasaad/fintech/pkg/provider"
+	"github.com/amirasaad/fintech/pkg/provider/exchange"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -148,12 +148,10 @@ func TestCurrencyConverted(t *testing.T) {
 			},
 			TransactionID:   uuid.New(),
 			ConvertedAmount: convertedAmount,
-			ConversionInfo: &provider.ExchangeInfo{
-				OriginalAmount:    amount.AmountFloat(),
-				OriginalCurrency:  amount.Currency().String(),
-				ConvertedAmount:   convertedAmount.AmountFloat(),
-				ConvertedCurrency: convertedAmount.Currency().String(),
-				ConversionRate:    0.85,
+			ConversionInfo: &exchange.RateInfo{
+				FromCurrency: amount.Currency().String(),
+				ToCurrency:   convertedAmount.Currency().String(),
+				Rate:         0.85,
 			},
 		}
 
@@ -191,12 +189,10 @@ func TestCurrencyConverted(t *testing.T) {
 			},
 			TransactionID:   transactionID,
 			ConvertedAmount: convertedAmount,
-			ConversionInfo: &provider.ExchangeInfo{
-				OriginalAmount:    amount.AmountFloat(),
-				OriginalCurrency:  amount.Currency().String(),
-				ConvertedAmount:   convertedAmount.AmountFloat(),
-				ConvertedCurrency: convertedAmount.Currency().String(),
-				ConversionRate:    0.85,
+			ConversionInfo: &exchange.RateInfo{
+				FromCurrency: amount.Currency().String(),
+				ToCurrency:   convertedAmount.Currency().String(),
+				Rate:         0.85,
 			},
 		}
 
@@ -285,15 +281,27 @@ func TestCurrencyConverted(t *testing.T) {
 		// Check the conversion info
 		conversionInfo, ok := result["conversionInfo"].(map[string]any)
 		require.True(t, ok, "conversionInfo should be an object")
-		assert.InEpsilon(t, 100.0, conversionInfo["OriginalAmount"], 0.001,
-			"Original amount should be 100.0")
-		assert.Equal(t, "USD", conversionInfo["OriginalCurrency"],
-			"Original currency should be USD")
-		assert.InEpsilon(t, 85.0, conversionInfo["ConvertedAmount"], 0.001,
-			"Converted amount should be 85.0")
-		assert.Equal(t, "EUR", conversionInfo["ConvertedCurrency"],
-			"Converted currency should be EUR")
-		assert.InEpsilon(t, 0.85, conversionInfo["ConversionRate"], 0.001,
+
+		// Check the rate info fields
+		assert.Equal(t, "USD", conversionInfo["from_currency"],
+			"From currency should be USD")
+		assert.Equal(t, "EUR", conversionInfo["to_currency"],
+			"To currency should be EUR")
+		assert.InEpsilon(t, 0.85, conversionInfo["rate"], 0.001,
 			"Conversion rate should be 0.85")
+
+		// Re-declare variables to avoid shadowing
+		amountMap = result["amount"].(map[string]any)
+		convertedAmountMap = result["convertedAmount"].(map[string]any)
+
+		assert.InEpsilon(t, 100.0, amountMap["amount"].(float64)/100, 0.001,
+			"Original amount should be 100.0")
+		assert.Equal(t, "USD", amountMap["currency"],
+			"Original currency should be USD")
+
+		assert.InEpsilon(t, 85.0, convertedAmountMap["amount"].(float64)/100, 0.001,
+			"Converted amount should be 85.0")
+		assert.Equal(t, "EUR", convertedAmountMap["currency"],
+			"Converted currency should be EUR")
 	})
 }

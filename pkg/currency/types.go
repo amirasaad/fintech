@@ -2,14 +2,14 @@ package currency
 
 import (
 	"github.com/amirasaad/fintech/pkg/money"
-	"github.com/amirasaad/fintech/pkg/provider"
+	"github.com/amirasaad/fintech/pkg/provider/exchange"
 )
 
 // CurrencyConverter is a type alias for backward compatibility.
 //
 // Deprecated: This type is deprecated and will be removed in a future release.
-// Please use provider.ExchangeRate from the provider package instead.
-type CurrencyConverter = provider.ExchangeRate
+// Please use exchange.Exchange from the provider package instead.
+type CurrencyConverter = exchange.Exchange
 
 // Code represents a currency code (e.g., "USD", "EUR").
 //

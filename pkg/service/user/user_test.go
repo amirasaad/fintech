@@ -7,10 +7,10 @@ import (
 
 	"log/slog"
 
+	"github.com/amirasaad/fintech/internal/fixtures/mocks"
 	"github.com/amirasaad/fintech/pkg/domain/user"
 	"github.com/amirasaad/fintech/pkg/dto"
 
-	"github.com/amirasaad/fintech/internal/fixtures/mocks"
 	"github.com/amirasaad/fintech/pkg/repository"
 	userrepo "github.com/amirasaad/fintech/pkg/repository/user"
 	usersvc "github.com/amirasaad/fintech/pkg/service/user"

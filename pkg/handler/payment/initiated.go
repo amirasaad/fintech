@@ -9,7 +9,7 @@ import (
 
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/eventbus"
-	"github.com/amirasaad/fintech/pkg/provider"
+	"github.com/amirasaad/fintech/pkg/provider/payment"
 )
 
 var processedPaymentInitiated sync.Map // map[string]struct{} for idempotency
@@ -17,13 +17,17 @@ var processedPaymentInitiated sync.Map // map[string]struct{} for idempotency
 // HandleInitiated handles DepositBusinessValidatedEvent and initiates payment for deposits.
 func HandleInitiated(
 	bus eventbus.Bus,
-	paymentProvider provider.Payment,
+	paymentProvider payment.Payment,
 	logger *slog.Logger,
 ) eventbus.HandlerFunc {
 	return func(ctx context.Context, e events.Event) error {
 		log := logger.With(
 			"handler", "payment.HandleInitiated",
 			"event_type", e.Type(),
+		)
+		log.Debug("🔄 Handling PaymentInitiated event",
+			"event_type", e.Type(),
+			"event", fmt.Sprintf("%+v", e),
 		)
 		pi, ok := e.(*events.PaymentInitiated)
 		if !ok {
@@ -52,7 +56,7 @@ func HandleInitiated(
 		currency := pi.Amount.Currency().String()
 		payment, err := paymentProvider.InitiatePayment(
 			ctx,
-			&provider.InitiatePaymentParams{
+			&payment.InitiatePaymentParams{
 				UserID:        pi.UserID,
 				AccountID:     pi.AccountID,
 				Amount:        amount,

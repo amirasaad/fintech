@@ -6,9 +6,9 @@ import (
 	"log/slog"
 	"testing"
 
+	"github.com/amirasaad/fintech/internal/fixtures/mocks"
 	userrepo "github.com/amirasaad/fintech/pkg/repository/user"
 
-	"github.com/amirasaad/fintech/internal/fixtures/mocks"
 	"github.com/amirasaad/fintech/pkg/dto"
 	authsvc "github.com/amirasaad/fintech/pkg/service/auth"
 	"github.com/google/uuid"

@@ -10,7 +10,7 @@ import (
 
 	"github.com/amirasaad/fintech/internal/fixtures/mocks"
 	"github.com/amirasaad/fintech/pkg/money"
-	"github.com/amirasaad/fintech/pkg/provider"
+	"github.com/amirasaad/fintech/pkg/provider/exchange"
 	"github.com/amirasaad/fintech/pkg/registry"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -72,7 +72,7 @@ func TestService_getRateFromCache(t *testing.T) {
 		setupMock     func(*mocks.RegistryProvider)
 		from          string
 		to            string
-		expectedRate  *provider.ExchangeInfo
+		expectedRate  *exchange.RateInfo
 		expectedFound bool
 	}{
 		{
@@ -112,11 +112,11 @@ func TestService_getRateFromCache(t *testing.T) {
 			},
 			from: "USD",
 			to:   "EUR",
-			expectedRate: &provider.ExchangeInfo{
-				OriginalCurrency:  "USD",
-				ConvertedCurrency: "EUR",
-				ConversionRate:    0.85,
-				Source:            "test",
+			expectedRate: &exchange.RateInfo{
+				FromCurrency: "USD",
+				ToCurrency:   "EUR",
+				Rate:         0.85,
+				Provider:     "test",
 			},
 			expectedFound: true,
 		},
@@ -150,12 +150,12 @@ func TestService_getRateFromCache(t *testing.T) {
 			if tt.expectedFound {
 				assert.True(t, found)
 				assert.NotNil(t, rate)
-				assert.Equal(t, tt.expectedRate.OriginalCurrency, rate.OriginalCurrency)
-				assert.Equal(t, tt.expectedRate.ConvertedCurrency, rate.ConvertedCurrency)
-				assert.InDelta(t, tt.expectedRate.ConversionRate,
-					rate.ConversionRate, 0.0001,
+				assert.Equal(t, tt.expectedRate.FromCurrency, rate.FromCurrency)
+				assert.Equal(t, tt.expectedRate.ToCurrency, rate.ToCurrency)
+				assert.InDelta(t, tt.expectedRate.Rate,
+					rate.Rate, 0.0001,
 					"conversion rate should match")
-				assert.Equal(t, tt.expectedRate.Source, rate.Source)
+				assert.Equal(t, tt.expectedRate.Provider, rate.Provider)
 			} else {
 				assert.False(t, found)
 				assert.Nil(t, rate)
@@ -188,21 +188,21 @@ func TestService_IsSupported(t *testing.T) {
 		name     string
 		from     string
 		to       string
-		setup    func(*mocks.ExchangeRateProvider)
+		setup    func(*mocks.ExchangeProvider)
 		expected bool
 	}{
 		{
 			name:     "same currency",
 			from:     "USD",
 			to:       "USD",
-			setup:    func(m *mocks.ExchangeRateProvider) {},
+			setup:    func(m *mocks.ExchangeProvider) {},
 			expected: true,
 		},
 		{
 			name: "supported currency pair",
 			from: "USD",
 			to:   "EUR",
-			setup: func(m *mocks.ExchangeRateProvider) {
+			setup: func(m *mocks.ExchangeProvider) {
 				m.On("IsSupported", "USD", "EUR").Return(true).Once()
 			},
 			expected: true,
@@ -211,7 +211,7 @@ func TestService_IsSupported(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockProvider := mocks.NewExchangeRateProvider(t)
+			mockProvider := mocks.NewExchangeProvider(t)
 			mockRegistry := mocks.NewRegistryProvider(t)
 			tt.setup(mockProvider)
 
@@ -229,15 +229,17 @@ func TestService_GetRate(t *testing.T) {
 	// Helper to create a test service with proper mocks
 	newTestService := func(t *testing.T, withProvider bool) (
 		*Service,
-		*mocks.ExchangeRateProvider,
+		*mocks.ExchangeProvider,
 		*mocks.RegistryProvider,
 	) {
-		var mockProvider *mocks.ExchangeRateProvider
+		var mockProvider *mocks.ExchangeProvider
 		mockRegistry := mocks.NewRegistryProvider(t)
 
 		if withProvider {
-			mockProvider = mocks.NewExchangeRateProvider(t)
-			mockProvider.On("Name").Return("test-provider").Maybe()
+			mockProvider = mocks.NewExchangeProvider(t)
+			mockProvider.On("Metadata").
+				Return(exchange.ProviderMetadata{Name: "test-provider"}).
+				Maybe()
 
 			svc := &Service{
 				provider: mockProvider,
@@ -260,27 +262,27 @@ func TestService_GetRate(t *testing.T) {
 		name        string
 		from        string
 		to          string
-		setupMocks  func(*mocks.ExchangeRateProvider, *mocks.RegistryProvider)
-		expected    *provider.ExchangeInfo
+		setupMocks  func(*mocks.ExchangeProvider, *mocks.RegistryProvider)
+		expected    *exchange.RateInfo
 		expectedErr string
 	}{
 		{
 			name:       "same currency",
 			from:       "USD",
 			to:         "USD",
-			setupMocks: func(ep *mocks.ExchangeRateProvider, rp *mocks.RegistryProvider) {},
-			expected: &provider.ExchangeInfo{
-				OriginalCurrency:  "USD",
-				ConvertedCurrency: "USD",
-				ConversionRate:    1.0,
-				Source:            "identity",
+			setupMocks: func(ep *mocks.ExchangeProvider, rp *mocks.RegistryProvider) {},
+			expected: &exchange.RateInfo{
+				FromCurrency: "USD",
+				ToCurrency:   "USD",
+				Rate:         1.0,
+				Provider:     "identity",
 			},
 		},
 		{
 			name: "from cache with full metadata",
 			from: "USD",
 			to:   "EUR",
-			setupMocks: func(ep *mocks.ExchangeRateProvider, rp *mocks.RegistryProvider) {
+			setupMocks: func(ep *mocks.ExchangeProvider, rp *mocks.RegistryProvider) {
 				rp.On("Get", ctx, "USD:EUR").Return(&ExchangeRateInfo{
 					BaseEntity: *registry.NewBaseEntity("USD:EUR", "USD to EUR"),
 					From:       "USD",
@@ -290,18 +292,18 @@ func TestService_GetRate(t *testing.T) {
 					Timestamp:  time.Now().Add(-30 * time.Minute),
 				}, nil).Once()
 			},
-			expected: &provider.ExchangeInfo{
-				OriginalCurrency:  "USD",
-				ConvertedCurrency: "EUR",
-				ConversionRate:    0.85,
-				Source:            "cache",
+			expected: &exchange.RateInfo{
+				FromCurrency: "USD",
+				ToCurrency:   "EUR",
+				Rate:         0.85,
+				Provider:     "cache",
 			},
 		},
 		{
 			name: "cache returns valid rate",
 			from: "USD",
 			to:   "GBP",
-			setupMocks: func(ep *mocks.ExchangeRateProvider, rp *mocks.RegistryProvider) {
+			setupMocks: func(ep *mocks.ExchangeProvider, rp *mocks.RegistryProvider) {
 				// Return a valid cached rate
 				rp.On("Get", ctx, "USD:GBP").Return(&ExchangeRateInfo{
 					BaseEntity: *registry.NewBaseEntity("USD:GBP", "USD to GBP"),
@@ -313,42 +315,42 @@ func TestService_GetRate(t *testing.T) {
 				}, nil).Once()
 				// No need to set Register expectation for cache hit
 			},
-			expected: &provider.ExchangeInfo{
-				OriginalCurrency:  "USD",
-				ConvertedCurrency: "GBP",
-				ConversionRate:    0.75,
-				Source:            "test-provider",
+			expected: &exchange.RateInfo{
+				FromCurrency: "USD",
+				ToCurrency:   "GBP",
+				Rate:         0.75,
+				Provider:     "test-provider",
 			},
 		},
 		{
 			name: "cache miss with provider fallback",
 			from: "USD",
 			to:   "CAD",
-			setupMocks: func(ep *mocks.ExchangeRateProvider, rp *mocks.RegistryProvider) {
+			setupMocks: func(ep *mocks.ExchangeProvider, rp *mocks.RegistryProvider) {
 				// Cache miss
 				rp.On("Get", ctx, "USD:CAD").Return(nil, registry.ErrNotFound).Once()
 				// Should fall back to provider
-				ep.On("GetRate", ctx, "USD", "CAD").Return(&provider.ExchangeInfo{
-					OriginalCurrency:  "USD",
-					ConvertedCurrency: "CAD",
-					ConversionRate:    1.25,
-					Source:            "test-provider",
+				ep.On("FetchRate", ctx, "USD", "CAD").Return(&exchange.RateInfo{
+					FromCurrency: "USD",
+					ToCurrency:   "CAD",
+					Rate:         1.25,
+					Provider:     "test-provider",
 				}, nil).Once()
 				// We don't need to test the exact Register call, just that it happens
 				rp.On("Register", ctx, mock.Anything).Return(nil).Maybe()
 			},
-			expected: &provider.ExchangeInfo{
-				OriginalCurrency:  "USD",
-				ConvertedCurrency: "CAD",
-				ConversionRate:    1.25,
-				Source:            "test-provider",
+			expected: &exchange.RateInfo{
+				FromCurrency: "USD",
+				ToCurrency:   "CAD",
+				Rate:         1.25,
+				Provider:     "test-provider",
 			},
 		},
 		{
 			name:        "empty from currency",
 			from:        "",
 			to:          "USD",
-			setupMocks:  func(ep *mocks.ExchangeRateProvider, rp *mocks.RegistryProvider) {},
+			setupMocks:  func(ep *mocks.ExchangeProvider, rp *mocks.RegistryProvider) {},
 			expected:    nil,
 			expectedErr: "invalid currency codes: from='', to='USD'",
 		},
@@ -356,7 +358,7 @@ func TestService_GetRate(t *testing.T) {
 			name:        "empty to currency",
 			from:        "USD",
 			to:          "",
-			setupMocks:  func(ep *mocks.ExchangeRateProvider, rp *mocks.RegistryProvider) {},
+			setupMocks:  func(ep *mocks.ExchangeProvider, rp *mocks.RegistryProvider) {},
 			expected:    nil,
 			expectedErr: "invalid currency codes: from='USD', to=''",
 		},
@@ -364,55 +366,55 @@ func TestService_GetRate(t *testing.T) {
 			name: "cache miss with error, fallback to provider",
 			from: "USD",
 			to:   "GBP",
-			setupMocks: func(ep *mocks.ExchangeRateProvider, rp *mocks.RegistryProvider) {
+			setupMocks: func(ep *mocks.ExchangeProvider, rp *mocks.RegistryProvider) {
 				// Cache miss with error
 				rp.On("Get", ctx, "USD:GBP").Return(nil, registry.ErrNotFound).Once()
 				// Provider returns rate
-				ep.On("GetRate", ctx, "USD", "GBP").Return(&provider.ExchangeInfo{
-					OriginalCurrency:  "USD",
-					ConvertedCurrency: "GBP",
-					ConversionRate:    0.75,
-					Source:            "test-provider",
+				ep.On("FetchRate", ctx, "USD", "GBP").Return(&exchange.RateInfo{
+					FromCurrency: "USD",
+					ToCurrency:   "GBP",
+					Rate:         0.75,
+					Provider:     "test-provider",
 				}, nil).Once()
 				// We don't need to test the exact Register call, just that it happens
 				rp.On("Register", ctx, mock.Anything).Return(nil).Maybe()
 			},
-			expected: &provider.ExchangeInfo{
-				OriginalCurrency:  "USD",
-				ConvertedCurrency: "GBP",
-				ConversionRate:    0.75,
-				Source:            "test-provider",
+			expected: &exchange.RateInfo{
+				FromCurrency: "USD",
+				ToCurrency:   "GBP",
+				Rate:         0.75,
+				Provider:     "test-provider",
 			},
 		},
 		{
 			name: "cache error with provider fallback",
 			from: "USD",
 			to:   "JPY",
-			setupMocks: func(ep *mocks.ExchangeRateProvider, rp *mocks.RegistryProvider) {
+			setupMocks: func(ep *mocks.ExchangeProvider, rp *mocks.RegistryProvider) {
 				// Cache error
 				rp.On("Get", ctx, "USD:JPY").Return(nil, errors.New("cache error")).Once()
 				// Should fallback to provider for USD/JPY
-				ep.On("GetRate", ctx, "USD", "JPY").Return(&provider.ExchangeInfo{
-					OriginalCurrency:  "USD",
-					ConvertedCurrency: "JPY",
-					ConversionRate:    150.0,
-					Source:            "test-provider",
+				ep.On("FetchRate", ctx, "USD", "JPY").Return(&exchange.RateInfo{
+					FromCurrency: "USD",
+					ToCurrency:   "JPY",
+					Rate:         150.0,
+					Provider:     "test-provider",
 				}, nil).Once()
 				// We don't need to test the exact Register call, just that it happens
 				rp.On("Register", ctx, mock.Anything).Return(nil).Maybe()
 			},
-			expected: &provider.ExchangeInfo{
-				OriginalCurrency:  "USD",
-				ConvertedCurrency: "JPY",
-				ConversionRate:    150.0,
-				Source:            "test-provider",
+			expected: &exchange.RateInfo{
+				FromCurrency: "USD",
+				ToCurrency:   "JPY",
+				Rate:         150.0,
+				Provider:     "test-provider",
 			},
 		},
 		{
 			name: "no provider available",
 			from: "USD",
 			to:   "CAD",
-			setupMocks: func(ep *mocks.ExchangeRateProvider, rp *mocks.RegistryProvider) {
+			setupMocks: func(ep *mocks.ExchangeProvider, rp *mocks.RegistryProvider) {
 				// Cache miss
 				rp.On("Get", ctx, "USD:CAD").Return(nil, registry.ErrNotFound).Once()
 				// No provider calls should be made - ep is nil in this case
@@ -425,12 +427,12 @@ func TestService_GetRate(t *testing.T) {
 			name: "provider returns error",
 			from: "USD",
 			to:   "AUD",
-			setupMocks: func(ep *mocks.ExchangeRateProvider, rp *mocks.RegistryProvider) {
+			setupMocks: func(ep *mocks.ExchangeProvider, rp *mocks.RegistryProvider) {
 				rp.On("Get", ctx, "USD:AUD").Return(
 					nil,
 					registry.ErrNotFound,
 				).Once()
-				ep.On("GetRate", ctx, "USD", "AUD").Return(
+				ep.On("FetchRate", ctx, "USD", "AUD").Return(
 					nil,
 					errors.New("provider error"),
 				).Once()
@@ -452,7 +454,9 @@ func TestService_GetRate(t *testing.T) {
 
 			if mockProvider != nil {
 				mockProvider.ExpectedCalls = nil
-				mockProvider.On("Name").Return("test-provider").Maybe()
+				mockProvider.On("Metadata").
+					Return(exchange.ProviderMetadata{Name: "test-provider"}).
+					Maybe()
 			}
 
 			if tt.setupMocks != nil {
@@ -469,24 +473,24 @@ func TestService_GetRate(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(
 				t,
-				tt.expected.OriginalCurrency,
-				result.OriginalCurrency,
+				tt.expected.FromCurrency,
+				result.FromCurrency,
 			)
 			assert.Equal(
 				t,
-				tt.expected.ConvertedCurrency,
-				result.ConvertedCurrency,
+				tt.expected.ToCurrency,
+				result.ToCurrency,
 			)
 			assert.InDelta(
 				t,
-				tt.expected.ConversionRate,
-				result.ConversionRate,
+				tt.expected.Rate,
+				result.Rate,
 				0.0001,
 			)
 			assert.Equal(
 				t,
-				tt.expected.Source,
-				result.Source,
+				tt.expected.Provider,
+				result.Provider,
 			)
 		})
 	}

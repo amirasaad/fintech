@@ -5,7 +5,8 @@
 package mocks
 
 import (
-	"github.com/amirasaad/fintech/pkg/domain"
+	"github.com/amirasaad/fintech/pkg/provider/exchange"
+
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -37,23 +38,23 @@ func (_m *ExchangeRateProvider) EXPECT() *ExchangeRateProvider_Expecter {
 }
 
 // GetRate provides a mock function for the type ExchangeRateProvider
-func (_mock *ExchangeRateProvider) GetRate(from string, to string) (*domain.ExchangeRate, error) {
+func (_mock *ExchangeRateProvider) GetRate(from string, to string) (*exchange.RateInfo, error) {
 	ret := _mock.Called(from, to)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetRate")
 	}
 
-	var r0 *domain.ExchangeRate
+	var r0 *exchange.RateInfo
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(string, string) (*domain.ExchangeRate, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(string, string) (*exchange.RateInfo, error)); ok {
 		return returnFunc(from, to)
 	}
-	if returnFunc, ok := ret.Get(0).(func(string, string) *domain.ExchangeRate); ok {
+	if returnFunc, ok := ret.Get(0).(func(string, string) *exchange.RateInfo); ok {
 		r0 = returnFunc(from, to)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*domain.ExchangeRate)
+			r0 = ret.Get(0).(*exchange.RateInfo)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(string, string) error); ok {
@@ -94,34 +95,34 @@ func (_c *ExchangeRateProvider_GetRate_Call) Run(run func(from string, to string
 	return _c
 }
 
-func (_c *ExchangeRateProvider_GetRate_Call) Return(v *domain.ExchangeRate, err error) *ExchangeRateProvider_GetRate_Call {
+func (_c *ExchangeRateProvider_GetRate_Call) Return(v *exchange.RateInfo, err error) *ExchangeRateProvider_GetRate_Call {
 	_c.Call.Return(v, err)
 	return _c
 }
 
-func (_c *ExchangeRateProvider_GetRate_Call) RunAndReturn(run func(from string, to string) (*domain.ExchangeRate, error)) *ExchangeRateProvider_GetRate_Call {
+func (_c *ExchangeRateProvider_GetRate_Call) RunAndReturn(run func(from string, to string) (*exchange.RateInfo, error)) *ExchangeRateProvider_GetRate_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetRates provides a mock function for the type ExchangeRateProvider
-func (_mock *ExchangeRateProvider) GetRates(from string, to []string) (map[string]*domain.ExchangeRate, error) {
+func (_mock *ExchangeRateProvider) GetRates(from string, to []string) (map[string]*exchange.RateInfo, error) {
 	ret := _mock.Called(from, to)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetRates")
 	}
 
-	var r0 map[string]*domain.ExchangeRate
+	var r0 map[string]*exchange.RateInfo
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(string, []string) (map[string]*domain.ExchangeRate, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(string, []string) (map[string]*exchange.RateInfo, error)); ok {
 		return returnFunc(from, to)
 	}
-	if returnFunc, ok := ret.Get(0).(func(string, []string) map[string]*domain.ExchangeRate); ok {
+	if returnFunc, ok := ret.Get(0).(func(string, []string) map[string]*exchange.RateInfo); ok {
 		r0 = returnFunc(from, to)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(map[string]*domain.ExchangeRate)
+			r0 = ret.Get(0).(map[string]*exchange.RateInfo)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(string, []string) error); ok {
@@ -162,12 +163,12 @@ func (_c *ExchangeRateProvider_GetRates_Call) Run(run func(from string, to []str
 	return _c
 }
 
-func (_c *ExchangeRateProvider_GetRates_Call) Return(stringToV map[string]*domain.ExchangeRate, err error) *ExchangeRateProvider_GetRates_Call {
+func (_c *ExchangeRateProvider_GetRates_Call) Return(stringToV map[string]*exchange.RateInfo, err error) *ExchangeRateProvider_GetRates_Call {
 	_c.Call.Return(stringToV, err)
 	return _c
 }
 
-func (_c *ExchangeRateProvider_GetRates_Call) RunAndReturn(run func(from string, to []string) (map[string]*domain.ExchangeRate, error)) *ExchangeRateProvider_GetRates_Call {
+func (_c *ExchangeRateProvider_GetRates_Call) RunAndReturn(run func(from string, to []string) (map[string]*exchange.RateInfo, error)) *ExchangeRateProvider_GetRates_Call {
 	_c.Call.Return(run)
 	return _c
 }

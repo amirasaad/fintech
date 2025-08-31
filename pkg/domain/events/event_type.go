@@ -23,10 +23,14 @@ const (
 	EventTypeWithdrawValidated         EventType = "Withdraw.Validated"
 	EventTypeWithdrawFailed            EventType = "Withdraw.Failed"
 
+	// UserOnboardingCompleted event
+	EventTypeUserOnboardingCompleted EventType = "User.OnboardingCompleted"
+
 	// Transfer events
 	EventTypeTransferRequested         EventType = "Transfer.Requested"
 	EventTypeTransferCurrencyConverted EventType = "Transfer.CurrencyConverted"
 	EventTypeTransferValidated         EventType = "Transfer.Validated"
+	EventTypeTransferPaid              EventType = "Transfer.Paid"
 	EventTypeTransferCompleted         EventType = "Transfer.Completed"
 	EventTypeTransferFailed            EventType = "Transfer.Failed"
 
