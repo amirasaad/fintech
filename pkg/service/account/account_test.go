@@ -3,22 +3,23 @@ package account_test
 import (
 	"context"
 	"errors"
-	"testing"
-
-	"github.com/amirasaad/fintech/pkg/commands"
-	"github.com/amirasaad/fintech/pkg/domain/events"
-	repoaccount "github.com/amirasaad/fintech/pkg/repository/account"
-	"github.com/amirasaad/fintech/pkg/repository/transaction"
-
 	"log/slog"
+	"testing"
 
 	"github.com/amirasaad/fintech/infra/eventbus"
 	"github.com/amirasaad/fintech/internal/fixtures/mocks"
+	"github.com/amirasaad/fintech/pkg/commands"
+	"github.com/amirasaad/fintech/pkg/config"
 	accountdomain "github.com/amirasaad/fintech/pkg/domain/account"
+	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/domain/user"
 	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/repository"
+	repoaccount "github.com/amirasaad/fintech/pkg/repository/account"
+	"github.com/amirasaad/fintech/pkg/repository/transaction"
+	userrepo "github.com/amirasaad/fintech/pkg/repository/user"
 	accountsvc "github.com/amirasaad/fintech/pkg/service/account"
+	"github.com/amirasaad/fintech/pkg/service/stripeconnect"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -67,7 +68,7 @@ func TestCreateAccount_Success(t *testing.T) {
 		Currency: "USD",
 	}, nil).Once()
 
-	svc := accountsvc.New(nil, uow, slog.Default())
+	svc := accountsvc.New(nil, uow, slog.Default(), nil)
 	_, err := svc.CreateAccount(context.Background(), dto.AccountCreate{UserID: userID})
 	require.NoError(t, err)
 }
@@ -90,7 +91,7 @@ func TestCreateAccount_RepoError(t *testing.T) {
 	expectedErr := errors.New("database error")
 	accountRepo.EXPECT().ListByUser(mock.Anything, userID).Return(nil, expectedErr).Once()
 
-	svc := accountsvc.New(nil, uow, slog.Default())
+	svc := accountsvc.New(nil, uow, slog.Default(), nil)
 	gotAccount, err := svc.CreateAccount(context.Background(), dto.AccountCreate{UserID: userID})
 	require.Error(t, err)
 	assert.Empty(t, gotAccount)
@@ -98,7 +99,7 @@ func TestCreateAccount_RepoError(t *testing.T) {
 
 func TestDeposit_PublishesEvent(t *testing.T) {
 	memBus := eventbus.NewWithMemory(slog.Default())
-	svc := accountsvc.New(memBus, nil, slog.Default())
+	svc := accountsvc.New(memBus, nil, slog.Default(), nil)
 
 	var called bool
 
@@ -133,7 +134,17 @@ func TestDeposit_PublishesEvent(t *testing.T) {
 
 func TestWithdraw_PublishesEvent(t *testing.T) {
 	memBus := eventbus.NewWithMemory(slog.Default())
-	svc := accountsvc.New(memBus, nil, slog.Default())
+	uow := mocks.NewUnitOfWork(t)
+	userRepo := mocks.NewUserRepository(t)
+	uow.EXPECT().GetRepository((*userrepo.Repository)(nil)).Return(userRepo, nil).Once()
+	userRepo.EXPECT().
+		GetStripeOnboardingStatus(mock.Anything, mock.Anything).
+		Return(true, nil).
+		Once()
+	// Create a mock StripeConnectService
+
+	stripeConnectSvc := stripeconnect.New(uow, slog.Default(), &config.Stripe{})
+	svc := accountsvc.New(memBus, nil, slog.Default(), stripeConnectSvc)
 	userID := uuid.New()
 	accountID := uuid.New()
 	var publishedEvents []events.Event
@@ -172,7 +183,7 @@ func TestTransfer_PublishesEvent(t *testing.T) {
 	amount := 25.0
 	currency := "USD"
 
-	svc := accountsvc.New(memBus, nil, slog.Default())
+	svc := accountsvc.New(memBus, nil, slog.Default(), nil)
 	var publishedEvents []events.Event
 	memBus.Register(
 		events.EventTypeTransferRequested,
@@ -216,7 +227,7 @@ func TestGetAccount_Success(t *testing.T) {
 	uow.EXPECT().GetRepository((*repoaccount.Repository)(nil)).Return(accountRepo, nil).Once()
 	accountRepo.EXPECT().Get(context.Background(), accountID).Return(account, nil).Once()
 
-	svc := accountsvc.New(nil, uow, slog.Default())
+	svc := accountsvc.New(nil, uow, slog.Default(), nil)
 	gotAccount, err := svc.GetAccount(context.Background(), userID, accountID)
 	require.NoError(t, err)
 	assert.NotNil(t, gotAccount)
@@ -233,7 +244,7 @@ func TestGetAccount_NotFound(t *testing.T) {
 	accountRepo.EXPECT().Get(context.Background(), accountID).
 		Return(nil, accountdomain.ErrAccountNotFound).Once()
 
-	svc := accountsvc.New(nil, uow, slog.Default())
+	svc := accountsvc.New(nil, uow, slog.Default(), nil)
 	gotAccount, err := svc.GetAccount(context.Background(), userID, accountID)
 	require.Error(t, err)
 	assert.Nil(t, gotAccount)
@@ -250,7 +261,7 @@ func TestGetAccount_Unauthorized(t *testing.T) {
 	accountRepo.EXPECT().Get(context.Background(), accountID).
 		Return(nil, user.ErrUserUnauthorized).Once()
 
-	svc := accountsvc.New(nil, uow, slog.Default())
+	svc := accountsvc.New(nil, uow, slog.Default(), nil)
 	gotAccount, err := svc.GetAccount(context.Background(), userID, accountID)
 	require.Error(t, err)
 	assert.Nil(t, gotAccount)
@@ -280,7 +291,7 @@ func TestGetTransactions_Success(t *testing.T) {
 	accountRepo.EXPECT().Get(context.Background(), accountID).Return(account, nil).Once()
 	transactionRepo.EXPECT().ListByAccount(context.Background(), accountID).Return(txs, nil).Once()
 
-	svc := accountsvc.New(nil, uow, slog.Default())
+	svc := accountsvc.New(nil, uow, slog.Default(), nil)
 	gotTxs, err := svc.GetTransactions(context.Background(), userID, accountID)
 	require.NoError(t, err)
 	assert.Equal(t, txs, gotTxs)
@@ -307,7 +318,7 @@ func TestGetTransactions_Error(t *testing.T) {
 		accountID,
 	).Return(nil, errors.New("list error")).Once()
 
-	svc := accountsvc.New(nil, uow, slog.Default())
+	svc := accountsvc.New(nil, uow, slog.Default(), nil)
 	txs, err := svc.GetTransactions(context.Background(), userID, accountID)
 	require.Error(t, err)
 	assert.Nil(t, txs)
@@ -326,7 +337,7 @@ func TestGetBalance_Success(t *testing.T) {
 		Currency: "USD",
 	}
 	accountRepo.EXPECT().Get(context.Background(), acc.ID).Return(&acc, nil)
-	svc := accountsvc.New(nil, uow, slog.Default())
+	svc := accountsvc.New(nil, uow, slog.Default(), nil)
 	got, err := svc.GetBalance(context.Background(), userID, acc.ID)
 	require.NoError(t, err)
 	assert.InDelta(t, acc.Balance, got, 0.01)
@@ -349,9 +360,10 @@ func TestGetBalance_NotFound(t *testing.T) {
 	)
 
 	balance, err := accountsvc.New(
-		nil,
+		mocks.NewBus(t),
 		uow,
 		slog.Default(),
+		nil,
 	).GetBalance(context.Background(), uuid.New(), uuid.New())
 	require.Error(err)
 	assert.InDelta(0, balance, 0.01)

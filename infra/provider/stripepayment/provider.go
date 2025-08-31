@@ -14,8 +14,6 @@ import (
 	"github.com/amirasaad/fintech/pkg/service/checkout"
 
 	"github.com/amirasaad/fintech/pkg/config"
-	"github.com/amirasaad/fintech/pkg/dto"
-	"github.com/amirasaad/fintech/pkg/handler/common"
 	"github.com/amirasaad/fintech/pkg/registry"
 	"github.com/amirasaad/fintech/pkg/repository"
 
@@ -1358,154 +1356,21 @@ func (s *StripePaymentProvider) InitiatePayout(
 	ctx context.Context,
 	params *payment.InitiatePayoutParams,
 ) (*payment.InitiatePayoutResponse, error) {
-	// Use the provided PaymentProviderID or create a new account if empty
-	stripeAccountID := params.PaymentProviderID
-	if stripeAccountID == "" {
-		// Create a new connected account if one doesn't exist
-		// Get email from metadata or use a default based on user ID
-		email, exists := params.Metadata["user_email"]
-		if !exists || email == "" {
-			email = fmt.Sprintf("user-%s@fintech.com", params.UserID.String())
-		}
-
-		// Get country from metadata or use default
-		country, exists := params.Metadata["country"]
-		if !exists || country == "" {
-			country = "US" // Default country
-		}
-
-		// Create individual details with test data from Stripe's testing documentation
-		// Using test data that will pass verification
-		individual := Individual{
-			FirstName: "John",
-			LastName:  "Doe",
-			Email:     email,
-			Phone:     "+15555555555", // Test phone number
-			Address: Address{
-				Line1:      "123 Test St",
-				City:       "San Francisco",
-				State:      "CA",
-				PostalCode: "94103",
-			},
-			DOB: DOB{
-				Day:   1,
-				Month: 1,
-				Year:  1901, // Test DOB that will pass verification
-			},
-		}
-
-		accountParams := &CreateStripeConnectAccountParams{
-			UserID:      params.UserID,
-			Email:       email,
-			Country:     strings.ToLower(country), // Convert to lowercase for Stripe
-			AccountType: "express",                // Use express for simpler individual onboarding
-			Individual:  individual,
-		}
-
-		createAccountResponse, err := s.createStripeConnectAccount(ctx, accountParams)
-		if err != nil {
-			s.logger.Error("failed to create Stripe Connect account",
-				"error", err,
-				"user_id", params.UserID,
-				"account_id", params.AccountID)
-			return nil, fmt.Errorf("failed to create Stripe Connect account: %w", err)
-		}
-		stripeAccountID = createAccountResponse.AccountID
-
-		// Update the user's record with the new Stripe Connect account ID
-		userRepo, err := common.GetUserRepository(s.uow, s.logger)
-		if err != nil {
-			s.logger.Error("failed to get user repository", "error", err)
-			return nil, fmt.Errorf("failed to update user record: %w", err)
-		}
-
-		// Update only the Stripe Connect account ID
-		stripeAccountIDStr := stripeAccountID // Create a new variable with the correct type
-		update := &dto.UserUpdate{
-			StripeConnectAccountID: &stripeAccountIDStr,
-		}
-
-		err = userRepo.Update(ctx, params.UserID, update)
-		if err != nil {
-			s.logger.Error("failed to update user with Stripe Connect account ID",
-				"error", err,
-				"user_id", params.UserID,
-				"stripe_account_id", stripeAccountID)
-			return nil, fmt.Errorf("failed to update user record: %w", err)
-		}
-
-		s.logger.Info("Successfully updated user with Stripe Connect account ID",
-			"user_id", params.UserID,
-			"stripe_account_id", stripeAccountID)
-	}
-
-	// // Return a structured error with the onboarding URL
-	// return nil, errors.ErrStripeOnboardingRequired{
-	// 	OnboardingURL: createAccountResponse.URL,
-	// }
-
 	// First try to get the account with capabilities expanded
-	account, err := s.client.V1Accounts.GetByID(ctx, stripeAccountID, &stripe.AccountRetrieveParams{
-		Params: stripe.Params{
-			Expand: []*string{
-				stripe.String("capabilities"),
-			},
-		},
-	})
-
-	if err != nil {
-		s.logger.Error("failed to retrieve Stripe account with expanded capabilities",
-			"error", err,
-			"stripe_account_id", stripeAccountID)
-		return nil, fmt.Errorf("failed to retrieve Stripe account: %w", err)
-	}
-	onboardingLink := ""
-	// Check if onboarding is complete and required capabilities are active
-	if !account.DetailsSubmitted ||
-		account.Capabilities == nil ||
-		account.Capabilities.CardPayments != "active" ||
-		account.Capabilities.Transfers != "active" {
-
-		s.logger.Info("Account requires onboarding or capabilities update",
-			"stripe_account_id", stripeAccountID,
-			"details_submitted", account.DetailsSubmitted,
-			"card_payments", account.Capabilities.CardPayments,
-			"transfers", account.Capabilities.Transfers)
-
-		// Create a new onboarding link for the user to complete their profile
-		accountLinkParams := &stripe.AccountLinkCreateParams{
-			Account:    stripe.String(stripeAccountID),
-			RefreshURL: stripe.String(s.cfg.OnboardingRefreshURL),
-			ReturnURL:  stripe.String(s.cfg.OnboardingReturnURL),
-			Type:       stripe.String("account_onboarding"),
-		}
-
-		accountLink, aerr := s.client.V1AccountLinks.Create(ctx, accountLinkParams)
-		if aerr != nil {
-			s.logger.Error("failed to create onboarding link",
-				"error", aerr,
-				"stripe_account_id", stripeAccountID)
-			return nil, fmt.Errorf("failed to create onboarding link: %w", aerr)
-		}
-
-		onboardingLink = accountLink.URL
-
-		return nil, fmt.Errorf("onboarding required: %s", onboardingLink)
-	}
 
 	s.logger.Info("Initiating payout",
 		"user_id", params.UserID,
 		"amount", params.Amount,
 		"currency", params.Currency,
 		"destination_type", params.Destination.Type,
-		"destination_id", stripeAccountID,
+		"destination_id", params.PaymentProviderID,
 	)
 
 	// Create the transfer to the connected account
 	transferParams := &stripe.TransferCreateParams{
 		Amount:      stripe.Int64(params.Amount),
 		Currency:    stripe.String(params.Currency),
-		Destination: stripe.String(stripeAccountID),
+		Destination: stripe.String(params.PaymentProviderID),
 		Description: stripe.String(params.Description),
 	}
 
@@ -1526,7 +1391,7 @@ func (s *StripePaymentProvider) InitiatePayout(
 			"error", err,
 			"user_id", params.UserID,
 			"account_id", params.AccountID,
-			"stripe_account_id", stripeAccountID)
+			"stripe_account_id", params.PaymentProviderID)
 		return nil, fmt.Errorf("failed to create transfer: %w", err)
 	}
 
@@ -1547,7 +1412,7 @@ func (s *StripePaymentProvider) InitiatePayout(
 
 	return &payment.InitiatePayoutResponse{
 		PayoutID:             transfer.ID,
-		PaymentProviderID:    stripeAccountID,
+		PaymentProviderID:    params.PaymentProviderID,
 		Status:               status,
 		Amount:               transfer.Amount,
 		Currency:             string(transfer.Currency),
@@ -1555,177 +1420,4 @@ func (s *StripePaymentProvider) InitiatePayout(
 		FeeCurrency:          string(transfer.Currency),
 		EstimatedArrivalDate: transfer.Created + 2*24*60*60, // Default to 2 days from creation
 	}, nil
-}
-
-// createStripeConnectAccount creates a new Stripe Connect account for transfers
-func (s *StripePaymentProvider) createStripeConnectAccount(
-	ctx context.Context,
-	params *CreateStripeConnectAccountParams,
-) (*CreateStripeConnectAccountResponse, error) {
-	if params == nil {
-		return nil, fmt.Errorf("params cannot be nil")
-	}
-
-	// Validate account type
-	accountType := strings.ToLower(params.AccountType)
-	if accountType != "express" && accountType != "standard" {
-		accountType = "express" // Default to express if invalid
-	}
-
-	// Prepare account display name
-	displayName := fmt.Sprintf("%s %s", params.FirstName, params.LastName)
-	if displayName == " " {
-		displayName = fmt.Sprintf("User %s", params.UserID.String()[:8])
-	}
-
-	// Set up account parameters
-	accountParams := &stripe.AccountCreateParams{
-		Type:         stripe.String(accountType),
-		BusinessType: stripe.String("individual"),
-		Email:        stripe.String(params.Email),
-		BusinessProfile: &stripe.AccountCreateBusinessProfileParams{
-			Name:         stripe.String(displayName),
-			MCC:          stripe.String("5734"), // Computer Software Stores
-			URL:          stripe.String("https://fintech.com"),
-			SupportEmail: stripe.String("support@fintech.com"),
-		},
-		Capabilities: &stripe.AccountCreateCapabilitiesParams{
-			CardPayments: &stripe.AccountCreateCapabilitiesCardPaymentsParams{
-				Requested: stripe.Bool(true),
-			},
-			Transfers: &stripe.AccountCreateCapabilitiesTransfersParams{
-				Requested: stripe.Bool(true),
-			},
-		},
-		Settings: &stripe.AccountCreateSettingsParams{
-			Payouts: &stripe.AccountCreateSettingsPayoutsParams{
-				Schedule: &stripe.AccountCreateSettingsPayoutsScheduleParams{
-					Interval:      stripe.String("manual"),
-					MonthlyAnchor: nil, // Only for monthly schedules
-					WeeklyAnchor:  nil, // Only for weekly schedules
-				},
-				DebitNegativeBalances: stripe.Bool(true),
-			},
-		},
-		Params: stripe.Params{
-			Metadata: map[string]string{
-				"user_id":    params.UserID.String(),
-				"created_by": "fintech-app",
-				"env":        s.cfg.Env,
-			},
-		},
-	}
-
-	// Add country if provided
-	if params.Country != "" {
-		accountParams.Country = stripe.String(params.Country)
-	}
-
-	// Ensure we have a valid email - use the one from Individual if available,
-	//  otherwise use the top-level email
-	email := params.Email
-	if params.Individual.Email != "" {
-		email = params.Individual.Email
-	}
-
-	if email == "" {
-		return nil, fmt.Errorf("email is required for creating a Stripe Connect account")
-	}
-
-	// Update the account email
-	accountParams.Email = stripe.String(email)
-
-	// Add individual details if available
-	if params.Individual.FirstName != "" || params.Individual.LastName != "" {
-		individualParams := &stripe.PersonParams{
-			FirstName: stripe.String(params.Individual.FirstName),
-			LastName:  stripe.String(params.Individual.LastName),
-			Email:     stripe.String(email), // Use the same email as the account
-		}
-
-		// Only add phone if it's not empty
-		if params.Individual.Phone != "" {
-			individualParams.Phone = stripe.String(params.Individual.Phone)
-		}
-
-		accountParams.Individual = individualParams
-
-		// Add address if available
-		if params.Individual.Address.Line1 != "" {
-			accountParams.Individual.Address = &stripe.AddressParams{
-				Line1:      stripe.String(params.Individual.Address.Line1),
-				City:       stripe.String(params.Individual.Address.City),
-				State:      stripe.String(params.Individual.Address.State),
-				PostalCode: stripe.String(params.Individual.Address.PostalCode),
-				Country:    stripe.String(params.Country),
-			}
-		}
-
-		// Add date of birth if available
-		if params.Individual.DOB.Year > 0 {
-			dob := &stripe.PersonDOBParams{
-				Day:   stripe.Int64(int64(params.Individual.DOB.Day)),
-				Month: stripe.Int64(int64(params.Individual.DOB.Month)),
-				Year:  stripe.Int64(int64(params.Individual.DOB.Year)),
-			}
-			accountParams.Individual.DOB = dob
-		}
-	}
-
-	// Create the Stripe account
-	stripeAccount, err := s.client.V1Accounts.Create(ctx, accountParams)
-	if err != nil {
-		s.logger.Error("Failed to create Stripe Connect account",
-			"error", err,
-			"user_id", params.UserID,
-			"account_type", accountType)
-		return nil, fmt.Errorf("failed to create Stripe Connect account: %v", err)
-	}
-
-	s.logger.Info("Created Stripe Connect account",
-		"account_id", stripeAccount.ID,
-		"user_id", params.UserID,
-		"type", accountType)
-
-	// Create account link for onboarding
-	onboardingURL, err := s.createAccountOnboardingLink(ctx, stripeAccount.ID, params.UserID)
-	if err != nil {
-		// Log the error but still return the account ID as the account was created
-		s.logger.Error("Failed to create onboarding link but account was created",
-			"error", err,
-			"account_id", stripeAccount.ID,
-			"user_id", params.UserID)
-	}
-
-	return &CreateStripeConnectAccountResponse{
-		AccountID: stripeAccount.ID,
-		URL:       onboardingURL,
-	}, nil
-}
-
-// createAccountOnboardingLink creates a Stripe account onboarding link
-func (s *StripePaymentProvider) createAccountOnboardingLink(
-	ctx context.Context,
-	accountID string,
-	userID uuid.UUID,
-) (string, error) {
-	// Create the account link for onboarding
-	accountLinkParams := &stripe.AccountLinkCreateParams{
-		Account:    stripe.String(accountID),
-		RefreshURL: stripe.String(s.cfg.OnboardingRefreshURL),
-		ReturnURL:  stripe.String(s.cfg.OnboardingReturnURL),
-		Type:       stripe.String("account_onboarding"),
-		Collect:    stripe.String("eventually_due"),
-	}
-
-	accountLink, err := s.client.V1AccountLinks.Create(ctx, accountLinkParams)
-	if err != nil {
-		return "", fmt.Errorf("failed to create account link: %w", err)
-	}
-
-	s.logger.Info("Created Stripe Connect account onboarding link",
-		"account_id", accountID,
-		"user_id", userID)
-
-	return accountLink.URL, nil
 }

@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 
 	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/domain"
-	userRepo "github.com/amirasaad/fintech/pkg/repository/user"
+	"github.com/amirasaad/fintech/pkg/handler/common"
+	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/google/uuid"
 	"github.com/stripe/stripe-go/v82"
 )
@@ -28,24 +30,26 @@ type Service interface {
 }
 
 type stripeConnectService struct {
-	client   *stripe.Client
-	userRepo userRepo.Repository
-	cfg      *config.Stripe
+	client *stripe.Client
+	uow    repository.UnitOfWork
+	cfg    *config.Stripe
 }
 
 // Config holds the configuration for the Stripe Connect serviced
 
-// NewService creates a new instance of the Stripe Connect service using the official Stripe client
+// New creates a new instance of the Stripe Connect service using the official Stripe client
 // Deprecated: Use NewClientService instead for better client management
-// NewService creates a new instance of the Stripe Connect service
-func NewService(
-	userRepo userRepo.Repository,
+// New creates a new instance of the Stripe Connect service
+func New(
+	uow repository.UnitOfWork,
+	logger *slog.Logger,
 	cfg *config.Stripe,
 ) Service {
+
 	return &stripeConnectService{
-		client:   stripe.NewClient(cfg.ApiKey),
-		userRepo: userRepo,
-		cfg:      cfg,
+		client: stripe.NewClient(cfg.ApiKey),
+		uow:    uow,
+		cfg:    cfg,
 	}
 }
 
@@ -53,8 +57,13 @@ func (s *stripeConnectService) CreateAccount(
 	ctx context.Context,
 	userID uuid.UUID,
 ) (*stripe.Account, error) {
+	userRepo, err := common.GetUserRepository(s.uow, slog.Default())
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user repository: %w", err)
+	}
+
 	// Check if user already has a Stripe account
-	existingAccountID, err := s.userRepo.GetStripeAccountID(ctx, userID)
+	existingAccountID, err := userRepo.GetStripeAccountID(ctx, userID)
 	if err != nil && !errors.Is(err, domain.ErrNotFound) {
 		return nil, fmt.Errorf("failed to check existing account: %w", err)
 	}
@@ -88,7 +97,7 @@ func (s *stripeConnectService) CreateAccount(
 	}
 
 	// Save the Stripe account ID to the user
-	err = s.userRepo.UpdateStripeAccount(ctx, userID, acct.ID, false)
+	err = userRepo.UpdateStripeAccount(ctx, userID, acct.ID, false)
 	if err != nil {
 		// Try to clean up the Stripe account if we can't save the reference
 		_, _ = s.client.V1Accounts.Delete(ctx, acct.ID, nil) // nolint:errcheck
@@ -128,7 +137,11 @@ func (s *stripeConnectService) GetAccount(
 	ctx context.Context,
 	userID uuid.UUID,
 ) (*stripe.Account, error) {
-	stripeAccountID, err := s.userRepo.GetStripeAccountID(ctx, userID)
+	userRepo, err := common.GetUserRepository(s.uow, slog.Default())
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user repository: %w", err)
+	}
+	stripeAccountID, err := userRepo.GetStripeAccountID(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get Stripe account ID: %w", err)
 	}
@@ -149,8 +162,12 @@ func (s *stripeConnectService) IsOnboardingComplete(
 	ctx context.Context,
 	userID uuid.UUID,
 ) (bool, error) {
+	userRepo, err := common.GetUserRepository(s.uow, slog.Default())
+	if err != nil {
+		return false, fmt.Errorf("failed to get user repository: %w", err)
+	}
 	// First check our local database
-	status, err := s.userRepo.GetStripeOnboardingStatus(ctx, userID)
+	status, err := userRepo.GetStripeOnboardingStatus(ctx, userID)
 	if err != nil && !errors.Is(err, domain.ErrNotFound) {
 		return false, fmt.Errorf("failed to get local onboarding status: %w", err)
 	}
@@ -170,7 +187,7 @@ func (s *stripeConnectService) IsOnboardingComplete(
 	onboardingComplete := acct.DetailsSubmitted && acct.PayoutsEnabled
 
 	// Update our local database with the current status
-	err = s.userRepo.UpdateStripeAccount(ctx, userID, acct.ID, onboardingComplete)
+	err = userRepo.UpdateStripeAccount(ctx, userID, acct.ID, onboardingComplete)
 	if err != nil {
 		return false, fmt.Errorf("failed to update local onboarding status: %w", err)
 	}

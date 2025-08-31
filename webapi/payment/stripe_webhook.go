@@ -47,5 +47,5 @@ func StripeWebhookRoutes(
 	paymentProvider payment.Payment,
 ) {
 	// Webhook endpoint for Stripe events
-	app.Post("/stripe/webhooks", StripeWebhookHandler(paymentProvider))
+	app.Post("/api/v1/webhooks/stripe", StripeWebhookHandler(paymentProvider))
 }

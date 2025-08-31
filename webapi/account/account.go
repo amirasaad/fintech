@@ -1,10 +1,12 @@
 package account
 
 import (
+	"errors"
 	"strings"
 
 	"github.com/amirasaad/fintech/pkg/commands"
 	"github.com/amirasaad/fintech/pkg/config"
+	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/middleware"
 	"github.com/amirasaad/fintech/pkg/money"
@@ -12,6 +14,7 @@ import (
 	authsvc "github.com/amirasaad/fintech/pkg/service/auth"
 	stripeconnectsvc "github.com/amirasaad/fintech/pkg/service/stripeconnect"
 	"github.com/amirasaad/fintech/webapi/common"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/log"
 	"github.com/golang-jwt/jwt/v5"
@@ -110,13 +113,13 @@ func ListUserAccounts(
 
 		userID, err := authSvc.GetCurrentUserId(token)
 		if err != nil {
-			log.Errorf("Failed to parse user ID from token: %v", err)
+			log.Error("failed to get user ID from token", "error", err)
 			return common.ProblemDetailsJSON(c, "Invalid user ID", err)
 		}
 
 		accounts, err := accountSvc.ListUserAccounts(c.Context(), userID)
 		if err != nil {
-			log.Errorf("Failed to list user accounts: %v", err)
+			log.Error("failed to list user accounts", "error", err, "user_id", userID)
 			return common.ProblemDetailsJSON(c, "Failed to list accounts", err)
 		}
 
@@ -124,6 +127,7 @@ func ListUserAccounts(
 			accounts = []*dto.AccountRead{} // Return empty array instead of null
 		}
 
+		log.Info("successfully listed user accounts", "count", len(accounts), "user_id", userID)
 		return common.SuccessResponseJSON(
 			c,
 			fiber.StatusOK,
@@ -160,14 +164,14 @@ func CreateAccount(
 	authSvc *authsvc.Service,
 ) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		log.Infof("Creating new account")
+		log.Info("creating new account")
 		token, ok := c.Locals("user").(*jwt.Token)
 		if !ok {
 			return common.ProblemDetailsJSON(c, "Unauthorized", nil, "missing user context")
 		}
 		userID, err := authSvc.GetCurrentUserId(token)
 		if err != nil {
-			log.Errorf("Failed to parse user ID from token: %v", err)
+			log.Error("failed to get user ID from token", "error", err)
 			return common.ProblemDetailsJSON(c, "Invalid user ID", err)
 		}
 		input, err := common.BindAndValidate[CreateAccountRequest](c)
@@ -182,7 +186,7 @@ func CreateAccount(
 			},
 		)
 		if err != nil {
-			log.Errorf("Failed to create account: %v", err)
+			log.Error("failed to create account", "error", err)
 			if strings.Contains(err.Error(), "user already has an account with currency") {
 				return common.ProblemDetailsJSON(
 					c,
@@ -194,7 +198,7 @@ func CreateAccount(
 			}
 			return common.ProblemDetailsJSON(c, "Failed to create account", err)
 		}
-		log.Infof("Account created: %+v")
+		log.Info("account created", "account_id", a.ID)
 		return common.SuccessResponseJSON(
 			c,
 			fiber.StatusCreated,
@@ -232,19 +236,19 @@ func Deposit(
 	authSvc *authsvc.Service,
 ) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		log.Infof("Deposit handler: called for account %s", c.Params("id"))
+		log.Info("deposit handler called", "account_id", c.Params("id"))
 		token, ok := c.Locals("user").(*jwt.Token)
 		if !ok {
 			return common.ProblemDetailsJSON(c, "Unauthorized", nil, "missing user context")
 		}
 		userID, err := authSvc.GetCurrentUserId(token)
 		if err != nil {
-			log.Errorf("Failed to parse user ID from token: %v", err)
+			log.Error("failed to get user ID from token", "error", err)
 			return common.ProblemDetailsJSON(c, "Invalid user ID", err)
 		}
 		accountID, err := uuid.Parse(c.Params("id"))
 		if err != nil {
-			log.Errorf("Invalid account ID for deposit: %v", err)
+			log.Error("invalid account ID for deposit", "error", err)
 			return common.ProblemDetailsJSON(
 				c,
 				"Invalid account ID",
@@ -270,14 +274,25 @@ func Deposit(
 		}
 		err = accountSvc.Deposit(c.Context(), depositCmd)
 		if err != nil {
-			return common.ProblemDetailsJSON(c, "Failed to deposit", err)
+			log.Error(
+				"failed to process deposit",
+				"error",
+				err,
+				"user_id",
+				userID,
+				"account_id",
+				accountID,
+			)
+			return common.ProblemDetailsJSON(c, "Failed to process deposit", err)
 		}
+		log.Info("successfully processed deposit", "account_id", accountID, "user_id", userID)
 		return common.SuccessResponseJSON(
 			c,
 			fiber.StatusAccepted,
 			"Deposit request is being processed. "+
 				"Your deposit is being started and will be completed soon.",
-			fiber.Map{})
+			fiber.Map{},
+		)
 	}
 }
 
@@ -323,12 +338,12 @@ func Withdraw(
 		}
 		userID, err := authSvc.GetCurrentUserId(token)
 		if err != nil {
-			log.Errorf("Failed to parse user ID from token: %v", err)
+			log.Error("failed to get user ID from token", "error", err)
 			return common.ProblemDetailsJSON(c, "Invalid user ID", err)
 		}
 		accountID, err := uuid.Parse(c.Params("id"))
 		if err != nil {
-			log.Errorf("Invalid account ID for withdrawal: %v", err)
+			log.Error("invalid account ID for withdrawal", "error", err)
 			return common.ProblemDetailsJSON(
 				c,
 				"Invalid account ID",
@@ -353,22 +368,67 @@ func Withdraw(
 				fiber.StatusBadRequest,
 			)
 		}
-		currencyCode := money.DefaultCode
-		if input.Currency != "" {
-			currencyCode = money.Code(input.Currency)
+		// Validate and parse currency code
+		currencyCode := money.Code(input.Currency)
+		if currencyCode == "" {
+			return common.ProblemDetailsJSON(
+				c,
+				"Invalid currency code",
+				nil,
+				"Please provide a valid 3-letter ISO 4217 currency code",
+				fiber.StatusBadRequest,
+			)
 		}
-		if err = accountSvc.Withdraw(c.Context(), commands.Withdraw{
+
+		withdrawCmd := commands.Withdraw{
 			UserID:    userID,
 			AccountID: accountID,
 			Amount:    input.Amount,
 			Currency:  string(currencyCode),
-			ExternalTarget: &commands.ExternalTarget{
+		}
+
+		if input.ExternalTarget != nil {
+			withdrawCmd.ExternalTarget = &commands.ExternalTarget{
 				BankAccountNumber:     input.ExternalTarget.BankAccountNumber,
 				RoutingNumber:         input.ExternalTarget.RoutingNumber,
 				ExternalWalletAddress: input.ExternalTarget.ExternalWalletAddress,
-			},
-		}); err != nil {
-			return common.ProblemDetailsJSON(c, "Failed to withdraw", err)
+			}
+		}
+
+		if err = accountSvc.Withdraw(c.Context(), withdrawCmd); err != nil {
+			log.Error(
+				"failed to process withdrawal",
+				"error",
+				err,
+				"user_id",
+				userID,
+				"account_id",
+				accountID,
+			)
+
+			// Handle Stripe Connect onboarding error specifically
+			if errors.Is(err, domain.ErrStripeOnboardingIncomplete) {
+				return common.ProblemDetailsJSON(
+					c,
+					"Stripe Connect onboarding required",
+					err,
+					"Please complete Stripe Connect onboarding before making a withdrawal",
+					fiber.StatusForbidden,
+				)
+			}
+
+			// Handle insufficient funds error
+			if strings.Contains(err.Error(), "insufficient funds") {
+				return common.ProblemDetailsJSON(
+					c,
+					"Insufficient funds",
+					err,
+					"Your account does not have sufficient funds for this withdrawal",
+					fiber.StatusBadRequest,
+				)
+			}
+
+			return common.ProblemDetailsJSON(c, "Failed to process withdrawal", err)
 		}
 
 		return common.SuccessResponseJSON(
@@ -404,19 +464,19 @@ func Transfer(
 	authSvc *authsvc.Service,
 ) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		log.Infof("Transfer handler: called for account %s", c.Params("id"))
+		log.Info("transfer handler called", "account_id", c.Params("id"))
 		token, ok := c.Locals("user").(*jwt.Token)
 		if !ok {
 			return common.ProblemDetailsJSON(c, "Unauthorized", nil, "missing user context")
 		}
 		userID, err := authSvc.GetCurrentUserId(token)
 		if err != nil {
-			log.Errorf("Failed to parse user ID from token: %v", err)
+			log.Error("failed to get user ID from token", "error", err)
 			return common.ProblemDetailsJSON(c, "Invalid user ID", err)
 		}
 		sourceAccountID, err := uuid.Parse(c.Params("id"))
 		if err != nil {
-			log.Errorf("Invalid source account ID for transfer: %v", err)
+			log.Error("invalid source account ID for transfer", "error", err)
 			return common.ProblemDetailsJSON(
 				c,
 				"Invalid account ID",
@@ -431,7 +491,7 @@ func Transfer(
 		}
 		destAccountID, err := uuid.Parse(input.DestinationAccountID)
 		if err != nil {
-			log.Errorf("Invalid destination account ID for transfer: %v", err)
+			log.Error("invalid destination account ID for transfer", "error", err)
 			return common.ProblemDetailsJSON(
 				c,
 				"Invalid destination account ID",
@@ -454,8 +514,24 @@ func Transfer(
 		}
 		err = accountSvc.Transfer(c.Context(), cmd)
 		if err != nil {
+			log.Error(
+				"failed to transfer funds",
+				"error",
+				err,
+				"user_id",
+				userID,
+				"account_id",
+				sourceAccountID,
+			)
 			return common.ProblemDetailsJSON(c, "Failed to transfer", err)
 		}
+		log.Info("successfully transferred funds",
+			"amount", input.Amount,
+			"currency", input.Currency,
+			"from_account_id", sourceAccountID,
+			"to_account_id", destAccountID,
+			"user_id", userID,
+		)
 		return common.SuccessResponseJSON(
 			c,
 			fiber.StatusAccepted,
@@ -500,12 +576,12 @@ func GetTransactions(
 		}
 		userID, err := authSvc.GetCurrentUserId(token)
 		if err != nil {
-			log.Errorf("Failed to parse user ID from token: %v", err)
+			log.Error("failed to get user ID from token", "error", err)
 			return common.ProblemDetailsJSON(c, "Invalid user ID", err)
 		}
 		id, err := uuid.Parse(c.Params("id"))
 		if err != nil {
-			log.Errorf("Invalid account ID for transactions: %v", err)
+			log.Error("invalid account ID for transactions", "error", err)
 			return common.ProblemDetailsJSON(
 				c,
 				"Invalid account ID",
@@ -517,10 +593,12 @@ func GetTransactions(
 
 		tx, err := accountSvc.GetTransactions(c.Context(), userID, id)
 		if err != nil {
-			log.Errorf(
-				"Failed to list transactions for account ID %s: %v",
-				id,
+			log.Error(
+				"failed to list transactions for account ID %s",
+				"error",
 				err,
+				"account_id",
+				id,
 			)
 			return common.ProblemDetailsJSON(c, "Failed to list transactions", err)
 		}
@@ -576,12 +654,12 @@ func GetBalance(
 		}
 		userID, err := authSvc.GetCurrentUserId(token)
 		if err != nil {
-			log.Errorf("Failed to parse user ID from token: %v", err)
+			log.Error("failed to get user ID from token", "error", err)
 			return common.ProblemDetailsJSON(c, "Invalid user ID", err)
 		}
 		id, err := uuid.Parse(c.Params("id"))
 		if err != nil {
-			log.Errorf("Invalid account ID for balance: %v", err)
+			log.Error("invalid account ID for balance", "error", err)
 			return common.ProblemDetailsJSON(
 				c,
 				"Invalid account ID",

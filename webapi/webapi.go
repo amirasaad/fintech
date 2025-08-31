@@ -104,7 +104,7 @@ func SetupApp(app *app.App) *fiber.App {
 
 	// Payment event processor for Stripe webhooks
 	fiberApp.Post(
-		"/stripe/webhooks",
+		"/api/v1/webhooks/stripe",
 		payment.StripeWebhookHandler(app.Deps.PaymentProvider),
 	)
 

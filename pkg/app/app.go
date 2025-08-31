@@ -3,7 +3,6 @@ package app
 import (
 	"log/slog"
 
-	"github.com/amirasaad/fintech/pkg/handler/common"
 	"github.com/amirasaad/fintech/pkg/service/checkout"
 	exchangeSvc "github.com/amirasaad/fintech/pkg/service/exchange"
 	"github.com/amirasaad/fintech/pkg/service/stripeconnect"
@@ -65,12 +64,22 @@ func New(deps *Deps, cfg *config.App) *App {
 	} else {
 		app.AuthService = auth.NewWithBasic(deps.Uow, deps.Logger)
 	}
+	// Initialize Stripe Connect service
+	if cfg.PaymentProviders != nil && cfg.PaymentProviders.Stripe != nil && deps.Uow != nil {
+		app.StripeConnectService = stripeconnect.New(
+			deps.Uow,
+			deps.Logger,
+			cfg.PaymentProviders.Stripe,
+		)
+		deps.Logger.Info("Stripe Connect service initialized")
+	}
 	// Initialize user service with Unit of Work
 	app.UserService = userSvc.New(deps.Uow, deps.Logger)
 	app.AccountService = account.New(
 		deps.EventBus,
 		deps.Uow,
 		deps.Logger,
+		app.StripeConnectService,
 	)
 
 	// Initialize services with their respective registry providers
@@ -88,22 +97,6 @@ func New(deps *Deps, cfg *config.App) *App {
 		deps.ExchangeRateProvider,
 		deps.Logger,
 	)
-
-	// Initialize Stripe Connect service
-	if cfg.PaymentProviders != nil && cfg.PaymentProviders.Stripe != nil && deps.Uow != nil {
-
-		// Get the user repository using the common helper
-		repo, err := common.GetUserRepository(deps.Uow, deps.Logger)
-		if err != nil {
-			deps.Logger.Error("Failed to get user repository for Stripe Connect", "error", err)
-		} else {
-			app.StripeConnectService = stripeconnect.NewService(
-				repo,
-				cfg.PaymentProviders.Stripe,
-			)
-			deps.Logger.Info("Stripe Connect service initialized")
-		}
-	}
 
 	return app
 }
