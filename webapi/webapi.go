@@ -87,13 +87,29 @@ func SetupApp(app *app.App) *fiber.App {
 		},
 	)
 
+	// Debug endpoint to list all routes
+	fiberApp.Get("/debug/routes", func(c *fiber.Ctx) error {
+		routes := fiberApp.GetRoutes()
+		var routeList []map[string]interface{}
+		for _, route := range routes {
+			if route.Path != "" {
+				routeList = append(routeList, map[string]interface{}{
+					"method": route.Method,
+					"path":   route.Path,
+				})
+			}
+		}
+		return c.JSON(routeList)
+	})
+
 	// Payment event processor for Stripe webhooks
 	fiberApp.Post(
-		"/api/v1/webhooks/stripe",
+		"/stripe/webhooks",
 		payment.StripeWebhookHandler(app.Deps.PaymentProvider),
 	)
 
-	accountweb.Routes(fiberApp, accountSvc, authSvc, app.Config)
+	// Initialize account routes which include Stripe Connect routes
+	accountweb.Routes(fiberApp, accountSvc, authSvc, app.StripeConnectService, app.Config)
 	userweb.Routes(fiberApp, userSvc, authSvc, app.Config)
 	authweb.Routes(fiberApp, authSvc)
 	currencyweb.Routes(fiberApp, currencySvc, authSvc, app.Config)

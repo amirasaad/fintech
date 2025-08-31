@@ -3,8 +3,10 @@ package app
 import (
 	"log/slog"
 
+	"github.com/amirasaad/fintech/pkg/handler/common"
 	"github.com/amirasaad/fintech/pkg/service/checkout"
 	exchangeSvc "github.com/amirasaad/fintech/pkg/service/exchange"
+	"github.com/amirasaad/fintech/pkg/service/stripeconnect"
 
 	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/eventbus"
@@ -15,7 +17,7 @@ import (
 	"github.com/amirasaad/fintech/pkg/service/account"
 	"github.com/amirasaad/fintech/pkg/service/auth"
 	currencyScv "github.com/amirasaad/fintech/pkg/service/currency"
-	"github.com/amirasaad/fintech/pkg/service/user"
+	userSvc "github.com/amirasaad/fintech/pkg/service/user"
 )
 
 // Deps contains all the dependencies needed by the SetupBus function
@@ -35,14 +37,15 @@ type Deps struct {
 }
 
 type App struct {
-	Deps                *Deps
-	Config              *config.App
-	AuthService         *auth.Service
-	UserService         *user.Service
-	AccountService      *account.Service
-	CurrencyService     *currencyScv.Service
-	CheckoutService     *checkout.Service
-	ExchangeRateService *exchangeSvc.Service
+	Deps                 *Deps
+	Config               *config.App
+	AuthService          *auth.Service
+	UserService          *userSvc.Service
+	AccountService       *account.Service
+	CurrencyService      *currencyScv.Service
+	CheckoutService      *checkout.Service
+	ExchangeRateService  *exchangeSvc.Service
+	StripeConnectService stripeconnect.Service
 }
 
 func New(deps *Deps, cfg *config.App) *App {
@@ -62,10 +65,8 @@ func New(deps *Deps, cfg *config.App) *App {
 	} else {
 		app.AuthService = auth.NewWithBasic(deps.Uow, deps.Logger)
 	}
-	app.UserService = user.New(
-		deps.Uow,
-		deps.Logger,
-	)
+	// Initialize user service with Unit of Work
+	app.UserService = userSvc.New(deps.Uow, deps.Logger)
 	app.AccountService = account.New(
 		deps.EventBus,
 		deps.Uow,
@@ -87,6 +88,22 @@ func New(deps *Deps, cfg *config.App) *App {
 		deps.ExchangeRateProvider,
 		deps.Logger,
 	)
+
+	// Initialize Stripe Connect service
+	if cfg.PaymentProviders != nil && cfg.PaymentProviders.Stripe != nil && deps.Uow != nil {
+
+		// Get the user repository using the common helper
+		repo, err := common.GetUserRepository(deps.Uow, deps.Logger)
+		if err != nil {
+			deps.Logger.Error("Failed to get user repository for Stripe Connect", "error", err)
+		} else {
+			app.StripeConnectService = stripeconnect.NewService(
+				repo,
+				cfg.PaymentProviders.Stripe,
+			)
+			deps.Logger.Info("Stripe Connect service initialized")
+		}
+	}
 
 	return app
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/amirasaad/fintech/pkg/money"
 	accountsvc "github.com/amirasaad/fintech/pkg/service/account"
 	authsvc "github.com/amirasaad/fintech/pkg/service/auth"
+	stripeconnectsvc "github.com/amirasaad/fintech/pkg/service/stripeconnect"
 	"github.com/amirasaad/fintech/webapi/common"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/log"
@@ -33,6 +34,7 @@ func Routes(
 	app *fiber.App,
 	accountSvc *accountsvc.Service,
 	authSvc *authsvc.Service,
+	stripeConnectSvc stripeconnectsvc.Service,
 	cfg *config.App,
 ) {
 	// List all accounts for the authenticated user
@@ -63,11 +65,21 @@ func Routes(
 		middleware.JwtProtected(cfg.Auth.Jwt),
 		Transfer(accountSvc, authSvc),
 	)
+	// Get account balance
 	app.Get(
 		"/account/:id/balance",
 		middleware.JwtProtected(cfg.Auth.Jwt),
 		GetBalance(accountSvc, authSvc),
 	)
+
+	// Stripe Connect routes
+	if stripeConnectSvc != nil {
+		stripeHandlers := NewStripeConnectHandlers(stripeConnectSvc, authSvc)
+		jwtMiddleware := middleware.JwtProtected(cfg.Auth.Jwt)
+		// Create a group for all Stripe Connect routes with /stripe prefix
+		stripeGroup := app.Group("/stripe")
+		stripeHandlers.MapRoutes(stripeGroup, jwtMiddleware)
+	}
 	app.Get(
 		"/account/:id/transactions",
 		middleware.JwtProtected(cfg.Auth.Jwt),

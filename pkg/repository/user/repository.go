@@ -39,4 +39,23 @@ type Repository interface {
 
 	// ExistsByUsername checks if a user with the given username exists.
 	ExistsByUsername(ctx context.Context, username string) (bool, error)
+
+	// Stripe Connect related methods
+
+	// GetStripeAccountID gets the Stripe Connect account ID for a user
+	GetStripeAccountID(ctx context.Context, userID uuid.UUID) (string, error)
+
+	// UpdateStripeAccount updates the Stripe Connect account information for a user
+	UpdateStripeAccount(
+		ctx context.Context,
+		userID uuid.UUID,
+		accountID string,
+		onboardingComplete bool,
+	) error
+
+	// GetStripeOnboardingStatus checks if the user has completed Stripe onboarding
+	GetStripeOnboardingStatus(ctx context.Context, userID uuid.UUID) (bool, error)
+
+	// UpdateStripeOnboardingStatus updates the Stripe onboarding status for a user
+	UpdateStripeOnboardingStatus(ctx context.Context, userID uuid.UUID, completed bool) error
 }

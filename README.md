@@ -1,29 +1,15 @@
-<p align="center">
-  <img src="docs/assets/fintech-banner.svg" alt="Fintech Platform Banner" width="600"/>
-</p>
-<h1 align="center">Fintech Platform</h1>
-<h3 align="center">A modern, event-driven fintech platform for learning, prototyping, and experimentation</h3>
+# Fintech Platform
 
-<p align="center">
-  <a href="https://github.com/amirasaad/fintech/actions/workflows/build.yml">
-    <img src="https://github.com/amirasaad/fintech/actions/workflows/build.yml/badge.svg" alt="Build Status"/>
-  </a>
-  <a href="https://goreportcard.com/report/github.com/amirasaad/fintech">
-    <img src="https://goreportcard.com/badge/github.com/amirasaad/fintech" alt="Go Report Card"/>
-  </a>
-  <a href="https://codecov.io/gh/amirasaad/fintech">
-    <img src="https://codecov.io/gh/amirasaad/fintech/branch/main/graph/badge.svg?token=iuU1Fm5BwG" alt="Code Coverage"/>
-  </a>
-  <a href="https://pkg.go.dev/github.com/amirasaad/fintech">
-    <img src="https://pkg.go.dev/badge/github.com/amirasaad/fintech" alt="Go Reference"/>
-  </a>
-  <a href="https://golang.org/dl/">
-    <img src="https://img.shields.io/badge/Go-1.22+-00ADD8?style=flat&logo=go" alt="Go Version"/>
-  </a>
-  <a href="https://github.com/amirasaad/fintech/blob/main/LICENSE">
-    <img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License"/>
-  </a>
-</p>
+![Fintech Platform Banner](docs/assets/fintech-banner.svg)
+
+A modern, event-driven fintech platform for learning, prototyping, and experimentation
+
+[![Build Status](https://github.com/amirasaad/fintech/actions/workflows/build.yml/badge.svg)](https://github.com/amirasaad/fintech/actions/workflows/build.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/amirasaad/fintech)](https://goreportcard.com/report/github.com/amirasaad/fintech)
+[![Code Coverage](https://codecov.io/gh/amirasaad/fintech/branch/main/graph/badge.svg?token=iuU1Fm5BwG)](https://codecov.io/gh/amirasaad/fintech)
+[![Go Reference](https://pkg.go.dev/badge/github.com/amirasaad/fintech.svg)](https://pkg.go.dev/github.com/amirasaad/fintech)
+[![Go Version](https://img.shields.io/badge/Go-1.22+-00ADD8?style=flat&logo=go)](https://golang.org/dl/)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/amirasaad/fintech/blob/main/LICENSE)
 
 > **A modern, event-driven fintech platform for learning, prototyping, and experimentation.**
 
@@ -139,6 +125,43 @@ flowchart TD
 See the full guide: [docs/getting-started.md](docs/getting-started.md)
 
 ---
+
+## 💳 Stripe Connect Onboarding
+
+The platform supports Stripe Connect for payment processing. To onboard a user as a Stripe Connect account:
+
+1. **Initiate Onboarding**
+
+   ```http
+   POST /stripe/onboard
+   Authorization: Bearer <your_jwt_token>
+   ```
+
+   This will return a URL to redirect the user to complete the Stripe Connect onboarding process.
+
+2. **Check Onboarding Status**
+
+   ```http
+   GET /stripe/onboard/status
+   Authorization: Bearer <your_jwt_token>
+   ```
+
+   Returns the onboarding status for the authenticated user.
+
+### Environment Variables
+
+Configure the following in your `.env` file:
+
+```bash
+# Stripe Configuration
+STRIPE_API_KEY=your_stripe_api_key
+STRIPE_SIGNING_SECRET=your_stripe_webhook_secret
+STRIPE_ENV=test  # or "development" or "production"
+STRIPE_SUCCESS_PATH=http://localhost:3000/payment/stripe/success/
+STRIPE_CANCEL_PATH=http://localhost:3000/payment/stripe/cancel/
+STRIPE_ONBOARDING_RETURN_URL=http://localhost:3000/onboarding/return
+STRIPE_ONBOARDING_REFRESH_URL=http://localhost:3000/onboarding/refresh
+```
 
 ## 🧭 Documentation
 

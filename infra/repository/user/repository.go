@@ -176,13 +176,89 @@ func (r *repository) ExistsByUsername(
 	username string,
 ) (bool, error) {
 	var count int64
-	err := r.db.WithContext(
-		ctx,
-	).Model(&User{}).Where("username = ?", username).Count(&count).Error
-	if err != nil {
+	if err := r.db.WithContext(ctx).
+		Model(&User{}).
+		Where("username = ?", username).
+		Count(&count).
+		Error; err != nil {
 		return false, err
 	}
 	return count > 0, nil
+}
+
+// Stripe Connect related methods
+
+func (r *repository) GetStripeAccountID(
+	ctx context.Context,
+	userID uuid.UUID,
+) (string, error) {
+	var user User
+	if err := r.db.WithContext(ctx).
+		Select("stripe_connect_account_id").
+		Where("id = ?", userID).
+		First(&user).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return "", nil
+		}
+		return "", err
+	}
+	return user.StripeConnectAccountID, nil
+}
+
+func (r *repository) UpdateStripeAccount(
+	ctx context.Context,
+	userID uuid.UUID,
+	accountID string,
+	onboardingComplete bool,
+) error {
+	updates := map[string]interface{}{
+		"stripe_connect_account_id": accountID,
+	}
+
+	if onboardingComplete {
+		updates["stripe_connect_onboarding_completed"] = true
+		updates["stripe_connect_account_status"] = "active"
+	}
+
+	return r.db.WithContext(ctx).
+		Model(&User{}).
+		Where("id = ?", userID).
+		Updates(updates).Error
+}
+
+func (r *repository) GetStripeOnboardingStatus(
+	ctx context.Context,
+	userID uuid.UUID,
+) (bool, error) {
+	var user User
+	if err := r.db.WithContext(ctx).
+		Select("stripe_connect_onboarding_completed").
+		Where("id = ?", userID).
+		First(&user).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return false, nil
+		}
+		return false, err
+	}
+	return user.StripeConnectOnboardingCompleted, nil
+}
+
+func (r *repository) UpdateStripeOnboardingStatus(
+	ctx context.Context,
+	userID uuid.UUID,
+	completed bool,
+) error {
+	updates := map[string]interface{}{
+		"stripe_connect_onboarding_completed": completed,
+	}
+	if completed {
+		updates["stripe_connect_account_status"] = "active"
+	}
+
+	return r.db.WithContext(ctx).
+		Model(&User{}).
+		Where("id = ?", userID).
+		Updates(updates).Error
 }
 
 func mapModelToDTO(user *User) *dto.UserRead {

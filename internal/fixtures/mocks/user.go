@@ -555,6 +555,138 @@ func (_c *UserRepository_GetByUsername_Call) RunAndReturn(run func(ctx context.C
 	return _c
 }
 
+// GetStripeAccountID provides a mock function for the type UserRepository
+func (_mock *UserRepository) GetStripeAccountID(ctx context.Context, userID uuid.UUID) (string, error) {
+	ret := _mock.Called(ctx, userID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetStripeAccountID")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (string, error)); ok {
+		return returnFunc(ctx, userID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) string); ok {
+		r0 = returnFunc(ctx, userID)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, userID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// UserRepository_GetStripeAccountID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetStripeAccountID'
+type UserRepository_GetStripeAccountID_Call struct {
+	*mock.Call
+}
+
+// GetStripeAccountID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID uuid.UUID
+func (_e *UserRepository_Expecter) GetStripeAccountID(ctx interface{}, userID interface{}) *UserRepository_GetStripeAccountID_Call {
+	return &UserRepository_GetStripeAccountID_Call{Call: _e.mock.On("GetStripeAccountID", ctx, userID)}
+}
+
+func (_c *UserRepository_GetStripeAccountID_Call) Run(run func(ctx context.Context, userID uuid.UUID)) *UserRepository_GetStripeAccountID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *UserRepository_GetStripeAccountID_Call) Return(s string, err error) *UserRepository_GetStripeAccountID_Call {
+	_c.Call.Return(s, err)
+	return _c
+}
+
+func (_c *UserRepository_GetStripeAccountID_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) (string, error)) *UserRepository_GetStripeAccountID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetStripeOnboardingStatus provides a mock function for the type UserRepository
+func (_mock *UserRepository) GetStripeOnboardingStatus(ctx context.Context, userID uuid.UUID) (bool, error) {
+	ret := _mock.Called(ctx, userID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetStripeOnboardingStatus")
+	}
+
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (bool, error)); ok {
+		return returnFunc(ctx, userID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) bool); ok {
+		r0 = returnFunc(ctx, userID)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, userID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// UserRepository_GetStripeOnboardingStatus_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetStripeOnboardingStatus'
+type UserRepository_GetStripeOnboardingStatus_Call struct {
+	*mock.Call
+}
+
+// GetStripeOnboardingStatus is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID uuid.UUID
+func (_e *UserRepository_Expecter) GetStripeOnboardingStatus(ctx interface{}, userID interface{}) *UserRepository_GetStripeOnboardingStatus_Call {
+	return &UserRepository_GetStripeOnboardingStatus_Call{Call: _e.mock.On("GetStripeOnboardingStatus", ctx, userID)}
+}
+
+func (_c *UserRepository_GetStripeOnboardingStatus_Call) Run(run func(ctx context.Context, userID uuid.UUID)) *UserRepository_GetStripeOnboardingStatus_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *UserRepository_GetStripeOnboardingStatus_Call) Return(b bool, err error) *UserRepository_GetStripeOnboardingStatus_Call {
+	_c.Call.Return(b, err)
+	return _c
+}
+
+func (_c *UserRepository_GetStripeOnboardingStatus_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) (bool, error)) *UserRepository_GetStripeOnboardingStatus_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // List provides a mock function for the type UserRepository
 func (_mock *UserRepository) List(ctx context.Context, page int, pageSize int) ([]*dto.UserRead, error) {
 	ret := _mock.Called(ctx, page, pageSize)
@@ -688,6 +820,138 @@ func (_c *UserRepository_Update_Call) Return(err error) *UserRepository_Update_C
 }
 
 func (_c *UserRepository_Update_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, update *dto.UserUpdate) error) *UserRepository_Update_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateStripeAccount provides a mock function for the type UserRepository
+func (_mock *UserRepository) UpdateStripeAccount(ctx context.Context, userID uuid.UUID, accountID string, onboardingComplete bool) error {
+	ret := _mock.Called(ctx, userID, accountID, onboardingComplete)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateStripeAccount")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, bool) error); ok {
+		r0 = returnFunc(ctx, userID, accountID, onboardingComplete)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// UserRepository_UpdateStripeAccount_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateStripeAccount'
+type UserRepository_UpdateStripeAccount_Call struct {
+	*mock.Call
+}
+
+// UpdateStripeAccount is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID uuid.UUID
+//   - accountID string
+//   - onboardingComplete bool
+func (_e *UserRepository_Expecter) UpdateStripeAccount(ctx interface{}, userID interface{}, accountID interface{}, onboardingComplete interface{}) *UserRepository_UpdateStripeAccount_Call {
+	return &UserRepository_UpdateStripeAccount_Call{Call: _e.mock.On("UpdateStripeAccount", ctx, userID, accountID, onboardingComplete)}
+}
+
+func (_c *UserRepository_UpdateStripeAccount_Call) Run(run func(ctx context.Context, userID uuid.UUID, accountID string, onboardingComplete bool)) *UserRepository_UpdateStripeAccount_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 bool
+		if args[3] != nil {
+			arg3 = args[3].(bool)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *UserRepository_UpdateStripeAccount_Call) Return(err error) *UserRepository_UpdateStripeAccount_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *UserRepository_UpdateStripeAccount_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, accountID string, onboardingComplete bool) error) *UserRepository_UpdateStripeAccount_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateStripeOnboardingStatus provides a mock function for the type UserRepository
+func (_mock *UserRepository) UpdateStripeOnboardingStatus(ctx context.Context, userID uuid.UUID, completed bool) error {
+	ret := _mock.Called(ctx, userID, completed)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateStripeOnboardingStatus")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, bool) error); ok {
+		r0 = returnFunc(ctx, userID, completed)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// UserRepository_UpdateStripeOnboardingStatus_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateStripeOnboardingStatus'
+type UserRepository_UpdateStripeOnboardingStatus_Call struct {
+	*mock.Call
+}
+
+// UpdateStripeOnboardingStatus is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID uuid.UUID
+//   - completed bool
+func (_e *UserRepository_Expecter) UpdateStripeOnboardingStatus(ctx interface{}, userID interface{}, completed interface{}) *UserRepository_UpdateStripeOnboardingStatus_Call {
+	return &UserRepository_UpdateStripeOnboardingStatus_Call{Call: _e.mock.On("UpdateStripeOnboardingStatus", ctx, userID, completed)}
+}
+
+func (_c *UserRepository_UpdateStripeOnboardingStatus_Call) Run(run func(ctx context.Context, userID uuid.UUID, completed bool)) *UserRepository_UpdateStripeOnboardingStatus_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 bool
+		if args[2] != nil {
+			arg2 = args[2].(bool)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *UserRepository_UpdateStripeOnboardingStatus_Call) Return(err error) *UserRepository_UpdateStripeOnboardingStatus_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *UserRepository_UpdateStripeOnboardingStatus_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, completed bool) error) *UserRepository_UpdateStripeOnboardingStatus_Call {
 	_c.Call.Return(run)
 	return _c
 }

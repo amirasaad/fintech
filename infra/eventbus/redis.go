@@ -32,7 +32,7 @@ type RedisEventBusConfig struct {
 // DefaultRedisEventBusConfig returns the default configuration for RedisEventBus
 func DefaultRedisEventBusConfig() *RedisEventBusConfig {
 	return &RedisEventBusConfig{
-		DLQRetryInterval: 5 * time.Minute, // Default to 5 minutes
+		DLQRetryInterval: 1 * time.Second, // Default to 5 minutes
 		DLQBatchSize:     10,              // Process 10 messages per batch
 	}
 }
