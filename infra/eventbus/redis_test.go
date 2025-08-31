@@ -110,7 +110,7 @@ func TestRedisBusMultipleEvents(t *testing.T) {
 	})
 
 	ctx := context.Background()
-	for i := range 3 {
+	for i := 0; i < 3; i++ {
 		err := bus.Emit(ctx, &TestEvent{Message: fmt.Sprintf("msg %d", i)})
 		require.NoError(t, err)
 	}
@@ -145,9 +145,9 @@ func TestRedisBusDLQ(t *testing.T) {
 
 	// Connect to Redis to check the DLQ
 	// We reconstruct the Redis URL as in setupRedisBus
-	// The stream name is "test-stream-DLQ"
+	// The stream name is "dlq:test:event"
 
-	dlqStream := streamNameFor("test.event")
+	dlqStream := dlqStreamName("test.event")
 	res, err := bus.client.XRead(ctx, &redis.XReadArgs{
 		Streams: []string{dlqStream, "0"},
 		Count:   1,
@@ -157,4 +157,45 @@ func TestRedisBusDLQ(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, res, 1)
 	require.Len(t, res[0].Messages, 1)
+}
+
+// TestRedisBusDLQRetry verifies that DLQ retry republishes messages
+// to the original stream and handlers can successfully consume them after a failure.
+func TestRedisBusDLQRetry(t *testing.T) {
+	events.EventTypes["test.event"] = func() events.Event { return &TestEvent{} }
+	bus, cleanup := setupRedisBus(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	// 1) Register a handler that fails initially so the message goes to DLQ
+	fail := true
+	received := make(chan string, 1)
+	bus.Register("test.event", func(ctx context.Context, e events.Event) error {
+		if fail {
+			return fmt.Errorf("temporary failure")
+		}
+		te := e.(*TestEvent)
+		received <- te.Message
+		return nil
+	})
+
+	// Emit the event
+	require.NoError(t, bus.Emit(ctx, &TestEvent{Message: "retry me"}))
+
+	// Wait for it to reach DLQ
+	time.Sleep(1 * time.Second)
+
+	// 2) Switch the behavior to succeed on retry
+	fail = false
+
+	// 3) Trigger DLQ processing explicitly (avoids waiting for the periodic worker)
+	bus.processAllDLQs(ctx)
+
+	select {
+	case msg := <-received:
+		require.Equal(t, "retry me", msg)
+	case <-time.After(3 * time.Second):
+		t.Fatal("DLQ retry did not republish message in time")
+	}
 }

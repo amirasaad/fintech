@@ -109,14 +109,14 @@ func InitializeDependencies(cfg *config.App) (
 	deps.ExchangeRateProvider = exchangeProvider
 
 	// Initialize exchange rates
-	if err := initializeExchangeRates(
+	if eerr := initializeExchangeRates(
 		ctx,
 		exchangeProvider,
 		deps.ExchangeRateRegistry,
 		cfg.ExchangeRateCache,
 		logger,
-	); err != nil {
-		logger.Error("Failed to initialize exchange rates", "error", err)
+	); eerr != nil {
+		logger.Error("Failed to initialize exchange rates", "error", eerr)
 		// Don't fail the entire startup for exchange rate initialization
 	}
 

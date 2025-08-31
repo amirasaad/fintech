@@ -32,7 +32,7 @@ type RedisEventBusConfig struct {
 // DefaultRedisEventBusConfig returns the default configuration for RedisEventBus
 func DefaultRedisEventBusConfig() *RedisEventBusConfig {
 	return &RedisEventBusConfig{
-		DLQRetryInterval: 1 * time.Second, // Default to 5 minutes
+		DLQRetryInterval: 5 * time.Minute, // Check DLQ every 5 minutes
 		DLQBatchSize:     10,              // Process 10 messages per batch
 	}
 }
@@ -79,11 +79,22 @@ func NewWithRedis(
 
 	bus := createRedisEventBus(client, logger, config)
 
-	// Start background DLQ retry worker
-	if err := bus.StartDLQRetryWorker(context.Background()); err != nil {
-		bus.logger.Error("failed to start DLQ retry worker", "error", err)
+	// Start background DLQ retry worker with a background context that's not cancelled
+	// when the parent context is cancelled
+	dlqCtx, cancel := context.WithCancel(context.Background())
+	if err := bus.startDLQRetryWorker(dlqCtx); err != nil {
+		cancel()
+		bus.logger.Error("❌ Failed to start DLQ retry worker", "error", err)
 		return nil, fmt.Errorf("failed to start DLQ retry worker: %w", err)
 	}
+	// Store the cancel function to stop the worker when the bus is closed
+	bus.cancelFunc = cancel
+
+	// Log successful initialization
+	logger.Info("🚀 Redis event bus initialized with DLQ retry worker",
+		"dlq_retry_interval", config.DLQRetryInterval,
+		"dlq_batch_size", config.DLQBatchSize,
+	)
 
 	return bus, nil
 }
@@ -125,8 +136,10 @@ func (b *RedisEventBus) Register(
 		"registering handler",
 		"event_type", eventType,
 	)
+	b.logger.Debug("registering handler", "event_type", eventType)
+	ctx := context.Background()
 	b.registerHandler(eventType, handler)
-	if err := b.startConsumerForEvent(eventType); err != nil {
+	if err := b.startConsumerForEvent(ctx, eventType); err != nil {
 		if !errors.Is(err, redis.Nil) {
 			b.logger.Error(
 				"error reading from stream",
@@ -144,20 +157,21 @@ func createRedisEventBus(
 	config *RedisEventBusConfig,
 ) *RedisEventBus {
 	return &RedisEventBus{
-		client:      client,
-		handlers:    make(map[events.EventType][]eventbus.HandlerFunc),
-		logger:      logger.With("bus", "redis"),
-		config:      config,
-		dlqStopChan: make(chan struct{}),
-		dlqStopped:  make(chan struct{}),
+		client:   client,
+		handlers: make(map[events.EventType][]eventbus.HandlerFunc),
+		logger:   logger.With("bus", "redis"),
+		config:   config,
+		// channels will be initialized when the DLQ worker actually starts
+		dlqStopChan: nil,
+		dlqStopped:  nil,
 	}
 }
 
 // initializeConsumerGroup ensures group exists and cleans up idle consumers.
 func (b *RedisEventBus) initializeConsumerGroup(
+	ctx context.Context,
 	eventType events.EventType,
 ) error {
-	ctx := context.Background()
 	group := groupNameFor(eventType)
 	stream := streamNameFor(eventType)
 	if err := b.ensureConsumerGroup(ctx, stream, group); err != nil {
@@ -178,12 +192,13 @@ func (b *RedisEventBus) validateClient() error {
 // startConsumerForEvent derives group/consumer names and starts consuming for
 // eventType.
 func (b *RedisEventBus) startConsumerForEvent(
+	ctx context.Context,
 	eventType events.EventType,
 ) error {
-	if err := b.initializeConsumerGroup(eventType); err != nil {
+	if err := b.initializeConsumerGroup(ctx, eventType); err != nil {
 		return err
 	}
-	b.startConsuming(eventType)
+	b.startConsuming(ctx, eventType)
 	return nil
 }
 
@@ -211,7 +226,7 @@ func (b *RedisEventBus) ensureConsumerGroup(
 		ctx,
 		stream,
 		group,
-		"$",
+		"0", // start from the beginning so existing messages are consumable
 	).Err()
 	if err != nil && !strings.Contains(err.Error(), "BUSYGROUP") {
 		return fmt.Errorf("failed to create consumer group: %w", err)
@@ -315,13 +330,14 @@ func (b *RedisEventBus) ensureHandlersMap() {
 }
 
 // startConsuming starts a goroutine to consume events for the given eventType.
-func (b *RedisEventBus) startConsuming(eventType events.EventType) {
-	go b.consume(eventType)
+func (b *RedisEventBus) startConsuming(ctx context.Context, eventType events.EventType) {
+	go b.consume(ctx, eventType)
 }
 
 // consume starts consuming messages from the
 // Redis stream and routes them to the appropriate handlers.
 func (b *RedisEventBus) consume(
+	ctx context.Context,
 	eventType events.EventType,
 ) {
 	stream := streamNameFor(eventType)
@@ -336,8 +352,6 @@ func (b *RedisEventBus) consume(
 	)
 
 	for {
-		ctx := context.Background()
-
 		// Read messages from the stream
 		messages, err := b.readStream(ctx, stream, group, consumer)
 		if err != nil {
@@ -393,7 +407,11 @@ func (b *RedisEventBus) readStream(
 }
 
 // processMessage processes a single message from the Redis stream.
-func (b *RedisEventBus) processMessage(ctx context.Context, group string, msg redis.XMessage) {
+func (b *RedisEventBus) processMessage(
+	ctx context.Context,
+	group string,
+	msg redis.XMessage,
+) {
 	b.logger.Debug("📥 Processing message",
 		"msg_id", msg.ID,
 		"group", group,
@@ -493,6 +511,14 @@ func (b *RedisEventBus) processMessage(ctx context.Context, group string, msg re
 			"msg_id", msg.ID,
 		)
 		b.pushToDLQ(ctx, evtType, msg.Values)
+		// Ack the original message to avoid reprocessing duplicates endlessly
+		if err := b.ackMessage(ctx, evtType, group, msg.ID); err != nil {
+			b.logger.Error(
+				"failed to ack message after DLQ push",
+				"error", err,
+				"msg_id", msg.ID,
+			)
+		}
 	}
 }
 
@@ -566,8 +592,17 @@ func (b *RedisEventBus) pushToDLQ(
 	values map[string]any,
 ) {
 	dlqStream := dlqStreamName(eventType)
+	b.logger.Info("pushing message to DLQ",
+		"event_type", eventType,
+		"dlq_stream", dlqStream,
+	)
 	if err := b.publishToStream(ctx, dlqStream, values); err != nil {
 		b.logDLQResult(err, dlqStream, values)
+	} else {
+		b.logger.Info("successfully pushed message to DLQ",
+			"event_type", eventType,
+			"dlq_stream", dlqStream,
+		)
 	}
 }
 
@@ -605,152 +640,407 @@ func (b *RedisEventBus) logDLQResult(
 	}
 }
 
-// StartDLQRetryWorker starts a background worker that periodically processes DLQ messages
+// startDLQRetryWorker starts a background worker that periodically processes DLQ messages
 // for all event types. The worker will run until
 // the context is cancelled or StopDLQRetryWorker is called.
 //
 // This method is idempotent - calling it multiple times will
 // have no effect if the worker is already running.
-func (b *RedisEventBus) StartDLQRetryWorker(ctx context.Context) error {
+// If the worker is not running but channels exist from a previous run, they will be cleaned up.
+// startDLQRetryWorker starts a background worker that processes DLQ messages.
+// It's safe to call this method multiple times - it will only start one worker.
+// The worker will run until the context is cancelled or StopDLQRetryWorker is called.
+func (b *RedisEventBus) startDLQRetryWorker(ctx context.Context) error {
 	b.dlqMtx.Lock()
 	defer b.dlqMtx.Unlock()
 
+	// Add a debug log to track when this function is called
+	b.logger.Debug("startDLQRetryWorker called",
+		"dlq_retry_interval", b.config.DLQRetryInterval,
+	)
+
 	// If worker is already running, return nil to make this call idempotent
 	if b.dlqStopChan != nil {
-		b.logger.Debug("DLQ retry worker is already running")
-		return nil
+		// Check if the worker is actually running by checking if the stopped channel is closed
+		select {
+		case <-b.dlqStopped:
+			// Worker has stopped, clean up and continue to restart
+			b.logger.Info("previous DLQ worker has stopped, cleaning up and restarting")
+			// Reset channels to allow restart
+			b.dlqStopChan = nil
+			b.dlqStopped = nil
+		default:
+			// Worker is still running, no action needed
+			b.logger.Info("DLQ retry worker is already running",
+				"dlq_retry_interval", b.config.DLQRetryInterval,
+				"dlq_batch_size", b.config.DLQBatchSize,
+			)
+			return nil
+		}
 	}
 
+	// Create new channels for this worker instance
 	b.dlqStopChan = make(chan struct{})
 	b.dlqStopped = make(chan struct{})
-	ctx, b.cancelFunc = context.WithCancel(ctx)
+
+	// Create a new context that will be cancelled when the worker is stopped
+	var cancelCtx context.Context
+	cancelCtx, b.cancelFunc = context.WithCancel(ctx)
+
+	// Log the worker startup with configuration details
+	b.logger.Info("Starting DLQ retry worker",
+		"dlq_retry_interval", b.config.DLQRetryInterval,
+		"dlq_batch_size", b.config.DLQBatchSize,
+		"num_event_types", len(events.EventTypes),
+	)
 
 	b.wg.Add(1)
-	go func() {
-		defer b.wg.Done()
-		defer close(b.dlqStopped)
+	go func(ctx context.Context, logger *slog.Logger) {
+		logger.Info("Starting DLQ retry worker",
+			"interval", b.config.DLQRetryInterval,
+			"batch_size", b.config.DLQBatchSize)
+
+		defer func() {
+			if r := recover(); r != nil {
+				err := fmt.Errorf("panic in DLQ worker: %v", r)
+				logger.Error(
+					"DLQ retry worker panicked",
+					"error", err)
+			}
+			// Always signal stopped and mark WaitGroup done
+			close(b.dlqStopped)
+			b.wg.Done()
+			// Ensure we don't leave any pending messages when shutting down
+			if ctx.Err() == nil {
+				b.processAllDLQs(context.Background())
+			}
+			logger.Info("DLQ retry worker stopped")
+		}()
 
 		ticker := time.NewTicker(b.config.DLQRetryInterval)
 		defer ticker.Stop()
 
-		b.logger.Info("started DLQ retry worker", "interval", b.config.DLQRetryInterval)
+		// Run immediately on start
+		logger.Info("Running initial DLQ processing")
+		b.processAllDLQs(ctx)
 
 		for {
 			select {
 			case <-ctx.Done():
-				b.logger.Info("stopping DLQ retry worker: context cancelled")
+				logger.Info("stopping DLQ retry worker: context cancelled")
 				return
 			case <-b.dlqStopChan:
-				b.logger.Info("stopping DLQ retry worker: stop requested")
+				logger.Info("stopping DLQ retry worker: stop requested")
 				return
 			case <-ticker.C:
+				logger.Debug("DLQ retry worker tick - processing DLQs")
+				start := time.Now()
 				b.processAllDLQs(ctx)
+				logger.Debug("DLQ processing completed", "duration", time.Since(start))
 			}
+		}
+	}(cancelCtx, b.logger)
+
+	// Start a goroutine to clean up when the worker stops
+	go func() {
+		<-b.dlqStopped
+		b.dlqMtx.Lock()
+		defer b.dlqMtx.Unlock()
+
+		// Only clean up if the channels still point to the ones we created
+		if b.dlqStopChan != nil && b.dlqStopped != nil {
+			b.dlqStopChan = nil
+			b.dlqStopped = nil
 		}
 	}()
 
 	return nil
 }
 
-// StopDLQRetryWorker stops the background DLQ retry worker and waits for it to complete.
-// It returns an error if the worker was not running.
-func (b *RedisEventBus) StopDLQRetryWorker() error {
-	if b.dlqStopChan == nil {
-		return fmt.Errorf("DLQ retry worker is not running")
-	}
-
-	close(b.dlqStopChan)
-	if b.cancelFunc != nil {
-		b.cancelFunc()
-	}
-
-	// Wait for the worker to stop
-	<-b.dlqStopped
-	b.dlqStopChan = nil
-	b.dlqStopped = nil
-
-	return nil
-}
-
 // processAllDLQs processes DLQ messages for all registered event types
 func (b *RedisEventBus) processAllDLQs(ctx context.Context) {
+	if ctx.Err() != nil {
+		b.logger.Debug("skipping DLQ processing: context cancelled")
+		return
+	}
+
+	b.logger.Debug("processing DLQs for all event types",
+		"num_event_types", len(events.EventTypes),
+		"batch_size", b.config.DLQBatchSize,
+	)
+
+	// Ensure DLQ consumer group exists for each event type
 	for eventType := range events.EventTypes {
-		stream := streamNameFor(eventType)
 		dlq := dlqStreamName(eventType)
+		b.logger.Debug("ensuring consumer group for DLQ",
+			"event_type", eventType,
+			"dlq_stream", dlq,
+		)
+		if err := b.ensureConsumerGroup(ctx, dlq, "dlq-retry-worker"); err != nil {
+			b.logger.Error("failed to ensure DLQ consumer group",
+				"error", err,
+				"dlq_stream", dlq,
+				"group", "dlq-retry-worker",
+			)
+		} else {
+			b.logger.Debug("successfully ensured consumer group for DLQ",
+				"event_type", eventType,
+				"dlq_stream", dlq,
+			)
+		}
+	}
+
+	processedAny := false
+	for eventType := range events.EventTypes {
+		dlq := dlqStreamName(eventType)
+
+		// Check if DLQ exists and has messages before processing
+		exists, err := b.client.Exists(ctx, dlq).Result()
+		if err != nil {
+			b.logger.Error("failed to check DLQ existence",
+				"error", err,
+				"dlq_stream", dlq,
+			)
+			continue
+		}
+
+		if exists == 0 {
+			// DLQ doesn't exist for this event type, skip
+			b.logger.Debug("DLQ does not exist, skipping",
+				"event_type", eventType,
+				"dlq_stream", dlq,
+			)
+			continue
+		}
+
+		// Check if there are any messages in the DLQ
+		streamLen, err := b.client.XLen(ctx, dlq).Result()
+		if err != nil {
+			b.logger.Error("failed to get DLQ length",
+				"error", err,
+				"dlq_stream", dlq,
+			)
+			continue
+		}
+
+		if streamLen == 0 {
+			b.logger.Debug("📭 DLQ is empty, skipping",
+				"event_type", eventType,
+				"dlq_stream", dlq,
+			)
+			continue
+		}
+
+		stream := streamNameFor(eventType)
+		b.logger.Info("🔄 Processing DLQ messages",
+			"event_type", eventType,
+			"dlq_stream", dlq,
+			"target_stream", stream,
+			"message_count", streamLen,
+		)
 
 		if err := b.retryDLQ(ctx, dlq, stream, b.config.DLQBatchSize); err != nil {
-			b.logger.Error(
-				"failed to retry DLQ messages",
+			b.logger.Error("❌ Failed to process DLQ messages",
+				"event_type", eventType,
 				"error", err,
-				"dlq", dlq,
-				"stream", stream,
+			)
+		} else {
+			processedAny = true
+			b.logger.Info("✅ Successfully processed DLQ messages",
+				"event_type", eventType,
+				"dlq_stream", dlq,
+				"message_count", streamLen,
 			)
 		}
 	}
-}
 
-func (b *RedisEventBus) StartDLQRetryWorkersFromEventTypes(ctx context.Context) {
-
-	for eventType := range events.EventTypes {
-		stream := streamNameFor(eventType)
-		dlq := dlqStreamName(eventType)
-
-		// Retry worker reads from DLQ and re-publishes to original stream
-		if err := b.retryDLQ(ctx, dlq, stream, 10); err != nil {
-			b.logger.Error(
-				"failed to retry DLQ messages",
-				"error", err,
-				"dlq", dlq,
-				"stream", stream,
-			)
-		}
+	if !processedAny {
+		b.logger.Debug("📭 No DLQ messages to process")
 	}
 }
 
+// retryDLQ reads messages from the DLQ and republishes them to the original stream
 func (b *RedisEventBus) retryDLQ(
 	ctx context.Context,
 	dlqStream,
 	originalStream string,
 	count int64,
 ) error {
-	entries, err := b.client.XRangeN(
-		ctx,
-		dlqStream,
-		"-",
-		"+",
-		count,
-	).Result()
+	// Add a timeout to prevent hanging
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	b.logger.Debug("attempting to retry DLQ messages",
+		"dlq_stream", dlqStream,
+		"target_stream", originalStream,
+		"batch_size", count,
+	)
+
+	// First check if the DLQ stream exists
+	exists, err := b.client.Exists(ctx, dlqStream).Result()
 	if err != nil {
+		b.logger.Error("failed to check DLQ existence",
+			"error", err,
+			"dlq_stream", dlqStream,
+		)
+		return fmt.Errorf("failed to check DLQ existence: %w", err)
+	}
+	if exists == 0 {
+		b.logger.Debug("DLQ stream does not exist, nothing to process",
+			"dlq_stream", dlqStream,
+		)
+		return nil
+	}
+
+	// Get stream length for debugging
+	streamLen, err := b.client.XLen(ctx, dlqStream).Result()
+	if err != nil {
+		b.logger.Warn("failed to get DLQ stream length",
+			"error", err,
+			"dlq_stream", dlqStream,
+		)
+	} else {
+		b.logger.Debug("DLQ stream status",
+			"dlq_stream", dlqStream,
+			"message_count", streamLen,
+		)
+	}
+
+	// Read messages from DLQ with a smaller batch size if count is too large
+	if count <= 0 || count > 100 {
+		count = 10 // Default to a reasonable batch size
+	}
+
+	b.logger.Debug("reading messages from DLQ",
+		"dlq_stream", dlqStream,
+		"batch_size", count,
+	)
+
+	// Use XReadGroup to read from DLQ to prevent message loss
+	streams, err := b.client.XReadGroup(ctx, &redis.XReadGroupArgs{
+		Group:    "dlq-retry-worker",
+		Consumer: "dlq-consumer",
+		Streams:  []string{dlqStream, ">"},
+		Count:    count,
+		Block:    100 * time.Millisecond,
+	}).Result()
+
+	var entries []redis.XMessage
+	if err == nil && len(streams) > 0 {
+		entries = streams[0].Messages
+	}
+	if err != nil {
+		b.logger.Error("failed reading from DLQ",
+			"error", err,
+			"dlq_stream", dlqStream,
+		)
 		return fmt.Errorf("failed reading from DLQ: %w", err)
 	}
 
+	// If no entries were delivered to the group (common when group created after messages existed),
+	// fall back to a direct XREAD from the beginning to process backlog.
+	if len(entries) == 0 {
+		b.logger.Debug("no group messages; attempting backlog read from start",
+			"dlq_stream", dlqStream,
+			"batch_size", count,
+		)
+		raw, rerr := b.client.XRead(ctx, &redis.XReadArgs{
+			Streams: []string{dlqStream, "0"},
+			Count:   count,
+			Block:   0,
+		}).Result()
+		if rerr != nil && !errors.Is(rerr, redis.Nil) {
+			b.logger.Error("failed backlog read from DLQ",
+				"error", rerr,
+				"dlq_stream", dlqStream,
+			)
+			return fmt.Errorf("failed backlog read from DLQ: %w", rerr)
+		}
+		if len(raw) > 0 {
+			entries = raw[0].Messages
+		}
+	}
+
+	if len(entries) == 0 {
+		b.logger.Debug("no messages found in DLQ",
+			"dlq_stream", dlqStream,
+		)
+		return nil
+	}
+
+	b.logger.Info("found messages in DLQ",
+		"count", len(entries),
+		"dlq_stream", dlqStream,
+	)
+
+	var retryCount int
+	var lastErr error
+
+	// Process each message
 	for _, entry := range entries {
-		data := entry.Values["event"]
-		if data == nil {
+		data, ok := entry.Values["event"]
+		if !ok || data == nil {
+			b.logger.Warn("DLQ message missing event data", "message_id", entry.ID)
 			continue
 		}
 
+		// Republish to original stream
 		if _, err := b.client.XAdd(ctx, &redis.XAddArgs{
 			Stream: originalStream,
 			Values: map[string]any{"event": data},
 		}).Result(); err != nil {
-			return fmt.Errorf("failed retrying DLQ event: %w", err)
+			lastErr = fmt.Errorf("failed to republish message %s: %w", entry.ID, err)
+			b.logger.Error("Failed to republish DLQ message",
+				"error", err,
+				"message_id", entry.ID,
+				"dlq_stream", dlqStream,
+				"target_stream", originalStream,
+			)
+			continue
 		}
 
-		// Delete the message from the DLQ after retry
-		if _, err := b.client.XDel(ctx, dlqStream, entry.ID).Result(); err != nil {
-			b.logger.Error(
-				"failed to delete retried message from DLQ",
+		// Acknowledge the message in the DLQ after successful republish
+		if _, err := b.client.XAck(
+			ctx,
+			dlqStream,
+			"dlq-retry-worker",
+			entry.ID,
+		).Result(); err != nil {
+			b.logger.Error("Failed to acknowledge message in DLQ",
 				"error", err,
-				"msg_id", entry.ID,
+				"message_id", entry.ID,
+				"dlq_stream", dlqStream,
 			)
 		}
+
+		// Also try to delete the message to prevent DLQ from growing
+		if _, err := b.client.XDel(
+			ctx,
+			dlqStream,
+			entry.ID,
+		).Result(); err != nil {
+			// Log but don't fail the entire batch if delete fails
+			b.logger.Warn("Failed to delete retried message from DLQ",
+				"error", err,
+				"message_id", entry.ID,
+				"dlq_stream", dlqStream,
+			)
+		}
+
+		retryCount++
 	}
-	b.logger.Debug(
-		"✅ Successfully retried DLQ messages",
-		"count", count,
-		"dlq_stream", dlqStream,
-		"original_stream", originalStream,
-	)
+
+	if retryCount > 0 {
+		b.logger.Info("✅ Successfully retried DLQ messages",
+			"count", retryCount,
+			"dlq_stream", dlqStream,
+			"target_stream", originalStream,
+		)
+	}
+
+	// Return the last error if all retries failed
+	if retryCount == 0 && lastErr != nil {
+		return fmt.Errorf("failed to retry any messages: %w", lastErr)
+	}
+
 	return nil
 }
