@@ -1,6 +1,8 @@
 package account
 
 import (
+	"strings"
+
 	"github.com/amirasaad/fintech/pkg/commands"
 	"github.com/amirasaad/fintech/pkg/config"
 	"github.com/amirasaad/fintech/pkg/dto"
@@ -33,6 +35,14 @@ func Routes(
 	authSvc *authsvc.Service,
 	cfg *config.App,
 ) {
+	// List all accounts for the authenticated user
+	app.Get(
+		"/accounts",
+		middleware.JwtProtected(cfg.Auth.Jwt),
+		ListUserAccounts(accountSvc, authSvc),
+	)
+
+	// Create a new account
 	app.Post(
 		"/account",
 		middleware.JwtProtected(cfg.Auth.Jwt),
@@ -63,6 +73,52 @@ func Routes(
 		middleware.JwtProtected(cfg.Auth.Jwt),
 		GetTransactions(accountSvc, authSvc),
 	)
+}
+
+// ListUserAccounts returns a Fiber handler that retrieves all accounts for the authenticated user.
+// @Summary List user accounts
+// @Description Retrieves all accounts belonging to the authenticated user.
+// @Tags accounts
+// @Accept json
+// @Produce json
+// @Success 200 {object} common.Response{data=[]dto.AccountRead} "List of user accounts"
+// @Failure 401 {object} common.ProblemDetails "Unauthorized"
+// @Failure 500 {object} common.ProblemDetails "Internal server error"
+// @Router /accounts [get]
+// @Security Bearer
+func ListUserAccounts(
+	accountSvc *accountsvc.Service,
+	authSvc *authsvc.Service,
+) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		token, ok := c.Locals("user").(*jwt.Token)
+		if !ok {
+			return common.ProblemDetailsJSON(c, "Unauthorized", nil, "missing user context")
+		}
+
+		userID, err := authSvc.GetCurrentUserId(token)
+		if err != nil {
+			log.Errorf("Failed to parse user ID from token: %v", err)
+			return common.ProblemDetailsJSON(c, "Invalid user ID", err)
+		}
+
+		accounts, err := accountSvc.ListUserAccounts(c.Context(), userID)
+		if err != nil {
+			log.Errorf("Failed to list user accounts: %v", err)
+			return common.ProblemDetailsJSON(c, "Failed to list accounts", err)
+		}
+
+		if accounts == nil {
+			accounts = []*dto.AccountRead{} // Return empty array instead of null
+		}
+
+		return common.SuccessResponseJSON(
+			c,
+			fiber.StatusOK,
+			"Accounts retrieved successfully",
+			accounts,
+		)
+	}
 }
 
 // CreateAccount returns a Fiber handler for creating a new account for the current user.
@@ -115,6 +171,15 @@ func CreateAccount(
 		)
 		if err != nil {
 			log.Errorf("Failed to create account: %v", err)
+			if strings.Contains(err.Error(), "user already has an account with currency") {
+				return common.ProblemDetailsJSON(
+					c,
+					"Account creation failed",
+					err,
+					"You already have an account with this currency.",
+					fiber.StatusConflict, // 409 Conflict
+				)
+			}
 			return common.ProblemDetailsJSON(c, "Failed to create account", err)
 		}
 		log.Infof("Account created: %+v")
@@ -280,7 +345,7 @@ func Withdraw(
 		if input.Currency != "" {
 			currencyCode = money.Code(input.Currency)
 		}
-		err = accountSvc.Withdraw(c.Context(), commands.Withdraw{
+		if err = accountSvc.Withdraw(c.Context(), commands.Withdraw{
 			UserID:    userID,
 			AccountID: accountID,
 			Amount:    input.Amount,
@@ -290,10 +355,10 @@ func Withdraw(
 				RoutingNumber:         input.ExternalTarget.RoutingNumber,
 				ExternalWalletAddress: input.ExternalTarget.ExternalWalletAddress,
 			},
-		})
-		if err != nil {
+		}); err != nil {
 			return common.ProblemDetailsJSON(c, "Failed to withdraw", err)
 		}
+
 		return common.SuccessResponseJSON(
 			c,
 			fiber.StatusAccepted,

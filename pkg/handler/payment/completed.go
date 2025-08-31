@@ -33,13 +33,20 @@ func HandleCompleted(
 		ctx context.Context,
 		e events.Event,
 	) error {
+		if logger == nil {
+			logger = slog.Default()
+		}
 		log := logger.With(
 			"handler", "payment.HandleCompleted",
+			"event", e,
 			"event_type", e.Type(),
 		)
 		log.Info(
 			"🟢 [START] HandleCompleted received event",
+		)
+		log.Debug("🟢 Handling PaymentCompleted event",
 			"event_type", e.Type(),
+			"event", fmt.Sprintf("%+v", e),
 		)
 		pc, ok := e.(*events.PaymentCompleted)
 		if !ok {
@@ -55,6 +62,7 @@ func HandleCompleted(
 			"payment_id", *pc.PaymentID,
 			"transaction_id", pc.TransactionID,
 		)
+
 		if err := uow.Do(ctx, func(uow repository.UnitOfWork) error {
 			accRepo, err := common.GetAccountRepository(uow, log)
 			if err != nil {
@@ -93,12 +101,12 @@ func HandleCompleted(
 					update := dto.TransactionUpdate{
 						PaymentID: pc.PaymentID,
 					}
-					if err := txRepo.Update(ctx, tx.ID, update); err != nil {
+					if uerr := txRepo.Update(ctx, tx.ID, update); err != nil {
 						log.Error(
 							"failed to update transaction with payment ID",
 							"transaction_id", tx.ID,
 							"payment_id", pc.PaymentID,
-							"error", err,
+							"error", uerr,
 						)
 						return fmt.Errorf("failed to update transaction: %w", err)
 					}

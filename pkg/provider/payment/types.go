@@ -1,8 +1,10 @@
 package payment
 
-import "github.com/google/uuid"
+import (
+	"github.com/google/uuid"
+)
 
-// PaymentStatus represents the status of a payment in the mock provider.
+// PaymentStatus represents the status of a payment.
 type PaymentStatus string
 
 const (
@@ -14,15 +16,30 @@ const (
 	PaymentFailed PaymentStatus = "failed"
 )
 
-// PaymentEvent represents a payment event from Stripe.
+// PaymentEventType represents the type of payment event.
+type PaymentEventType string
+
+const (
+	// EventTypePaymentIntentSucceeded is emitted when a payment intent succeeds.
+	EventTypePaymentIntentSucceeded PaymentEventType = "payment_intent.succeeded"
+	// EventTypePaymentIntentFailed is emitted when a payment intent fails.
+	EventTypePaymentIntentFailed PaymentEventType = "payment_intent.failed"
+	// EventTypePayoutPaid is emitted when a payout is paid.
+	EventTypePayoutPaid PaymentEventType = "payout.paid"
+	// EventTypePayoutFailed is emitted when a payout fails.
+	EventTypePayoutFailed PaymentEventType = "payout.failed"
+)
+
+// PaymentEvent represents a payment-related event from the payment provider.
 type PaymentEvent struct {
-	ID        string
-	Status    PaymentStatus
-	Amount    int64
-	Currency  string
-	UserID    uuid.UUID
-	AccountID uuid.UUID
-	Metadata  map[string]string
+	ID            string
+	TransactionID uuid.UUID
+	Status        PaymentStatus
+	Amount        int64
+	Currency      string
+	UserID        uuid.UUID
+	AccountID     uuid.UUID
+	Metadata      map[string]string
 }
 
 // InitiatePaymentParams holds the parameters for the InitiatePayment method.
@@ -51,4 +68,53 @@ type UpdatePaymentStatusParams struct {
 	TransactionID uuid.UUID
 	PaymentID     string
 	Status        PaymentStatus
+}
+
+// PayoutDestinationType represents the type of destination for a payout
+type PayoutDestinationType string
+
+const (
+	// PayoutDestinationBankAccount represents a bank account payout destination
+	PayoutDestinationBankAccount PayoutDestinationType = "bank_account"
+	// PayoutDestinationExternalWallet represents an external wallet payout destination
+	PayoutDestinationExternalWallet PayoutDestinationType = "external_wallet"
+)
+
+// PayoutDestination represents the destination for a payout
+type PayoutDestination struct {
+	Type           PayoutDestinationType
+	BankAccount    *BankAccountDetails `json:"bank_account,omitempty"`
+	ExternalWallet *string             `json:"external_wallet,omitempty"`
+}
+
+// BankAccountDetails contains bank account information for payouts
+type BankAccountDetails struct {
+	AccountNumber     string `json:"account_number"`
+	RoutingNumber     string `json:"routing_number"`
+	AccountHolderName string `json:"account_holder_name"`
+}
+
+// InitiatePayoutParams holds the parameters for initiating a payout
+type InitiatePayoutParams struct {
+	UserID            uuid.UUID
+	AccountID         uuid.UUID
+	PaymentProviderID string
+	TransactionID     uuid.UUID
+	Amount            int64
+	Currency          string
+	Destination       PayoutDestination
+	Description       string
+	Metadata          map[string]string
+}
+
+// InitiatePayoutResponse represents the response from initiating a payout
+type InitiatePayoutResponse struct {
+	PayoutID             string
+	PaymentProviderID    string
+	Status               PaymentStatus
+	Amount               int64
+	Currency             string
+	FeeAmount            int64
+	FeeCurrency          string
+	EstimatedArrivalDate int64 // Unix timestamp
 }

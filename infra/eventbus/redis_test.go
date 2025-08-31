@@ -28,40 +28,43 @@ func (e *TestEvent) Type() string {
 // setupRedisBus starts a Redis container using testcontainers-go and returns a
 // RedisEventBus and a cleanup function.
 
-func setupRedisBus(t interface {
-	testing.TB
-	Cleanup(func())
-}) (*RedisEventBus, func()) {
+func setupRedisBus(tb testing.TB) (*RedisEventBus, func()) {
+	tb.Helper()
 	ctx := context.Background()
 	req := testcontainers.ContainerRequest{
-		Image:        "redis:latest",
+		Image:        "redis:7.0.5",
 		ExposedPorts: []string{"6379/tcp"},
 		WaitingFor:   wait.ForLog("Ready to accept connections"),
 	}
-	redisC, err := testcontainers.GenericContainer(ctx,
-		testcontainers.GenericContainerRequest{
-			ContainerRequest: req,
-			Started:          true,
-		})
-	require.NoError(t, err)
-	host, err := redisC.Host(ctx)
-	require.NoError(t, err)
-	port, err := redisC.MappedPort(ctx, "6379")
-	require.NoError(t, err)
-	container, err := testcontainers.GenericContainer(ctx,
-		testcontainers.GenericContainerRequest{
-			ContainerRequest: req,
-			Started:          true,
-		})
-	require.NoError(t, err)
+
+	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+		ContainerRequest: req,
+		Started:          true,
+	})
+	if err != nil {
+		tb.Fatalf("Failed to start container: %v", err)
+	}
+
+	port, err := container.MappedPort(ctx, "6379")
+	if err != nil {
+		tb.Fatalf("Failed to get mapped port: %v", err)
+	}
+
+	host, err := container.Host(ctx)
+	if err != nil {
+		tb.Fatalf("Failed to get container host: %v", err)
+	}
+
 	url := "redis://" + host + ":" + port.Port()
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
-	bus, err := NewWithRedis(url, logger)
-	require.NoError(t, err)
+	// Use default config for tests
+	bus, err := NewWithRedis(url, logger, nil)
+	if err != nil {
+		tb.Fatalf("Failed to create Redis event bus: %v", err)
+	}
 
 	cleanup := func() {
-		testcontainers.CleanupContainer(t, redisC)
 		_ = container.Terminate(ctx)
 	}
 	return bus, cleanup

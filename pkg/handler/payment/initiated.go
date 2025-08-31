@@ -25,6 +25,10 @@ func HandleInitiated(
 			"handler", "payment.HandleInitiated",
 			"event_type", e.Type(),
 		)
+		log.Debug("🔄 Handling PaymentInitiated event",
+			"event_type", e.Type(),
+			"event", fmt.Sprintf("%+v", e),
+		)
 		pi, ok := e.(*events.PaymentInitiated)
 		if !ok {
 			log.Error(

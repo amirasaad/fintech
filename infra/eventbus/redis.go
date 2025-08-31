@@ -21,28 +21,70 @@ type envelope struct {
 }
 
 // RedisEventBus implements a production-ready event bus using Redis Streams.
+// RedisEventBusConfig holds configuration for the Redis event bus
+type RedisEventBusConfig struct {
+	// DLQRetryInterval specifies how often to retry DLQ messages
+	DLQRetryInterval time.Duration
+	// DLQBatchSize specifies how many messages to process in each batch
+	DLQBatchSize int64
+}
+
+// DefaultRedisEventBusConfig returns the default configuration for RedisEventBus
+func DefaultRedisEventBusConfig() *RedisEventBusConfig {
+	return &RedisEventBusConfig{
+		DLQRetryInterval: 5 * time.Minute, // Default to 5 minutes
+		DLQBatchSize:     10,              // Process 10 messages per batch
+	}
+}
+
 type RedisEventBus struct {
 	client      *redis.Client
 	handlers    map[events.EventType][]eventbus.HandlerFunc
 	handlersMtx sync.RWMutex
+	dlqMtx      sync.Mutex // Protects DLQ-related fields
 	logger      *slog.Logger
+	config      *RedisEventBusConfig
+	cancelFunc  context.CancelFunc
+	wg          sync.WaitGroup
+	dlqStopChan chan struct{}
+	dlqStopped  chan struct{}
 }
 
 // NewWithRedis creates a new Redis-backed event bus.
 // url: Redis connection URL (e.g., "redis://localhost:6379")
+// config: Optional configuration. If nil, default values will be used.
 func NewWithRedis(
 	url string,
 	logger *slog.Logger,
+	config *RedisEventBusConfig,
 ) (*RedisEventBus, error) {
 	if url == "" {
 		return nil, fmt.Errorf("redis event bus: url is required")
 	}
+
+	// Use default config if none provided
+	if config == nil {
+		config = DefaultRedisEventBusConfig()
+	}
+
 	client, err := setupRedisClient(url)
 	if err != nil {
 		return nil, err
 	}
-	bus := createRedisEventBus(client, logger)
-	bus.StartDLQRetryWorkersFromEventTypes(context.Background())
+
+	// Initialize logger if nil
+	if logger == nil {
+		logger = slog.Default()
+	}
+
+	bus := createRedisEventBus(client, logger, config)
+
+	// Start background DLQ retry worker
+	if err := bus.StartDLQRetryWorker(context.Background()); err != nil {
+		bus.logger.Error("failed to start DLQ retry worker", "error", err)
+		return nil, fmt.Errorf("failed to start DLQ retry worker: %w", err)
+	}
+
 	return bus, nil
 }
 
@@ -51,6 +93,10 @@ func (b *RedisEventBus) Emit(
 	ctx context.Context,
 	event events.Event,
 ) error {
+	b.logger.Debug(" Emitting event",
+		"event_type", event.Type(),
+		"event", fmt.Sprintf("%+v", event),
+	)
 	if err := b.validateClient(); err != nil {
 		return err
 	}
@@ -95,11 +141,15 @@ func (b *RedisEventBus) Register(
 func createRedisEventBus(
 	client *redis.Client,
 	logger *slog.Logger,
+	config *RedisEventBusConfig,
 ) *RedisEventBus {
 	return &RedisEventBus{
-		client:   client,
-		handlers: make(map[events.EventType][]eventbus.HandlerFunc),
-		logger:   logger.With("bus", "redis"),
+		client:      client,
+		handlers:    make(map[events.EventType][]eventbus.HandlerFunc),
+		logger:      logger.With("bus", "redis"),
+		config:      config,
+		dlqStopChan: make(chan struct{}),
+		dlqStopped:  make(chan struct{}),
 	}
 }
 
@@ -344,6 +394,11 @@ func (b *RedisEventBus) readStream(
 
 // processMessage processes a single message from the Redis stream.
 func (b *RedisEventBus) processMessage(ctx context.Context, group string, msg redis.XMessage) {
+	b.logger.Debug("📥 Processing message",
+		"msg_id", msg.ID,
+		"group", group,
+		"values", msg.Values,
+	)
 	raw, ok := msg.Values["event"].(string)
 	if !ok {
 		b.logger.Error(
@@ -379,8 +434,19 @@ func (b *RedisEventBus) processMessage(ctx context.Context, group string, msg re
 
 	evt := constructor()
 
+	b.logger.Debug("🔍 Unmarshaling event",
+		"event_type", env.Type,
+		"payload", string(env.Payload),
+	)
+
 	// Special handling for events with custom JSON unmarshaling
 	err := json.Unmarshal(env.Payload, evt)
+
+	b.logger.Debug("🔍 Unmarshaled event",
+		"event_type", env.Type,
+		"event", fmt.Sprintf("%+v", evt),
+		"error", err,
+	)
 
 	if err != nil {
 		b.logger.Error(
@@ -538,6 +604,91 @@ func (b *RedisEventBus) logDLQResult(
 		)
 	}
 }
+
+// StartDLQRetryWorker starts a background worker that periodically processes DLQ messages
+// for all event types. The worker will run until
+// the context is cancelled or StopDLQRetryWorker is called.
+//
+// This method is idempotent - calling it multiple times will
+// have no effect if the worker is already running.
+func (b *RedisEventBus) StartDLQRetryWorker(ctx context.Context) error {
+	b.dlqMtx.Lock()
+	defer b.dlqMtx.Unlock()
+
+	// If worker is already running, return nil to make this call idempotent
+	if b.dlqStopChan != nil {
+		b.logger.Debug("DLQ retry worker is already running")
+		return nil
+	}
+
+	b.dlqStopChan = make(chan struct{})
+	b.dlqStopped = make(chan struct{})
+	ctx, b.cancelFunc = context.WithCancel(ctx)
+
+	b.wg.Add(1)
+	go func() {
+		defer b.wg.Done()
+		defer close(b.dlqStopped)
+
+		ticker := time.NewTicker(b.config.DLQRetryInterval)
+		defer ticker.Stop()
+
+		b.logger.Info("started DLQ retry worker", "interval", b.config.DLQRetryInterval)
+
+		for {
+			select {
+			case <-ctx.Done():
+				b.logger.Info("stopping DLQ retry worker: context cancelled")
+				return
+			case <-b.dlqStopChan:
+				b.logger.Info("stopping DLQ retry worker: stop requested")
+				return
+			case <-ticker.C:
+				b.processAllDLQs(ctx)
+			}
+		}
+	}()
+
+	return nil
+}
+
+// StopDLQRetryWorker stops the background DLQ retry worker and waits for it to complete.
+// It returns an error if the worker was not running.
+func (b *RedisEventBus) StopDLQRetryWorker() error {
+	if b.dlqStopChan == nil {
+		return fmt.Errorf("DLQ retry worker is not running")
+	}
+
+	close(b.dlqStopChan)
+	if b.cancelFunc != nil {
+		b.cancelFunc()
+	}
+
+	// Wait for the worker to stop
+	<-b.dlqStopped
+	b.dlqStopChan = nil
+	b.dlqStopped = nil
+
+	return nil
+}
+
+// processAllDLQs processes DLQ messages for all registered event types
+func (b *RedisEventBus) processAllDLQs(ctx context.Context) {
+	for eventType := range events.EventTypes {
+		stream := streamNameFor(eventType)
+		dlq := dlqStreamName(eventType)
+
+		if err := b.retryDLQ(ctx, dlq, stream, b.config.DLQBatchSize); err != nil {
+			b.logger.Error(
+				"failed to retry DLQ messages",
+				"error", err,
+				"dlq", dlq,
+				"stream", stream,
+			)
+		}
+	}
+}
+
 func (b *RedisEventBus) StartDLQRetryWorkersFromEventTypes(ctx context.Context) {
 
 	for eventType := range events.EventTypes {

@@ -48,7 +48,8 @@ func HandleRequested(
 		log = log.With(
 			"user_id", wr.UserID,
 			"account_id", wr.AccountID,
-			"amount", wr.Amount.String(),
+			"transaction_id", wr.TransactionID,
+			"amount", wr.Amount,
 			"correlation_id", wr.CorrelationID,
 		)
 
@@ -59,11 +60,11 @@ func HandleRequested(
 				"error", err,
 			)
 			// Emit failed event
-			failedEvent := events.NewWithdrawFailed(
+			wf := events.NewWithdrawFailed(
 				wr,
 				err.Error(),
 			)
-			if err := bus.Emit(ctx, failedEvent); err != nil {
+			if err := bus.Emit(ctx, wf); err != nil {
 				log.Error(
 					"❌ [ERROR] Failed to emit WithdrawFailed event",
 					"error", err,
@@ -83,11 +84,11 @@ func HandleRequested(
 				"transaction_id", txID,
 			)
 			// Emit failed event
-			failedEvent := events.NewWithdrawFailed(
+			wf := events.NewWithdrawFailed(
 				wr,
 				fmt.Sprintf("failed to persist transaction: %v", err),
 			)
-			if err := bus.Emit(ctx, failedEvent); err != nil {
+			if err := bus.Emit(ctx, wf); err != nil {
 				log.Error(
 					"❌ [ERROR] Failed to emit WithdrawFailed event",
 					"error", err,
@@ -98,12 +99,37 @@ func HandleRequested(
 
 		log.Info("✅ [SUCCESS] Withdraw validated and persisted", "transaction_id", txID)
 
+		accountRepo, err := common.GetAccountRepository(uow, log)
+		if err != nil {
+			log.Error(
+				"❌ [ERROR] Failed to get account repository",
+				"error", err,
+			)
+			return fmt.Errorf("failed to get account repository: %w", err)
+		}
+		account, err := accountRepo.Get(ctx, wr.AccountID)
+		if err != nil {
+			log.Error(
+				"❌ [ERROR] Failed to get account",
+				"error", err,
+			)
+			return fmt.Errorf("failed to get account: %w", err)
+		}
+		if account == nil {
+			log.Error(
+				"❌ [ERROR] Account not found",
+				"account_id", wr.AccountID,
+			)
+			return fmt.Errorf("account not found: %s", wr.AccountID)
+		}
+
 		// Emit CurrencyConversionRequested event
 		ccr := events.NewCurrencyConversionRequested(
 			wr.FlowEvent,
 			wr,
+			events.WithConversionTransactionID(txID),
 			events.WithConversionAmount(wr.Amount),
-			events.WithConversionTo(money.Code("USD")),
+			events.WithConversionTo(money.Code(account.Currency)),
 		)
 
 		if err := bus.Emit(ctx, ccr); err != nil {
@@ -145,7 +171,7 @@ func persistWithdrawTransaction(
 			ID:          txID,
 			UserID:      wr.UserID,
 			AccountID:   wr.AccountID,
-			Amount:      wr.Amount.Amount(),
+			Amount:      wr.Amount.Negate().Amount(),
 			Currency:    wr.Amount.Currency().String(),
 			Status:      "created",
 			MoneySource: "withdraw",

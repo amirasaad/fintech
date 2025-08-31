@@ -37,6 +37,23 @@ func (a *App) setupEventBus() {
 	a.setupPaymentHandlers(bus, uow, logger)
 	a.setupTransferHandlers(bus, uow, logger)
 	a.setupFeesHandlers(bus, uow, logger)
+	a.setupUserHandlers(bus, uow, logger)
+
+}
+
+func (a *App) setupUserHandlers(
+	bus eventbus.Bus,
+	uow repository.UnitOfWork,
+	logger *slog.Logger,
+) {
+	// bus.Register(
+	// 	events.EventTypeUserOnboardingCompleted,
+	// 	user.HandleUserOnboardingCompleted(
+	// 		bus,
+	// 		uow,
+	// 		logger,
+	// 	),
+	//)
 }
 
 func (a *App) setupWithdrawHandlers(
@@ -58,6 +75,15 @@ func (a *App) setupWithdrawHandlers(
 			bus,
 			uow,
 			logger,
+		),
+	)
+	bus.Register(
+		events.EventTypeWithdrawValidated,
+		withdraw.HandleValidated(
+			bus,
+			uow,
+			a.Deps.PaymentProvider,
+			a.Deps.Logger,
 		),
 	)
 }
@@ -157,6 +183,15 @@ func (a *App) setupDepositHandlers(
 			bus,
 			uow,
 			logger,
+		),
+	)
+	bus.Register(
+		events.EventTypeDepositValidated,
+		deposit.HandleValidated(
+			bus,
+			uow,
+			a.Deps.PaymentProvider,
+			a.Deps.Logger,
 		),
 	)
 }

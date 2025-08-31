@@ -19,7 +19,7 @@ import (
 	"github.com/amirasaad/fintech/pkg/registry"
 
 	"github.com/amirasaad/fintech/infra/eventbus"
-	mockexchangerate "github.com/amirasaad/fintech/infra/provider/mockexchangerate"
+	"github.com/amirasaad/fintech/infra/provider/exchangerateapi"
 	"github.com/amirasaad/fintech/infra/provider/mockpayment"
 	infrarepo "github.com/amirasaad/fintech/infra/repository"
 	fixturescurrency "github.com/amirasaad/fintech/internal/fixtures/currency"
@@ -173,8 +173,15 @@ func (s *E2ETestSuite) setupApp() {
 	endpoint, err := redisContainer.Endpoint(ctx, "")
 	s.Require().NoError(err)
 
-	// Setup Redis EventBus
-	eventBus, err := eventbus.NewWithRedis("redis://"+endpoint, logger)
+	// Setup Redis EventBus with default config
+	eventBus, err := eventbus.NewWithRedis(
+		"redis://"+endpoint,
+		logger,
+		&eventbus.RedisEventBusConfig{
+			DLQRetryInterval: 5 * time.Minute,
+			DLQBatchSize:     10,
+		},
+	)
 	s.Require().NoError(err)
 
 	// Store Redis container for cleanup at the end of this test
@@ -237,7 +244,7 @@ func (s *E2ETestSuite) setupApp() {
 	if !ok {
 		panic("exchange rate registry is not of type *registry.Enhanced")
 	}
-	exchangeRateProvider := mockexchangerate.NewMockExchangeRate()
+	exchangeRateProvider := exchangerateapi.NewFakeExchangeRate()
 	mockPaymentProvider := mockpayment.NewMockPaymentProvider()
 
 	deps := &app.Deps{

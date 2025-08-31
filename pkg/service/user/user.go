@@ -4,13 +4,12 @@ package user
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 
 	"github.com/amirasaad/fintech/pkg/domain/user"
 	"github.com/amirasaad/fintech/pkg/dto"
+	"github.com/amirasaad/fintech/pkg/handler/common"
 	"github.com/amirasaad/fintech/pkg/repository"
-	userrepo "github.com/amirasaad/fintech/pkg/repository/user"
 	"github.com/amirasaad/fintech/pkg/utils"
 	"github.com/google/uuid"
 )
@@ -38,13 +37,9 @@ func (s *Service) CreateUser(
 	username, email, password string,
 ) (u *user.User, err error) {
 	err = s.uow.Do(ctx, func(uow repository.UnitOfWork) error {
-		repoAny, err := uow.GetRepository((*userrepo.Repository)(nil))
+		repo, err := common.GetUserRepository(s.uow, slog.Default())
 		if err != nil {
 			return err
-		}
-		repo, ok := repoAny.(userrepo.Repository)
-		if !ok {
-			return fmt.Errorf("unexpected repository type")
 		}
 		u, err = user.New(username, email, password)
 		if err != nil {
@@ -69,13 +64,9 @@ func (s *Service) GetUser(
 	userID string,
 ) (u *dto.UserRead, err error) {
 	err = s.uow.Do(ctx, func(uow repository.UnitOfWork) error {
-		repoAny, err := uow.GetRepository((*userrepo.Repository)(nil))
+		repo, err := common.GetUserRepository(s.uow, slog.Default())
 		if err != nil {
 			return err
-		}
-		repo, ok := repoAny.(userrepo.Repository)
-		if !ok {
-			return fmt.Errorf("unexpected repository type")
 		}
 		uid, parseErr := uuid.Parse(userID)
 		if parseErr != nil {
@@ -96,13 +87,9 @@ func (s *Service) GetUserByEmail(
 	email string,
 ) (u *dto.UserRead, err error) {
 	err = s.uow.Do(ctx, func(uow repository.UnitOfWork) error {
-		repoAny, err := uow.GetRepository((*userrepo.Repository)(nil))
+		repo, err := common.GetUserRepository(s.uow, s.logger)
 		if err != nil {
 			return err
-		}
-		repo, ok := repoAny.(userrepo.Repository)
-		if !ok {
-			return fmt.Errorf("unexpected repository type")
 		}
 		u, err = repo.GetByEmail(ctx, email)
 		return err
@@ -119,13 +106,9 @@ func (s *Service) GetUserByUsername(
 	username string,
 ) (u *dto.UserRead, err error) {
 	err = s.uow.Do(ctx, func(uow repository.UnitOfWork) error {
-		repoAny, err := uow.GetRepository((*userrepo.Repository)(nil))
+		repo, err := common.GetUserRepository(s.uow, s.logger)
 		if err != nil {
 			return err
-		}
-		repo, ok := repoAny.(userrepo.Repository)
-		if !ok {
-			return fmt.Errorf("unexpected repository type")
 		}
 		u, err = repo.GetByUsername(ctx, username)
 		return err
@@ -143,13 +126,9 @@ func (s *Service) UpdateUser(
 	update *dto.UserUpdate,
 ) (err error) {
 	err = s.uow.Do(ctx, func(uow repository.UnitOfWork) error {
-		repoAny, err := uow.GetRepository((*userrepo.Repository)(nil))
+		repo, err := common.GetUserRepository(s.uow, s.logger)
 		if err != nil {
 			return err
-		}
-		repo, ok := repoAny.(userrepo.Repository)
-		if !ok {
-			return fmt.Errorf("unexpected repository type")
 		}
 		uid, parseErr := uuid.Parse(userID)
 		if parseErr != nil {
@@ -174,13 +153,9 @@ func (s *Service) DeleteUser(
 	userID string,
 ) (err error) {
 	err = s.uow.Do(ctx, func(uow repository.UnitOfWork) error {
-		repoAny, err := uow.GetRepository((*userrepo.Repository)(nil))
+		repo, err := common.GetUserRepository(s.uow, s.logger)
 		if err != nil {
 			return err
-		}
-		repo, ok := repoAny.(userrepo.Repository)
-		if !ok {
-			return fmt.Errorf("unexpected repository type")
 		}
 		uid, parseErr := uuid.Parse(userID)
 		if parseErr != nil {
@@ -201,13 +176,9 @@ func (s *Service) ValidUser(
 	err error,
 ) {
 	err = s.uow.Do(ctx, func(uow repository.UnitOfWork) error {
-		repoAny, err := uow.GetRepository((*userrepo.Repository)(nil))
+		repo, err := common.GetUserRepository(s.uow, s.logger)
 		if err != nil {
 			return err
-		}
-		repo, ok := repoAny.(userrepo.Repository)
-		if !ok {
-			return fmt.Errorf("unexpected repository type")
 		}
 
 		// Try to get u by email first

@@ -110,6 +110,7 @@ func InitializeDependencies(cfg *config.App) (
 
 	// Initialize exchange rates
 	if err := initializeExchangeRates(
+		ctx,
 		exchangeProvider,
 		deps.ExchangeRateRegistry,
 		cfg.ExchangeRateCache,
@@ -132,82 +133,128 @@ func InitializeDependencies(cfg *config.App) (
 	// Initialize event bus
 	var bus eventbus.Bus
 	if cfg.Redis.URL != "" {
-		bus, err = infra_eventbus.NewWithRedis(cfg.Redis.URL, logger)
+		// Configure Redis event bus with DLQ retry settings
+		busConfig := &infra_eventbus.RedisEventBusConfig{
+			DLQRetryInterval: 5 * time.Minute, // Retry DLQ every 5 minutes
+			DLQBatchSize:     10,              // Process 10 messages per batch
+		}
+
+		bus, err = infra_eventbus.NewWithRedis(cfg.Redis.URL, logger, busConfig)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create Redis event bus: %w", err)
 		}
 	} else {
+		// Use in-memory bus for development
 		bus = infra_eventbus.NewWithMemory(logger)
 	}
 	deps.EventBus = bus
 
-	// Initialize payment provider with the checkout registry
-	deps.PaymentProvider = stripepayment.NewStripePaymentProvider(
+	// Initialize payment provider with the checkout registry and unit of work
+	deps.PaymentProvider = stripepayment.New(
 		bus,
 		deps.CheckoutRegistry, // Use the checkout-specific registry
 		cfg.PaymentProviders.Stripe,
 		logger,
+		deps.Uow, // Pass the repository's UnitOfWork
 	)
 
 	return
 }
 
 // initializeExchangeRates fetches and caches exchange rates during application startup
+// and sets up a background refresh mechanism
 func initializeExchangeRates(
+	ctx context.Context,
 	exchangeRateProvider exchange.Exchange,
 	registryProvider registry.Provider,
 	cfg *config.ExchangeRateCache,
 	logger *slog.Logger,
 ) error {
-	// Create a context with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	// Initialize the exchange cache with the provided registry provider and config
-	exchangeCache := caching.NewExchangeCache(
-		registryProvider,
-		logger,
-		cfg,
-	)
-
-	// Check if cache is stale
-	isStale, err := exchangeCache.IsCacheStale(ctx)
-	if err != nil {
-		logger.Warn("Failed to check cache status, will fetch new rates", "error", err)
-	}
-
-	// Only fetch new rates if cache is stale or non-existent
-	if isStale {
-		logger.Debug("Cache is stale, fetching new rates")
-		// Fetch rates from the provider
-		rates, err := exchangeRateProvider.FetchRates(
-			ctx,
-			"USD",
-			exchangeRateProvider.SupportedPairs(),
+	// Start the background refresh goroutine
+	go func(ctx context.Context, cacheLogger *slog.Logger) {
+		// Initialize the exchange cache with the provided registry provider and config
+		exchangeCache := caching.NewExchangeCache(
+			registryProvider,
+			cacheLogger,
+			cfg,
 		)
-		if err != nil {
-			return fmt.Errorf("failed to fetch exchange rates: %w", err)
+
+		// Set up periodic refresh
+		ticker := time.NewTicker(5 * time.Minute) // Check every 5 minutes
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ticker.C:
+				// Check if cache is stale before refreshing
+				isStale, timeUntilRefresh, err := exchangeCache.IsCacheStale(ctx)
+				if err != nil {
+					logger.Warn("Failed to check cache staleness", "error", err)
+					continue
+				}
+				logger.Debug(
+					"Cache staleness check",
+					"is_stale", isStale,
+					"time_until_refresh", timeUntilRefresh,
+				)
+
+				if isStale {
+					logger.Info("Cache is stale, refreshing exchange rates")
+					if err := refreshExchangeRates(
+						ctx, exchangeRateProvider, exchangeCache, logger); err != nil {
+						logger.Error("Failed to refresh exchange rates", "error", err)
+					} else {
+						logger.Info("Successfully refreshed exchange rates")
+					}
+				} else {
+					logger.Debug(
+						"Cache is still fresh, next refresh in",
+						"duration", timeUntilRefresh,
+					)
+				}
+
+			case <-ctx.Done():
+				return
+			}
 		}
-
-		// Cache the rates using ExchangeCache with exchange prefix
-		if err := exchangeCache.CacheRates(
-			ctx,
-			rates,
-			exchangeRateProvider.Metadata().Name,
-		); err != nil {
-			logger.Error("Failed to cache exchange rates", "error", err)
-			return fmt.Errorf("failed to cache exchange rates: %w", err)
-		}
-
-		logger.Info("Successfully fetched and cached exchange rates",
-			"provider", exchangeRateProvider.Metadata().Name,
-			"rates_count", len(rates),
-		)
-	} else {
-		logger.Info("Using cached exchange rates",
-			"next_update_in", time.Until(time.Now().Add(cfg.TTL)),
-		)
-	}
+	}(ctx, logger)
 
 	return nil
+}
+
+// refreshExchangeRates handles the actual refreshing of exchange rates
+func refreshExchangeRates(
+	ctx context.Context,
+	exchangeRateProvider exchange.Exchange,
+	exchangeCache *caching.ExchangeCache,
+	logger *slog.Logger,
+) error {
+	// Create a timeout context for the refresh operation
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	// Fetch rates from the provider
+	rates, err := exchangeRateProvider.FetchRates(
+		ctx,
+		"USD", // Base currency
+	)
+	if err != nil {
+		return fmt.Errorf("failed to fetch exchange rates: %w", err)
+	}
+
+	// Cache the rates using ExchangeCache
+	if err := exchangeCache.CacheRates(
+		ctx,
+		rates,
+		exchangeRateProvider.Metadata().Name,
+	); err != nil {
+		return fmt.Errorf("failed to cache exchange rates: %w", err)
+	}
+
+	logger.Info("Successfully cached exchange rates",
+		"provider", exchangeRateProvider.Metadata().Name,
+		"rates_count", len(rates),
+	)
+	return nil
+
 }

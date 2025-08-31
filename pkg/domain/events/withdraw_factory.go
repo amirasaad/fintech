@@ -57,13 +57,17 @@ type WithdrawCurrencyConvertedOpt func(*WithdrawCurrencyConverted)
 
 // NewWithdrawCurrencyConverted creates a new WithdrawCurrencyConverted event.
 // It takes a CurrencyConverted and combines it into a
-// WithdrawCurrencyConverted event.
+// WithdrawCurrencyConverted event, ensuring all necessary fields are properly propagated.
 func NewWithdrawCurrencyConverted(
 	cc *CurrencyConverted,
 	opts ...WithdrawCurrencyConvertedOpt,
 ) *WithdrawCurrencyConverted {
 	wcc := &WithdrawCurrencyConverted{
 		CurrencyConverted: *cc,
+	}
+	// Ensure the TransactionID is properly set from the CurrencyConverted event
+	if wcc.TransactionID == uuid.Nil {
+		wcc.TransactionID = cc.TransactionID
 	}
 	wcc.ID = uuid.New()
 	wcc.Timestamp = time.Now()
@@ -115,4 +119,15 @@ func NewWithdrawFailed(
 		opt(wf)
 	}
 	return wf
+}
+
+func NewUserOnboardingCompleted(userID uuid.UUID, stripeAccountID string) *UserOnboardingCompleted {
+	return &UserOnboardingCompleted{
+		FlowEvent: FlowEvent{
+			ID:        uuid.New(),
+			UserID:    userID,
+			Timestamp: time.Now(),
+		},
+		StripeAccountID: stripeAccountID,
+	}
 }

@@ -30,7 +30,7 @@ func HandleCurrencyConverted(
 		)
 		log.Info("🟢 [START] Received event", "event", e)
 
-		wce, ok := e.(*events.WithdrawCurrencyConverted)
+		wcc, ok := e.(*events.WithdrawCurrencyConverted)
 		if !ok {
 			log.Debug(
 				"🚫 skipping: unexpected event type in WithdrawCurrencyConverted",
@@ -39,7 +39,7 @@ func HandleCurrencyConverted(
 			return nil
 		}
 
-		wr, ok := wce.OriginalRequest.(*events.WithdrawRequested)
+		wr, ok := wcc.OriginalRequest.(*events.WithdrawRequested)
 		if !ok {
 			log.Debug(
 				"🚫 skipping: unexpected event type in WithdrawCurrencyConverted",
@@ -49,16 +49,16 @@ func HandleCurrencyConverted(
 		}
 
 		log = log.With(
-			"user_id", wce.UserID,
-			"account_id", wce.AccountID,
-			"transaction_id", wce.TransactionID,
-			"correlation_id", wce.CorrelationID,
+			"user_id", wcc.UserID,
+			"account_id", wcc.AccountID,
+			"transaction_id", wcc.TransactionID,
+			"correlation_id", wcc.CorrelationID,
 		)
 
-		if wce.FlowType != "withdraw" {
+		if wcc.FlowType != "withdraw" {
 			log.Debug(
 				"🚫 skipping: not a withdraw flow",
-				"flow_type", wce.FlowType,
+				"flow_type", wcc.FlowType,
 			)
 			return nil
 		}
@@ -68,12 +68,12 @@ func HandleCurrencyConverted(
 			return errors.New("invalid account repository type")
 		}
 
-		accRead, err := accRepo.Get(ctx, wce.AccountID)
+		accRead, err := accRepo.Get(ctx, wcc.AccountID)
 		if err != nil && !errors.Is(err, account.ErrAccountNotFound) {
 			log.Error(
 				"failed to get account",
 				"error", err,
-				"account_id", wce.AccountID,
+				"account_id", wcc.AccountID,
 			)
 			return err
 		}
@@ -81,7 +81,7 @@ func HandleCurrencyConverted(
 		if accRead == nil {
 			log.Error(
 				"account not found",
-				"account_id", wce.AccountID,
+				"account_id", wcc.AccountID,
 			)
 			return account.ErrAccountNotFound
 		}
@@ -96,39 +96,39 @@ func HandleCurrencyConverted(
 		}
 
 		// Perform domain validation
-		if err := acc.ValidateWithdraw(wce.UserID, wce.ConvertedAmount); err != nil {
+		if err := acc.ValidateWithdraw(wcc.UserID, wcc.ConvertedAmount); err != nil {
 			log.Error(
 				"domain validation failed",
-				"transaction_id", wce.TransactionID,
+				"transaction_id", wcc.TransactionID,
 				"error", err,
-				"user_id", wce.UserID,
-				"account_id", wce.AccountID,
-				"amount", wce.ConvertedAmount.String(),
+				"user_id", wcc.UserID,
+				"account_id", wcc.AccountID,
+				"amount", wcc.ConvertedAmount.String(),
 			)
 
-			failureEvent := events.NewWithdrawFailed(
+			wf := events.NewWithdrawFailed(
 				wr,
 				err.Error(),
 			)
-			return bus.Emit(ctx, failureEvent)
+			return bus.Emit(ctx, wf)
 		}
 
 		log.Info(
 			"✅ [SUCCESS] Domain validation passed, emitting WithdrawBusinessValidated",
-			"user_id", wce.UserID,
-			"account_id", wce.AccountID,
-			"amount", wce.ConvertedAmount.Amount(),
-			"currency", wce.ConvertedAmount.Currency().String(),
-			"correlation_id", wce.CorrelationID,
+			"user_id", wcc.UserID,
+			"account_id", wcc.AccountID,
+			"amount", wcc.ConvertedAmount.Amount(),
+			"currency", wcc.ConvertedAmount.Currency().String(),
+			"correlation_id", wcc.CorrelationID,
 		)
 
 		// Emit WithdrawBusinessValidated event
-		wv := events.NewWithdrawValidated(wce)
+		wv := events.NewWithdrawValidated(wcc)
 
 		log.Info(
 			"📤 [EMIT] Emitting",
 			"event", wv.Type(),
-			"correlation_id", wce.CorrelationID.String(),
+			"correlation_id", wcc.CorrelationID.String(),
 		)
 		return bus.Emit(ctx, wv)
 	}

@@ -179,3 +179,71 @@ func (_c *PaymentProvider_InitiatePayment_Call) RunAndReturn(run func(ctx contex
 	_c.Call.Return(run)
 	return _c
 }
+
+// InitiatePayout provides a mock function for the type PaymentProvider
+func (_mock *PaymentProvider) InitiatePayout(ctx context.Context, params *payment.InitiatePayoutParams) (*payment.InitiatePayoutResponse, error) {
+	ret := _mock.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for InitiatePayout")
+	}
+
+	var r0 *payment.InitiatePayoutResponse
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *payment.InitiatePayoutParams) (*payment.InitiatePayoutResponse, error)); ok {
+		return returnFunc(ctx, params)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *payment.InitiatePayoutParams) *payment.InitiatePayoutResponse); ok {
+		r0 = returnFunc(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*payment.InitiatePayoutResponse)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, *payment.InitiatePayoutParams) error); ok {
+		r1 = returnFunc(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// PaymentProvider_InitiatePayout_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'InitiatePayout'
+type PaymentProvider_InitiatePayout_Call struct {
+	*mock.Call
+}
+
+// InitiatePayout is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *payment.InitiatePayoutParams
+func (_e *PaymentProvider_Expecter) InitiatePayout(ctx interface{}, params interface{}) *PaymentProvider_InitiatePayout_Call {
+	return &PaymentProvider_InitiatePayout_Call{Call: _e.mock.On("InitiatePayout", ctx, params)}
+}
+
+func (_c *PaymentProvider_InitiatePayout_Call) Run(run func(ctx context.Context, params *payment.InitiatePayoutParams)) *PaymentProvider_InitiatePayout_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *payment.InitiatePayoutParams
+		if args[1] != nil {
+			arg1 = args[1].(*payment.InitiatePayoutParams)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *PaymentProvider_InitiatePayout_Call) Return(initiatePayoutResponse *payment.InitiatePayoutResponse, err error) *PaymentProvider_InitiatePayout_Call {
+	_c.Call.Return(initiatePayoutResponse, err)
+	return _c
+}
+
+func (_c *PaymentProvider_InitiatePayout_Call) RunAndReturn(run func(ctx context.Context, params *payment.InitiatePayoutParams) (*payment.InitiatePayoutResponse, error)) *PaymentProvider_InitiatePayout_Call {
+	_c.Call.Return(run)
+	return _c
+}

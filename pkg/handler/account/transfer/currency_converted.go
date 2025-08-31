@@ -139,14 +139,14 @@ func HandleCurrencyConverted(
 		}
 
 		// 3. Emit success event
-		tbv := events.NewTransferBusinessValidated(
+		tv := events.NewTransferValidated(
 			tcc,
 		)
 		log.Info(
 			"✅ [SUCCESS] Domain validation passed, emitting",
-			"event_type", tbv.Type(),
+			"event_type", tv.Type(),
 		)
 
-		return bus.Emit(ctx, tbv)
+		return bus.Emit(ctx, tv)
 	}
 }

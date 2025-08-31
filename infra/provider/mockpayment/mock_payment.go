@@ -64,6 +64,25 @@ func (m *MockPaymentProvider) HandleWebhook(
 	payload []byte,
 	signature string,
 ) (*payment.PaymentEvent, error) {
-	// TODO: implement me
-	panic("implement me")
+	// In a real implementation, this would verify the webhook signature
+	// and parse the payload to return the appropriate PaymentEvent
+	return nil, nil
+}
+
+// InitiatePayout simulates initiating a payout to a connected account
+func (m *MockPaymentProvider) InitiatePayout(
+	ctx context.Context,
+	params *payment.InitiatePayoutParams,
+) (*payment.InitiatePayoutResponse, error) {
+	// In a real implementation, this would initiate a payout to the connected account
+	return &payment.InitiatePayoutResponse{
+		PayoutID:             "mock_payout_id",
+		PaymentProviderID:    "mock_provider_id",
+		Status:               payment.PaymentStatus("completed"),
+		Amount:               params.Amount,
+		Currency:             params.Currency,
+		FeeAmount:            0,
+		FeeCurrency:          params.Currency,
+		EstimatedArrivalDate: time.Now().Add(24 * time.Hour).Unix(),
+	}, nil
 }

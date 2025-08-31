@@ -133,7 +133,6 @@ func (p *exchangeRateAPI) FetchRate(
 func (p *exchangeRateAPI) FetchRates(
 	ctx context.Context,
 	from string,
-	to []string,
 ) (map[string]*exchange.RateInfo, error) {
 
 	// Build the URL for the latest rates endpoint
@@ -194,13 +193,7 @@ func (p *exchangeRateAPI) FetchRates(
 	results := make(map[string]*exchange.RateInfo)
 	now := time.Now()
 
-	for _, targetCurrency := range to {
-		rate, exists := apiResp.ConversionRates[targetCurrency]
-		if !exists {
-			p.logger.Warn("target currency not found in response", "currency", targetCurrency)
-			continue
-		}
-
+	for targetCurrency, rate := range apiResp.ConversionRates {
 		results[targetCurrency] = &exchange.RateInfo{
 			FromCurrency: from,
 			ToCurrency:   targetCurrency,

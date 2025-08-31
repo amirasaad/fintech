@@ -144,7 +144,7 @@ func (s *Service) GetRates(
 	// Fetch missing rates from provider
 	fetchedRates := make(map[string]*core.Rate)
 	if len(toFetch) > 0 {
-		rates, err := s.provider.FetchRates(ctx, from, toFetch)
+		rates, err := s.provider.FetchRates(ctx, from)
 		if err != nil {
 			return nil, fmt.Errorf("failed to fetch rates: %w", err)
 		}

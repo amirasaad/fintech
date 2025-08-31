@@ -71,7 +71,7 @@ func HandleCurrencyConverted(
 
 		// Log detailed information about the event for debugging
 		log.Debug(
-			"[DEBUG] Processing DepositCurrencyConverted event",
+			"Processing DepositCurrencyConverted event",
 			"event_type", fmt.Sprintf("%T", dcc),
 			"transaction_id", dcc.TransactionID,
 			"user_id", userID,
@@ -126,8 +126,8 @@ func HandleCurrencyConverted(
 				"error", err,
 			)
 			// Create the failed event
-			failedEvent := events.NewDepositFailed(dr, err.Error())
-			_ = bus.Emit(ctx, failedEvent)
+			df := events.NewDepositFailed(dr, err.Error())
+			_ = bus.Emit(ctx, df)
 			return nil
 		}
 
@@ -145,25 +145,13 @@ func HandleCurrencyConverted(
 			)
 			return fmt.Errorf("failed to emit %s: %w", dv.Type(), err)
 		}
-		pi := events.NewPaymentInitiated(&dcc.FlowEvent, func(pi *events.PaymentInitiated) {
-			pi.TransactionID = dcc.TransactionID
-			pi.Amount = dcc.ConvertedAmount
-			pi.UserID = dcc.UserID
-			pi.AccountID = dcc.AccountID
-			pi.CorrelationID = dcc.CorrelationID
-		})
 		log.Info(
-			"Emitting",
-			"event_type", pi.Type(),
+			"📤 [EMITTED] Deposit.Validated event",
+			"event_id", dv.ID,
+			"type", dv.Type(),
+			"transaction_id", dv.TransactionID,
+			"correlation_id", dv.CorrelationID,
 		)
-		if err := bus.Emit(ctx, pi); err != nil {
-			log.Warn(
-				"Failed to emit",
-				"event_type", pi.Type(),
-				"error", err,
-			)
-			return fmt.Errorf("failed to emit %s: %w", pi.Type(), err)
-		}
 		return nil
 	}
 }

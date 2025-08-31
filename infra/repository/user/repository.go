@@ -87,6 +87,9 @@ func (r *repository) Update(
 	if uu.Password != nil {
 		updates["password"] = *uu.Password
 	}
+	if uu.StripeConnectAccountID != nil {
+		updates["stripe_connect_account_id"] = *uu.StripeConnectAccountID
+	}
 
 	// If no fields to update, return early
 	if len(updates) == 0 {
@@ -184,13 +187,14 @@ func (r *repository) ExistsByUsername(
 
 func mapModelToDTO(user *User) *dto.UserRead {
 	return &dto.UserRead{
-		ID:             user.ID,
-		Username:       user.Username,
-		Email:          user.Email,
-		HashedPassword: user.Password,
-		Names:          user.Names,
-		CreatedAt:      user.CreatedAt,
-		UpdatedAt:      user.UpdatedAt,
+		ID:                     user.ID,
+		Username:               user.Username,
+		Email:                  user.Email,
+		HashedPassword:         user.Password,
+		Names:                  user.Names,
+		StripeConnectAccountID: user.StripeConnectAccountID,
+		CreatedAt:              user.CreatedAt,
+		UpdatedAt:              user.UpdatedAt,
 	}
 }
 

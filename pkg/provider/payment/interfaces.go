@@ -10,9 +10,16 @@ type Payment interface {
 		ctx context.Context,
 		params *InitiatePaymentParams,
 	) (*InitiatePaymentResponse, error)
+
 	HandleWebhook(
 		ctx context.Context,
 		payload []byte,
 		signature string,
 	) (*PaymentEvent, error)
+
+	// InitiatePayout initiates a payout to a connected account
+	InitiatePayout(
+		ctx context.Context,
+		params *InitiatePayoutParams,
+	) (*InitiatePayoutResponse, error)
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/amirasaad/fintech/pkg/repository"
 	"github.com/amirasaad/fintech/pkg/repository/account"
 	"github.com/amirasaad/fintech/pkg/repository/transaction"
+	"github.com/amirasaad/fintech/pkg/repository/user"
 )
 
 var ErrInvalidRepositoryType = errors.New("invalid repository type")
@@ -54,6 +55,29 @@ func GetTransactionRepository(
 	if txRepo, ok := txRepoAny.(transaction.Repository); ok {
 
 		return txRepo, nil
+	}
+	return nil, ErrInvalidRepositoryType
+}
+
+func GetUserRepository(
+	uow repository.UnitOfWork,
+	log *slog.Logger,
+) (
+	user.Repository,
+	error,
+) {
+	userRepoAny, err := uow.GetRepository(
+		(*user.Repository)(nil),
+	)
+	if err != nil {
+		log.Error(
+			"failed to get user repository",
+			"error", err,
+		)
+		return nil, err
+	}
+	if userRepo, ok := userRepoAny.(user.Repository); ok {
+		return userRepo, nil
 	}
 	return nil, ErrInvalidRepositoryType
 }

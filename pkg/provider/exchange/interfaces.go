@@ -31,7 +31,7 @@ type RateFetcher interface {
 	FetchRate(ctx context.Context, from, to string) (*RateInfo, error)
 
 	// FetchRates gets multiple exchange rates in a single request
-	FetchRates(ctx context.Context, from string, to []string) (map[string]*RateInfo, error)
+	FetchRates(ctx context.Context, from string) (map[string]*RateInfo, error)
 }
 
 // HealthChecker defines the interface for checking provider health
