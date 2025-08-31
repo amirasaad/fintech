@@ -28,9 +28,9 @@ type ExternalTarget struct {
 
 // WithdrawRequest represents the request body for withdrawing funds from an account.
 type WithdrawRequest struct {
-	Amount         float64        `json:"amount" xml:"amount" form:"amount" validate:"required,gt=0"`
-	Currency       string         `json:"currency" validate:"omitempty,len=3,uppercase"`
-	ExternalTarget ExternalTarget `json:"external_target" validate:"required"`
+	Amount         float64         `json:"amount" xml:"amount" form:"amount" validate:"required,gt=0"`
+	Currency       string          `json:"currency" validate:"omitempty,len=3,uppercase"`
+	ExternalTarget *ExternalTarget `json:"external_target" validate:"required"`
 }
 
 // TransferRequest represents the request body for transferring funds between accounts.

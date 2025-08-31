@@ -13,6 +13,7 @@ package account
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 
@@ -21,28 +22,37 @@ import (
 	"github.com/amirasaad/fintech/pkg/commands"
 	"github.com/amirasaad/fintech/pkg/domain/events"
 
+	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/amirasaad/fintech/pkg/repository"
 	repoaccount "github.com/amirasaad/fintech/pkg/repository/account"
+	stripeconnect "github.com/amirasaad/fintech/pkg/service/stripeconnect"
 	"github.com/google/uuid"
 )
 
 // Service provides business logic for account operations including
 // creation, deposits, withdrawals, and balance inquiries.
 type Service struct {
-	bus    eventbus.Bus
-	uow    repository.UnitOfWork
-	logger *slog.Logger
+	bus              eventbus.Bus
+	uow              repository.UnitOfWork
+	logger           *slog.Logger
+	stripeConnectSvc stripeconnect.Service
 }
 
 // New creates a new Service with the provided dependencies.
-func New(bus eventbus.Bus, uow repository.UnitOfWork, logger *slog.Logger) *Service {
+func New(
+	bus eventbus.Bus,
+	uow repository.UnitOfWork,
+	logger *slog.Logger,
+	stripeConnectSvc stripeconnect.Service,
+) *Service {
 	return &Service{
-		bus:    bus,
-		uow:    uow,
-		logger: logger,
+		bus:              bus,
+		uow:              uow,
+		logger:           logger,
+		stripeConnectSvc: stripeConnectSvc,
 	}
 }
 
@@ -128,13 +138,24 @@ func (s *Service) Deposit(
 
 // Withdraw removes funds from the specified account
 // to an external target and creates a transaction record.
+// It returns an error if the user has not completed Stripe Connect onboarding.
 func (s *Service) Withdraw(
 	ctx context.Context,
 	cmd commands.Withdraw,
 ) error {
+	// Check if user has completed Stripe Connect onboarding
+	onboarded, err := s.stripeConnectSvc.IsOnboardingComplete(ctx, cmd.UserID)
+	if err != nil && !errors.Is(err, domain.ErrNotFound) {
+		return fmt.Errorf("failed to check Stripe Connect status: %w", err)
+	}
+
+	if !onboarded {
+		return domain.ErrStripeOnboardingIncomplete
+	}
+
 	amount, err := money.New(cmd.Amount, money.Code(cmd.Currency))
 	if err != nil {
-		return err
+		return fmt.Errorf("invalid amount: %w", err)
 	}
 
 	// Create event with amount and bank account number if provided
@@ -157,6 +178,7 @@ func (s *Service) Withdraw(
 		uuid.New(),
 		opts...,
 	)
+
 	return s.bus.Emit(ctx, wr)
 }
 
