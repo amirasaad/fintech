@@ -1,5 +1,16 @@
 # CHANGELOG
 
+## v1.4.0 (2025-08-31)
+
+### Feat
+
+- implement Stripe Connect integration (#24)
+- **payment**: add payout support and Stripe Connect integration  (#23)
+
+### Fix
+
+- **eventbus**: DLQ retry mechanism and add tests
+
 ## v1.3.0 (2025-08-21)
 
 ### Feat
