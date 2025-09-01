@@ -1,0 +1,48 @@
+@host = http://localhost:3000
+
+### Login
+# @name login
+POST {{host}}/auth/login HTTP/1.1
+Content-Type: application/json
+
+{
+    "identity": "testaccount4",
+    "password": "R4g&BejL5P3j"
+}
+
+### 1. Initiate Stripe Connect Onboarding
+# @name initiate_onboarding
+POST {{host}}/stripe/account/onboard
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.$.data.$.token}}
+
+{
+
+}
+
+### 2. Check Onboarding Status
+# @name check_status
+GET {{host}}/stripe/account/onboard/status
+Authorization: Bearer {{login.response.body.$.data.$.token}}
+
+### 3. Get Account Details (After Onboarding)
+# @name get_account
+GET {{host}}/stripe/account
+Authorization: Bearer {{login.response.body.$.data.$.token}}
+
+### 4. Handle Stripe Webhook (for internal testing)
+# This is typically called by Stripe, but included here for testing
+POST {{host}}/stripe/webhooks
+Stripe-Signature: whsec_test_signature
+Content-Type: application/json
+
+{
+  "type": "account.updated",
+  "data": {
+    "object": {
+      "id": "acct_1234567890",
+      "payouts_enabled": true,
+      "details_submitted": true
+    }
+  }
+}
