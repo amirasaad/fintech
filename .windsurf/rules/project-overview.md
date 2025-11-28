@@ -1,0 +1,48 @@
+---
+trigger: always_on
+description: Project overview and architecture guidelines for the Go fintech application
+globs:
+---
+
+# Fintech Go Project Overview
+
+This is a Go-based fintech application using Fiber web framework, GORM ORM, and JWT authentication. The project follows clean architecture principles with domain-driven design.
+
+## Project Structure
+
+- `cmd/`: Application entry points (CLI, server) - see [cmd/server/main.go](mdc:cmd/server/main.go)
+- `pkg/`: Reusable packages (domain, service, repository, middleware)
+- `webapi/`: HTTP handlers and API endpoints - see [webapi/app.go](mdc:webapi/app.go)
+- `infra/`: Infrastructure layer (database, models) - see [infra/database.go](mdc:infra/database.go)
+- `internal/`: Internal utilities and fixtures
+- `docs/`: API documentation and OpenAPI specs
+
+## Core Dependencies
+
+- **Web Framework**: Fiber (github.com/gofiber/fiber/v2)
+- **ORM**: GORM (gorm.io/gorm)
+- **Authentication**: JWT (github.com/golang-jwt/jwt/v5)
+- **Validation**: go-playground/validator (github.com/go-playground/validator)
+- **UUID**: github.com/google/uuid
+
+## Architecture Principles
+
+- Follow clean architecture principles
+- Use dependency injection and interfaces
+- Implement repository pattern with Unit of Work
+- Separate domain logic from infrastructure concerns
+- Use interfaces for dependency inversion
+
+## Key Files
+
+- Main application: [cmd/server/main.go](mdc:cmd/server/main.go)
+- API setup: [webapi/app.go](mdc:webapi/app.go)
+- Database configuration: [infra/database.go](mdc:infra/database.go)
+- Domain models: [pkg/domain/](mdc:pkg/domain/)
+- Services: [pkg/service/](mdc:pkg/service/)
+- Repositories: [pkg/repository/](mdc:pkg/repository/)
+description:
+globs:
+alwaysApply: false
+
+---
