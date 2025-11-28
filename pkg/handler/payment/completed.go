@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"sync"
 
 	"github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/domain/events"
@@ -16,6 +17,9 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
+
+// processedPaymentCompleted tracks processed PaymentCompleted events for idempotency
+var processedPaymentCompleted sync.Map // map[string]struct{} for idempotency
 
 // ErrInvalidRepositoryType Define custom error for invalid repository type
 
@@ -87,6 +91,15 @@ func HandleCompleted(
 				}
 
 				if err != nil {
+					// If transaction not found, skip gracefully (idempotent behavior)
+					if errors.Is(err, gorm.ErrRecordNotFound) {
+						log.Warn(
+							"⚠️ [SKIP] Transaction not found - may have been processed already",
+							"payment_id", *pc.PaymentID,
+							"transaction_id", pc.TransactionID,
+						)
+						return nil // Return nil to skip processing gracefully
+					}
 					log.Error(
 						"failed to get transaction by payment ID or transaction ID",
 						"payment_id", *pc.PaymentID,
@@ -101,18 +114,41 @@ func HandleCompleted(
 					update := dto.TransactionUpdate{
 						PaymentID: pc.PaymentID,
 					}
-					if uerr := txRepo.Update(ctx, tx.ID, update); err != nil {
+					if uerr := txRepo.Update(ctx, tx.ID, update); uerr != nil {
 						log.Error(
 							"failed to update transaction with payment ID",
 							"transaction_id", tx.ID,
 							"payment_id", pc.PaymentID,
 							"error", uerr,
 						)
-						return fmt.Errorf("failed to update transaction: %w", err)
+						return fmt.Errorf("failed to update transaction: %w", uerr)
 					}
 					tx.PaymentID = pc.PaymentID
 				}
 			}
+
+			// Idempotency check: skip if transaction is already completed
+			if tx.Status == string(account.TransactionStatusCompleted) {
+				idempotencyKey := ""
+				if pc.PaymentID != nil {
+					idempotencyKey = *pc.PaymentID
+				} else if tx.ID != uuid.Nil {
+					idempotencyKey = tx.ID.String()
+				}
+				if idempotencyKey != "" {
+					if _, already := processedPaymentCompleted.LoadOrStore(
+						idempotencyKey,
+						struct{}{},
+					); already {
+						log.Info(
+							"🔁 [SKIP] PaymentCompleted already processed",
+							"idempotency_key", idempotencyKey,
+						)
+						return nil
+					}
+				}
+			}
+
 			log = log.With(
 				"transaction_id", tx.ID,
 				"user_id", tx.UserID,

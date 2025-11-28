@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"sync"
 
 	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/amirasaad/fintech/pkg/handler/common"
@@ -16,6 +17,9 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
+
+// processedPaymentProcessed tracks processed PaymentProcessed events for idempotency
+var processedPaymentProcessed sync.Map // map[string]struct{} for idempotency
 
 // HandleProcessed handles PaymentInitiatedEvent and updates the transaction with payment ID.
 // This is a generic handler that can process payment events
@@ -64,6 +68,14 @@ func HandleProcessed(
 			if transactionID == uuid.Nil && pp.PaymentID != nil {
 				tx, getErr := txRepo.GetByPaymentID(ctx, *pp.PaymentID)
 				if getErr != nil {
+					// If transaction not found, log and skip (idempotent behavior)
+					if errors.Is(getErr, gorm.ErrRecordNotFound) {
+						log.Warn(
+							"⚠️ [SKIP] Transaction not found by payment ID",
+							"payment_id", *pp.PaymentID,
+						)
+						return nil // Return nil to skip processing gracefully
+					}
 					log.Error(
 						"Failed to get transaction by payment ID",
 						"error", getErr,
@@ -74,12 +86,11 @@ func HandleProcessed(
 			}
 
 			if transactionID == uuid.Nil {
-				err = fmt.Errorf("no transaction ID provided and could not find by payment ID")
-				log.Error(
-					"Failed to get transaction before update",
-					"error", err,
+				// If no transaction ID and can't find by payment ID, skip gracefully
+				log.Warn(
+					"⚠️ [SKIP] No transaction ID provided and could not find by payment ID",
 				)
-				return err
+				return nil
 			}
 
 			status := "processed"
@@ -91,6 +102,28 @@ func HandleProcessed(
 					"error", getErr,
 				)
 				return fmt.Errorf("failed to get transaction: %w", getErr)
+			}
+
+			// Idempotency check: skip if already processed
+			if tx != nil && tx.Status == status {
+				idempotencyKey := ""
+				if pp.PaymentID != nil {
+					idempotencyKey = *pp.PaymentID
+				} else if transactionID != uuid.Nil {
+					idempotencyKey = transactionID.String()
+				}
+				if idempotencyKey != "" {
+					if _, already := processedPaymentProcessed.LoadOrStore(
+						idempotencyKey,
+						struct{}{},
+					); already {
+						log.Info(
+							"🔁 [SKIP] PaymentProcessed already processed",
+							"idempotency_key", idempotencyKey,
+						)
+						return nil
+					}
+				}
 			}
 
 			// If transaction exists, update it with payment ID
