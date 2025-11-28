@@ -2,10 +2,12 @@ package stripepayment
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"log/slog"
 	"maps"
+	"net/http"
 	"net/url"
 	"strings"
 	"time"
@@ -60,7 +62,23 @@ func New(
 	logger *slog.Logger,
 	uow repository.UnitOfWork,
 ) *StripePaymentProvider {
-	client := stripe.NewClient(cfg.ApiKey)
+	// Configure HTTP client with TLS skip option for development
+	httpClient := &http.Client{
+		Timeout: 30 * time.Second,
+	}
+
+	if cfg.SkipTLSVerify {
+		logger.Warn("⚠️ TLS verification is disabled for Stripe API calls - development mode only")
+		httpClient.Transport = &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true,
+			},
+		}
+	}
+
+	// Create backends with custom HTTP client and use it to configure the Stripe client
+	backends := stripe.NewBackends(httpClient)
+	client := stripe.NewClient(cfg.ApiKey, stripe.WithBackends(backends))
 
 	provider := &StripePaymentProvider{
 		bus:             bus,

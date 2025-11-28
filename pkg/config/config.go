@@ -40,6 +40,7 @@ type Stripe struct {
 	CancelPath           string `envconfig:"CANCEL_PATH" default:"http://localhost:3000/payment/stripe/cancel/"`
 	OnboardingReturnURL  string `envconfig:"ONBOARDING_RETURN_URL" default:"http://localhost:3000/onboarding/return"`
 	OnboardingRefreshURL string `envconfig:"ONBOARDING_REFRESH_URL" default:"http://localhost:3000/onboarding/refresh"`
+	SkipTLSVerify        bool   `envconfig:"SKIP_TLS_VERIFY" default:"false"` // Skip TLS verification for development
 }
 
 //revive:enable
