@@ -27,13 +27,22 @@ type RedisEventBusConfig struct {
 	DLQRetryInterval time.Duration
 	// DLQBatchSize specifies how many messages to process in each batch
 	DLQBatchSize int64
+	// DLQMaxRetries specifies the maximum number of retries per message before giving up
+	DLQMaxRetries int
+	// DLQInitialBackoff specifies the initial backoff duration for exponential backoff
+	DLQInitialBackoff time.Duration
+	// DLQMaxBackoff specifies the maximum backoff duration
+	DLQMaxBackoff time.Duration
 }
 
 // DefaultRedisEventBusConfig returns the default configuration for RedisEventBus
 func DefaultRedisEventBusConfig() *RedisEventBusConfig {
 	return &RedisEventBusConfig{
-		DLQRetryInterval: 5 * time.Minute, // Check DLQ every 5 minutes
-		DLQBatchSize:     10,              // Process 10 messages per batch
+		DLQRetryInterval:  5 * time.Minute,  // Check DLQ every 5 minutes
+		DLQBatchSize:      10,               // Process 10 messages per batch
+		DLQMaxRetries:     5,                // Maximum 5 retries per message
+		DLQInitialBackoff: 1 * time.Minute,  // Start with 1 minute backoff
+		DLQMaxBackoff:     30 * time.Minute, // Cap at 30 minutes
 	}
 }
 
@@ -973,6 +982,7 @@ func (b *RedisEventBus) retryDLQ(
 	)
 
 	var retryCount int
+	var skippedCount int
 	var lastErr error
 
 	// Process each message
@@ -983,15 +993,67 @@ func (b *RedisEventBus) retryDLQ(
 			continue
 		}
 
-		// Republish to original stream
+		// Get retry count from message metadata (stored as "retry_count")
+		retryAttempt := 0
+		if retryCountStr, ok := entry.Values["retry_count"].(string); ok {
+			parsed, err := fmt.Sscanf(retryCountStr, "%d", &retryAttempt)
+			if err != nil || parsed != 1 {
+				// If parsing fails, retryAttempt remains 0
+				retryAttempt = 0
+			}
+		}
+
+		// Check if message has exceeded max retries
+		if retryAttempt >= b.config.DLQMaxRetries {
+			b.logger.Warn("⚠️ Message exceeded max retries, skipping",
+				"message_id", entry.ID,
+				"retry_count", retryAttempt,
+				"max_retries", b.config.DLQMaxRetries,
+				"dlq_stream", dlqStream,
+			)
+			skippedCount++
+			// Optionally move to a permanent failure queue or delete
+			if _, err := b.client.XDel(ctx, dlqStream, entry.ID).Result(); err != nil {
+				b.logger.Warn("Failed to delete exhausted message from DLQ",
+					"error", err,
+					"message_id", entry.ID,
+				)
+			}
+			continue
+		}
+
+		// Calculate exponential backoff delay
+		backoffDuration := b.calculateBackoff(retryAttempt)
+		if backoffDuration > 0 {
+			b.logger.Debug("Applying exponential backoff before retry",
+				"message_id", entry.ID,
+				"retry_attempt", retryAttempt,
+				"backoff_duration", backoffDuration,
+			)
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(backoffDuration):
+				// Continue with retry after backoff
+			}
+		}
+
+		// Increment retry count for next attempt
+		newRetryCount := retryAttempt + 1
+
+		// Republish to original stream with updated retry count
 		if _, err := b.client.XAdd(ctx, &redis.XAddArgs{
 			Stream: originalStream,
-			Values: map[string]any{"event": data},
+			Values: map[string]any{
+				"event":       data,
+				"retry_count": fmt.Sprintf("%d", newRetryCount),
+			},
 		}).Result(); err != nil {
 			lastErr = fmt.Errorf("failed to republish message %s: %w", entry.ID, err)
 			b.logger.Error("Failed to republish DLQ message",
 				"error", err,
 				"message_id", entry.ID,
+				"retry_attempt", retryAttempt,
 				"dlq_stream", dlqStream,
 				"target_stream", originalStream,
 			)
@@ -1027,13 +1089,25 @@ func (b *RedisEventBus) retryDLQ(
 		}
 
 		retryCount++
+		b.logger.Info("✅ Retried DLQ message",
+			"message_id", entry.ID,
+			"retry_attempt", newRetryCount,
+			"dlq_stream", dlqStream,
+		)
 	}
 
 	if retryCount > 0 {
 		b.logger.Info("✅ Successfully retried DLQ messages",
 			"count", retryCount,
+			"skipped", skippedCount,
 			"dlq_stream", dlqStream,
 			"target_stream", originalStream,
+		)
+	}
+	if skippedCount > 0 {
+		b.logger.Warn("⚠️ Skipped messages that exceeded max retries",
+			"count", skippedCount,
+			"max_retries", b.config.DLQMaxRetries,
 		)
 	}
 
@@ -1043,4 +1117,30 @@ func (b *RedisEventBus) retryDLQ(
 	}
 
 	return nil
+}
+
+// calculateBackoff calculates the exponential backoff duration for a given retry attempt.
+// It uses the formula: min(initialBackoff * 2^attempt, maxBackoff)
+func (b *RedisEventBus) calculateBackoff(attempt int) time.Duration {
+	if attempt < 0 {
+		attempt = 0
+	}
+
+	// Calculate exponential backoff: initial * 2^attempt
+	backoff := b.config.DLQInitialBackoff
+	for i := 0; i < attempt; i++ {
+		backoff *= 2
+		// Cap at max backoff
+		if backoff > b.config.DLQMaxBackoff {
+			backoff = b.config.DLQMaxBackoff
+			break
+		}
+	}
+
+	// Ensure we don't exceed max backoff
+	if backoff > b.config.DLQMaxBackoff {
+		backoff = b.config.DLQMaxBackoff
+	}
+
+	return backoff
 }
