@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"sync"
 
 	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/amirasaad/fintech/pkg/handler/common"
@@ -14,12 +13,7 @@ import (
 
 	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/repository"
-	"github.com/google/uuid"
-	"gorm.io/gorm"
 )
-
-// processedPaymentProcessed tracks processed PaymentProcessed events for idempotency
-var processedPaymentProcessed sync.Map // map[string]struct{} for idempotency
 
 // HandleProcessed handles PaymentInitiatedEvent and updates the transaction with payment ID.
 // This is a generic handler that can process payment events
@@ -64,66 +58,38 @@ func HandleProcessed(
 				return fmt.Errorf("failed to get transaction repo: %w", err)
 			}
 
-			transactionID := pp.TransactionID
-			if transactionID == uuid.Nil && pp.PaymentID != nil {
-				tx, getErr := txRepo.GetByPaymentID(ctx, *pp.PaymentID)
-				if getErr != nil {
-					// If transaction not found, log and skip (idempotent behavior)
-					if errors.Is(getErr, gorm.ErrRecordNotFound) {
-						log.Warn(
-							"⚠️ [SKIP] Transaction not found by payment ID",
-							"payment_id", *pp.PaymentID,
-						)
-						return nil // Return nil to skip processing gracefully
-					}
-					log.Error(
-						"Failed to get transaction by payment ID",
-						"error", getErr,
-					)
-					return fmt.Errorf("failed to get transaction by payment ID: %w", getErr)
-				}
-				transactionID = tx.ID
+			// Lookup transaction by payment ID or transaction ID
+			lookupResult := lookupTransactionByPaymentOrID(
+				ctx,
+				txRepo,
+				pp.PaymentID,
+				pp.TransactionID,
+				log,
+			)
+
+			if lookupResult.Error != nil {
+				return lookupResult.Error
 			}
 
-			if transactionID == uuid.Nil {
-				// If no transaction ID and can't find by payment ID, skip gracefully
-				log.Warn(
-					"⚠️ [SKIP] No transaction ID provided and could not find by payment ID",
-				)
-				return nil
+			if !lookupResult.Found {
+				return nil // Skip gracefully if transaction not found
 			}
 
+			tx := lookupResult.Transaction
+			transactionID := lookupResult.TransactionID
 			status := "processed"
-			// First, try to get the existing transaction
-			tx, getErr := txRepo.Get(ctx, transactionID)
-			if getErr != nil && !errors.Is(getErr, gorm.ErrRecordNotFound) {
-				log.Error(
-					"Failed to get transaction",
-					"error", getErr,
-				)
-				return fmt.Errorf("failed to get transaction: %w", getErr)
-			}
 
 			// Idempotency check: skip if already processed
-			if tx != nil && tx.Status == status {
-				idempotencyKey := ""
-				if pp.PaymentID != nil {
-					idempotencyKey = *pp.PaymentID
-				} else if transactionID != uuid.Nil {
-					idempotencyKey = transactionID.String()
-				}
-				if idempotencyKey != "" {
-					if _, already := processedPaymentProcessed.LoadOrStore(
-						idempotencyKey,
-						struct{}{},
-					); already {
-						log.Info(
-							"🔁 [SKIP] PaymentProcessed already processed",
-							"idempotency_key", idempotencyKey,
-						)
-						return nil
-					}
-				}
+			if checkTransactionIdempotency(
+				processedPaymentProcessed,
+				tx,
+				status,
+				pp.PaymentID,
+				transactionID,
+				log,
+				"HandleProcessed",
+			) {
+				return nil
 			}
 
 			// If transaction exists, update it with payment ID

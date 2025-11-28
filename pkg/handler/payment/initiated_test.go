@@ -139,13 +139,13 @@ func TestHandleInitiated(t *testing.T) {
 		)
 
 		// Simulate event already processed
-		processedPaymentInitiated.Store(event.TransactionID.String(), struct{}{})
+		processedPaymentInitiated.store(event.TransactionID.String())
 
 		h = h.WithHandler(HandleInitiated(h.Bus, h.MockPaymentProvider, h.Logger))
 		err := h.Handler(h.Ctx, event)
 		require.NoError(t, err)
 
 		// Clean up for subsequent tests
-		processedPaymentInitiated.Delete(event.TransactionID.String())
+		processedPaymentInitiated.delete(event.TransactionID.String())
 	})
 }

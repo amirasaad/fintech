@@ -2,10 +2,8 @@ package payment
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
-	"sync"
 
 	"github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/domain/events"
@@ -14,12 +12,7 @@ import (
 	"github.com/amirasaad/fintech/pkg/handler/common"
 	"github.com/amirasaad/fintech/pkg/mapper"
 	"github.com/amirasaad/fintech/pkg/repository"
-	"github.com/google/uuid"
-	"gorm.io/gorm"
 )
-
-// processedPaymentCompleted tracks processed PaymentCompleted events for idempotency
-var processedPaymentCompleted sync.Map // map[string]struct{} for idempotency
 
 // ErrInvalidRepositoryType Define custom error for invalid repository type
 
@@ -82,71 +75,54 @@ func HandleCompleted(
 				return fmt.Errorf("payment ID is nil")
 			}
 
-			// First try to get by payment ID
-			tx, err := txRepo.GetByPaymentID(ctx, *pc.PaymentID)
-			if err != nil {
-				// If not found by payment ID, try to get by transaction ID
-				if errors.Is(err, gorm.ErrRecordNotFound) && pc.TransactionID != uuid.Nil {
-					tx, err = txRepo.Get(ctx, pc.TransactionID)
-				}
+			// Lookup transaction by payment ID or transaction ID
+			lookupResult := lookupTransactionByPaymentOrID(
+				ctx,
+				txRepo,
+				pc.PaymentID,
+				pc.TransactionID,
+				log,
+			)
 
-				if err != nil {
-					// If transaction not found, skip gracefully (idempotent behavior)
-					if errors.Is(err, gorm.ErrRecordNotFound) {
-						log.Warn(
-							"⚠️ [SKIP] Transaction not found - may have been processed already",
-							"payment_id", *pc.PaymentID,
-							"transaction_id", pc.TransactionID,
-						)
-						return nil // Return nil to skip processing gracefully
-					}
+			if lookupResult.Error != nil {
+				return lookupResult.Error
+			}
+
+			if !lookupResult.Found {
+				return nil // Skip gracefully if transaction not found
+			}
+
+			tx := lookupResult.Transaction
+
+			// Update the transaction with the payment ID if it wasn't set
+			if tx.PaymentID == nil || (tx.PaymentID != nil && *tx.PaymentID != *pc.PaymentID) {
+				update := dto.TransactionUpdate{
+					PaymentID: pc.PaymentID,
+				}
+				if uerr := txRepo.Update(ctx, tx.ID, update); uerr != nil {
 					log.Error(
-						"failed to get transaction by payment ID or transaction ID",
-						"payment_id", *pc.PaymentID,
-						"transaction_id", pc.TransactionID,
-						"error", err,
+						"failed to update transaction with payment ID",
+						"transaction_id", tx.ID,
+						"payment_id", pc.PaymentID,
+						"error", uerr,
 					)
-					return fmt.Errorf("failed to find transaction: %w", err)
+					return fmt.Errorf("failed to update transaction: %w", uerr)
 				}
-
-				// Update the transaction with the payment ID if it wasn't set
-				if tx.PaymentID == nil || *tx.PaymentID != *pc.PaymentID {
-					update := dto.TransactionUpdate{
-						PaymentID: pc.PaymentID,
-					}
-					if uerr := txRepo.Update(ctx, tx.ID, update); uerr != nil {
-						log.Error(
-							"failed to update transaction with payment ID",
-							"transaction_id", tx.ID,
-							"payment_id", pc.PaymentID,
-							"error", uerr,
-						)
-						return fmt.Errorf("failed to update transaction: %w", uerr)
-					}
-					tx.PaymentID = pc.PaymentID
-				}
+				tx.PaymentID = pc.PaymentID
 			}
 
 			// Idempotency check: skip if transaction is already completed
-			if tx.Status == string(account.TransactionStatusCompleted) {
-				idempotencyKey := ""
-				if pc.PaymentID != nil {
-					idempotencyKey = *pc.PaymentID
-				} else if tx.ID != uuid.Nil {
-					idempotencyKey = tx.ID.String()
-				}
-				if idempotencyKey != "" {
-					if _, already := processedPaymentCompleted.LoadOrStore(
-						idempotencyKey,
-						struct{}{},
-					); already {
-						log.Info(
-							"🔁 [SKIP] PaymentCompleted already processed",
-							"idempotency_key", idempotencyKey,
-						)
-						return nil
-					}
-				}
+			expectedStatus := string(account.TransactionStatusCompleted)
+			if checkTransactionIdempotency(
+				processedPaymentCompleted,
+				tx,
+				expectedStatus,
+				pc.PaymentID,
+				tx.ID,
+				log,
+				"HandleCompleted",
+			) {
+				return nil
 			}
 
 			log = log.With(

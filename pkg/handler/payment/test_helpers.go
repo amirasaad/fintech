@@ -58,12 +58,18 @@ func setupSuccessfulTest(h *testutils.TestHelper) {
 	// Use the amount directly from the test helper
 	amount := h.Amount
 
-	// Setup test transaction
+	// Setup payment ID to match what createValidPaymentCompletedEvent creates
+	paymentID := "test-payment-id"
+	if h.PaymentID == nil {
+		h.PaymentID = &paymentID
+	}
+
+	// Setup test transaction with payment ID matching the event
 	tx := &dto.TransactionRead{
 		ID:        h.TransactionID,
 		UserID:    h.UserID,
 		AccountID: h.AccountID,
-		PaymentID: h.PaymentID,
+		PaymentID: &paymentID,
 		Status:    "pending",
 		Currency:  amount.CurrencyCode().String(),
 		Amount:    amount.AmountFloat(),
@@ -87,8 +93,6 @@ func setupSuccessfulTest(h *testutils.TestHelper) {
 				h.MockTxRepo, nil,
 			)
 
-		// Ensure we pass a string, not a *string
-		paymentID := "test-payment-id"
 		h.MockTxRepo.
 			EXPECT().
 			GetByPaymentID(ctx, paymentID).

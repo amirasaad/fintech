@@ -5,14 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"sync"
 
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/amirasaad/fintech/pkg/provider/payment"
 )
-
-var processedPaymentInitiated sync.Map // map[string]struct{} for idempotency
 
 // HandleInitiated handles DepositBusinessValidatedEvent and initiates payment for deposits.
 func HandleInitiated(
@@ -39,11 +36,11 @@ func HandleInitiated(
 		}
 		transactionID := pi.TransactionID
 		idempotencyKey := transactionID.String()
-		if _, already := processedPaymentInitiated.
-			LoadOrStore(
-				idempotencyKey,
-				struct{}{},
-			); already {
+		if processedPaymentInitiated.checkAndMarkProcessed(
+			idempotencyKey,
+			log,
+			"HandleInitiated",
+		) {
 			log.Info(
 				"🔁 [SKIP] PaymentInitiatedEvent already emitted for this transaction",
 				"transaction_id", transactionID,
