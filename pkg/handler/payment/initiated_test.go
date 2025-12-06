@@ -124,7 +124,7 @@ func TestHandleInitiated(t *testing.T) {
 	})
 
 	t.Run("skips already processed payment initiated event", func(t *testing.T) {
-		h := testutils.New(t)
+		h := newTestHelper(t)
 		event := events.NewPaymentInitiated(
 			&events.FlowEvent{
 				ID:            h.EventID,
