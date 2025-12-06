@@ -110,6 +110,10 @@ func (s *E2EFlowsTestSuite) TestWithdrawE2E() {
 	}
 	s.Require().Equal(http.StatusAccepted, resp.StatusCode)
 
+	// Mark user as having completed Stripe Connect onboarding
+	// This is required for withdrawals to succeed
+	s.MarkUserOnboardingComplete(user.ID)
+
 	// Make withdraw request
 	withdrawBody := `
 	{"amount":100,"currency":"USD",

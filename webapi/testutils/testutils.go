@@ -22,6 +22,7 @@ import (
 	"github.com/amirasaad/fintech/infra/provider/exchangerateapi"
 	"github.com/amirasaad/fintech/infra/provider/mockpayment"
 	infrarepo "github.com/amirasaad/fintech/infra/repository"
+	infrarepoUser "github.com/amirasaad/fintech/infra/repository/user"
 	fixturescurrency "github.com/amirasaad/fintech/internal/fixtures/currency"
 	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/domain/user"
@@ -372,4 +373,17 @@ func (s *E2ETestSuite) LoginUser(testUser *domain.User) string {
 		s.T().Fatalf("No token found in response")
 	}
 	return token
+}
+
+// MarkUserOnboardingComplete marks a user as having completed Stripe Connect onboarding
+// This is a helper method for E2E tests that need to test withdrawal flows
+func (s *E2ETestSuite) MarkUserOnboardingComplete(userID uuid.UUID) {
+	s.T().Helper()
+	err := s.db.Model(&infrarepoUser.User{}).
+		Where("id = ?", userID).
+		Updates(map[string]interface{}{
+			"stripe_connect_onboarding_completed": true,
+			"stripe_connect_account_status":       "active",
+		}).Error
+	s.Require().NoError(err, "Failed to mark user onboarding as complete")
 }
