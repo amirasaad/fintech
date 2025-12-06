@@ -1,5 +1,25 @@
 # CHANGELOG
 
+## v1.5.0 (2025-12-06)
+
+### Feat
+
+- **repository**: implement GORM error mapping and wrapping for domain errors
+- **payment**: implement idempotency checks for PaymentCompleted and PaymentProcessed events
+- **stripepayment**: enhance Stripe client configuration with TLS skip option for development
+- **eventbus**: enhance DLQ retry mechanism with configurable backoff and max retries
+- **docs**: add comprehensive guidelines for API development, architecture patterns, coding standards, security, and testing
+
+### Fix
+
+- **eventbus**: DLQ retry mechanism and add tests (#25)
+
+### Refactor
+
+- **payment**: enhance logging by safely handling nil payment IDs
+- **payment**: simplify idempotency tracking and transaction lookup logic
+- **payment**: streamline transaction lookup and idempotency checks
+
 ## v1.4.0 (2025-08-31)
 
 ### Feat
