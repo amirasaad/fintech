@@ -55,7 +55,15 @@ description: Architecture patterns and clean architecture guidelines
 - Coordinate multiple repository operations
 - Handle transactions properly
 - Ensure data consistency
-- See implementation in [infra/uow.go](mdc:infra/uow.go)
+- **Automatic error mapping** - GORM errors are automatically mapped to domain errors in `UoW.Do()`
+- See implementation in [infra/repository/uow.go](mdc:infra/repository/uow.go)
+
+## Error Handling
+
+- Use two-layer error translation: GORM `TranslateError` + `MapGormErrorToDomain`
+- All transactional operations in `UoW.Do()` get automatic error mapping
+- Never expose GORM errors directly - always map to domain errors
+- See error handling documentation: [docs/error-handling.md](mdc:docs/error-handling.md)
 
 ## Best Practices
 

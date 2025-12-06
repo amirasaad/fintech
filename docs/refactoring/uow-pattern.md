@@ -33,6 +33,7 @@ err = s.uow.Do(context.Background(), func(uow repository.UnitOfWork) error {
 - ✅ **Repository coordination** - all repositories use same transaction session
 - ✅ **Atomic operations** - all-or-nothing semantics
 - ✅ **Error handling** - automatic rollback on any error
+- ✅ **Automatic error mapping** - GORM errors automatically mapped to domain errors
 - ✅ **Clean architecture** - business logic separated from infrastructure
 
 ## ❌ What Needs Improvement
@@ -258,7 +259,8 @@ func (s *AccountService) executeOperation(req operationRequest, handler operatio
 1. **All existing benefits preserved** - No changes to transaction handling
 2. **Same atomicity guarantees** - All-or-nothing operations
 3. **Same error handling** - Automatic rollback on errors
-4. **Same repository coordination** - All repositories use same session
+4. **Automatic error mapping** - GORM errors automatically mapped to domain errors
+5. **Same repository coordination** - All repositories use same session
 
 ### ✅ **Backward Compatibility**
 
@@ -355,13 +357,25 @@ func TestAccountService_Deposit(t *testing.T) {
 }
 ```
 
+## Error Handling
+
+The UOW pattern automatically handles error translation:
+
+1. **GORM `TranslateError`** - Normalizes database-specific errors (PostgreSQL, MySQL, etc.) to GORM generic errors
+2. **`MapGormErrorToDomain`** - Converts GORM errors (e.g., `gorm.ErrDuplicatedKey`) to domain errors (e.g., `domain.ErrAlreadyExists`)
+3. **Automatic in `UoW.Do()`** - All transactional operations get automatic error mapping
+4. **Clean architecture** - Infrastructure errors stay in infrastructure layer
+
+For detailed error handling documentation, see [Error Handling Guide](../error-handling.md).
+
 ## Conclusion
 
 The improved UOW pattern provides:
 
 1. **✅ All existing transaction benefits** - No compromise on data integrity
 2. **✅ Better developer experience** - Type safety and IDE support
-3. **✅ Backward compatibility** - Existing code continues to work
-4. **✅ Gradual migration path** - Update services incrementally
+3. **✅ Automatic error mapping** - GORM errors automatically converted to domain errors
+4. **✅ Backward compatibility** - Existing code continues to work
+5. **✅ Gradual migration path** - Update services incrementally
 
 **Recommendation:** Use the type-safe convenience methods for new code and gradually migrate existing services. The current UOW pattern is excellent - we've just made it even better! 🎉

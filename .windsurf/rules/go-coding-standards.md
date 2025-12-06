@@ -22,10 +22,13 @@ globs: *.go
 ## Error Handling
 
 - Always check errors explicitly
-- Use `ErrorResponseJSON` for HTTP responses - see [webapi/utils.go](mdc:webapi/utils.go)
+- Use `ErrorResponseJSON` for HTTP responses - see [webapi/common/utils.go](mdc:webapi/common/utils.go)
 - Return `fiber.Error` for API errors
 - Log errors with context
 - Use custom error types for domain-specific errors
+- **Automatic error mapping in UoW** - All transactional operations in `UoW.Do()` automatically map GORM errors to domain errors
+- For non-transactional repository methods, use `WrapError()` helper or `MapGormErrorToDomain()` directly
+- See [docs/error-handling.md](mdc:docs/error-handling.md) for complete error handling guide
 
 ## Code Quality
 

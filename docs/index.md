@@ -33,6 +33,7 @@ Technologies Used
 - [Currency System](currency/currency-system.md)
 - [Multi-Currency](currency/multi-currency.md)
 - [Exchange Rates](currency/exchange-rates.md)
+- [Error Handling](error-handling.md)
 - [Refactoring Patterns](refactoring/patterns.md)
 - [Account Service Refactor](refactoring/account-service.md)
 - [Decorator Pattern](refactoring/decorator-pattern.md)
