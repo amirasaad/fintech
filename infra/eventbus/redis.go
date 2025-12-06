@@ -924,6 +924,17 @@ func (b *RedisEventBus) retryDLQ(
 		"batch_size", count,
 	)
 
+	// Ensure consumer group exists before reading
+	if err := b.ensureConsumerGroup(ctx, dlqStream, "dlq-retry-worker"); err != nil {
+		b.logger.Warn("failed to ensure DLQ consumer group, falling back to direct read",
+			"error", err,
+			"dlq_stream", dlqStream,
+		)
+	}
+
+	var entries []redis.XMessage
+	var readViaGroup bool // Track if we read via consumer group (needed for ACK)
+
 	// Use XReadGroup to read from DLQ to prevent message loss
 	streams, err := b.client.XReadGroup(ctx, &redis.XReadGroupArgs{
 		Group:    "dlq-retry-worker",
@@ -933,39 +944,84 @@ func (b *RedisEventBus) retryDLQ(
 		Block:    100 * time.Millisecond,
 	}).Result()
 
-	var entries []redis.XMessage
-	if err == nil && len(streams) > 0 {
+	switch {
+	case err == nil && len(streams) > 0:
 		entries = streams[0].Messages
-	}
-	if err != nil {
-		b.logger.Error("failed reading from DLQ",
+		readViaGroup = true
+	case errors.Is(err, redis.Nil):
+		// No new messages for the consumer group, try reading pending messages
+		pending, pendErr := b.client.XPendingExt(ctx, &redis.XPendingExtArgs{
+			Stream: dlqStream,
+			Group:  "dlq-retry-worker",
+			Start:  "-",
+			End:    "+",
+			Count:  count,
+		}).Result()
+		if pendErr == nil && len(pending) > 0 {
+			// Read pending messages
+			ids := make([]string, len(pending))
+			for i, p := range pending {
+				ids[i] = p.ID
+			}
+			pendingMsgs, pendReadErr := b.client.XClaim(ctx, &redis.XClaimArgs{
+				Stream:   dlqStream,
+				Group:    "dlq-retry-worker",
+				Consumer: "dlq-consumer",
+				MinIdle:  0,
+				Messages: ids,
+			}).Result()
+			if pendReadErr == nil && len(pendingMsgs) > 0 {
+				entries = pendingMsgs
+				readViaGroup = true
+				b.logger.Debug("claimed pending messages from DLQ",
+					"count", len(entries),
+					"dlq_stream", dlqStream,
+				)
+			}
+		}
+
+		// If still no entries, fall back to XREAD from start
+		// (for messages that existed before group creation)
+		if len(entries) == 0 {
+			b.logger.Debug("no group messages; attempting backlog read from start",
+				"dlq_stream", dlqStream,
+				"batch_size", count,
+			)
+			raw, rerr := b.client.XRead(ctx, &redis.XReadArgs{
+				Streams: []string{dlqStream, "0"},
+				Count:   count,
+				Block:   100 * time.Millisecond,
+			}).Result()
+			if rerr != nil && !errors.Is(rerr, redis.Nil) {
+				b.logger.Error("failed backlog read from DLQ",
+					"error", rerr,
+					"dlq_stream", dlqStream,
+				)
+				return fmt.Errorf("failed backlog read from DLQ: %w", rerr)
+			}
+			if len(raw) > 0 && len(raw[0].Messages) > 0 {
+				entries = raw[0].Messages
+			}
+		}
+	case err != nil:
+		// Only log non-Nil errors as warnings
+		b.logger.Warn("XReadGroup returned error (will try fallback)",
 			"error", err,
 			"dlq_stream", dlqStream,
 		)
-		return fmt.Errorf("failed reading from DLQ: %w", err)
-	}
-
-	// If no entries were delivered to the group (common when group created after messages existed),
-	// fall back to a direct XREAD from the beginning to process backlog.
-	if len(entries) == 0 {
-		b.logger.Debug("no group messages; attempting backlog read from start",
-			"dlq_stream", dlqStream,
-			"batch_size", count,
-		)
-		raw, rerr := b.client.XRead(ctx, &redis.XReadArgs{
-			Streams: []string{dlqStream, "0"},
-			Count:   count,
-			Block:   0,
-		}).Result()
-		if rerr != nil && !errors.Is(rerr, redis.Nil) {
-			b.logger.Error("failed backlog read from DLQ",
-				"error", rerr,
-				"dlq_stream", dlqStream,
-			)
-			return fmt.Errorf("failed backlog read from DLQ: %w", rerr)
-		}
-		if len(raw) > 0 {
-			entries = raw[0].Messages
+		// Try XREAD as fallback for other errors
+		if len(entries) == 0 {
+			raw, rerr := b.client.XRead(ctx, &redis.XReadArgs{
+				Streams: []string{dlqStream, "0"},
+				Count:   count,
+				Block:   100 * time.Millisecond,
+			}).Result()
+			if rerr != nil && !errors.Is(rerr, redis.Nil) {
+				return fmt.Errorf("failed fallback read from DLQ: %w", rerr)
+			}
+			if len(raw) > 0 && len(raw[0].Messages) > 0 {
+				entries = raw[0].Messages
+			}
 		}
 	}
 
@@ -1061,17 +1117,21 @@ func (b *RedisEventBus) retryDLQ(
 		}
 
 		// Acknowledge the message in the DLQ after successful republish
-		if _, err := b.client.XAck(
-			ctx,
-			dlqStream,
-			"dlq-retry-worker",
-			entry.ID,
-		).Result(); err != nil {
-			b.logger.Error("Failed to acknowledge message in DLQ",
-				"error", err,
-				"message_id", entry.ID,
-				"dlq_stream", dlqStream,
-			)
+		// Only ACK if we read via consumer group (XReadGroup or XClaim)
+		// Messages read via XRead don't need ACK
+		if readViaGroup {
+			if _, err := b.client.XAck(
+				ctx,
+				dlqStream,
+				"dlq-retry-worker",
+				entry.ID,
+			).Result(); err != nil {
+				b.logger.Error("Failed to acknowledge message in DLQ",
+					"error", err,
+					"message_id", entry.ID,
+					"dlq_stream", dlqStream,
+				)
+			}
 		}
 
 		// Also try to delete the message to prevent DLQ from growing

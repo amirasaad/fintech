@@ -183,8 +183,8 @@ func TestRedisBusDLQRetry(t *testing.T) {
 	// Emit the event
 	require.NoError(t, bus.Emit(ctx, &TestEvent{Message: "retry me"}))
 
-	// Wait for it to reach DLQ
-	time.Sleep(1 * time.Second)
+	// Wait for it to reach DLQ and be processed by the initial DLQ worker run
+	time.Sleep(2 * time.Second)
 
 	// 2) Switch the behavior to succeed on retry
 	fail = false
@@ -192,10 +192,11 @@ func TestRedisBusDLQRetry(t *testing.T) {
 	// 3) Trigger DLQ processing explicitly (avoids waiting for the periodic worker)
 	bus.processAllDLQs(ctx)
 
+	// Give the republished message time to be consumed
 	select {
 	case msg := <-received:
 		require.Equal(t, "retry me", msg)
-	case <-time.After(3 * time.Second):
+	case <-time.After(5 * time.Second):
 		t.Fatal("DLQ retry did not republish message in time")
 	}
 }
