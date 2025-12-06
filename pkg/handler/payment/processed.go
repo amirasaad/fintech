@@ -56,10 +56,14 @@ func HandleProcessed(
 			)
 			return errors.New("unexpected event type")
 		}
-		log = log.With(
+		// Build log fields safely without dereferencing nil pointers
+		logFields := []any{
 			"transaction_id", pp.TransactionID,
-			"payment_id", *pp.PaymentID,
-		)
+		}
+		if pp.PaymentID != nil {
+			logFields = append(logFields, "payment_id", *pp.PaymentID)
+		}
+		log = log.With(logFields...)
 		log.Info(
 			"🔄 [PROCESS] Updating transaction with payment ID")
 

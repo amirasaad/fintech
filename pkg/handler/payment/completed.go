@@ -67,12 +67,16 @@ func HandleCompleted(
 			)
 			return nil
 		}
-		log = log.With(
+		// Build log fields safely without dereferencing nil pointers
+		logFields := []any{
 			"user_id", pc.UserID,
 			"account_id", pc.AccountID,
-			"payment_id", *pc.PaymentID,
 			"transaction_id", pc.TransactionID,
-		)
+		}
+		if pc.PaymentID != nil {
+			logFields = append(logFields, "payment_id", *pc.PaymentID)
+		}
+		log = log.With(logFields...)
 
 		if err := uow.Do(ctx, func(uow repository.UnitOfWork) error {
 			accRepo, err := common.GetAccountRepository(uow, log)
