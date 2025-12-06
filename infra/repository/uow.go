@@ -47,13 +47,16 @@ func NewUoW(db *gorm.DB) *UoW {
 }
 
 // Do runs the given function in a transaction boundary, providing a UoW with repository access.
+// Automatically maps GORM errors to domain errors.
 func (u *UoW) Do(ctx context.Context, fn func(uow repository.UnitOfWork) error) error {
-	return u.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		txnUow := &UoW{
-			db: u.db,
-			tx: tx,
-		}
-		return fn(txnUow)
+	return WrapError(func() error {
+		return u.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+			txnUow := &UoW{
+				db: u.db,
+				tx: tx,
+			}
+			return fn(txnUow)
+		})
 	})
 }
 

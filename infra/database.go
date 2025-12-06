@@ -30,7 +30,13 @@ func NewDBConnection(
 
 	connection, err := gorm.Open(postgres.Open(databaseUrl), &gorm.Config{
 		Logger:                 logger.Default.LogMode(logMode),
-		SkipDefaultTransaction: true})
+		SkipDefaultTransaction: true,
+		// TranslateError normalizes database-specific errors (PostgreSQL, MySQL, etc.)
+		// into GORM generic errors (gorm.ErrDuplicatedKey, gorm.ErrRecordNotFound).
+		// These are then mapped to domain errors by MapGormErrorToDomain in UoW.
+		// This two-layer approach ensures database-agnostic error handling.
+		TranslateError: true,
+	})
 	if err != nil {
 		return nil, err
 	}

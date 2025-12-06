@@ -3,6 +3,7 @@ package common
 import (
 	"errors"
 
+	"github.com/amirasaad/fintech/pkg/domain"
 	"github.com/amirasaad/fintech/pkg/domain/account"
 	"github.com/amirasaad/fintech/pkg/domain/user"
 	"github.com/amirasaad/fintech/pkg/money"
@@ -48,7 +49,12 @@ func ProblemDetailsJSON(
 
 	if err != nil {
 		status = errorToStatusCode(err)
-		pdDetail = err.Error()
+		// Use generic message for duplicate key errors
+		if errors.Is(err, domain.ErrAlreadyExists) {
+			pdDetail = "Unprocessable entity"
+		} else {
+			pdDetail = err.Error()
+		}
 	}
 	// Check for custom detail or status code in variadic args
 	for _, arg := range detailOrStatus {
@@ -143,6 +149,9 @@ func SuccessResponseJSON(c *fiber.Ctx, status int, message string, data any) err
 // errorToStatusCode maps domain errors to appropriate HTTP status codes.
 func errorToStatusCode(err error) int {
 	switch {
+	// Domain errors
+	case errors.Is(err, domain.ErrAlreadyExists):
+		return fiber.StatusUnprocessableEntity
 	// Account errors
 	case errors.Is(err, account.ErrAccountNotFound):
 		return fiber.StatusNotFound

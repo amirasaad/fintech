@@ -114,7 +114,7 @@ func CreateUser(userSvc *usersvc.Service) fiber.Handler {
 			return common.ProblemDetailsJSON(
 				c,
 				"Couldn't create user",
-				err, fiber.StatusInternalServerError)
+				err)
 		}
 		return common.SuccessResponseJSON(
 			c,
