@@ -12,9 +12,23 @@ import (
 	"github.com/amirasaad/fintech/pkg/handler/common"
 	"github.com/amirasaad/fintech/pkg/mapper"
 	"github.com/amirasaad/fintech/pkg/repository"
+	"github.com/google/uuid"
 )
 
-// ErrInvalidRepositoryType Define custom error for invalid repository type
+// ExtractPaymentCompletedKey extracts idempotency key from PaymentCompleted event
+func ExtractPaymentCompletedKey(e events.Event) string {
+	pc, ok := e.(*events.PaymentCompleted)
+	if !ok {
+		return ""
+	}
+	if pc.PaymentID != nil && *pc.PaymentID != "" {
+		return *pc.PaymentID
+	}
+	if pc.TransactionID != uuid.Nil {
+		return pc.TransactionID.String()
+	}
+	return ""
+}
 
 // HandleCompleted handles PaymentCompletedEvent,
 // updates the transaction status in the DB, and publishes a follow-up event if needed.
@@ -76,7 +90,7 @@ func HandleCompleted(
 			}
 
 			// Lookup transaction by payment ID or transaction ID
-			lookupResult := lookupTransactionByPaymentOrID(
+			lookupResult := common.LookupTransactionByPaymentOrID(
 				ctx,
 				txRepo,
 				pc.PaymentID,
@@ -109,20 +123,6 @@ func HandleCompleted(
 					return fmt.Errorf("failed to update transaction: %w", uerr)
 				}
 				tx.PaymentID = pc.PaymentID
-			}
-
-			// Idempotency check: skip if transaction is already completed
-			expectedStatus := string(account.TransactionStatusCompleted)
-			if checkTransactionIdempotency(
-				processedPaymentCompleted,
-				tx,
-				expectedStatus,
-				pc.PaymentID,
-				tx.ID,
-				log,
-				"HandleCompleted",
-			) {
-				return nil
 			}
 
 			log = log.With(

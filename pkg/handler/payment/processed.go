@@ -13,7 +13,23 @@ import (
 
 	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/repository"
+	"github.com/google/uuid"
 )
+
+// ExtractPaymentProcessedKey extracts idempotency key from PaymentProcessed event
+func ExtractPaymentProcessedKey(e events.Event) string {
+	pp, ok := e.(*events.PaymentProcessed)
+	if !ok {
+		return ""
+	}
+	if pp.PaymentID != nil && *pp.PaymentID != "" {
+		return *pp.PaymentID
+	}
+	if pp.TransactionID != uuid.Nil {
+		return pp.TransactionID.String()
+	}
+	return ""
+}
 
 // HandleProcessed handles PaymentInitiatedEvent and updates the transaction with payment ID.
 // This is a generic handler that can process payment events
@@ -59,7 +75,7 @@ func HandleProcessed(
 			}
 
 			// Lookup transaction by payment ID or transaction ID
-			lookupResult := lookupTransactionByPaymentOrID(
+			lookupResult := common.LookupTransactionByPaymentOrID(
 				ctx,
 				txRepo,
 				pp.PaymentID,
@@ -78,19 +94,6 @@ func HandleProcessed(
 			tx := lookupResult.Transaction
 			transactionID := lookupResult.TransactionID
 			status := "processed"
-
-			// Idempotency check: skip if already processed
-			if checkTransactionIdempotency(
-				processedPaymentProcessed,
-				tx,
-				status,
-				pp.PaymentID,
-				transactionID,
-				log,
-				"HandleProcessed",
-			) {
-				return nil
-			}
 
 			// If transaction exists, update it with payment ID
 			if tx != nil {

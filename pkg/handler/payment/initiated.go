@@ -9,7 +9,20 @@ import (
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/amirasaad/fintech/pkg/provider/payment"
+	"github.com/google/uuid"
 )
+
+// ExtractPaymentInitiatedKey extracts idempotency key from PaymentInitiated event
+func ExtractPaymentInitiatedKey(e events.Event) string {
+	pi, ok := e.(*events.PaymentInitiated)
+	if !ok {
+		return ""
+	}
+	if pi.TransactionID != uuid.Nil {
+		return pi.TransactionID.String()
+	}
+	return ""
+}
 
 // HandleInitiated handles DepositBusinessValidatedEvent and initiates payment for deposits.
 func HandleInitiated(
@@ -35,18 +48,6 @@ func HandleInitiated(
 			return errors.New("unexpected event type")
 		}
 		transactionID := pi.TransactionID
-		idempotencyKey := transactionID.String()
-		if processedPaymentInitiated.checkAndMarkProcessed(
-			idempotencyKey,
-			log,
-			"HandleInitiated",
-		) {
-			log.Info(
-				"🔁 [SKIP] PaymentInitiatedEvent already emitted for this transaction",
-				"transaction_id", transactionID,
-			)
-			return nil
-		}
 
 		// Call payment provider
 		amount := pi.Amount.Amount()

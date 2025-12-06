@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/amirasaad/fintech/pkg/domain/events"
+	handlercommon "github.com/amirasaad/fintech/pkg/handler/common"
 	"github.com/amirasaad/fintech/pkg/handler/testutils"
 	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/amirasaad/fintech/pkg/provider/payment"
@@ -138,14 +139,42 @@ func TestHandleInitiated(t *testing.T) {
 			},
 		)
 
-		// Simulate event already processed
-		processedPaymentInitiated.store(event.TransactionID.String())
+		// Wrap handler with idempotency middleware to test the full flow
+		handler := HandleInitiated(h.Bus, h.MockPaymentProvider, h.Logger)
+		tracker := handlercommon.NewIdempotencyTracker()
+		wrappedHandler := handlercommon.WithIdempotency(
+			handler,
+			tracker,
+			ExtractPaymentInitiatedKey,
+			"HandleInitiated",
+			h.Logger,
+		)
 
-		h = h.WithHandler(HandleInitiated(h.Bus, h.MockPaymentProvider, h.Logger))
-		err := h.Handler(h.Ctx, event)
+		mockResponse := &payment.InitiatePaymentResponse{
+			Status:    payment.PaymentPending,
+			PaymentID: "pi_123456789",
+		}
+
+		// Set up expectation for first call only
+		h.MockPaymentProvider.EXPECT().
+			InitiatePayment(
+				h.Ctx,
+				&payment.InitiatePaymentParams{
+					UserID:        event.UserID,
+					AccountID:     event.AccountID,
+					Amount:        event.Amount.Amount(),
+					Currency:      event.Amount.Currency().String(),
+					TransactionID: event.TransactionID,
+				},
+			).Return(mockResponse, nil).Times(1)
+
+		// First call - should execute handler
+		err := wrappedHandler(h.Ctx, event)
 		require.NoError(t, err)
 
-		// Clean up for subsequent tests
-		processedPaymentInitiated.delete(event.TransactionID.String())
+		// Second call - should be skipped due to idempotency (no mock expectation)
+		err = wrappedHandler(h.Ctx, event)
+		require.NoError(t, err)
+
 	})
 }

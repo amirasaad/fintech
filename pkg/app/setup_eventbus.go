@@ -10,6 +10,7 @@ import (
 	"github.com/amirasaad/fintech/pkg/handler/account/deposit"
 	"github.com/amirasaad/fintech/pkg/handler/account/transfer"
 	"github.com/amirasaad/fintech/pkg/handler/account/withdraw"
+	handlercommon "github.com/amirasaad/fintech/pkg/handler/common"
 	"github.com/amirasaad/fintech/pkg/handler/conversion"
 	"github.com/amirasaad/fintech/pkg/handler/fees"
 	"github.com/amirasaad/fintech/pkg/handler/payment"
@@ -93,26 +94,50 @@ func (a *App) setupPaymentHandlers(
 	uow repository.UnitOfWork,
 	logger *slog.Logger,
 ) {
+	// Create idempotency trackers for each handler
+	initiatedTracker := handlercommon.NewIdempotencyTracker()
+	processedTracker := handlercommon.NewIdempotencyTracker()
+	completedTracker := handlercommon.NewIdempotencyTracker()
+
+	// Register handlers with idempotency middleware
 	bus.Register(
 		events.EventTypePaymentInitiated,
-		payment.HandleInitiated(
-			bus,
-			a.Deps.PaymentProvider,
+		handlercommon.WithIdempotency(
+			payment.HandleInitiated(
+				bus,
+				a.Deps.PaymentProvider,
+				logger,
+			),
+			initiatedTracker,
+			payment.ExtractPaymentInitiatedKey,
+			"HandleInitiated",
 			logger,
 		),
 	)
 	bus.Register(
 		events.EventTypePaymentProcessed,
-		payment.HandleProcessed(
-			uow,
+		handlercommon.WithIdempotency(
+			payment.HandleProcessed(
+				uow,
+				logger,
+			),
+			processedTracker,
+			payment.ExtractPaymentProcessedKey,
+			"HandleProcessed",
 			logger,
 		),
 	)
 	bus.Register(
 		events.EventTypePaymentCompleted,
-		payment.HandleCompleted(
-			bus,
-			uow,
+		handlercommon.WithIdempotency(
+			payment.HandleCompleted(
+				bus,
+				uow,
+				logger,
+			),
+			completedTracker,
+			payment.ExtractPaymentCompletedKey,
+			"HandleCompleted",
 			logger,
 		),
 	)
