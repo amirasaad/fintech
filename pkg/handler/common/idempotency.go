@@ -7,6 +7,7 @@ import (
 
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/eventbus"
+	"golang.org/x/sync/singleflight"
 )
 
 // KeyExtractor extracts an idempotency key from an event
@@ -15,6 +16,7 @@ type KeyExtractor func(events.Event) string
 // IdempotencyTracker tracks processed events by key
 type IdempotencyTracker struct {
 	processed sync.Map
+	inflight  singleflight.Group
 }
 
 // NewIdempotencyTracker creates a new idempotency tracker
@@ -59,21 +61,37 @@ func WithIdempotency(
 		)
 
 		// Check if already processed (before calling handler)
-		if _, already := tracker.processed.LoadOrStore(key, struct{}{}); already {
+		if _, already := tracker.processed.Load(key); already {
 			log.Info("🔁 [SKIP] Event already processed")
 			return nil
 		}
 
-		// Execute handler
-		err := handler(ctx, e)
+		// Ensure only one goroutine processes a given key at a time.
+		// Other goroutines will wait and observe the same success/failure result,
+		// preventing silent drops when the in-flight attempt fails.
+		_, err, _ := tracker.inflight.Do(key, func() (any, error) {
+			// Another goroutine may have completed successfully while we waited.
+			if _, already := tracker.processed.Load(key); already {
+				return nil, nil
+			}
 
-		// If handler failed, remove from tracker to allow retry
+			// Execute handler
+			if err := handler(ctx, e); err != nil {
+				return nil, err
+			}
+
+			// Handler succeeded, mark as processed
+			tracker.processed.Store(key, struct{}{})
+			return nil, nil
+		})
 		if err != nil {
+			// Ensure key is not left marked as processed on failure.
+			// (This is defensive; we only store on success.)
 			tracker.processed.Delete(key)
 			return err
 		}
 
-		// Handler succeeded, keep marked as processed
+		// Handler succeeded (either by us or a concurrent goroutine)
 		return nil
 	}
 }

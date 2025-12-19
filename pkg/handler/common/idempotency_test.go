@@ -5,6 +5,8 @@ import (
 	"errors"
 	"log/slog"
 	"os"
+	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/amirasaad/fintech/pkg/domain/events"
@@ -22,14 +24,14 @@ func TestIdempotencyTracker(t *testing.T) {
 		key := "test-key-1"
 
 		// Initially not processed
-		_, already := tracker.processed.LoadOrStore(key, struct{}{})
+		_, already := tracker.processed.Load(key)
 		assert.False(t, already)
 
 		// Store it
 		tracker.Store(key)
 
 		// Should be processed now
-		_, already = tracker.processed.LoadOrStore(key, struct{}{})
+		_, already = tracker.processed.Load(key)
 		assert.True(t, already)
 	})
 
@@ -39,12 +41,12 @@ func TestIdempotencyTracker(t *testing.T) {
 		key := "test-key-2"
 
 		tracker.Store(key)
-		_, already := tracker.processed.LoadOrStore(key, struct{}{})
+		_, already := tracker.processed.Load(key)
 		assert.True(t, already)
 
 		tracker.Delete(key)
 
-		_, already = tracker.processed.LoadOrStore(key, struct{}{})
+		_, already = tracker.processed.Load(key)
 		assert.False(t, already)
 	})
 }
@@ -126,7 +128,7 @@ func TestWithIdempotency(t *testing.T) {
 		assert.Equal(t, handlerErr, err)
 
 		// Key should be removed, allowing retry
-		_, already := tracker.processed.LoadOrStore(key, struct{}{})
+		_, already := tracker.processed.Load(key)
 		assert.False(t, already, "key should be removed after handler failure")
 	})
 
@@ -148,8 +150,74 @@ func TestWithIdempotency(t *testing.T) {
 		require.NoError(t, err)
 
 		// Key should remain in tracker
-		_, already := tracker.processed.LoadOrStore(key, struct{}{})
+		_, already := tracker.processed.Load(key)
 		assert.True(t, already, "key should remain in tracker after successful handler")
+	})
+
+	t.Run("concurrent duplicate processing does not silently drop failures", func(t *testing.T) {
+		t.Parallel()
+
+		tracker := NewIdempotencyTracker()
+		const n = 20
+		key := "test-key-concurrent"
+		var extracted int32
+		allExtracted := make(chan struct{})
+		keyExtractor := func(e events.Event) string {
+			if atomic.AddInt32(&extracted, 1) == n {
+				close(allExtracted)
+			}
+			return key
+		}
+
+		handlerStarted := make(chan struct{})
+		release := make(chan struct{})
+
+		var calls int32
+		handlerErr := errors.New("handler failed")
+		handler := func(ctx context.Context, e events.Event) error {
+			if atomic.AddInt32(&calls, 1) == 1 {
+				close(handlerStarted)
+			}
+			<-release
+			return handlerErr
+		}
+
+		wrapped := WithIdempotency(handler, tracker, keyExtractor, "test-handler", logger)
+		event := &testEvent{id: uuid.New()}
+
+		begin := make(chan struct{})
+		var ready sync.WaitGroup
+		ready.Add(n)
+		var wg sync.WaitGroup
+		wg.Add(n)
+		errs := make([]error, n)
+		for i := 0; i < n; i++ {
+			i := i
+			go func() {
+				defer wg.Done()
+				ready.Done()
+				<-begin
+				errs[i] = wrapped(ctx, event)
+			}()
+		}
+		ready.Wait()
+		close(begin)
+
+		<-handlerStarted
+		<-allExtracted
+		close(release)
+		wg.Wait()
+
+		assert.EqualValues(
+			t,
+			1,
+			atomic.LoadInt32(&calls), "handler should run at most once for concurrent duplicates")
+		for i := range n {
+			assert.ErrorIs(
+				t,
+				errs[i],
+				handlerErr, "concurrent duplicate must observe the same failure (no silent skip)")
+		}
 	})
 
 	t.Run("uses default logger when nil logger provided", func(t *testing.T) {
