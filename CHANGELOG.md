@@ -1,6 +1,24 @@
 # CHANGELOG
 
-## v1.5.1 (2025-12-19)
+## v1.5.2 (2025-12-19)
+
+### ♻️ Refactorings
+
+- enhance logging and repository access in account handlers
+
+### ♻️  refactor
+
+- improve idempotency handling with singleflight
+
+### ✅🤡🧪 Tests
+
+- add idempotency tracking tests for event handlers
+
+### 💚👷 CI & Build
+
+- add missing dependency for commitizen-branch hook
+
+## v1.5.2 (2025-12-19)
 
 ### docs
 
@@ -10,7 +28,7 @@
 
 - migrate cz to use cz-gitmoji adapter
 
-## v1.5.1 (2025-12-06)
+## v1.5.2 (2025-12-06)
 
 ### Feat
 
