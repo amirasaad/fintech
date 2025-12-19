@@ -115,6 +115,8 @@ func (s *AccountTestSuite) TestWithdraw() {
 	defer depositResp.Body.Close() //nolint: errcheck
 	s.Equal(202, depositResp.StatusCode)
 
+	s.MarkUserOnboardingComplete(s.testUser.ID)
+
 	s.Run("Withdraw successfully", func() {
 		withdrawBody := `
 		{"amount":50,"currency":"USD",
