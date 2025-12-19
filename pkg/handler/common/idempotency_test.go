@@ -8,6 +8,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/google/uuid"
@@ -24,15 +25,13 @@ func TestIdempotencyTracker(t *testing.T) {
 		key := "test-key-1"
 
 		// Initially not processed
-		_, already := tracker.processed.Load(key)
-		assert.False(t, already)
+		assert.False(t, tracker.IsProcessed(key))
 
 		// Store it
 		tracker.Store(key)
 
 		// Should be processed now
-		_, already = tracker.processed.Load(key)
-		assert.True(t, already)
+		assert.True(t, tracker.IsProcessed(key))
 	})
 
 	t.Run("Delete removes key", func(t *testing.T) {
@@ -41,13 +40,11 @@ func TestIdempotencyTracker(t *testing.T) {
 		key := "test-key-2"
 
 		tracker.Store(key)
-		_, already := tracker.processed.Load(key)
-		assert.True(t, already)
+		assert.True(t, tracker.IsProcessed(key))
 
 		tracker.Delete(key)
 
-		_, already = tracker.processed.Load(key)
-		assert.False(t, already)
+		assert.False(t, tracker.IsProcessed(key))
 	})
 }
 
@@ -128,8 +125,7 @@ func TestWithIdempotency(t *testing.T) {
 		assert.Equal(t, handlerErr, err)
 
 		// Key should be removed, allowing retry
-		_, already := tracker.processed.Load(key)
-		assert.False(t, already, "key should be removed after handler failure")
+		assert.False(t, tracker.IsProcessed(key), "key should be removed after handler failure")
 	})
 
 	t.Run("keeps key in tracker when handler succeeds", func(t *testing.T) {
@@ -150,8 +146,10 @@ func TestWithIdempotency(t *testing.T) {
 		require.NoError(t, err)
 
 		// Key should remain in tracker
-		_, already := tracker.processed.Load(key)
-		assert.True(t, already, "key should remain in tracker after successful handler")
+		assert.True(
+			t,
+			tracker.IsProcessed(key),
+			"key should remain in tracker after successful handler")
 	})
 
 	t.Run("concurrent duplicate processing does not silently drop failures", func(t *testing.T) {
@@ -162,9 +160,15 @@ func TestWithIdempotency(t *testing.T) {
 		key := "test-key-concurrent"
 		var extracted int32
 		allExtracted := make(chan struct{})
+		var returned int32
+		allReturned := make(chan struct{})
 		keyExtractor := func(e events.Event) string {
 			if atomic.AddInt32(&extracted, 1) == n {
 				close(allExtracted)
+			}
+			<-allExtracted
+			if atomic.AddInt32(&returned, 1) == n {
+				close(allReturned)
 			}
 			return key
 		}
@@ -205,6 +209,8 @@ func TestWithIdempotency(t *testing.T) {
 
 		<-handlerStarted
 		<-allExtracted
+		<-allReturned
+		time.Sleep(10 * time.Millisecond)
 		close(release)
 		wg.Wait()
 
