@@ -72,6 +72,7 @@ repos:
   repo: local
 - hooks:
   - id: commitizen
+    additional_dependencies: [cz-conventional-gitmoji]
   - id: commitizen-branch
     stages:
     - pre-push

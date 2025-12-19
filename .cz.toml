@@ -1,6 +1,10 @@
 [tool.commitizen]
-name = "cz_conventional_commits"
+name = "cz_gitmoji"
 tag_format = "v$version"
 version_scheme = "semver"
 version_provider = "scm"
 update_changelog_on_bump = true
+version_files = [
+	"CHANGELOG.md:^## v"
+]
+bump_message = "🔖 bump(release): $current_version → $new_version"
