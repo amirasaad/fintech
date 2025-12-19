@@ -112,9 +112,9 @@ This document captures the key lessons learned during our event-driven architect
 
 **Business-Specific Events** (context-aware):
 
-- `DepositConversionDoneEvent`
-- `WithdrawConversionDoneEvent`
-- `TransferConversionDoneEvent`
+- `Deposit.CurrencyConverted`
+- `Withdraw.CurrencyConverted`
+- `Transfer.CurrencyConverted`
 
 **Motivation**:
 

@@ -14,18 +14,18 @@ The current transfer process is a fully event-driven, linear workflow. Each busi
 ```mermaid
 flowchart TD
     subgraph "Refactored Transfer Event Flow"
-        A[API Request] --> B(TransferRequestedEvent);
+        A[API Request] --> B(Transfer.Requested);
         B --> C[Validation Handler];
-        C --> D(TransferValidatedEvent);
+        C --> D(Transfer.Validated);
         D --> E[Initial HandleProcessed Handler];
-        E --> F(ConversionRequestedEvent);
+        E --> F(CurrencyConversion.Requested);
         F --> G[Conversion Handler];
-        G --> H(TransferConversionDoneEvent);
+        G --> H(Transfer.CurrencyConverted);
         H --> I[Business Validation Handler];
-        I --> J(TransferDomainOpDoneEvent);
-        I -->|On Failure| K(TransferFailedEvent);
+        I --> J(Transfer.Completed);
+        I -->|On Failure| K(Transfer.Failed);
         J --> L[Final HandleProcessed Handler];
-        L --> M(TransferCompletedEvent);
+        L --> M(Transfer.Completed);
         L -->|On Failure| K;
     end
 ```
@@ -36,37 +36,37 @@ flowchart TD
 
 ### 1. **Validation Handler**
 
-- **Consumes:** `TransferRequestedEvent`
+- **Consumes:** `Transfer.Requested`
 - **Responsibility:** Performs basic structural validation on the request (e.g., non-nil UUIDs, positive amount). Malformed events are logged and discarded.
-- **Emits:** `TransferValidatedEvent` on success.
+- **Emits:** `Transfer.Validated` on success.
 
 ### 2. **Initial HandleProcessed Handler**
 
-- **Consumes:** `TransferValidatedEvent`
+- **Consumes:** `Transfer.Validated`
 - **Responsibility:** Creates the initial outgoing transaction (`tx_out`) with a `pending` status. This provides a durable record of the request early.
-- **Emits:** `ConversionRequestedEvent` to trigger currency conversion (if needed).
+- **Emits:** `CurrencyConversion.Requested` to trigger currency conversion (if needed).
 
 ### 3. **Conversion Handler (Generic)**
 
-- **Consumes:** `ConversionRequestedEvent`
+- **Consumes:** `CurrencyConversion.Requested`
 - **Responsibility:** Performs currency conversion.
-- **Emits:** `TransferConversionDoneEvent` (a context-specific event).
+- **Emits:** `Transfer.CurrencyConverted` (a context-specific event).
 
 ### 4. **Business Validation Handler**
 
-- **Consumes:** `TransferConversionDoneEvent`
+- **Consumes:** `Transfer.CurrencyConverted`
 - **Responsibility:** Performs all business-level validation against the current state of the system (e.g., sufficient funds in the source account).
 - **Emits:**
-  - `TransferDomainOpDoneEvent` on success.
-  - `TransferFailedEvent` on business rule failure (e.g., insufficient funds).
+  - `Transfer.Completed` on success.
+  - `Transfer.Failed` on business rule failure (e.g., insufficient funds).
 
 ### 5. **Final HandleProcessed Handler**
 
-- **Consumes:** `TransferDomainOpDoneEvent`
+- **Consumes:** `Transfer.Completed`
 - **Responsibility:** Atomically performs the final state changes:
   - Creates the incoming transaction (`tx_in`) for the receiver with a `completed` status.
   - Updates the outgoing transaction (`tx_out`) to `completed`.
   - Updates the balances of both the source and destination accounts.
 - **Emits:**
-  - `TransferCompletedEvent` on success.
-  - `TransferFailedEvent` if the atomic database operation fails.
+  - `Transfer.Completed` on success.
+  - `Transfer.Failed` if the atomic database operation fails.

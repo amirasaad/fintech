@@ -31,14 +31,14 @@ You can find practical examples of API requests in the [requests](requests/accou
   - Requires `amount` and `currency` in the request body
   - Example: `{"amount": 50.00, "currency": "USD"}`
 
-- `POST /account/transfer`: Initiates a transfer between accounts
+- `POST /account/:id/transfer`: Initiates a transfer between accounts
   - Returns `202 ⚡ Accepted` immediately with a `Location` header
-  - Requires `from_account_id`, `to_account_id`, `amount`, and `currency`
-  - Example: `{"from_account_id": "uuid1", "to_account_id": "uuid2", "amount": 75.25, "currency": "USD"}`
+  - Requires `to_account_id`, `amount`, and `currency` in the request body
+  - Example: `{"to_account_id": "uuid2", "amount": 75.25, "currency": "USD"}`
 
 ### 🔑 Authentication
 
-- `POST /login`: Authenticates a user with their credentials (username/email and password) and returns a JSON Web Token (JWT) upon successful authentication. This token must be included in the `Authorization` header for all protected endpoints. 🔐
+- `POST /auth/login`: Authenticates a user with their credentials (username/email and password) and returns a JSON Web Token (JWT) upon successful authentication. This token must be included in the `Authorization` header for all protected endpoints. 🔐
 
 ### 👤 User Management
 
@@ -46,7 +46,7 @@ You can find practical examples of API requests in the [requests](requests/accou
   - Required fields: `username`, `email`, `password`
   - Example: `{"username": "johndoe", "email": "john@example.com", "password": "secure123"}`
 
-- `POST /login`: Authenticates a user and returns a JWT token
+- `POST /auth/login`: Authenticates a user and returns a JWT token
   - Required fields: `email` or `username`, and `password`
   - Returns: `{"token": "jwt.token.here", "expires_in": 3600}`
 
@@ -92,10 +92,14 @@ You can find practical examples of API requests in the [requests](requests/accou
 
 ### 🌐 Currency Operations
 
-- `GET /currencies`: Lists all supported currencies
-- `GET /exchange-rate`: Gets current exchange rate between two currencies
-  - Parameters: `from` (required), `to` (required)
-  - Example: `/exchange-rate?from=USD&to=EUR`
+- `GET /api/currencies`: Lists all supported currencies
+- `GET /api/currencies/:code`: Gets details for a specific currency
+- `GET /api/currencies/supported`: Lists all supported currencies
+- `GET /api/currencies/:code/supported`: Checks if a currency is supported
+- `GET /api/currencies/search`: Search currencies by query
+- `GET /api/currencies/region/:region`: Search currencies by region
+- `GET /api/currencies/statistics`: Get currency statistics
+- `GET /api/currencies/default`: Get default currency
 
 ## 🚨 Error Handling
 

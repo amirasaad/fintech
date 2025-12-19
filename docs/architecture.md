@@ -33,32 +33,32 @@ The system implements three main business flows:
 
 ```mermaid
 graph TD
-    A[DepositRequested] --> B[CurrencyConversionRequested]
-    B --> C[CurrencyConverted]
-    C --> D[DepositCurrencyConverted]
-    D --> E[DepositBusinessValidated]
-    E --> F[PaymentInitiated]
+    A[Deposit.Requested] --> B[CurrencyConversion.Requested]
+    B --> C[CurrencyConversion.Converted]
+    C --> D[Deposit.CurrencyConverted]
+    D --> E[Deposit.Validated]
+    E --> F[Payment.Initiated]
 ```
 
 #### Withdraw Flow
 
 ```mermaid
 graph TD
-    A[WithdrawRequested] --> B[CurrencyConversionRequested]
-    B --> C[CurrencyConverted]
-    C --> D[WithdrawCurrencyConverted]
-    D --> E[WithdrawBusinessValidated]
-    E --> F[PaymentInitiated]
+    A[Withdraw.Requested] --> B[CurrencyConversion.Requested]
+    B --> C[CurrencyConversion.Converted]
+    C --> D[Withdraw.CurrencyConverted]
+    D --> E[Withdraw.Validated]
+    E --> F[Payment.Initiated]
 ```
 
 #### Transfer Flow
 
 ```mermaid
 graph TD
-    A[TransferRequested] --> B[CurrencyConversionRequested]
-    B --> C[CurrencyConverted]
-    C --> D[TransferCurrencyConverted]
-    D --> E[TransferCompleted]
+    A[Transfer.Requested] --> B[CurrencyConversion.Requested]
+    B --> C[CurrencyConversion.Converted]
+    C --> D[Transfer.CurrencyConverted]
+    D --> E[Transfer.Completed]
 ```
 
 ### 🏛️ Handler Responsibilities

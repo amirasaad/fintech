@@ -44,14 +44,14 @@ sequenceDiagram
     participant DO as "DomainOpHandler"
     participant P as "PersistenceHandler"
 
-    U->>API: POST /account/:id/transfer (TransferRequest)
-    API->>EB: TransferRequestedEvent
+    U->>API: POST /account/:id/transfer (TransferRequest with to_account_id)
+    API->>EB: Transfer.Requested
     EB->>VH: TransferValidationHandler
-    VH->>EB: TransferValidatedEvent
+    VH->>EB: Transfer.Validated
     EB->>TC: TransferConversionHandler (if needed)
-    TC->>EB: TransferConversionDone
+    TC->>EB: Transfer.CurrencyConverted
     EB->>DO: DomainOpHandler (executes transfer on domain)
-    DO->>EB: TransferDomainOpDoneEvent
+    DO->>EB: Transfer.Completed
     EB->>P: PersistenceHandler (persists to DB)
     P->>EB: TransferPersistedEvent
 ```
@@ -64,10 +64,10 @@ sequenceDiagram
 
 The transfer workflow is orchestrated through a series of events and handlers:
 
-1. **User submits transfer request** (amount as `float64`, main unit). API emits `TransferRequestedEvent`.
-2. **Validation Handler** loads source and target accounts, checks domain validation (`ValidateTransfer`), emits `TransferValidatedEvent`.
-3. **Transfer Conversion Handler** (if needed) converts currency, emits `TransferConversionDone`.
-4. **Domain Operation Handler** executes the transfer on the domain model, emits `TransferDomainOpDoneEvent`.
+1. **User submits transfer request** (amount as `float64`, main unit). API emits `Transfer.Requested`.
+2. **Validation Handler** loads source and target accounts, checks domain validation (`ValidateTransfer`), emits `Transfer.Validated`.
+3. **Transfer Conversion Handler** (if needed) converts currency, emits `Transfer.CurrencyConverted`.
+4. **Domain Operation Handler** executes the transfer on the domain model, emits `Transfer.Completed`.
 5. **HandleProcessed Handler** persists the transaction(s), emits `TransferPersistedEvent`.
 6. **Webhook Handler** (optional) updates transaction status and account balances on payment confirmation.
 
@@ -75,12 +75,12 @@ The transfer workflow is orchestrated through a series of events and handlers:
 
 ```mermaid
 flowchart TD
-    A["TransferRequestedEvent"] --> B["Validation Handler (domain validation)"]
-    B --> C["TransferValidatedEvent"]
+    A["Transfer.Requested"] --> B["Validation Handler (domain validation)"]
+    B --> C["Transfer.Validated"]
     C --> D["Transfer Conversion Handler (if needed)"]
-    D --> E["TransferConversionDone"]
+    D --> E["Transfer.CurrencyConverted"]
     E --> F["Domain Operation Handler"]
-    F --> G["TransferDomainOpDoneEvent"]
+    F --> G["Transfer.Completed"]
     G --> H["HandleProcessed Handler (persists)"]
     H --> I["TransferPersistedEvent"]
     I --> J["Webhook Handler (optional)"]
@@ -93,10 +93,10 @@ flowchart TD
 ### 1. Validation Handler
 
 - **Purpose:** Performs business validation on source and target accounts
-- **Events Consumed:** `TransferRequestedEvent`
+- **Events Consumed:** `Transfer.Requested`
 - **Events Emitted:**
-  - `TransferValidatedEvent` - When validation passes
-  - (TODO: `TransferValidationFailedEvent` - When validation fails)
+  - `Transfer.Validated` - When validation passes
+  - (TODO: `Transfer.Failed` - When validation fails)
 - **Validation Rules:**
   - Source and target accounts exist and belong to user
   - Accounts have valid IDs
@@ -163,7 +163,7 @@ Each handler has a single responsibility and can be developed, tested, and deplo
 // Validation handler listens to transfer request events
 func TransferValidationHandler(bus eventbus.EventBus, logger *slog.Logger) func(context.Context, domain.Event) {
     return func(ctx context.Context, e domain.Event) {
-        event, ok := e.(accountdomain.TransferRequestedEvent)
+        event, ok := e.(*events.TransferRequested)
         if !ok {
             return
         }
@@ -175,7 +175,7 @@ func TransferValidationHandler(bus eventbus.EventBus, logger *slog.Logger) func(
         }
 
         // Emit validation success
-        _ = bus.Publish(ctx, accountdomain.TransferValidatedEvent{...})
+        _ = bus.Publish(ctx, &events.TransferValidated{...})
     }
 }
 ```
@@ -186,7 +186,7 @@ func TransferValidationHandler(bus eventbus.EventBus, logger *slog.Logger) func(
 // Money creation handler listens to validated transfer events
 func MoneyCreationHandler(bus eventbus.EventBus, logger *slog.Logger) func(context.Context, domain.Event) {
     return func(ctx context.Context, e domain.Event) {
-        event, ok := e.(accountdomain.TransferValidatedEvent)
+        event, ok := e.(*events.TransferValidated)
         if !ok {
             return
         }

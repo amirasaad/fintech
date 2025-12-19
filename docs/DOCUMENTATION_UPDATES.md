@@ -2,29 +2,36 @@
 
 This document summarizes the recent updates made to bring the documentation in line with the current state of the application.
 
+## 🎯 Latest Sync (Comprehensive Documentation Sync)
+
+A comprehensive sync was performed to ensure all documentation accurately reflects the current codebase implementation. This sync covered event names, file paths, API endpoints, diagrams, code examples, and cross-references.
+
 ## 🔄 Updated Files
 
 ### 1. **README.md** (Root)
+
 - **Issue:** Duplicate content in event-driven architecture sections
 - **Fix:** Removed duplicate sections and consolidated into a single, accurate event flow description
 - **Changes:**
   - Updated event flow diagrams to match current implementation
-  - Corrected event names (e.g., `DepositBusinessValidationEvent` vs `DepositConversionDoneEvent`)
+  - Corrected event names (e.g., `Deposit.Validated` vs `Deposit.CurrencyConverted`)
   - Updated Mermaid diagrams to reflect actual event chains
   - Removed redundant architecture explanations
 
 ### 2. **docs/domain-events.md**
+
 - **Issue:** Referenced wrong file paths and outdated event names
 - **Fix:** Updated to reflect current event structure and locations
 - **Changes:**
   - Corrected path from `pkg/domain/account/events/` to `pkg/domain/events/`
   - Updated event lists to match current implementation
-  - Added missing events like `DepositBusinessValidationEvent`, `WithdrawBusinessValidationEvent`
+  - Added missing events like `Deposit.Validated`, `Withdraw.Validated`
   - Updated event flow diagrams
   - Added proper event structure documentation
   - Included testing strategy and best practices
 
 ### 3. **docs/architecture.md**
+
 - **Issue:** Outdated workflow descriptions and missing current implementation details
 - **Fix:** Updated to reflect current event-driven architecture
 - **Changes:**
@@ -36,6 +43,7 @@ This document summarizes the recent updates made to bring the documentation in l
   - Added current implementation details
 
 ### 4. **docs/project-structure.md**
+
 - **Issue:** Missing directories and outdated structure information
 - **Fix:** Updated to reflect current project organization
 - **Changes:**
@@ -47,6 +55,7 @@ This document summarizes the recent updates made to bring the documentation in l
   - Updated design principles section
 
 ### 5. **docs/refactoring/event-driven-deposit-flow.md**
+
 - **Issue:** Completely outdated event flow and handler descriptions
 - **Fix:** Rewrote to match current implementation
 - **Changes:**
@@ -59,6 +68,7 @@ This document summarizes the recent updates made to bring the documentation in l
   - Added error handling scenarios
 
 ### 6. **docs/refactoring/event-driven-withdraw-flow.md**
+
 - **Issue:** Outdated event flow and missing current implementation details
 - **Fix:** Updated to reflect current withdraw implementation
 - **Changes:**
@@ -74,22 +84,32 @@ This document summarizes the recent updates made to bring the documentation in l
 ## 🎯 Key Corrections Made
 
 ### Event Flow Accuracy
+
 - **Before:** Documentation showed incorrect event sequences
 - **After:** Event flows now match the actual implementation in E2E tests
 
 ### Event Names
-- **Before:** Used outdated or incorrect event names
-- **After:** All event names match the current `pkg/domain/events/` definitions
+
+- **Before:** Used outdated event names like `DepositBusinessValidationEvent`, `DepositConversionDoneEvent`, `DepositRequestedEvent` (camelCase without dots)
+- **After:** All event names use correct format: `Deposit.Requested`, `Deposit.Validated`, `Deposit.CurrencyConverted`, `Payment.Initiated`, etc. (with dots)
 
 ### Handler Structure
+
 - **Before:** Referenced non-existent handlers or incorrect responsibilities
 - **After:** Accurately describes current handler implementations in `pkg/handler/`
 
 ### File Paths
-- **Before:** Incorrect paths to source files
-- **After:** All paths point to actual files in the current codebase
+
+- **Before:** Incorrect paths to source files (e.g., `pkg/domain/account/events/`)
+- **After:** All paths point to actual files in the current codebase (e.g., `pkg/domain/events/`)
+
+### API Endpoints
+
+- **Before:** Some endpoints documented incorrectly (e.g., `/account/transfer`, `/login`)
+- **After:** All endpoints match actual routes (e.g., `/account/:id/transfer`, `/auth/login`)
 
 ### Implementation Details
+
 - **Before:** Generic or outdated code examples
 - **After:** Actual code patterns and structures from current implementation
 
@@ -102,13 +122,57 @@ All documentation updates were verified against:
 3. **E2E test flows** in `pkg/handler/e2e_event_flow_test.go`
 4. **Actual project structure** and file organization
 
+### 7. **Event Name Synchronization (Latest Sync)**
+
+- **Issue:** Multiple documentation files used outdated event names without dot notation
+- **Fix:** Updated all event names to use correct format with dots (e.g., `Deposit.Requested`, `Deposit.Validated`, `Deposit.CurrencyConverted`)
+- **Files Updated:**
+  - `docs/refactoring/event-driven-lessons.md`
+  - `docs/refactoring/event-driven-deposit-flow.md`
+  - `docs/refactoring/event-driven-withdraw-flow.md`
+  - `docs/refactoring/event-driven-transfer-flow.md`
+  - `docs/refactoring/deposit_event_flow_refactor.md`
+  - `docs/refactoring/clean-event-driven-architecture.md`
+  - `docs/architecture.md`
+  - `docs/refactoring/event-driven-architecture.md`
+  - `docs/architecture/transfer-flow.md`
+  - `docs/DOCUMENTATION_UPDATES.md`
+
+### 8. **API Endpoint Synchronization (Latest Sync)**
+
+- **Issue:** Some API endpoint documentation didn't match actual routes
+- **Fix:** Updated endpoint documentation to match actual implementation
+- **Changes:**
+  - Fixed transfer endpoint: `/account/transfer` → `/account/:id/transfer`
+  - Fixed login endpoint: `/login` → `/auth/login`
+  - Updated currency endpoints to show full `/api/currencies/*` paths
+  - Verified all endpoint documentation matches actual routes
+
+### 9. **File Path Corrections (Latest Sync)**
+
+- **Issue:** Some documentation referenced incorrect file paths
+- **Fix:** Updated file path references to match actual codebase structure
+- **Changes:**
+  - Corrected repository layer description in `WARP.md`
+  - Updated event bus registration location references
+  - Verified all handler paths point to correct locations
+
+### 10. **Mermaid Diagram Updates (Latest Sync)**
+
+- **Issue:** Event flow diagrams used outdated event names
+- **Fix:** Updated all Mermaid diagrams to use correct event type format
+- **Files Updated:**
+  - All event flow diagrams in refactoring documentation
+  - Architecture diagrams in `docs/architecture.md`
+  - Transfer flow diagrams in `docs/architecture/transfer-flow.md`
+
 ## 📋 Remaining Tasks
 
 The following areas may need future attention:
 
-1. **API Documentation:** OpenAPI specs may need updates if endpoints changed
-2. **Payment Integration Docs:** May need updates if Stripe integration changed
-3. **Currency System Docs:** May need updates if currency handling changed
+1. **API Documentation:** OpenAPI specs verified and updated where needed
+2. **Payment Integration Docs:** Verified Stripe integration documentation accuracy
+3. **Currency System Docs:** Verified currency handling documentation
 4. **Testing Documentation:** Could be expanded with new test patterns
 
 ## 🎉 Benefits

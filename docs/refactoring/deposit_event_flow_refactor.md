@@ -1,6 +1,7 @@
 # Deposit/Payment Event Flow Refactor
 
 ## Overview
+
 This document explains the refactored, cycle-free, DRY event-driven flow for deposit and payment initiation. It covers handler responsibilities, idempotency, and anti-cycle design, with a Mermaid diagram and troubleshooting tips.
 
 ---
@@ -9,12 +10,12 @@ This document explains the refactored, cycle-free, DRY event-driven flow for dep
 
 ```mermaid
 flowchart TD
-    A[DepositRequestedEvent] --> B[DepositValidationHandler → DepositValidatedEvent]
+    A[Deposit.Requested] --> B[DepositValidationHandler → Deposit.Validated]
     B --> C[DepositPersistenceHandler → DepositPersistedEvent]
-    C --> D[ConversionHandler → DepositConversionDoneEvent]
+    C --> D[ConversionHandler → Deposit.CurrencyConverted]
     D --> E[ConversionPersistenceHandler]
-    D --> F[BusinessValidationHandler → DepositBusinessValidatedEvent]
-    F --> G[DepositPaymentInitiationHandler → PaymentInitiatedEvent]
+    D --> F[BusinessValidationHandler → Deposit.Validated]
+    F --> G[DepositPaymentInitiationHandler → Payment.Initiated]
     G --> H[PaymentPersistenceHandler]
 ```
 
@@ -22,12 +23,12 @@ flowchart TD
 
 ## Handler Responsibilities (Deposit Flow)
 
-- **DepositValidationHandler**: Validates deposit request, emits `DepositValidatedEvent`.
+- **DepositValidationHandler**: Validates deposit request, emits `Deposit.Validated`.
 - **DepositPersistenceHandler**: Persists validated deposit, emits `DepositPersistedEvent`.
-- **ConversionHandler**: Handles currency conversion, emits `DepositConversionDoneEvent`.
+- **ConversionHandler**: Handles currency conversion, emits `Deposit.CurrencyConverted`.
 - **ConversionPersistenceHandler**: Persists conversion data, idempotent, logs all actions.
-- **BusinessValidationHandler**: Performs business checks, emits `DepositBusinessValidatedEvent`, idempotent.
-- **DepositPaymentInitiationHandler**: Initiates payment, emits `PaymentInitiatedEvent`, idempotent.
+- **BusinessValidationHandler**: Performs business checks, emits `Deposit.Validated`, idempotent.
+- **DepositPaymentInitiationHandler**: Initiates payment, emits `Payment.Initiated`, idempotent.
 - **PaymentPersistenceHandler**: Persists payment info, idempotent if needed.
 
 ---
@@ -43,20 +44,20 @@ flowchart TD
 
 ## Example Logs (Deposit Flow)
 
-```
-[START] Received event handler=DepositValidationHandler event_type=DepositRequestedEvent ...
-✅ [SUCCESS] Account validated, emitting DepositValidatedEvent ...
-[START] Received event handler=DepositPersistenceHandler event_type=DepositValidatedEvent ...
+```plain/text
+[START] Received event handler=DepositValidationHandler event_type=Deposit.Requested ...
+✅ [SUCCESS] Account validated, emitting Deposit.Validated ...
+[START] Received event handler=DepositPersistenceHandler event_type=Deposit.Validated ...
 ✅ [SUCCESS] Transaction persisted ...
 [START] Received event handler=ConversionHandler event_type=DepositPersistedEvent ...
-✅ [SUCCESS] Conversion done, emitting DepositConversionDoneEvent ...
-[START] Received event handler=ConversionPersistenceHandler event_type=DepositConversionDoneEvent ...
+✅ [SUCCESS] Conversion done, emitting Deposit.CurrencyConverted ...
+[START] Received event handler=ConversionPersistenceHandler event_type=Deposit.CurrencyConverted ...
 ✅ [SUCCESS] Conversion data persisted ...
-[START] Received event handler=BusinessValidationHandler event_type=DepositConversionDoneEvent ...
-✅ [SUCCESS] Business validation passed, emitting DepositBusinessValidatedEvent ...
-[START] Received event handler=DepositPaymentInitiationHandler event_type=DepositBusinessValidatedEvent ...
-✅ [SUCCESS] Initiating payment, emitting PaymentInitiatedEvent ...
-[START] Received event handler=PaymentPersistenceHandler event_type=PaymentInitiatedEvent ...
+[START] Received event handler=BusinessValidationHandler event_type=Deposit.CurrencyConverted ...
+✅ [SUCCESS] Business validation passed, emitting Deposit.Validated ...
+[START] Received event handler=DepositPaymentInitiationHandler event_type=Deposit.Validated ...
+✅ [SUCCESS] Initiating payment, emitting Payment.Initiated ...
+[START] Received event handler=PaymentPersistenceHandler event_type=Payment.Initiated ...
 ✅ [SUCCESS] Payment info persisted ...
 ```
 
@@ -66,12 +67,12 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A[WithdrawRequestedEvent] --> B[WithdrawValidationHandler → WithdrawValidatedEvent]
+    A[Withdraw.Requested] --> B[WithdrawValidationHandler → Withdraw.Validated]
     B --> C[WithdrawPersistenceHandler → WithdrawPersistedEvent]
-    C --> D[ConversionHandler → WithdrawConversionDoneEvent]
+    C --> D[ConversionHandler → Withdraw.CurrencyConverted]
     D --> E[ConversionPersistenceHandler]
-    D --> F[BusinessValidationHandler → WithdrawValidatedEvent]
-    F --> G[WithdrawPaymentInitiationHandler → PaymentInitiatedEvent]
+    D --> F[BusinessValidationHandler → Withdraw.Validated]
+    F --> G[WithdrawPaymentInitiationHandler → Payment.Initiated]
     G --> H[PaymentPersistenceHandler]
 ```
 
@@ -81,12 +82,12 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A[TransferRequestedEvent] --> B[TransferValidationHandler → TransferValidatedEvent]
+    A[Transfer.Requested] --> B[TransferValidationHandler → Transfer.Validated]
     B --> C[InitialPersistenceHandler → TransferPersistedEvent]
-    C --> D[ConversionHandler → TransferConversionDoneEvent]
+    C --> D[ConversionHandler → Transfer.CurrencyConverted]
     D --> E[ConversionPersistenceHandler]
-    D --> F[BusinessValidationHandler → TransferDomainOpDoneEvent]
-    F --> G[TransferPaymentInitiationHandler → PaymentInitiatedEvent]
+    D --> F[BusinessValidationHandler → Transfer.Validated]
+    F --> G[TransferPaymentInitiationHandler → Payment.Initiated]
     G --> H[PaymentPersistenceHandler]
 ```
 
@@ -94,24 +95,24 @@ flowchart TD
 
 ## Handler Responsibilities (Withdraw Flow)
 
-- **WithdrawValidationHandler**: Validates withdraw request, emits `WithdrawValidatedEvent`.
+- **WithdrawValidationHandler**: Validates withdraw request, emits `Withdraw.Validated`.
 - **WithdrawPersistenceHandler**: Persists validated withdraw, emits `WithdrawPersistedEvent`.
-- **ConversionHandler**: Handles currency conversion, emits `WithdrawConversionDoneEvent`.
+- **ConversionHandler**: Handles currency conversion, emits `Withdraw.CurrencyConverted`.
 - **ConversionPersistenceHandler**: Persists conversion data, idempotent, logs all actions.
-- **BusinessValidationHandler**: Performs business checks, emits `WithdrawValidatedEvent`, idempotent.
-- **WithdrawPaymentInitiationHandler**: Initiates payment, emits `PaymentInitiatedEvent`, idempotent.
+- **BusinessValidationHandler**: Performs business checks, emits `Withdraw.Validated`, idempotent.
+- **WithdrawPaymentInitiationHandler**: Initiates payment, emits `Payment.Initiated`, idempotent.
 - **PaymentPersistenceHandler**: Persists payment info, idempotent if needed.
 
 ---
 
 ## Handler Responsibilities (Transfer Flow)
 
-- **TransferValidationHandler**: Validates transfer request, emits `TransferValidatedEvent`.
+- **TransferValidationHandler**: Validates transfer request, emits `Transfer.Validated`.
 - **InitialPersistenceHandler**: Persists initial transfer, emits `TransferPersistedEvent`.
-- **ConversionHandler**: Handles currency conversion, emits `TransferConversionDoneEvent`.
+- **ConversionHandler**: Handles currency conversion, emits `Transfer.CurrencyConverted`.
 - **ConversionPersistenceHandler**: Persists conversion data, idempotent, logs all actions.
-- **BusinessValidationHandler**: Performs business checks, emits `TransferDomainOpDoneEvent`, idempotent.
-- **TransferPaymentInitiationHandler**: Initiates payment, emits `PaymentInitiatedEvent`, idempotent.
+- **BusinessValidationHandler**: Performs business checks, emits `Transfer.Validated`, idempotent.
+- **TransferPaymentInitiationHandler**: Initiates payment, emits `Payment.Initiated`, idempotent.
 - **PaymentPersistenceHandler**: Persists payment info, idempotent if needed.
 
 ---

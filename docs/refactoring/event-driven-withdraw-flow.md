@@ -27,13 +27,13 @@ sequenceDiagram
     participant P as "PersistenceHandler"
 
     U->>API: POST /account/:id/withdraw (WithdrawRequest)
-    API->>EB: WithdrawRequestedEvent
+    API->>EB: Withdraw.Requested
     EB->>VH: WithdrawValidationHandler
-    VH->>EB: WithdrawValidatedEvent
+    VH->>EB: Withdraw.Validated
     EB->>WC: WithdrawConversionHandler (if needed)
-    WC->>EB: WithdrawConversionDone
+    WC->>EB: Withdraw.CurrencyConverted
     EB->>PI: PaymentInitiationHandler
-    PI->>EB: PaymentInitiatedEvent
+    PI->>EB: Payment.Initiated
     EB->>P: PersistenceHandler
     P->>EB: WithdrawPersistedEvent
 ```
@@ -44,29 +44,29 @@ sequenceDiagram
 
 The withdraw workflow follows this event chain:
 
-1. **`WithdrawRequestedEvent`** → ValidationHandler
-2. **`WithdrawValidatedEvent`** → PersistenceHandler
+1. **`Withdraw.Requested`** → ValidationHandler
+2. **`Withdraw.Validated`** → PersistenceHandler
 3. **`WithdrawPersistedEvent`** → ConversionHandler
-4. **`WithdrawBusinessValidationEvent`** → BusinessValidationHandler
-5. **`WithdrawBusinessValidatedEvent`** → PaymentInitiationHandler
-6. **`PaymentInitiatedEvent`** → PaymentPersistenceHandler
+4. **`Withdraw.CurrencyConverted`** → BusinessValidationHandler
+5. **`Withdraw.Validated`** → PaymentInitiationHandler
+6. **`Payment.Initiated`** → PaymentPersistenceHandler
 7. **`PaymentIdPersistedEvent`** → (End of flow)
 
 ### 🖼️ Event Flow Diagram
 
 ```mermaid
 flowchart TD
-    A[WithdrawRequestedEvent] --> B[ValidationHandler]
-    B --> C[WithdrawValidatedEvent]
+    A[Withdraw.Requested] --> B[ValidationHandler]
+    B --> C[Withdraw.Validated]
     C --> D[PersistenceHandler]
     D --> E[WithdrawPersistedEvent]
-    E --> F[ConversionRequestedEvent]
+    E --> F[CurrencyConversion.Requested]
     F --> G[ConversionHandler]
-    G --> H[WithdrawBusinessValidationEvent]
+    G --> H[Withdraw.CurrencyConverted]
     H --> I[BusinessValidationHandler]
-    I --> J[WithdrawBusinessValidatedEvent]
+    I --> J[Withdraw.Validated]
     J --> K[PaymentInitiationHandler]
-    K --> L[PaymentInitiatedEvent]
+    K --> L[Payment.Initiated]
     L --> M[PaymentPersistenceHandler]
     M --> N[PaymentIdPersistedEvent]
 ```
@@ -78,10 +78,10 @@ flowchart TD
 ### 1. Validation Handler (`pkg/handler/account/withdraw/validation.go`)
 
 - **Purpose:** Validates withdraw request and account ownership
-- **Events Consumed:** `WithdrawRequestedEvent`
+- **Events Consumed:** `Withdraw.Requested`
 - **Events Emitted:**
-  - `WithdrawValidatedEvent` (success)
-  - `WithdrawFailedEvent` (failure)
+  - `Withdraw.Validated` (success)
+  - `Withdraw.Failed` (failure)
 - **Validation Rules:**
   - Account exists and belongs to user
   - Withdraw amount is positive
@@ -91,10 +91,10 @@ flowchart TD
 ### 2. HandleProcessed Handler (`pkg/handler/account/withdraw/persistence.go`)
 
 - **Purpose:** Persists withdraw transaction to database
-- **Events Consumed:** `WithdrawValidatedEvent`
+- **Events Consumed:** `Withdraw.Validated`
 - **Events Emitted:**
   - `WithdrawPersistedEvent`
-  - `ConversionRequestedEvent` (always emitted for withdraw)
+  - `CurrencyConversion.Requested` (always emitted for withdraw)
 - **Operations:**
   - Creates transaction record with "created" status
   - Always emits conversion request for withdraw flow
@@ -102,8 +102,8 @@ flowchart TD
 ### 3. Business Validation Handler (`pkg/handler/account/withdraw/business_validation.go`)
 
 - **Purpose:** Performs final business validation after currency conversion
-- **Events Consumed:** `WithdrawBusinessValidationEvent`
-- **Events Emitted:** `WithdrawBusinessValidatedEvent`
+- **Events Consumed:** `Withdraw.CurrencyConverted`
+- **Events Emitted:** `Withdraw.Validated`
 - **Validation Rules:**
   - Re-validates account ownership
   - Checks sufficient balance with converted amount
@@ -112,8 +112,8 @@ flowchart TD
 ### 4. Payment Initiation Handler (`pkg/handler/payment/initiation.go`)
 
 - **Purpose:** Initiates payment with external providers
-- **Events Consumed:** `PaymentInitiationEvent` (from withdraw business validated)
-- **Events Emitted:** `PaymentInitiatedEvent`
+- **Events Consumed:** `Withdraw.Validated` (from withdraw business validated)
+- **Events Emitted:** `Payment.Initiated`
 - **Operations:**
   - Integrates with payment providers (e.g., Stripe)
   - Creates payment intent for withdrawal
@@ -121,7 +121,7 @@ flowchart TD
 ### 5. Payment HandleProcessed Handler (`pkg/handler/payment/persistence.go`)
 
 - **Purpose:** Persists payment ID to transaction record
-- **Events Consumed:** `PaymentInitiatedEvent`
+- **Events Consumed:** `Payment.Initiated`
 - **Events Emitted:** `PaymentIdPersistedEvent`
 - **Operations:**
   - Updates transaction with payment provider ID
@@ -147,7 +147,7 @@ type FlowEvent struct {
 ### Withdraw-Specific Events
 
 ```go
-type WithdrawRequestedEvent struct {
+type WithdrawRequested struct {
     FlowEvent
     ID                    uuid.UUID
     Amount                money.Money
@@ -158,14 +158,14 @@ type WithdrawRequestedEvent struct {
     PaymentID             string
 }
 
-type WithdrawValidatedEvent struct {
-    WithdrawRequestedEvent
+type WithdrawValidated struct {
+    WithdrawRequested
     TargetCurrency string
     Account        *account.Account
 }
 
 type WithdrawPersistedEvent struct {
-    WithdrawValidatedEvent
+    WithdrawValidated
     TransactionID uuid.UUID
 }
 ```
@@ -214,18 +214,23 @@ return bus.Emit(ctx, &conversionEvent)
 ## 🛠️ Benefits
 
 ### 1. **Consistent Pattern with Deposit**
+
 Follows the same event-driven pattern as deposit flow for consistency.
 
 ### 2. **Balance Validation**
+
 Ensures sufficient funds before processing withdrawal.
 
 ### 3. **Currency Conversion**
+
 Handles multi-currency withdrawals through conversion events.
 
 ### 4. **Payment Integration**
+
 Seamlessly integrates with external payment providers.
 
 ### 5. **Audit Trail**
+
 Complete event history for compliance and debugging.
 
 ---
@@ -233,6 +238,7 @@ Complete event history for compliance and debugging.
 ## 🧪 Testing Strategy
 
 ### Unit Tests
+
 ```go
 func TestWithdrawValidation(t *testing.T) {
     // Test validation with insufficient funds
@@ -250,19 +256,20 @@ func TestWithdrawValidation(t *testing.T) {
 ```
 
 ### E2E Tests
+
 ```go
 func TestWithdrawE2EEventFlow(t *testing.T) {
     emitted := trackEventEmissions()
 
-    bus.Emit(ctx, events.WithdrawRequestedEvent{...})
+    bus.Emit(ctx, events.WithdrawRequested{...})
 
     assert.Equal(t, []string{
-        "WithdrawRequestedEvent",
-        "WithdrawValidatedEvent",
+        "Withdraw.Requested",
+        "Withdraw.Validated",
         "WithdrawPersistedEvent",
-        "WithdrawBusinessValidationEvent",
-        "WithdrawBusinessValidatedEvent",
-        "PaymentInitiatedEvent",
+        "Withdraw.CurrencyConverted",
+        "Withdraw.Validated",
+        "Payment.Initiated",
     }, emitted)
 }
 ```
@@ -272,20 +279,24 @@ func TestWithdrawE2EEventFlow(t *testing.T) {
 ## 🔧 Error Scenarios
 
 ### Validation Failures
-- **Insufficient Balance:** Handler emits `WithdrawFailedEvent`
+
+- **Insufficient Balance:** Handler emits `Withdraw.Failed`
 - **Account Not Found:** Handler logs error, returns nil
 - **Wrong User:** Handler logs error, returns validation error
 - **Invalid Amount:** Handler logs error, returns validation error
 
 ### HandleProcessed Failures
+
 - **Database Error:** Handler logs error, returns error (stops flow)
 - **Transaction Creation Fails:** Handler logs error, returns error
 
 ### Business Validation Failures
+
 - **Post-Conversion Balance Check:** Handler returns error
 - **Account State Changed:** Handler returns error
 
 ### Payment Failures
+
 - **Provider Error:** Handler logs error, may emit PaymentFailedEvent
 - **Network Issues:** Handler logs error, may retry or fail
 
@@ -294,15 +305,19 @@ func TestWithdrawE2EEventFlow(t *testing.T) {
 ## 🔄 Differences from Deposit Flow
 
 ### 1. **Balance Validation**
+
 Withdraw requires checking sufficient funds, deposit does not.
 
 ### 2. **Always Convert**
+
 Withdraw always emits conversion events, deposit only when needed.
 
 ### 3. **Payment Direction**
+
 Withdraw sends money out, deposit brings money in.
 
 ### 4. **Failure Handling**
+
 Withdraw has more failure scenarios due to balance constraints.
 
 ---

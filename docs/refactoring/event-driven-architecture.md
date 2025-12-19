@@ -36,32 +36,32 @@ User Request → Validation → Conversion (if needed) → Business Validation �
 
 ```mermaid
 graph TD
-    A[DepositRequested] --> B[CurrencyConversionRequested]
-    B --> C[CurrencyConverted]
-    C --> D[DepositCurrencyConverted]
-    D --> E[DepositBusinessValidated]
-    E --> F[PaymentInitiated]
+    A[Deposit.Requested] --> B[CurrencyConversion.Requested]
+    B --> C[CurrencyConversion.Converted]
+    C --> D[Deposit.CurrencyConverted]
+    D --> E[Deposit.Validated]
+    E --> F[Payment.Initiated]
 ```
 
 ### Withdraw Flow
 
 ```mermaid
 graph TD
-    A[WithdrawRequested] --> B[CurrencyConversionRequested]
-    B --> C[CurrencyConverted]
-    C --> D[WithdrawCurrencyConverted]
-    D --> E[WithdrawBusinessValidated]
-    E --> F[PaymentInitiated]
+    A[Withdraw.Requested] --> B[CurrencyConversion.Requested]
+    B --> C[CurrencyConversion.Converted]
+    C --> D[Withdraw.CurrencyConverted]
+    D --> E[Withdraw.Validated]
+    E --> F[Payment.Initiated]
 ```
 
 ### Transfer Flow
 
 ```mermaid
 graph TD
-    A[TransferRequested] --> B[CurrencyConversionRequested]
-    B --> C[CurrencyConverted]
-    C --> D[TransferCurrencyConverted]
-    D --> E[TransferCompleted]
+    A[Transfer.Requested] --> B[CurrencyConversion.Requested]
+    B --> C[CurrencyConversion.Converted]
+    C --> D[Transfer.CurrencyConverted]
+    D --> E[Transfer.Completed]
 ```
 
 ## Key Design Decisions
@@ -106,8 +106,8 @@ graph TD
 
 **Solution**: Payment initiation is triggered by business validation events:
 
-- `WithdrawBusinessValidated` triggers payment for withdrawals
-- `DepositBusinessValidated` triggers payment for deposits
+- `Withdraw.Validated` triggers payment for withdrawals
+- `Deposit.Validated` triggers payment for deposits
 - Business validation ensures all rules pass before payment
 
 **Benefits**:
@@ -120,14 +120,14 @@ graph TD
 
 **Generic Events** (reusable):
 
-- `CurrencyConversionRequested`
-- `CurrencyConverted`
+- `CurrencyConversion.Requested`
+- `CurrencyConversion.Converted`
 
 **Business-Specific Events** (context-aware):
 
-- `DepositCurrencyConverted`
-- `WithdrawCurrencyConverted`
-- `TransferCurrencyConverted`
+- `Deposit.CurrencyConverted`
+- `Withdraw.CurrencyConverted`
+- `Transfer.CurrencyConverted`
 
 **Benefits**:
 
@@ -181,9 +181,9 @@ type TransferCurrencyConverted struct {
 
 ### Generic Conversion Handler
 
-- Handles `ConversionRequestedEvent`
+- Handles `CurrencyConversion.Requested`
 - Performs currency conversion
-- Emits `ConversionDoneEvent`
+- Emits `CurrencyConversion.Converted`
 - No business logic or side effects
 
 ### Business-Specific Conversion Done Handlers
