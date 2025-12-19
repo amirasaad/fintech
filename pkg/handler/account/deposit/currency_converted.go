@@ -2,15 +2,14 @@ package deposit
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/eventbus"
+	"github.com/amirasaad/fintech/pkg/handler/common"
 	"github.com/amirasaad/fintech/pkg/mapper"
 	"github.com/amirasaad/fintech/pkg/repository"
-	"github.com/amirasaad/fintech/pkg/repository/account"
 )
 
 // HandleCurrencyConverted performs domain validation after currency conversion for deposits.
@@ -46,20 +45,10 @@ func HandleCurrencyConverted(
 			"correlation_id", dcc.CorrelationID,
 		)
 
-		accRepoAny, err := uow.GetRepository((*account.Repository)(nil))
+		accRepo, err := common.GetAccountRepository(uow, log)
 		if err != nil {
 			log.Error(
 				"Failed to get account repository",
-				"error", err,
-			)
-			return err
-		}
-		accRepo, ok := accRepoAny.(account.Repository)
-		if !ok {
-			err = errors.New("invalid account repository type")
-			log.Error(
-				"Invalid account repository type",
-				"type", accRepoAny,
 				"error", err,
 			)
 			return err
@@ -146,9 +135,9 @@ func HandleCurrencyConverted(
 			return fmt.Errorf("failed to emit %s: %w", dv.Type(), err)
 		}
 		log.Info(
-			"📤 [EMITTED] Deposit.Validated event",
+			"📤 [EMITTED] event",
 			"event_id", dv.ID,
-			"type", dv.Type(),
+			"event_type", dv.Type(),
 			"transaction_id", dv.TransactionID,
 			"correlation_id", dv.CorrelationID,
 		)

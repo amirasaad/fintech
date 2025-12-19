@@ -49,7 +49,7 @@ func HandleValidated(
 			pi.CorrelationID = dv.CorrelationID
 		})
 		log.Info(
-			"Emitting",
+			"📤 [EMIT] Emitting event",
 			"event_type", pi.Type(),
 		)
 		if err := bus.Emit(ctx, pi); err != nil {
@@ -61,9 +61,9 @@ func HandleValidated(
 			return fmt.Errorf("failed to emit %s: %w", pi.Type(), err)
 		}
 		log.Info(
-			"📤 [EMITTED] Payment.Initiated event",
+			"📤 [EMITTED] event",
 			"event_id", pi.ID,
-			"type", pi.Type(),
+			"event_type", pi.Type(),
 			"payment_id", pi.PaymentID,
 			"status", pi.Status,
 		)

@@ -9,7 +9,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"maps"
+	"os"
 	"regexp"
 	"strconv"
 	"time"
@@ -691,14 +693,22 @@ var globalCurrencyRegistry *Registry
 
 // GetGlobalRegistry returns the global currency registry instance.
 // Make sure to call InitializeGlobalRegistry first to initialize the registry.
+// If the registry is nil, it will attempt lazy initialization with in-memory cache.
+// Panics if initialization fails, as the application cannot function without a currency registry.
 func GetGlobalRegistry() *Registry {
 	if globalCurrencyRegistry == nil {
 		// Fallback to in-memory cache if not initialized
 		var err error
 		globalCurrencyRegistry, err = New(context.Background())
 		if err != nil {
-			// This should not happen as NewRegistry only fails with invalid Redis URL
-			panic(fmt.Sprintf("failed to initialize fallback currency registry: %v", err))
+			// Log error before panicking for better diagnostics
+			slog.Default().Error("Failed to initialize fallback currency registry",
+				"error", err,
+				"package", "currency",
+				"function", "GetGlobalRegistry",
+			)
+			// Panic is acceptable here as the application cannot function without currency registry
+			panic(fmt.Sprintf("currency: failed to initialize fallback registry: %v", err))
 		}
 	}
 	return globalCurrencyRegistry
@@ -728,13 +738,19 @@ func InitializeGlobalRegistry(ctx context.Context, redisURL ...string) error {
 }
 
 // Initialize global registry with in-memory cache as fallback
+// NOTE: This package is deprecated. Panic in init() is intentional - if currency registry
+// initialization fails, the application cannot function. The panic ensures fast failure
+// during startup rather than silent failures later.
 func init() {
 	// Initialize with background context and in-memory cache by default
 	// This ensures the global registry is always available, even if not explicitly initialized
 	var err error
 	globalCurrencyRegistry, err = New(context.Background())
 	if err != nil {
-		panic(fmt.Sprintf("failed to initialize global currency registry: %v", err))
+		// Log to stderr before panicking (slog may not be initialized yet in init())
+		fmt.Fprintf(os.Stderr, "ERROR: currency: failed to initialize global registry: %v\n", err)
+		// Panic is intentional - application cannot function without currency registry
+		panic(fmt.Sprintf("currency: failed to initialize global registry: %v", err))
 	}
 }
 
@@ -795,7 +811,7 @@ func Legacy(code string, meta Meta) {
 
 	if err := Register(newMeta); err != nil {
 		// Log error but don't panic for backward compatibility
-		fmt.Printf("Warning: failed to register currency %s: %v\n", code, err)
+		slog.Default().Warn("failed to register currency", "code", code, "error", err)
 	}
 }
 

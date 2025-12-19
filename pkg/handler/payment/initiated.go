@@ -47,6 +47,14 @@ func HandleInitiated(
 			)
 			return errors.New("unexpected event type")
 		}
+
+		log = log.With(
+			"user_id", pi.UserID,
+			"account_id", pi.AccountID,
+			"transaction_id", pi.TransactionID,
+			"correlation_id", pi.CorrelationID,
+		)
+
 		transactionID := pi.TransactionID
 
 		// Call payment provider
@@ -66,6 +74,9 @@ func HandleInitiated(
 			log.Error(
 				"Payment initiation failed",
 				"error", err,
+				"user_id", pi.UserID,
+				"account_id", pi.AccountID,
+				"transaction_id", transactionID,
 			)
 			return err
 		}

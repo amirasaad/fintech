@@ -33,7 +33,13 @@ func HandleFailed(
 
 		// Use the transaction ID from the event
 		txID := pf.TransactionID
-		log = log.With("transaction_id", txID, "payment_id", pf.PaymentID)
+		log = log.With(
+			"transaction_id", txID,
+			"payment_id", pf.PaymentID,
+			"user_id", pf.UserID,
+			"account_id", pf.AccountID,
+			"correlation_id", pf.CorrelationID,
+		)
 
 		// Get the transaction repository
 		txRepo, err := common.GetTransactionRepository(uow, log)

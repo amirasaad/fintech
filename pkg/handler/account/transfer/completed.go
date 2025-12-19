@@ -8,10 +8,9 @@ import (
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/eventbus"
+	"github.com/amirasaad/fintech/pkg/handler/common"
 	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/amirasaad/fintech/pkg/repository"
-	"github.com/amirasaad/fintech/pkg/repository/account"
-	"github.com/amirasaad/fintech/pkg/repository/transaction"
 	"github.com/google/uuid"
 )
 
@@ -69,17 +68,15 @@ func HandleCompleted(
 		txOutID := tr.TransactionID
 
 		if err := uow.Do(ctx, func(uow repository.UnitOfWork) error {
-			txRepoAny, err := uow.GetRepository((*transaction.Repository)(nil))
+			txRepo, err := common.GetTransactionRepository(uow, log)
 			if err != nil {
 				return fmt.Errorf("failed to get transaction repo: %w", err)
 			}
-			txRepo := txRepoAny.(transaction.Repository)
 
-			accRepoAny, err := uow.GetRepository((*account.Repository)(nil))
+			accRepo, err := common.GetAccountRepository(uow, log)
 			if err != nil {
 				return fmt.Errorf("failed to get account repo: %w", err)
 			}
-			accRepo := accRepoAny.(account.Repository)
 
 			sourceAcc, err := accRepo.Get(ctx, tr.AccountID)
 			if err != nil {
@@ -153,8 +150,8 @@ func HandleCompleted(
 
 		tc := events.NewTransferCompleted(tr)
 		log.Info(
-			"📤 [EMIT] Emitting",
-			"event", tc.Type(),
+			"📤 [EMIT] Emitting event",
+			"event_type", tc.Type(),
 		)
 		return bus.Emit(ctx, tc)
 	}

@@ -145,8 +145,18 @@ func HandleValidated(
 			)
 
 			if emitErr := bus.Emit(ctx, wf); emitErr != nil {
-				log.Error("Failed to emit WithdrawFailed event", "error", emitErr)
-				return fmt.Errorf("%v: %w", err, emitErr)
+				log.Error(
+					"Failed to emit WithdrawFailed event",
+					"error", emitErr,
+					"original_error", err,
+				)
+				// Preserve both errors in the error chain for proper error inspection
+				// The emit error is more critical (we couldn't notify about the failure),
+				// but we also preserve the original payout error for context
+				return errors.Join(
+					fmt.Errorf("failed to emit WithdrawFailed event: %w", emitErr),
+					fmt.Errorf("original payout error: %w", err),
+				)
 			}
 
 			// Return a user-friendly error
@@ -190,9 +200,9 @@ func HandleValidated(
 			return fmt.Errorf("failed to emit Payment.Processed event: %w", err)
 		}
 
-		log.Info("📤 [EMITTED] Payment.Processed event",
+		log.Info("📤 [EMITTED] event",
 			"event_id", pp.ID,
-			"type", pp.Type(),
+			"event_type", pp.Type(),
 			"payment_id", paymentID,
 			"status", paymentStatus,
 		)

@@ -95,8 +95,8 @@ func HandleRequested(
 		)
 
 		log.Info(
-			"📤 [EMIT] Emitting CurrencyConversionRequested",
-			"event", ccr,
+			"📤 [EMIT] Emitting event",
+			"event_type", ccr.Type(),
 		)
 		if err := bus.Emit(ctx, ccr); err != nil {
 			log.Error(

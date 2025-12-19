@@ -8,10 +8,9 @@ import (
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/eventbus"
+	"github.com/amirasaad/fintech/pkg/handler/common"
 	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/amirasaad/fintech/pkg/repository"
-	"github.com/amirasaad/fintech/pkg/repository/account"
-	"github.com/amirasaad/fintech/pkg/repository/transaction"
 	"github.com/google/uuid"
 )
 
@@ -37,7 +36,10 @@ func HandleRequested(
 		dr, ok := e.(*events.DepositRequested)
 		if !ok {
 			log.Error(
-				"❌ [ERROR] Unexpected event type")
+				"❌ [ERROR] Unexpected event type",
+				"expected", "DepositRequested",
+				"got", e.Type(),
+			)
 			return fmt.Errorf("unexpected event type: %s", e.Type())
 		}
 
@@ -62,15 +64,10 @@ func HandleRequested(
 			return nil
 		}
 
-		accountRepoAny, err := uow.GetRepository((*account.Repository)(nil))
+		accountRepo, err := common.GetAccountRepository(uow, log)
 		if err != nil {
 			log.Error("❌ [ERROR] Failed to get account repository", "error", err)
 			return fmt.Errorf("failed to get account repository: %w", err)
-		}
-		accountRepo, ok := accountRepoAny.(account.Repository)
-		if !ok {
-			log.Error("❌ [ERROR] Failed to cast account repository", "error", err)
-			return fmt.Errorf("failed to cast account repository: %w", err)
 		}
 
 		account, err := accountRepo.Get(ctx, dr.AccountID)
@@ -86,7 +83,7 @@ func HandleRequested(
 
 		// Persist the deposit transaction
 		txID := dr.TransactionID
-		if err := persistDepositTransaction(ctx, uow, dr); err != nil {
+		if err := persistDepositTransaction(ctx, uow, dr, log); err != nil {
 			log.Error(
 				"❌ [ERROR] Failed to persist deposit transaction",
 				"error", err,
@@ -134,7 +131,7 @@ func HandleRequested(
 		}
 
 		log.Info(
-			"📤 [Emitted] event",
+			"📤 [EMITTED] event",
 			"event_id", ccr.ID,
 			"event_type", ccr.Type(),
 		)
@@ -147,15 +144,12 @@ func persistDepositTransaction(
 	ctx context.Context,
 	uow repository.UnitOfWork,
 	dr *events.DepositRequested,
+	logger *slog.Logger,
 ) error {
 	return uow.Do(ctx, func(uow repository.UnitOfWork) error {
 		// Get the transaction repository
-		txRepoAny, err := uow.GetRepository((*transaction.Repository)(nil))
+		txRepo, err := common.GetTransactionRepository(uow, logger)
 		if err != nil {
-			return fmt.Errorf("failed to get transaction repository: %w", err)
-		}
-		txRepo, ok := txRepoAny.(transaction.Repository)
-		if !ok {
 			return fmt.Errorf("failed to get transaction repository: %w", err)
 		}
 

@@ -84,7 +84,7 @@ func New(
 		bus:             bus,
 		client:          client,
 		cfg:             cfg,
-		checkoutService: checkout.New(checkoutProvider),
+		checkoutService: checkout.New(checkoutProvider, logger),
 		logger:          logger,
 		webhookHandlers: make(map[string]webhookHandler),
 		uow:             uow,

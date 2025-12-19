@@ -2,6 +2,8 @@ package checkout
 
 import (
 	"context"
+	"log/slog"
+	"os"
 	"testing"
 	"time"
 
@@ -14,6 +16,7 @@ import (
 )
 
 func TestService_CreateSession(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 	tests := []struct {
 		name        string
 		currency    string
@@ -43,7 +46,7 @@ func TestService_CreateSession(t *testing.T) {
 				).Return(tt.registryErr)
 			}
 
-			svc := New(mr)
+			svc := New(mr, logger)
 			_, err := svc.CreateSession(
 				context.Background(),
 				"test-session",
@@ -97,12 +100,13 @@ func TestService_GetSession(t *testing.T) {
 		{"not found", "missing-session", nil, assert.AnError, true},
 	}
 
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mr := mocks.NewRegistryProvider(t)
 			mr.On("Get", mock.Anything, tt.sessionID).Return(tt.entity, tt.err)
 
-			svc := New(mr)
+			svc := New(mr, logger)
 			session, err := svc.GetSession(context.Background(), tt.sessionID)
 
 			if tt.wantErr {
@@ -178,7 +182,8 @@ func TestService_UpdateStatus(t *testing.T) {
 	}, nil)
 	mr.On("Register", mock.Anything, mock.Anything).Return(nil)
 
-	svc := New(mr)
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	svc := New(mr, logger)
 	err := svc.UpdateStatus(context.Background(), "test-session", "completed")
 
 	require.NoError(t, err)

@@ -79,8 +79,10 @@ func (s *stripeConnectService) CreateAccount(
 
 	// Create a new Stripe Connect account
 	params := &stripe.AccountCreateParams{
-		Type:    stripe.String(string(stripe.AccountTypeExpress)),
-		Country: stripe.String("US"), // TODO: Make this configurable
+		Type: stripe.String(string(stripe.AccountTypeExpress)),
+		// NOTE: Country is hardcoded to "US" for now. This should be made configurable
+		// or derived from user profile data in a future enhancement.
+		Country: stripe.String("US"),
 		Capabilities: &stripe.AccountCreateCapabilitiesParams{
 			CardPayments: &stripe.AccountCreateCapabilitiesCardPaymentsParams{
 				Requested: stripe.Bool(true),

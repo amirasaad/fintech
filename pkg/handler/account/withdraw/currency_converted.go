@@ -126,8 +126,8 @@ func HandleCurrencyConverted(
 		wv := events.NewWithdrawValidated(wcc)
 
 		log.Info(
-			"📤 [EMIT] Emitting",
-			"event", wv.Type(),
+			"📤 [EMIT] Emitting event",
+			"event_type", wv.Type(),
 			"correlation_id", wcc.CorrelationID.String(),
 		)
 		return bus.Emit(ctx, wv)

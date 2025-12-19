@@ -40,9 +40,20 @@ func HandleCurrencyConverted(
 
 		// Validate TransactionID
 		if cc.TransactionID == uuid.Nil {
-			log.Warn("TransactionID is nil in CurrencyConverted event")
+			log.Warn("TransactionID is nil in CurrencyConverted event",
+				"user_id", cc.UserID,
+				"account_id", cc.AccountID,
+				"correlation_id", cc.CorrelationID,
+			)
 			return nil
 		}
+
+		log = log.With(
+			"user_id", cc.UserID,
+			"account_id", cc.AccountID,
+			"transaction_id", cc.TransactionID,
+			"correlation_id", cc.CorrelationID,
+		)
 
 		log.Info(
 			"💾 [PROGRESS] persisting conversion data",
@@ -73,7 +84,12 @@ func HandleCurrencyConverted(
 				ConversionRate:   &cc.ConversionInfo.Rate,
 			})
 		}); err != nil {
-			log.Error("Failed to persist conversion data", "error", err)
+			log.Error("Failed to persist conversion data",
+				"error", err,
+				"transaction_id", cc.TransactionID,
+				"user_id", cc.UserID,
+				"account_id", cc.AccountID,
+			)
 			return err
 		}
 
@@ -82,6 +98,7 @@ func HandleCurrencyConverted(
 			"transaction_id", cc.TransactionID,
 		)
 		return nil
-		// TODO: apply conversion fee
+		// NOTE: Conversion fee application is deferred to a future enhancement.
+		// This will be implemented as part of the fee calculation system.
 	}
 }

@@ -95,7 +95,7 @@ func HandleRequested(
 			"amount", ccr.Amount,
 			"to", convertedMoney,
 		)
-		log.Info("📤 Emitting ", "event_type", cc.Type(), "event_id", cc.ID)
+		log.Info("📤 [EMIT] Emitting event", "event_type", cc.Type(), "event_id", cc.ID)
 		if err = bus.Emit(ctx, cc); err != nil {
 			log.Error(
 				"Failed to emit done",
@@ -120,7 +120,7 @@ func HandleRequested(
 			"event_type", fmt.Sprintf("%T", nextEvent),
 			"correlation_id", ccr.CorrelationID,
 		)
-		log.Info("📤 Emitting ", "event_type", nextEvent.Type())
+		log.Info("📤 [EMIT] Emitting event", "event_type", nextEvent.Type())
 		// Emit the next event in the flow
 		if err := bus.Emit(ctx, nextEvent); err != nil {
 			log.Error(

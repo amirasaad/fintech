@@ -90,6 +90,7 @@ func New(deps *Deps, cfg *config.App) *App {
 
 	app.CheckoutService = checkout.New(
 		deps.CheckoutRegistry,
+		deps.Logger,
 	)
 
 	app.ExchangeRateService = exchangeSvc.New(

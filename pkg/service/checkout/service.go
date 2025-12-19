@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"time"
 
@@ -29,12 +30,14 @@ type Session struct {
 // Service provides high-level operations for managing checkout sessions
 type Service struct {
 	registry registry.Provider
+	logger   *slog.Logger
 }
 
-// New creates a new checkout service with the given registry
-func New(reg registry.Provider) *Service {
+// New creates a new checkout service with the given registry and logger
+func New(reg registry.Provider, logger *slog.Logger) *Service {
 	return &Service{
 		registry: reg,
+		logger:   logger,
 	}
 }
 
@@ -253,8 +256,8 @@ func (s *Service) entityToSession(entity registry.Entity) (*Session, error) {
 	}
 
 	metadata := entity.Metadata()
-	// Debug: Print all metadata keys and values
-	fmt.Printf("Entity metadata: %+v\n", metadata)
+	// Debug: Log all metadata keys and values
+	s.logger.Debug("Entity metadata", "metadata", metadata)
 
 	session := &Session{
 		ID:            entity.ID(),

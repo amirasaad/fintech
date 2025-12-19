@@ -79,7 +79,7 @@ func (s *Service) GetCurrentUserId(
 	log.Debug("GetCurrentUserId called")
 	userID, err = s.strategy.GetCurrentUserID(
 		context.WithValue(
-			context.TODO(),
+			context.Background(),
 			userContextKey,
 			token,
 		),

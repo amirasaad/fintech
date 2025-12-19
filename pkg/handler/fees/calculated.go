@@ -46,7 +46,10 @@ func HandleCalculated(
 			txRepo, err := common.GetTransactionRepository(uow, log)
 			if err != nil {
 				log.Error(
-					"failed to get transaction repository", "error", err)
+					"failed to get transaction repository",
+					"error", err,
+					"transaction_id", fc.TransactionID,
+				)
 				return fmt.Errorf("failed to get transaction repository: %w", err)
 			}
 
@@ -54,14 +57,21 @@ func HandleCalculated(
 			accRepo, err := common.GetAccountRepository(uow, log)
 			if err != nil {
 				log.Error(
-					"failed to get account repository", "error", err)
+					"failed to get account repository",
+					"error", err,
+					"transaction_id", fc.TransactionID,
+				)
 				return fmt.Errorf("failed to get account repository: %w", err)
 			}
 
 			// Create fee calculator and apply fees
 			calculator := NewFeeCalculator(txRepo, accRepo, log)
 			if err := calculator.ApplyFees(ctx, fc.TransactionID, fc.Fee); err != nil {
-				log.Error("failed to apply fees", "error", err)
+				log.Error("failed to apply fees",
+					"error", err,
+					"transaction_id", fc.TransactionID,
+					"fee_amount", fc.Fee.Amount,
+				)
 				return fmt.Errorf("failed to apply fees: %w", err)
 			}
 
