@@ -3,16 +3,19 @@ package payment
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/dto"
 	"github.com/amirasaad/fintech/pkg/handler/testutils"
+	"github.com/amirasaad/fintech/pkg/money"
 	"github.com/amirasaad/fintech/pkg/repository"
 	repotransaction "github.com/amirasaad/fintech/pkg/repository/transaction"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 )
 
 func TestHandleProcessed(t *testing.T) {
@@ -242,5 +245,197 @@ func TestHandleProcessed(t *testing.T) {
 		// Verify all expectations were met
 		h.UOW.AssertExpectations(t)
 		h.MockTxRepo.AssertExpectations(t)
+	})
+
+	t.Run("gracefully skips when transaction not found", func(t *testing.T) {
+		t.Parallel()
+		h := testutils.New(t)
+		handler := HandleProcessed(h.UOW, h.Logger)
+
+		paymentID := "test-payment-id"
+		event := events.NewPaymentProcessed(
+			&events.FlowEvent{
+				ID:            h.EventID,
+				CorrelationID: h.CorrelationID,
+				FlowType:      "payment",
+			},
+			func(pp *events.PaymentProcessed) {
+				pp.TransactionID = h.TransactionID
+				pp.PaymentID = &paymentID
+			},
+		)
+
+		h.UOW.EXPECT().
+			Do(h.Ctx, mock.AnythingOfType("func(repository.UnitOfWork) error")).
+			RunAndReturn(func(ctx context.Context, fn func(uow repository.UnitOfWork) error) error {
+				h.UOW.EXPECT().
+					GetRepository((*repotransaction.Repository)(nil)).
+					Return(h.MockTxRepo, nil).
+					Once()
+
+				// Return not found for both payment ID and transaction ID
+				h.MockTxRepo.EXPECT().
+					GetByPaymentID(h.Ctx, paymentID).
+					Return(nil, gorm.ErrRecordNotFound).
+					Once()
+				h.MockTxRepo.EXPECT().
+					Get(h.Ctx, h.TransactionID).
+					Return(nil, gorm.ErrRecordNotFound).
+					Once()
+
+				return fn(h.UOW)
+			}).
+			Return(nil).
+			Once()
+
+		err := handler(h.Ctx, event)
+		require.NoError(t, err)
+	})
+
+	t.Run("creates new transaction when not found", func(t *testing.T) {
+		t.Parallel()
+		h := testutils.New(t)
+		handler := HandleProcessed(h.UOW, h.Logger)
+
+		paymentID := "test-payment-id"
+		amount, err := money.New(100.0, money.USD)
+		require.NoError(t, err)
+
+		event := events.NewPaymentProcessed(
+			&events.FlowEvent{
+				ID:            h.EventID,
+				CorrelationID: h.CorrelationID,
+				FlowType:      "payment",
+			},
+			func(pp *events.PaymentProcessed) {
+				pp.TransactionID = h.TransactionID
+				pp.PaymentID = &paymentID
+				pp.UserID = h.UserID
+				pp.AccountID = h.AccountID
+				pp.Amount = amount
+			},
+		)
+
+		h.UOW.EXPECT().
+			Do(h.Ctx, mock.AnythingOfType("func(repository.UnitOfWork) error")).
+			RunAndReturn(func(ctx context.Context, fn func(uow repository.UnitOfWork) error) error {
+				h.UOW.EXPECT().
+					GetRepository((*repotransaction.Repository)(nil)).
+					Return(h.MockTxRepo, nil).
+					Once()
+
+				// Return not found
+				h.MockTxRepo.EXPECT().
+					GetByPaymentID(h.Ctx, paymentID).
+					Return(nil, gorm.ErrRecordNotFound).
+					Once()
+				h.MockTxRepo.EXPECT().
+					Get(h.Ctx, h.TransactionID).
+					Return(nil, gorm.ErrRecordNotFound).
+					Once()
+
+				// Expect UpsertByPaymentID to be called
+				h.MockTxRepo.EXPECT().
+					UpsertByPaymentID(
+						h.Ctx,
+						paymentID,
+						mock.MatchedBy(func(create dto.TransactionCreate) bool {
+							return create.ID == h.TransactionID &&
+								create.UserID == h.UserID &&
+								create.AccountID == h.AccountID &&
+								create.Status == "processed" &&
+								create.MoneySource == "Stripe"
+						}),
+					).
+					Return(nil).
+					Once()
+
+				return fn(h.UOW)
+			}).
+			Return(nil).
+			Once()
+
+		err = handler(h.Ctx, event)
+		require.NoError(t, err)
+	})
+
+	t.Run("handles error getting transaction repository", func(t *testing.T) {
+		t.Parallel()
+		h := testutils.New(t)
+		handler := HandleProcessed(h.UOW, h.Logger)
+
+		paymentID := "test-payment-id"
+		event := events.NewPaymentProcessed(
+			&events.FlowEvent{
+				ID:            h.EventID,
+				CorrelationID: h.CorrelationID,
+				FlowType:      "payment",
+			},
+			func(pp *events.PaymentProcessed) {
+				pp.TransactionID = h.TransactionID
+				pp.PaymentID = &paymentID
+			},
+		)
+
+		expectedErr := errors.New("repository error")
+		wrappedErr := fmt.Errorf("failed to get transaction repo: %w", expectedErr)
+		h.UOW.EXPECT().
+			Do(h.Ctx, mock.AnythingOfType("func(repository.UnitOfWork) error")).
+			RunAndReturn(func(ctx context.Context, fn func(uow repository.UnitOfWork) error) error {
+				h.UOW.EXPECT().
+					GetRepository((*repotransaction.Repository)(nil)).
+					Return(nil, expectedErr).
+					Once()
+
+				return fn(h.UOW)
+			}).
+			Return(wrappedErr).
+			Once()
+
+		err := handler(h.Ctx, event)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to get transaction repo")
+	})
+
+	t.Run("handles lookup error", func(t *testing.T) {
+		t.Parallel()
+		h := testutils.New(t)
+		handler := HandleProcessed(h.UOW, h.Logger)
+
+		paymentID := "test-payment-id"
+		event := events.NewPaymentProcessed(
+			&events.FlowEvent{
+				ID:            h.EventID,
+				CorrelationID: h.CorrelationID,
+				FlowType:      "payment",
+			},
+			func(pp *events.PaymentProcessed) {
+				pp.TransactionID = h.TransactionID
+				pp.PaymentID = &paymentID
+			},
+		)
+
+		lookupErr := errors.New("lookup error")
+		h.UOW.EXPECT().
+			Do(h.Ctx, mock.AnythingOfType("func(repository.UnitOfWork) error")).
+			RunAndReturn(func(ctx context.Context, fn func(uow repository.UnitOfWork) error) error {
+				h.UOW.EXPECT().
+					GetRepository((*repotransaction.Repository)(nil)).
+					Return(h.MockTxRepo, nil).
+					Once()
+
+				h.MockTxRepo.EXPECT().
+					GetByPaymentID(h.Ctx, paymentID).
+					Return(nil, lookupErr).
+					Once()
+
+				return fn(h.UOW)
+			}).
+			Return(lookupErr).
+			Once()
+
+		err := handler(h.Ctx, event)
+		require.Error(t, err)
+		assert.Equal(t, lookupErr, err)
 	})
 }
