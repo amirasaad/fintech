@@ -1,6 +1,16 @@
 # CHANGELOG
 
-## v1.5.0 (2025-12-06)
+## v1.5.1 (2025-12-19)
+
+### docs
+
+- synchronize event names, API endpoints, and file paths across documentation
+
+### 🧹 chore
+
+- migrate cz to use cz-gitmoji adapter
+
+## v1.5.1 (2025-12-06)
 
 ### Feat
 
