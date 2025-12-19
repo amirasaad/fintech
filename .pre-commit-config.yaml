@@ -74,6 +74,7 @@ repos:
   - id: commitizen
     additional_dependencies: [cz-conventional-gitmoji]
   - id: commitizen-branch
+    additional_dependencies: [cz-conventional-gitmoji]
     stages:
     - pre-push
   repo: https://github.com/commitizen-tools/commitizen
