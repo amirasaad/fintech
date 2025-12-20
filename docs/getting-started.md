@@ -61,6 +61,20 @@ docker compose up --build -d
 go run cmd/cli/main.go
 ```
 
+## 📚 Running the Documentation Site
+
+```bash
+docker compose -f docker-compose.docs.yml up --pull always
+```
+
+- Docs site: `http://localhost:8000`
+- Source files live under `docs/`
+- Navigation is defined in `mkdocs.yml` (`nav:`)
+- Add or update docs:
+  - Edit an existing page under `docs/` (hot-reloads while `mkdocs serve` is running)
+  - Add a new `.md` page under the closest section folder (e.g. `docs/payments/`, `docs/architecture/`, `docs/currency/`)
+  - Add the page to `mkdocs.yml` under `nav:` so it shows up in the sidebar
+
 ## 🗄️ Migrations
 
 - Create a new migration:
