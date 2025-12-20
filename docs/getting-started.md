@@ -64,10 +64,10 @@ go run cmd/cli/main.go
 ## 📚 Running the Documentation Site
 
 ```bash
-docker compose -f docker-compose.docs.yml up --pull always
+docker compose -f docker-compose.docs.yml up --build --pull always
 ```
 
-- Docs site: `http://localhost:8000`
+- Docs site: `http://localhost:8000/fintech/`
 - Source files live under `docs/`
 - Navigation is defined in `mkdocs.yml` (`nav:`)
 - Add or update docs:
