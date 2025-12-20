@@ -35,11 +35,17 @@ func GetRegistryProvider(
 		cfg.CacheSize = 1000
 	}
 
-	builder := registry.NewBuilder().
-		WithName(cfg.Name).
-		WithRedis(cfg.RedisURL).
-		WithKeyPrefix(cfg.KeyPrefix).
-		WithCache(cfg.CacheSize, cfg.CacheTTL)
+	build := func(withRedis bool) (registry.Provider, error) {
+		builder := registry.NewBuilder().
+			WithName(cfg.Name).
+			WithKeyPrefix(cfg.KeyPrefix).
+			WithCache(cfg.CacheSize, cfg.CacheTTL)
+
+		if withRedis && cfg.RedisURL != "" {
+			builder = builder.WithRedis(cfg.RedisURL)
+		}
+		return builder.BuildRegistry()
+	}
 
 	logger.Info("Creating registry provider",
 		"name", cfg.Name,
@@ -49,7 +55,22 @@ func GetRegistryProvider(
 		"cache_ttl", cfg.CacheTTL,
 	)
 
-	return builder.BuildRegistry()
+	provider, err := build(true)
+	if err == nil {
+		return provider, nil
+	}
+
+	if cfg.RedisURL == "" {
+		return nil, err
+	}
+
+	logger.Warn(
+		"Registry init failed, falling back to in-memory",
+		"name", cfg.Name,
+		"error", err,
+	)
+
+	return build(false)
 }
 
 // GetCheckoutRegistry creates a registry provider for the checkout service

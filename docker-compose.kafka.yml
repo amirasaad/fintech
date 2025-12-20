@@ -1,0 +1,122 @@
+# DRY Kafka Compose using anchors
+
+x-env: &env
+  env_file:
+    - .env.docker
+
+x-postgres: &postgres
+  <<: *env
+  image: postgres:12-alpine
+  container_name: fintech-postgres
+  environment:
+    POSTGRES_PASSWORD: postgres
+    POSTGRES_DB: fintech
+    POSTGRES_USER: postgres
+  ports:
+    - "5432:5432"
+  volumes:
+    - pg_data:/var/lib/postgresql/data
+  healthcheck:
+    test: ["CMD-SHELL", "bash -lc 'pg_isready -U postgres -d fintech'"]
+    interval: 10s
+    timeout: 5s
+    retries: 20
+
+x-zookeeper: &zookeeper
+  <<: *env
+  image: confluentinc/cp-zookeeper:7.5.0
+  container_name: fintech-zookeeper
+  platform: linux/amd64
+  ports:
+    - "2181:2181"
+  volumes:
+    - zookeeper_data:/var/lib/zookeeper/data
+  environment:
+    ZOOKEEPER_CLIENT_PORT: 2181
+    ZOOKEEPER_TICK_TIME: 2000
+  healthcheck:
+    test: ["CMD-SHELL", "bash -lc 'echo > /dev/tcp/127.0.0.1/2181'"]
+    interval: 10s
+    timeout: 5s
+    retries: 20
+
+x-kafka: &kafka
+  <<: *env
+  image: confluentinc/cp-kafka:7.5.0
+  container_name: fintech-kafka
+  platform: linux/amd64
+  depends_on:
+    zookeeper:
+      condition: service_healthy
+  ports:
+    - "9092:9092"
+    - "9093:9093"
+  volumes:
+    - kafka_data:/var/lib/kafka/data
+  environment:
+    KAFKA_BROKER_ID: 1
+    KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+    KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:9093
+    KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:9093
+    KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+    KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+    KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+    KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+    KAFKA_MIN_INSYNC_REPLICAS: 1
+    KAFKA_AUTO_CREATE_TOPICS_ENABLE: true
+  healthcheck:
+    test: ["CMD-SHELL", "bash -lc 'echo > /dev/tcp/127.0.0.1/9092'"]
+    interval: 10s
+    timeout: 5s
+    retries: 20
+
+x-kafka-ui: &kafka_ui
+  <<: *env
+  image: provectuslabs/kafka-ui:latest
+  container_name: fintech-kafka-ui
+  platform: linux/amd64
+  depends_on:
+    kafka:
+      condition: service_healthy
+  ports:
+    - "8080:8080"
+  environment:
+    SERVER_PORT: 8080
+    KAFKA_CLUSTERS_0_NAME: local
+    KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+    KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+
+x-app: &app
+  <<: *env
+  build:
+    context: .
+    dockerfile: Dockerfile
+    args:
+      GO_TAGS: kafka
+  image: fintech-app:kafka
+  container_name: fintech-app
+  depends_on:
+    postgres:
+      condition: service_healthy
+    kafka:
+      condition: service_healthy
+  ports:
+    - "3000:3000"
+
+services:
+  postgres:
+    <<: *postgres
+  zookeeper:
+    <<: *zookeeper
+  kafka:
+    <<: *kafka
+  kafka-ui:
+    <<: *kafka_ui
+  app:
+    <<: *app
+
+volumes:
+  pg_data:
+  zookeeper_data:
+  kafka_data:

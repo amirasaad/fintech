@@ -1,3 +1,6 @@
+//go:build redis
+// +build redis
+
 package eventbus
 
 import (
@@ -14,11 +17,6 @@ import (
 	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/redis/go-redis/v9"
 )
-
-type envelope struct {
-	Type    string          `json:"type"`
-	Payload json.RawMessage `json:"payload"`
-}
 
 // RedisEventBus implements a production-ready event bus using Redis Streams.
 // RedisEventBusConfig holds configuration for the Redis event bus
@@ -729,10 +727,6 @@ func (b *RedisEventBus) startDLQRetryWorker(ctx context.Context) error {
 		ticker := time.NewTicker(b.config.DLQRetryInterval)
 		defer ticker.Stop()
 
-		// Run immediately on start
-		logger.Info("Running initial DLQ processing")
-		b.processAllDLQs(ctx)
-
 		for {
 			select {
 			case <-ctx.Done():
@@ -1182,6 +1176,9 @@ func (b *RedisEventBus) retryDLQ(
 // calculateBackoff calculates the exponential backoff duration for a given retry attempt.
 // It uses the formula: min(initialBackoff * 2^attempt, maxBackoff)
 func (b *RedisEventBus) calculateBackoff(attempt int) time.Duration {
+	if attempt <= 0 {
+		return 0
+	}
 	if attempt < 0 {
 		attempt = 0
 	}

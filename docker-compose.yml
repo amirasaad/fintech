@@ -1,10 +1,36 @@
 services:
-  app:
+  # Shared anchors for DRY configuration
+  x-env: &env
+    env_file:
+      - .env.docker
+  x-health-pg: &health_pg
+    healthcheck:
+      test: ["CMD-SHELL", "bash -lc 'pg_isready -U postgres -d fintech'"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+  x-postgres: &postgres
+    <<: [*env, *health_pg]
+    image: postgres:12-alpine
+    container_name: fintech-postgres
+    environment:
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: fintech
+      POSTGRES_USER: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+  x-app: &app
+    <<: *env
     build:
       context: .
       dockerfile: Dockerfile
+    image: fintech-app:latest
+    container_name: fintech-app
+    env_file: .env.docker
     ports:
-      - 3000:3000
+      - "3000:3000"
     volumes:
       - .:/app
     depends_on:
@@ -12,23 +38,12 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    env_file: .env.docker
+
+  # Actual services using anchors
+  app:
+    <<: *app
   db:
-    image: postgres:12-alpine
-    environment:
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: fintech
-      POSTGRES_USER: postgres
-    ports:
-      - 5432:5432
-    healthcheck:
-      test: ["CMD", "pg_isready", "-U", "postgres"]
-      interval: 1m30s
-      timeout: 30s
-      retries: 5
-      start_period: 30s
-    volumes:
-      - pg_data:/var/lib/postgresql/data
+    <<: *postgres
   redis:
     image: redis:7-alpine
     container_name: fintech-redis

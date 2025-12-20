@@ -13,7 +13,7 @@ type Jwt struct {
 	Expiry time.Duration `envconfig:"EXPIRY" default:"24h"`
 }
 type Auth struct {
-	Strategy string `envconfig:"STRATEGY" default:"jwt oneof(jwt, basic)"`
+	Strategy string `envconfig:"STRATEGY" default:"jwt"`
 	Jwt      *Jwt   `envconfig:"JWT"`
 }
 
@@ -29,6 +29,14 @@ type Redis struct {
 type RateLimit struct {
 	MaxRequests int           `envconfig:"MAX_REQUESTS" default:"100"`
 	Window      time.Duration `envconfig:"WINDOW" default:"1m"`
+}
+
+type EventBus struct {
+	Driver       string `envconfig:"DRIVER" default:""`
+	RedisURL     string `envconfig:"REDIS_URL" default:""`
+	KafkaBrokers string `envconfig:"KAFKA_BROKERS" default:""`
+	KafkaTopic   string `envconfig:"KAFKA_TOPIC" default:"fintech.events"`
+	KafkaGroupID string `envconfig:"KAFKA_GROUP_ID" default:"fintech"`
 }
 
 //revive:disable
@@ -95,6 +103,7 @@ type App struct {
 	ExchangeRateCache        *ExchangeRateCache     `envconfig:"EXCHANGE_RATE_CACHE"`
 	ExchangeRateAPIProviders *ExchangeRateProviders `envconfig:"EXCHANGE_RATE_PROVIDER"`
 	Redis                    *Redis                 `envconfig:"REDIS"`
+	EventBus                 *EventBus              `envconfig:"EVENT_BUS"`
 	RateLimit                *RateLimit             `envconfig:"RATE_LIMIT"`
 	PaymentProviders         *PaymentProviders      `envconfig:"PAYMENT_PROVIDER"`
 	Fee                      *Fee                   `envconfig:"FEE"`

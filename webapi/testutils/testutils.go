@@ -12,10 +12,12 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/amirasaad/fintech/pkg/app"
 	"github.com/amirasaad/fintech/pkg/config"
+	pkgeventbus "github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/amirasaad/fintech/pkg/registry"
 
 	"github.com/amirasaad/fintech/infra/eventbus"
@@ -155,40 +157,64 @@ func (s *E2ETestSuite) setupApp() {
 		s.Require().NoError(currencyRegistry.Register(ctx, meta))
 	}
 
-	// Start Redis container
-	redisContainer, err := testcontainers.GenericContainer(
-		ctx,
-		testcontainers.GenericContainerRequest{
-			ContainerRequest: testcontainers.ContainerRequest{
-				Image:        "redis:7-alpine",
-				ExposedPorts: []string{"6379/tcp"},
-				WaitingFor: wait.ForListeningPort(
-					"6379/tcp",
-				).WithStartupTimeout(10 * time.Second),
+	driver := ""
+	if s.cfg.EventBus != nil {
+		driver = strings.TrimSpace(strings.ToLower(s.cfg.EventBus.Driver))
+	}
+
+	var eventBus pkgeventbus.Bus
+
+	switch driver {
+	case "", "memory":
+		eventBus = eventbus.NewWithMemoryAsync(logger)
+	case "redis":
+		redisContainer, containerErr := testcontainers.GenericContainer(
+			ctx,
+			testcontainers.GenericContainerRequest{
+				ContainerRequest: testcontainers.ContainerRequest{
+					Image:        "redis:7-alpine",
+					ExposedPorts: []string{"6379/tcp"},
+					WaitingFor: wait.ForListeningPort(
+						"6379/tcp",
+					).WithStartupTimeout(10 * time.Second),
+				},
+				Started: true,
 			},
-			Started: true,
-		},
-	)
-	s.Require().NoError(err)
+		)
+		s.Require().NoError(containerErr)
 
-	endpoint, err := redisContainer.Endpoint(ctx, "")
-	s.Require().NoError(err)
+		endpoint, endpointErr := redisContainer.Endpoint(ctx, "")
+		s.Require().NoError(endpointErr)
 
-	// Setup Redis EventBus with default config
-	eventBus, err := eventbus.NewWithRedis(
-		"redis://"+endpoint,
-		logger,
-		&eventbus.RedisEventBusConfig{
-			DLQRetryInterval: 5 * time.Minute,
-			DLQBatchSize:     10,
-		},
-	)
-	s.Require().NoError(err)
+		eventBus, err = eventbus.NewWithRedis(
+			"redis://"+endpoint,
+			logger,
+			&eventbus.RedisEventBusConfig{
+				DLQRetryInterval: 5 * time.Minute,
+				DLQBatchSize:     10,
+			},
+		)
+		s.Require().NoError(err)
 
-	// Store Redis container for cleanup at the end of this test
-	s.T().Cleanup(func() {
-		_ = redisContainer.Terminate(ctx)
-	})
+		s.T().Cleanup(func() {
+			_ = redisContainer.Terminate(ctx)
+		})
+	case "kafka":
+		kafkaBus, kafkaBusErr := eventbus.NewWithKafka(
+			s.cfg.EventBus.KafkaBrokers,
+			logger,
+			&eventbus.KafkaEventBusConfig{
+				GroupID:          s.cfg.EventBus.KafkaGroupID,
+				TopicPrefix:      s.cfg.EventBus.KafkaTopic,
+				DLQRetryInterval: 5 * time.Minute,
+				DLQBatchSize:     10,
+			},
+		)
+		s.Require().NoError(kafkaBusErr)
+		eventBus = kafkaBus
+	default:
+		s.T().Fatalf("unsupported event bus driver: %s", driver)
+	}
 
 	// Create registry providers for each service with in-memory storage
 	mainReg, err := registry.NewBuilder().

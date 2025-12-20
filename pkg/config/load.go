@@ -30,7 +30,7 @@ func Load(envFilePath ...string) (*App, error) {
 		}
 
 		logger.Info("Loading environment from file", "path", foundPath)
-		if err := godotenv.Load(foundPath); err != nil {
+		if err := godotenv.Overload(foundPath); err != nil {
 			logger.Error("Failed to load environment file", "path", foundPath, "error", err)
 			continue
 		}
@@ -58,11 +58,15 @@ func loadFromEnv() (*App, error) {
 	if cfg.Env == "" {
 		cfg.Env = "development"
 	}
+	if cfg.EventBus == nil {
+		cfg.EventBus = &EventBus{}
+	}
 
 	logger := slog.Default()
 	logger.Info("Environment variables loaded from .env file")
 	logger.Info("App config loaded",
 		"env", cfg.Env,
+		"event_bus_driver", cfg.EventBus.Driver,
 		"rate_limit_max_requests", cfg.RateLimit.MaxRequests,
 		"rate_limit_window", cfg.RateLimit.Window,
 		"db", maskValue(cfg.DB.Url),

@@ -1,10 +1,10 @@
-@host = https://fintech-beryl-beta.vercel.app
+@host = http://localhost:3000
 POST {{host}}/user HTTP/1.1
 Content-Type: application/json
 
 {
-    "email": "testaccount6@example.com",
-    "username": "testaccount6",
+    "email": "testaccount@example.com",
+    "username": "testaccount",
     "password": "R4g&BejL5P3j"
 }
 
@@ -14,7 +14,7 @@ POST {{host}}/auth/login HTTP/1.1
 Content-Type: application/json
 
 {
-    "identity": "testaccount6",
+    "identity": "testaccount@example.com",
     "password": "R4g&BejL5P3j"
 }
 

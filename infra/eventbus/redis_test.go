@@ -1,3 +1,6 @@
+//go:build redis
+// +build redis
+
 package eventbus
 
 import (

@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/amirasaad/fintech/infra"
@@ -131,21 +132,9 @@ func InitializeDependencies(cfg *config.App) (
 	deps.Uow = infra_repository.NewUoW(db)
 
 	// Initialize event bus
-	var bus eventbus.Bus
-	if cfg.Redis.URL != "" {
-		// Configure Redis event bus with DLQ retry settings
-		busConfig := &infra_eventbus.RedisEventBusConfig{
-			DLQRetryInterval: 5 * time.Minute, // Retry DLQ every 5 minutes
-			DLQBatchSize:     10,              // Process 10 messages per batch
-		}
-
-		bus, err = infra_eventbus.NewWithRedis(cfg.Redis.URL, logger, busConfig)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create Redis event bus: %w", err)
-		}
-	} else {
-		// Use in-memory bus for development
-		bus = infra_eventbus.NewWithMemory(logger)
+	bus, err := initEventBus(cfg, logger)
+	if err != nil {
+		return nil, err
 	}
 	deps.EventBus = bus
 
@@ -159,6 +148,66 @@ func InitializeDependencies(cfg *config.App) (
 	)
 
 	return
+}
+
+func initEventBus(cfg *config.App, logger *slog.Logger) (eventbus.Bus, error) {
+	explicitDriver := ""
+	if cfg.EventBus != nil {
+		explicitDriver = strings.TrimSpace(cfg.EventBus.Driver)
+	}
+
+	if explicitDriver == "" {
+		return infra_eventbus.NewWithMemoryAsync(logger), nil
+	}
+
+	driver := strings.TrimSpace(strings.ToLower(explicitDriver))
+	switch driver {
+	case "memory":
+		return infra_eventbus.NewWithMemoryAsync(logger), nil
+	case "redis":
+		redisURL := ""
+		if cfg.EventBus != nil {
+			redisURL = strings.TrimSpace(cfg.EventBus.RedisURL)
+		}
+		if redisURL == "" && cfg.Redis != nil {
+			redisURL = strings.TrimSpace(cfg.Redis.URL)
+		}
+		if redisURL == "" {
+			return nil, fmt.Errorf("event bus redis: redis url is required")
+		}
+		busConfig := &infra_eventbus.RedisEventBusConfig{
+			DLQRetryInterval: 5 * time.Minute,
+			DLQBatchSize:     10,
+		}
+		bus, err := infra_eventbus.NewWithRedis(redisURL, logger, busConfig)
+		if err != nil {
+			logger.Warn("Redis event bus init failed, falling back to memory async", "error", err)
+			return infra_eventbus.NewWithMemoryAsync(logger), nil
+		}
+		return bus, nil
+	case "kafka":
+		if cfg.EventBus == nil {
+			return nil, fmt.Errorf("event bus kafka: configuration is required")
+		}
+		brokers := strings.TrimSpace(cfg.EventBus.KafkaBrokers)
+		if brokers == "" {
+			return nil, fmt.Errorf("event bus kafka: brokers are required")
+		}
+		kafkaConfig := &infra_eventbus.KafkaEventBusConfig{
+			GroupID:          strings.TrimSpace(cfg.EventBus.KafkaGroupID),
+			TopicPrefix:      strings.TrimSpace(cfg.EventBus.KafkaTopic),
+			DLQRetryInterval: 5 * time.Minute,
+			DLQBatchSize:     10,
+		}
+		bus, err := infra_eventbus.NewWithKafka(brokers, logger, kafkaConfig)
+		if err != nil {
+			logger.Warn("Kafka event bus init failed, falling back to memory async", "error", err)
+			return infra_eventbus.NewWithMemoryAsync(logger), nil
+		}
+		return bus, nil
+	default:
+		return nil, fmt.Errorf("unsupported event bus driver: %s", driver)
+	}
 }
 
 // initializeExchangeRates fetches and caches exchange rates during application startup
