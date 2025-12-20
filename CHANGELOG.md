@@ -1,5 +1,19 @@
 # CHANGELOG
 
+## v1.5.3 (2025-12-20)
+
+### ♻️ Refactorings
+
+- **idempotency**: extract processed check to method and simplify logic
+
+### ✅🤡🧪 Tests
+
+- **account**: mark user onboarding complete before withdrawal test
+
+### 🧱 Infrastructure
+
+- **eventbus**: add kafka event bus implementation
+
 ## v1.5.2 (2025-12-19)
 
 ### ♻️ Refactorings
