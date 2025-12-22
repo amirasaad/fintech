@@ -79,10 +79,16 @@ nav:
     - Getting Started: getting-started.md
     - Project Structure: project-structure.md
     - Architecture & Design: architecture.md
+    - Architecture:
+      - API Versioning: architecture/api-versioning.md
+      - Transfer Flow: architecture/transfer-flow.md
     - Service ↔ Domain Communication: service-domain-communication.md
     - API Usage: api-usage.md
     - Testing: testing.md
+    - Coverage: coverage.html
     - Examples: examples.md
+    - Error Handling: error-handling.md
+    - Documentation Updates: DOCUMENTATION_UPDATES.md
   - Currency & Exchange:
     - currency/index.md
     - Currency System: currency/currency-system.md
@@ -90,8 +96,11 @@ nav:
     - Multi-Currency: currency/multi-currency.md
   - Payments:
     - payments/index.md
+    - Accept a Payment: payments/accept-a-payment.md
     - Event-Driven Payments: payments/event-driven-payments.md
     - Stripe Integration: payments/stripe-integration.md
+    - Pay Out to People: payments/pay-out-to-people.md
+    - Testing Stripe Connect: payments/testing-stripe-connect.md
   - Refactoring:
     - refactoring/index.md
     - Patterns:
@@ -104,10 +113,14 @@ nav:
     - Event-Driven:
       - Architecture: refactoring/event-driven-architecture.md
       - Account Service: refactoring/account-service.md
+      - Clean Architecture Refactor: refactoring/clean-event-driven-architecture.md
+      - Deposit Event Flow Refactor: refactoring/deposit_event_flow_refactor.md
       - Lessons: refactoring/event-driven-lessons.md
+      - Simplicity: refactoring/event-driven-simplicity.md
       - Deposit Flow: refactoring/event-driven-deposit-flow.md
       - Withdraw Flow: refactoring/event-driven-withdraw-flow.md
       - Transfer Flow: refactoring/event-driven-transfer-flow.md
+      - Currency Conversion Refactor: refactoring/currency-conversion-refactor.md
       - Stripe Webhook: payments/event-driven-stripe-webhook.md
       - Domain Events: domain-events.md
     - Dependency Injection:

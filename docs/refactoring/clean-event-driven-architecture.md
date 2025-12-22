@@ -1,5 +1,5 @@
 ---
-icon: material/architecture
+icon: material/lightbulb-outline
 ---
 
 # 🧹 Clean Event-Driven Architecture Refactoring
@@ -227,4 +227,4 @@ bus.Subscribe("Payment.Failed", paymenthandler.PaymentFailureHandler(bus, deps.U
 - [Event-Driven Deposit Flow](event-driven-deposit-flow.md)
 - [Event-Driven Withdraw Flow](event-driven-withdraw-flow.md)
 - [Event-Driven Transfer Flow](event-driven-transfer-flow.md)
-- [Domain Events](domain-events.md)
+- [Domain Events](../domain-events.md)
