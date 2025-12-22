@@ -407,6 +407,61 @@
                 }
             }
         },
+        "/accounts": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Retrieves all accounts belonging to the authenticated user.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "accounts"
+                ],
+                "summary": "List user accounts",
+                "responses": {
+                    "200": {
+                        "description": "List of user accounts",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/dto.AccountRead"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/common.ProblemDetails"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/common.ProblemDetails"
+                        }
+                    }
+                }
+            }
+        },
         "/api/currencies/admin": {
             "post": {
                 "description": "Register a new currency (admin only)",
@@ -1049,6 +1104,89 @@
                 }
             }
         },
+        "/stripe/account/onboard": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Generates a Stripe Connect onboarding URL for the authenticated user",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "account"
+                ],
+                "summary": "Initiate Stripe Connect onboarding",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.InitiateOnboardingResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/stripe/account/onboard/status": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the onboarding completion status",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "account"
+                ],
+                "summary": "Check Stripe Connect onboarding status",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.OnboardingStatusResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/user": {
             "post": {
                 "description": "Create a new user account with username, email, and password",
@@ -1452,6 +1590,65 @@
                 },
                 "symbol": {
                     "type": "string"
+                }
+            }
+        },
+        "dto.AccountRead": {
+            "type": "object",
+            "properties": {
+                "balance": {
+                    "description": "Account balance",
+                    "type": "number"
+                },
+                "created_at": {
+                    "description": "Timestamp of account creation",
+                    "type": "string"
+                },
+                "currency": {
+                    "type": "string"
+                },
+                "id": {
+                    "description": "Unique account identifier",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "Account status (e.g., active, closed)",
+                    "type": "string"
+                },
+                "updated_at": {
+                    "description": "Timestamp of last update",
+                    "type": "string"
+                },
+                "user_id": {
+                    "description": "User who owns the account",
+                    "type": "string"
+                }
+            }
+        },
+        "dto.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "description": "Error is the error message",
+                    "type": "string"
+                }
+            }
+        },
+        "dto.InitiateOnboardingResponse": {
+            "type": "object",
+            "properties": {
+                "onboarding_url": {
+                    "description": "OnboardingURL is the URL to redirect the user to for Stripe Connect onboarding",
+                    "type": "string"
+                }
+            }
+        },
+        "dto.OnboardingStatusResponse": {
+            "type": "object",
+            "properties": {
+                "is_complete": {
+                    "description": "IsComplete indicates whether the user has completed Stripe Connect onboarding",
+                    "type": "boolean"
                 }
             }
         },
