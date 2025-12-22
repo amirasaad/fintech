@@ -1,8 +1,12 @@
-# Error Handling
+---
+icon: material/broadcast
+---
+
+# 🚨 Error Handling
 
 This document describes the error handling strategy in the fintech application, focusing on how database errors are translated to domain errors.
 
-## Overview
+## 📌 Overview
 
 The application uses a **two-layer error translation approach** to ensure:
 
@@ -10,7 +14,7 @@ The application uses a **two-layer error translation approach** to ensure:
 2. Clean separation between infrastructure and domain layers
 3. Consistent error types throughout the application
 
-## Error Translation Flow
+## 📌 Error Translation Flow
 
 ```mermaid
 flowchart TD
@@ -31,7 +35,7 @@ flowchart TD
     style DomainErr2 fill:#cc5de8,stroke:#862e9c,stroke-width:2px,color:#fff
 ```
 
-## Implementation
+## 📌 Implementation
 
 ### Layer 1: GORM Error Translation
 
@@ -93,7 +97,7 @@ func (u *UoW) Do(ctx context.Context, fn func(uow repository.UnitOfWork) error) 
 - ✅ **Consistent error handling** - All errors go through the same translation layer
 - ✅ **Clean architecture** - Infrastructure concerns stay in infrastructure layer
 
-## Usage Examples
+## 📌 Usage Examples
 
 ### In Services (Using UoW)
 
@@ -155,7 +159,7 @@ func errorToStatusCode(err error) int {
 }
 ```
 
-## Error Mapping Reference
+## 📌 Error Mapping Reference
 
 ### Current Mappings
 
@@ -203,7 +207,7 @@ var (
 )
 ```
 
-## Best Practices
+## 📌 Best Practices
 
 1. **Always use UoW.Do() for transactional operations** - Gets automatic error mapping
 2. **Use WrapError() for non-transactional repository methods** - Ensures consistency
@@ -211,7 +215,7 @@ var (
 4. **Keep infrastructure concerns in infrastructure layer** - Error mapping belongs in `infra/repository`
 5. **Use domain errors for business logic** - Services should work with domain errors, not GORM errors
 
-## Testing
+## 📌 Testing
 
 Error mapping is fully tested in `infra/repository/errors_test.go`:
 

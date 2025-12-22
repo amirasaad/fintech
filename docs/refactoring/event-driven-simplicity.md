@@ -1,10 +1,10 @@
 ---
-icon: octicons/sync-24
+icon: material/sync
 ---
 
-# :octicons-sync-24: Event-Driven Simplicity Refactor Plan
+# 🔄 Event-Driven Simplicity Refactor Plan
 
-## :dart: Goal
+## 🎯 Goal
 
 Achieve a simple, maintainable, and robust event-driven architecture by:
 
@@ -15,7 +15,7 @@ Achieve a simple, maintainable, and robust event-driven architecture by:
 
 ---
 
-## :triangular_ruler: Refactor Steps
+## 📐 Refactor Steps
 
 ### 1. Replace Switch/Case with Event Handler Registry
 

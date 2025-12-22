@@ -1,5 +1,5 @@
 ---
-icon: octicons/sync-24
+icon: material/sync
 ---
 # 🛠️ Currency Conversion Refactor: Step-by-Step Migration Plan
 

@@ -1,10 +1,14 @@
-# Accept a payment
+---
+icon: material/credit-card-outline
+---
+
+# 💰 Accept a Payment
 
 Securely accept payments online.
 
 Build a payment form or use a prebuilt checkout page to start accepting online payments.
 
-# Stripe-hosted page
+# 🟣 Stripe-hosted page
 
 > This is a Stripe-hosted page for when platform is web and ui is stripe-hosted. View the original doc at https://docs.stripe.com/payments/accept-a-payment?platform=web&ui=stripe-hosted.
 
@@ -19,7 +23,7 @@ Redirect to Stripe-hosted payment page
 
 Try it out
 
-## Redirect your customer to Stripe Checkout
+## 📌 Redirect your customer to Stripe Checkout
 
 Add a checkout button to your website that calls a server-side endpoint to create a [Checkout Session](https://docs.stripe.com/api/checkout/sessions/create.md).
 

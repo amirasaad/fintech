@@ -1,4 +1,8 @@
-# Pay out to people
+---
+icon: material/credit-card-outline
+---
+
+# 💸 Pay out to people
 
 Add money to your Stripe balance and pay out to sellers or service providers.
 
@@ -13,7 +17,7 @@ For businesses using automatic payouts, funds added to the payments balance in e
 
 > Only [team members](https://docs.stripe.com/get-started/account/teams.md) with administrator access to the platform Stripe account and [two-factor authentication](https://support.stripe.com/questions/how-do-i-enable-two-step-verification) enabled can add funds.
 
-## Prerequisites
+## 📌 Prerequisites
 
 ### Prerequisites
 
@@ -26,7 +30,7 @@ For businesses using automatic payouts, funds added to the payments balance in e
 - [ ] [Customise brand settings](https://dashboard.stripe.com/settings/connect/stripe-dashboard/branding)
 Add a business name, icon, and brand colour.
 
-## Create a connected account
+## 📌 Create a connected account
 
 When a user (seller or service provider) signs up on your platform, create a user [Account](https://docs.stripe.com/api/accounts.md) (referred to as a *connected account*) so you can accept payments and move funds to their bank account. Connected accounts represent your users in Stripe’s API and facilitate the collection of information requirements so Stripe can verify the user’s identity. For a Q&A product that pays for answers, the connected account represents the writer.
 
@@ -55,7 +59,7 @@ Create an onboarding link
 This link directs users to a form where they can provide information to connect to your platform. For example, if you have a Q&A platform, you can provide a link for writers to connect with the platform. The link is only for the single connected account you created. After your user completes the onboarding flow, you can view them in your accounts list.
 ![](https://b.stripecdn.com/docs-statics-srv/assets/dashboard-account-payout.94e15f1be4a11a54d18fc305433e50f4.png)
 
-## Add funds to your balance
+## 📌 Add funds to your balance
 
 To add funds, go to the [Balance](https://dashboard.stripe.com/balance/overview) section in the Dashboard. Click **Add to balance** and select a balance to add to funds to.
 

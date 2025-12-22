@@ -1,13 +1,13 @@
 ---
-icon: simple/bookstack
+icon: material/school
 ---
-# Event-Driven Architecture: Lessons Learned 📚
+# 📚 Event-Driven Architecture: Lessons Learned
 
-## Overview
+## 📌 Overview
 
 This document captures the key lessons learned during our event-driven architecture refactor, including the problems we solved and the design decisions that led to our final architecture.
 
-## Key Problems Solved
+## 📌 Key Problems Solved
 
 ### 1. Coupling Currency Conversion with Payment Initiation
 
