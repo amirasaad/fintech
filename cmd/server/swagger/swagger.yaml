@@ -107,6 +107,49 @@ definitions:
     - name
     - symbol
     type: object
+  dto.AccountRead:
+    properties:
+      balance:
+        description: Account balance
+        type: number
+      created_at:
+        description: Timestamp of account creation
+        type: string
+      currency:
+        type: string
+      id:
+        description: Unique account identifier
+        type: string
+      status:
+        description: Account status (e.g., active, closed)
+        type: string
+      updated_at:
+        description: Timestamp of last update
+        type: string
+      user_id:
+        description: User who owns the account
+        type: string
+    type: object
+  dto.ErrorResponse:
+    properties:
+      error:
+        description: Error is the error message
+        type: string
+    type: object
+  dto.InitiateOnboardingResponse:
+    properties:
+      onboarding_url:
+        description: OnboardingURL is the URL to redirect the user to for Stripe Connect
+          onboarding
+        type: string
+    type: object
+  dto.OnboardingStatusResponse:
+    properties:
+      is_complete:
+        description: IsComplete indicates whether the user has completed Stripe Connect
+          onboarding
+        type: boolean
+    type: object
   github_com_amirasaad_fintech_webapi_account.ExternalTarget:
     properties:
       bank_account_number:
@@ -414,6 +457,38 @@ paths:
       security:
       - Bearer: []
       summary: Withdraw funds from an account
+      tags:
+      - accounts
+  /accounts:
+    get:
+      consumes:
+      - application/json
+      description: Retrieves all accounts belonging to the authenticated user.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of user accounts
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dto.AccountRead'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/common.ProblemDetails'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/common.ProblemDetails'
+      security:
+      - Bearer: []
+      summary: List user accounts
       tags:
       - accounts
   /api/currencies/{code}:
@@ -837,6 +912,59 @@ paths:
       summary: List all currencies
       tags:
       - currencies
+  /stripe/account/onboard:
+    post:
+      description: Generates a Stripe Connect onboarding URL for the authenticated
+        user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.InitiateOnboardingResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Initiate Stripe Connect onboarding
+      tags:
+      - account
+  /stripe/account/onboard/status:
+    get:
+      consumes:
+      - application/json
+      description: Returns the onboarding completion status
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.OnboardingStatusResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Check Stripe Connect onboarding status
+      tags:
+      - account
   /user:
     post:
       consumes:

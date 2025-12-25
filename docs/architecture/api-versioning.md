@@ -1,14 +1,18 @@
-# API Versioning Strategy
+---
+icon: material/link
+---
+
+# 🧩 API Versioning Strategy
 
 This document outlines the API versioning strategy for the FinTech API to ensure backward compatibility and smooth transitions between versions.
 
-## Versioning Scheme
+## 📌 Versioning Scheme
 
 - **Current Version**: 1.1
 - **Version Format**: `v{major}.{minor}` (e.g., `v1.1`)
 - **Default Version**: `v1.0` (when no version is specified)
 
-## Version Identification
+## 📌 Version Identification
 
 API versions can be specified using one of the following methods (in order of precedence):
 
@@ -30,7 +34,7 @@ API versions can be specified using one of the following methods (in order of pr
    X-API-Version: 1.1
    ```
 
-## Backward Compatibility Policy
+## 📌 Backward Compatibility Policy
 
 ### Version 1.1 (Current)
 
@@ -44,7 +48,7 @@ API versions can be specified using one of the following methods (in order of pr
 - Initial stable release
 - No breaking changes from previous versions
 
-## Handling Breaking Changes
+## 📌 Handling Breaking Changes
 
 For future breaking changes, we will:
 
@@ -53,14 +57,14 @@ For future breaking changes, we will:
 3. Provide migration guides and tools when possible
 4. Clearly document breaking changes in release notes
 
-## Best Practices for Clients
+## 📌 Best Practices for Clients
 
 1. Always specify the API version in requests
 2. Handle HTTP 400 responses for unsupported versions
 3. Test new versions in a staging environment before upgrading production
 4. Monitor deprecation notices for the APIs you use
 
-## Example Requests
+## 📌 Example Requests
 
 ### Using URL Path
 
@@ -77,7 +81,7 @@ Host: api.fintech.example.com
 Accept: application/vnd.fintech.v1.1+json
 ```
 
-## Version Discovery
+## 📌 Version Discovery
 
 You can discover available versions by making a request to the root endpoint:
 

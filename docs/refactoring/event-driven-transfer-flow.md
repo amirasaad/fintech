@@ -1,5 +1,5 @@
 ---
-icon: octicons/sync-24
+icon: material/sync
 ---
 # ⚡ Event-Driven Transfer Flow
 

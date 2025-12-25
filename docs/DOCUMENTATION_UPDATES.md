@@ -1,3 +1,7 @@
+---
+icon: material/folder
+---
+
 # 📚 Documentation Updates Summary
 
 This document summarizes the recent updates made to bring the documentation in line with the current state of the application.

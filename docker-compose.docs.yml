@@ -1,0 +1,13 @@
+services:
+  docs:
+    image: fintech-docs:latest
+    build:
+      context: .
+      dockerfile: ./docs/Dockerfile
+    container_name: fintech-docs
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/docs
+    working_dir: /docs
+    command: serve -a 0.0.0.0:8000

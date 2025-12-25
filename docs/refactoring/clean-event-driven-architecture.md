@@ -1,5 +1,5 @@
 ---
-icon: material/architecture
+icon: material/lightbulb-outline
 ---
 
 # 🧹 Clean Event-Driven Architecture Refactoring
@@ -15,7 +15,7 @@ This refactoring successfully addressed the messy event handler registration and
 
 ## 🔄 Before vs After
 
-### Before (Messy)
+### 🧨 Before (Messy)
 
 ```go
 // Operation-specific payment handlers (violates DRY)
@@ -30,7 +30,7 @@ bus.Subscribe("Payment.Initiated", withdrawhandler.PaymentPersistenceHandler(bus
 // ConversionDoneHandler was doing both business validation AND payment initiation
 ```
 
-### After (Clean)
+### ✨ After (Clean)
 
 ```go
 // Generic payment handlers (DRY)
@@ -47,7 +47,7 @@ bus.Subscribe("Withdraw.CurrencyConverted", withdrawhandler.ConversionDoneHandle
 
 ## 🏗️ Architecture Changes
 
-### 1. **Generic Payment Initiation Handler**
+### 💳 1. **Generic Payment Initiation Handler**
 
 **Location**: `pkg/handler/payment/initiation_handler.go`
 
@@ -63,7 +63,7 @@ bus.Subscribe("Withdraw.CurrencyConverted", withdrawhandler.ConversionDoneHandle
 - ✅ **SRP**: Only handles payment initiation, not business validation
 - ✅ **Extensible**: Easy to add new validation events (e.g., `Transfer.Validated`)
 
-### 2. **Generic Payment HandleProcessed Handler**
+### 💾 2. **Generic Payment HandleProcessed Handler**
 
 **Location**: `pkg/handler/payment/persistence_handler.go`
 
@@ -79,7 +79,7 @@ bus.Subscribe("Withdraw.CurrencyConverted", withdrawhandler.ConversionDoneHandle
 - ✅ **SRP**: Only handles payment persistence, not business logic
 - ✅ **Consistent**: Same persistence logic for all operations
 
-### 3. **Clean Conversion Done Handlers**
+### ✅ 3. **Clean Conversion Done Handlers**
 
 **Location**: `pkg/handler/account/deposit/conversion_done.go` and `pkg/handler/account/withdraw/conversion_done.go`
 
@@ -97,19 +97,19 @@ bus.Subscribe("Withdraw.CurrencyConverted", withdrawhandler.ConversionDoneHandle
 
 ## 🔄 Event Flow
 
-### Deposit Flow
+### 📥 Deposit Flow
 
 ```
 Deposit.Requested → ValidationHandler → Deposit.Validated → PaymentInitiationHandler → Payment.Initiated → PaymentPersistenceHandler
 ```
 
-### Withdraw Flow
+### 📤 Withdraw Flow
 
 ```
 Withdraw.Requested → ValidationHandler → Withdraw.Validated → PaymentInitiationHandler → Payment.Initiated → PaymentPersistenceHandler
 ```
 
-### Transfer Flow (No Payment)
+### 🔄 Transfer Flow (No Payment)
 
 ```
 Transfer.Requested → ValidationHandler → Transfer.Validated → DomainOpHandler → Transfer.Completed → PersistenceHandler
@@ -117,13 +117,13 @@ Transfer.Requested → ValidationHandler → Transfer.Validated → DomainOpHand
 
 ## 🧪 Testing
 
-### Updated Tests
+### 🧪 Updated Tests
 
 - ✅ **Payment Initiation Handler**: Tests for `Deposit.Validated` and `Withdraw.Validated`
 - ✅ **Payment HandleProcessed Handler**: Tests for `Payment.Initiated`
 - ✅ **Conversion Done Handlers**: Tests for business validation only
 
-### Test Coverage
+### 📈 Test Coverage
 
 ```bash
 go test ./pkg/handler/payment/... -v  # ✅ All passing
@@ -132,7 +132,7 @@ go test ./pkg/handler/... -v          # ✅ All passing
 
 ## 🗂️ File Changes
 
-### Added/Modified
+### ➕ Added/Modified
 
 - ✅ `pkg/handler/payment/initiation_handler.go` - Generic payment initiation
 - ✅ `pkg/handler/payment/persistence_handler.go` - Generic payment persistence
@@ -140,33 +140,33 @@ go test ./pkg/handler/... -v          # ✅ All passing
 - ✅ `pkg/handler/account/withdraw/conversion_done.go` - Clean business validation
 - ✅ `app/app.go` - Updated event handler registration
 
-### Removed
+### 🗑️ Removed
 
 - ❌ `pkg/handler/account/deposit/payment_persistence.go` - Duplicate code
 - ❌ `pkg/handler/account/withdraw/payment_persistence.go` - Duplicate code
 
 ## 🎯 Key Principles Applied
 
-### 1. **Event-Driven Design**
+### 📣 1. **Event-Driven Design**
 
 - Events trigger next steps, not conditional logic
 - Clear event flow: Validation → Payment → HandleProcessed
 - No if-else statements for control flow
 
-### 2. **Single Responsibility Principle**
+### 🎯 2. **Single Responsibility Principle**
 
 - Each handler has one clear responsibility
 - Conversion handlers: Business validation only
 - Payment handlers: Payment operations only
 - HandleProcessed handlers: Database operations only
 
-### 3. **Don't Repeat Yourself**
+### ♻️ 3. **Don't Repeat Yourself**
 
 - Generic payment handlers for all operations
 - Single payment persistence logic
 - Reusable event structures
 
-### 4. **Separation of Concerns**
+### 🧩 4. **Separation of Concerns**
 
 - Business validation separated from payment initiation
 - Payment logic separated from conversion logic
@@ -174,25 +174,25 @@ go test ./pkg/handler/... -v          # ✅ All passing
 
 ## 🚀 Benefits
 
-### 1. **Maintainability**
+### 🛠️ 1. **Maintainability**
 
 - Clear separation of concerns
 - Easy to understand and modify individual components
 - Consistent patterns across all handlers
 
-### 2. **Testability**
+### 🧪 2. **Testability**
 
 - Each handler can be tested independently
 - Clear input/output expectations
 - Easy to mock dependencies
 
-### 3. **Extensibility**
+### 🧱 3. **Extensibility**
 
 - Easy to add new operations (e.g., loan payments)
 - Easy to add new payment providers
 - Easy to add new validation rules
 
-### 4. **Reliability**
+### 🛡️ 4. **Reliability**
 
 - No duplicate code to maintain
 - Clear error handling paths
@@ -200,21 +200,21 @@ go test ./pkg/handler/... -v          # ✅ All passing
 
 ## 🔮 Future Enhancements
 
-### 1. **Add Transfer Payment Support**
+### ➕ 1. **Add Transfer Payment Support**
 
 ```go
 // Easy to extend - just add new event subscription
 bus.Subscribe("Transfer.Validated", paymenthandler.PaymentInitiationHandler(bus, deps.PaymentProvider, deps.Logger))
 ```
 
-### 2. **Add Payment Completion Handlers**
+### ✅ 2. **Add Payment Completion Handlers**
 
 ```go
 // Generic payment completion handling
 bus.Subscribe("Payment.Completed", paymenthandler.PaymentCompletionHandler(bus, deps.Uow, deps.Logger))
 ```
 
-### 3. **Add Payment Failure Handlers**
+### 🚨 3. **Add Payment Failure Handlers**
 
 ```go
 // Generic payment failure handling
@@ -227,4 +227,4 @@ bus.Subscribe("Payment.Failed", paymenthandler.PaymentFailureHandler(bus, deps.U
 - [Event-Driven Deposit Flow](event-driven-deposit-flow.md)
 - [Event-Driven Withdraw Flow](event-driven-withdraw-flow.md)
 - [Event-Driven Transfer Flow](event-driven-transfer-flow.md)
-- [Domain Events](domain-events.md)
+- [Domain Events](../domain-events.md)

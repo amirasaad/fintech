@@ -1,12 +1,16 @@
-# Deposit/Payment Event Flow Refactor
+---
+icon: material/sync
+---
 
-## Overview
+# 🧾 Deposit/Payment Event Flow Refactor
+
+## 📌 Overview
 
 This document explains the refactored, cycle-free, DRY event-driven flow for deposit and payment initiation. It covers handler responsibilities, idempotency, and anti-cycle design, with a Mermaid diagram and troubleshooting tips.
 
 ---
 
-## Updated Deposit Event Flow Diagram
+## 📌 Updated Deposit Event Flow Diagram
 
 ```mermaid
 flowchart TD
@@ -21,7 +25,7 @@ flowchart TD
 
 ---
 
-## Handler Responsibilities (Deposit Flow)
+## 📌 Handler Responsibilities (Deposit Flow)
 
 - **DepositValidationHandler**: Validates deposit request, emits `Deposit.Validated`.
 - **DepositPersistenceHandler**: Persists validated deposit, emits `DepositPersistedEvent`.
@@ -33,7 +37,7 @@ flowchart TD
 
 ---
 
-## Idempotency & Anti-Cycle Design
+## 📌 Idempotency & Anti-Cycle Design
 
 - Each handler uses a `sync.Map` (or persistent store) to track processed TransactionIDs.
 - If a duplicate event is received, the handler logs and skips emission (`[SKIP]`).
@@ -42,7 +46,7 @@ flowchart TD
 
 ---
 
-## Example Logs (Deposit Flow)
+## 📌 Example Logs (Deposit Flow)
 
 ```plain/text
 [START] Received event handler=DepositValidationHandler event_type=Deposit.Requested ...

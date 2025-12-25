@@ -1,5 +1,5 @@
 ---
-icon: octicons/zap-24
+icon: material/sync
 ---
 
 # ⚡ Event-Driven Stripe Webhook Flow

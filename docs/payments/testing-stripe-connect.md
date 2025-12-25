@@ -1,4 +1,8 @@
-# Testing Stripe Connect
+---
+icon: material/test-tube
+---
+
+# 🧪 Testing Stripe Connect
 
 Before going live, test your Connect integration for account creation, identity verification, and payouts.
 
@@ -8,7 +12,7 @@ Use testing to make sure your *Connect* (Connect is Stripe's solution for multi-
 >
 > Sandboxes and test mode might not enforce some capabilities. In certain cases, they can allow an account to perform capability-dependent actions even when the associated capability’s `status` isn’t `active`.
 
-## Create test accounts
+## 📌 Create test accounts
 
 You can create multiple test accounts with different [account types](https://docs.stripe.com/connect/accounts.md) or [controller properties](https://docs.stripe.com/connect/migrate-to-controller-properties.md) that you want to test.
 
@@ -16,7 +20,7 @@ You can create test accounts using the [Accounts API](https://docs.stripe.com/ap
 
 Use `000-000` as the SMS code when prompted for test accounts.
 
-## Test the OAuth flow
+## 📌 Test the OAuth flow
 
 You can test your OAuth integration with connected accounts that use a Stripe-hosted Dashboard using your test `client_id`.
 
@@ -31,7 +35,7 @@ Your test `client_id` allows you to:
 
 To test the [OAuth](https://docs.stripe.com/connect/oauth-standard-accounts.md) flow, create a new account after clicking the OAuth link. You can also test connecting an existing Stripe account only if the email address is different from your platform account.
 
-## Identity verification
+## 📌 Identity verification
 
 Verification is a crucial component for onboarding accounts. Use our dedicated [guide to testing verification](https://docs.stripe.com/connect/testing-verification.md).
 
