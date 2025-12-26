@@ -462,6 +462,58 @@
                 }
             }
         },
+        "/accounts/balance/aggregate": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Aggregates balances across all user accounts, grouped by currency.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "accounts"
+                ],
+                "summary": "Get aggregated user balance",
+                "responses": {
+                    "200": {
+                        "description": "Aggregated balances",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/account.AggregatedBalanceResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/common.ProblemDetails"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/common.ProblemDetails"
+                        }
+                    }
+                }
+            }
+        },
         "/api/currencies/admin": {
             "post": {
                 "description": "Register a new currency (admin only)",
@@ -1438,6 +1490,17 @@
         }
     },
     "definitions": {
+        "account.AggregatedBalanceResponse": {
+            "type": "object",
+            "properties": {
+                "totals": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "number"
+                    }
+                }
+            }
+        },
         "account.DepositRequest": {
             "type": "object",
             "required": [

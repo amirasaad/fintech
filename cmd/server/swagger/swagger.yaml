@@ -1,5 +1,12 @@
 basePath: /
 definitions:
+  account.AggregatedBalanceResponse:
+    properties:
+      totals:
+        additionalProperties:
+          type: number
+        type: object
+    type: object
   account.DepositRequest:
     properties:
       amount:
@@ -489,6 +496,36 @@ paths:
       security:
       - Bearer: []
       summary: List user accounts
+      tags:
+      - accounts
+  /accounts/balance/aggregate:
+    get:
+      consumes:
+      - application/json
+      description: Aggregates balances across all user accounts, grouped by currency.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Aggregated balances
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/account.AggregatedBalanceResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/common.ProblemDetails'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/common.ProblemDetails'
+      security:
+      - Bearer: []
+      summary: Get aggregated user balance
       tags:
       - accounts
   /api/currencies/{code}:

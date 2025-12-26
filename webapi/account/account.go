@@ -32,6 +32,7 @@ import (
 //   - POST   /account/:id/deposit       : Deposit funds into the specified account.
 //   - POST   /account/:id/withdraw      : Withdraw funds from the specified account.
 //   - GET    /account/:id/balance       : Retrieve the balance of the specified account.
+//   - GET    /accounts/balance/aggregate: Retrieve aggregated balances across all user accounts.
 //   - GET    /account/:id/transactions  : List transactions for the specified account.
 func Routes(
 	app *fiber.App,
@@ -45,6 +46,11 @@ func Routes(
 		"/accounts",
 		middleware.JwtProtected(cfg.Auth.Jwt),
 		ListUserAccounts(accountSvc, authSvc),
+	)
+	app.Get(
+		"/accounts/balance/aggregate",
+		middleware.JwtProtected(cfg.Auth.Jwt),
+		GetAggregatedUserBalance(accountSvc, authSvc),
 	)
 
 	// Create a new account
@@ -96,7 +102,7 @@ func Routes(
 // @Tags accounts
 // @Accept json
 // @Produce json
-// @Success 200 {object} common.Response{data=[]dto.AccountRead} "List of user accounts"
+// @Success 200 {object} common.Response{data=ListUserAccountsResponse} "List of user accounts"
 // @Failure 401 {object} common.ProblemDetails "Unauthorized"
 // @Failure 500 {object} common.ProblemDetails "Internal server error"
 // @Router /accounts [get]
@@ -133,6 +139,61 @@ func ListUserAccounts(
 			fiber.StatusOK,
 			"Accounts retrieved successfully",
 			accounts,
+		)
+	}
+}
+
+// GetAggregatedUserBalance returns a Fiber handler that aggregates balances across all accounts
+// belonging to the authenticated user, grouped by currency.
+// @Summary Get aggregated user balance
+// @Description Aggregates balances across all user accounts, grouped by currency.
+// @Tags accounts
+// @Accept json
+// @Produce json
+// @Success 200 {object} common.Response{data=AggregatedBalanceResponse} "Aggregated balances"
+// @Failure 401 {object} common.ProblemDetails "Unauthorized"
+// @Failure 500 {object} common.ProblemDetails "Internal server error"
+// @Router /accounts/balance/aggregate [get]
+// @Security Bearer
+func GetAggregatedUserBalance(
+	accountSvc *accountsvc.Service,
+	authSvc *authsvc.Service,
+) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		token, ok := c.Locals("user").(*jwt.Token)
+		if !ok {
+			return common.ProblemDetailsJSON(c, "Unauthorized", nil, "missing user context")
+		}
+
+		userID, err := authSvc.GetCurrentUserId(token)
+		if err != nil {
+			log.Error("failed to get user ID from token", "error", err)
+			return common.ProblemDetailsJSON(c, "Invalid user ID", err)
+		}
+
+		accounts, err := accountSvc.ListUserAccounts(c.Context(), userID)
+		if err != nil {
+			log.Error("failed to list user accounts", "error", err, "user_id", userID)
+			return common.ProblemDetailsJSON(c, "Failed to list accounts", err)
+		}
+
+		totals := make(map[string]float64)
+		for _, acc := range accounts {
+			if acc == nil {
+				continue
+			}
+			curr := strings.ToUpper(strings.TrimSpace(acc.Currency))
+			if curr == "" {
+				curr = "UNKNOWN"
+			}
+			totals[curr] += acc.Balance
+		}
+
+		return common.SuccessResponseJSON(
+			c,
+			fiber.StatusOK,
+			"Aggregated balance retrieved successfully",
+			AggregatedBalanceResponse{Totals: totals},
 		)
 	}
 }

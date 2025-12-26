@@ -68,6 +68,14 @@ type TransferResponseDTO struct {
 	ConversionInfo *ConversionInfoDTO `json:"conversion_info"`
 }
 
+// ListUserAccountsResponse is the response payload for listing user accounts.
+type ListUserAccountsResponse []*dto.AccountRead
+
+// AggregatedBalanceResponse is the response payload for aggregated balances.
+type AggregatedBalanceResponse struct {
+	Totals map[string]float64 `json:"totals"`
+}
+
 // ToTransactionDTO maps a dto.TransactionRead to a TransactionDTO.
 func ToTransactionDTO(tx *dto.TransactionRead) *TransactionDTO {
 	if tx == nil {

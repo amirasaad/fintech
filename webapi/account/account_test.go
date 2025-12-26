@@ -210,3 +210,36 @@ func (s *AccountTestSuite) TestGetBalance() {
 		s.Equal(fiber.StatusUnauthorized, resp.StatusCode)
 	})
 }
+
+func (s *AccountTestSuite) TestGetAggregatedUserBalance() {
+	s.Run("Get aggregated balance successfully", func() {
+		usdCreate := s.MakeRequest("POST", "/account", `{"currency":"USD"}`, s.token)
+		defer usdCreate.Body.Close() //nolint: errcheck
+		s.Equal(fiber.StatusCreated, usdCreate.StatusCode)
+
+		eurCreate := s.MakeRequest("POST", "/account", `{"currency":"EUR"}`, s.token)
+		defer eurCreate.Body.Close() //nolint: errcheck
+		s.Equal(fiber.StatusCreated, eurCreate.StatusCode)
+
+		resp := s.MakeRequest("GET", "/accounts/balance/aggregate", "", s.token)
+		defer resp.Body.Close() //nolint: errcheck
+		s.Equal(fiber.StatusOK, resp.StatusCode)
+
+		var aggResp common.Response
+		s.Require().NoError(json.NewDecoder(resp.Body).Decode(&aggResp))
+
+		data, ok := aggResp.Data.(map[string]any)
+		s.Require().True(ok, "Expected aggregated data to be a map")
+
+		totals, ok := data["totals"].(map[string]any)
+		s.Require().True(ok, "Expected totals to be a map")
+		s.Contains(totals, "USD")
+		s.Contains(totals, "EUR")
+	})
+
+	s.Run("Get aggregated balance without auth", func() {
+		resp := s.MakeRequest("GET", "/accounts/balance/aggregate", "", "")
+		defer resp.Body.Close() //nolint: errcheck
+		s.Equal(fiber.StatusUnauthorized, resp.StatusCode)
+	})
+}
