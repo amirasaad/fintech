@@ -1,6 +1,27 @@
 # CHANGELOG
 
-## v1.5.3 (2025-12-20)
+## v1.6.0 (2025-12-26)
+
+### ✨ Features
+
+- **account**: add aggregated user balance endpoint
+
+### 🐛🚑️ Fixes
+
+- **exchange**: make tests deterministic
+
+### 💚👷 CI & Build
+
+- update GitHub Actions workflows and dependencies
+- **bumpversion**: update workflow to use stable action versions
+- fix commitizen bump workflow
+- stabilize commitizen bump workflow
+
+### 📝💡 Documentation
+
+- fix mermaid  & add docker compose for docs (#28)
+
+## v1.6.0 (2025-12-20)
 
 ### ♻️ Refactorings
 
