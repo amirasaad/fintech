@@ -43,7 +43,7 @@ if [ "$mode" = "cli" ]; then
 		-v "$PWD:/app" \
 		-w /app \
 		python:3.12-slim \
-		bash -lc "pip install -q commitizen==4.10.1 cz-conventional-gitmoji && cz bump --yes --dry-run --changelog --changelog-to-stdout > body.md"
+		bash -lc "export DEBIAN_FRONTEND=noninteractive && apt-get update -qq && apt-get install -y -qq --no-install-recommends git && pip install -q commitizen==4.10.1 cz-conventional-gitmoji && cz bump --yes --dry-run --changelog --changelog-to-stdout > body.md"
 
 	echo ""
 	echo "✅ CLI dry-run completed!"
