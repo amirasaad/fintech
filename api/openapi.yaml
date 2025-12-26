@@ -1,0 +1,847 @@
+openapi: 3.1.1
+servers:
+  - url: https://fintech-beryl-beta.vercel.app
+    description: Optional server description, e.g. Main (production) server
+  - url: http://localhost:3000
+    description: Optional server description, e.g. Internal staging server for testing
+
+info:
+  title: Fintech
+  version: 2.0.0
+  description: |
+    Fintech API
+
+    **Rate Limiting:** All endpoints are subject to rate limiting. By default, a user can make a certain number of requests within a given time window. If the limit is exceeded, a `429 Too Many Requests` status code will be returned.
+paths:
+  /user:
+    post:
+      summary: Create a new user
+      description: Create a new user account with username, email, and password
+      tags:
+        - users
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                  description: Username (3-50 characters)
+                  example: "john_doe"
+                email:
+                  type: string
+                  format: email
+                  description: Email address
+                  example: "john@example.com"
+                password:
+                  type: string
+                  description: Password (6-72 characters)
+                  example: "securepassword123"
+              required:
+                - username
+                - email
+                - password
+      responses:
+        201:
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Response"
+        400:
+          description: Bad request (validation errors)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        429:
+          description: Too Many Requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        500:
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+
+  /user/{id}:
+    get:
+      summary: Get user by ID
+      description: Get a user by their unique identifier
+      tags:
+        - users
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: User ID
+      security:
+        - Bearer: []
+      responses:
+        200:
+          description: User found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Response"
+        400:
+          description: Bad request (invalid user ID)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        401:
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        404:
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+
+    put:
+      summary: Update user
+      description: Update user information by ID
+      tags:
+        - users
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: User ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                names:
+                  type: string
+                  description: User's display name
+                  example: "John Doe"
+                  maxLength: 100
+      security:
+        - Bearer: []
+      responses:
+        200:
+          description: User updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Response"
+        400:
+          description: Bad request (validation errors)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        401:
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        403:
+          description: Forbidden (user can only update their own profile)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        404:
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        429:
+          description: Too Many Requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        500:
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+
+    delete:
+      summary: Delete user
+      description: Delete a user account by ID with password confirmation
+      tags:
+        - users
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: User ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                password:
+                  type: string
+                  description: Password confirmation
+                  example: "securepassword123"
+              required:
+                - password
+      security:
+        - Bearer: []
+      responses:
+        204:
+          description: User deleted successfully
+        400:
+          description: Bad request (validation errors)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        401:
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        403:
+          description: Forbidden (user can only delete their own account)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        429:
+          description: Too Many Requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        500:
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+
+  /login:
+    post:
+      summary: User login
+      description: Authenticate user with identity (username or email) and password
+      tags:
+        - auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                identity:
+                  type: string
+                  description: Username or email
+                  example: "john_doe"
+                password:
+                  type: string
+                  description: Password
+                  example: "securepassword123"
+              required:
+                - identity
+                - password
+      responses:
+        200:
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Response"
+        400:
+          description: Bad request (validation errors)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        401:
+          description: Unauthorized (invalid credentials)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        429:
+          description: Too Many Requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        500:
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+
+  /account:
+    post:
+      summary: Create a new account
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                currency:
+                  type: string
+                  description: ISO 4217 currency code (e.g., 'USD')
+                  example: USD
+            examples:
+              withCurrency:
+                summary: Create account with currency
+                value: { "currency": "EUR" }
+              default:
+                summary: Create account with default currency
+                value: {}
+      security:
+        - Bearer: []
+      responses:
+        201:
+          description: Account created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Response"
+              examples:
+                success:
+                  summary: Successful account creation
+                  value:
+                    status: 201
+                    message: Account created successfully
+                    data:
+                      id: "123e4567-e89b-12d3-a456-426614174000"
+                      balance: 0.0
+                      currency: EUR
+                      created: "2023-10-27T10:00:00Z"
+                      updated: "2023-10-27T10:00:00Z"
+        500:
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+              examples:
+                error:
+                  summary: Internal server error
+                  value:
+                    status: 500
+                    message: An unexpected error occurred.
+                    data: null
+        429:
+          description: Too Many Requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+              examples:
+                tooManyRequests:
+                  summary: Too Many Requests
+                  value:
+                    type: "/errors/too-many-requests"
+                    title: "Too Many Requests"
+                    status: 429
+                    detail: "Rate limit exceeded"
+                    instance: "/account"
+
+  /account/{id}/deposit:
+    post:
+      summary: Deposit funds into an account
+      description: Deposit a specified amount into the user's account. If the currency differs from the account's, conversion will be performed.
+      tags:
+        - accounts
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+            description: Account ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                amount:
+                  type: number
+                  format: integer
+                  example: 100.0
+                currency:
+                  type: string
+                  example: EUR
+      responses:
+        "200":
+          description: Deposit successful
+          content:
+            application/json:
+              schema:
+                status:
+                  type: integer
+                message:
+                  type: string
+                data:
+                  type:
+                    oneOf:
+                      - $ref: "#/components/schemas/TransactionDTO"
+                      - $ref: "#/components/schemas/ConversionResponseDTO"
+              examples:
+                direct:
+                  summary: Direct deposit (no conversion)
+                  value:
+                    status: 200
+                    message: Deposit successful
+                    data:
+                      id: "123e4567-e89b-12d3-a456-426614174000"
+                      user_id: "user-uuid"
+                      account_id: "account-uuid"
+                      amount: 100.0
+                      balance: 200.0
+                      created_at: "2024-05-01T12:00:00Z"
+                      currency: "USD"
+                converted:
+                  summary: Deposit with conversion
+                  value:
+                    status: 200
+                    message: Deposit successful (converted)
+                    data:
+                      transaction:
+                        id: "123e4567-e89b-12d3-a456-426614174000"
+                        user_id: "user-uuid"
+                        account_id: "account-uuid"
+                        amount: 120.0
+                        balance: 220.0
+                        created_at: "2024-05-01T12:00:00Z"
+                        currency: "USD"
+                      original_amount: 100.0
+                      original_currency: "EUR"
+                      converted_amount: 120.0
+                      converted_currency: "USD"
+                      conversion_rate: 1.2
+        "400":
+          description: Bad request
+        "422":
+          description: Unprocessable entity (e.g., invalid currency)
+        "500":
+          description: Internal server error
+
+  /account/{id}/withdraw:
+    post:
+      summary: Withdraw funds from an account
+      description: Withdraw a specified amount from the user's account. If the currency differs from the account's, conversion will be performed.
+      tags:
+        - accounts
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Account ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                amount:
+                  type: number
+                  example: 50.0
+                currency:
+                  type: string
+                  example: EUR
+      responses:
+        "200":
+          description: Withdrawal successful
+          content:
+            application/json:
+              schema:
+                status:
+                  type: integer
+                message:
+                  type: string
+                data:
+                  type:
+                    oneOf:
+                      - $ref: "#/components/schemas/TransactionDTO"
+                      - $ref: "#/components/schemas/ConversionResponseDTO"
+              examples:
+                direct:
+                  summary: Direct withdrawal (no conversion)
+                  value:
+                    status: 200
+                    message: Withdrawal successful
+                    data:
+                      id: "123e4567-e89b-12d3-a456-426614174001"
+                      user_id: "user-uuid"
+                      account_id: "account-uuid"
+                      amount: -50.0
+                      balance: 150.0
+                      created_at: "2024-05-01T12:10:00Z"
+                      currency: "USD"
+                converted:
+                  summary: Withdrawal with conversion
+                  value:
+                    status: 200
+                    message: Withdrawal successful (converted)
+                    data:
+                      transaction:
+                        id: "123e4567-e89b-12d3-a456-426614174001"
+                        user_id: "user-uuid"
+                        account_id: "account-uuid"
+                        amount: -60.0
+                        balance: 140.0
+                        created_at: "2024-05-01T12:10:00Z"
+                        currency: "USD"
+                      original_amount: 50.0
+                      original_currency: "EUR"
+                      converted_amount: 60.0
+                      converted_currency: "USD"
+                      conversion_rate: 1.2
+        "400":
+          description: Bad request
+        "422":
+          description: Unprocessable entity (e.g., invalid currency)
+        "500":
+          description: Internal server error
+
+  /account/{id}/balance:
+    get:
+      summary: Get account balance
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+            description: Account ID
+      responses:
+        200:
+          description: Account balance
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Response"
+              examples:
+                success:
+                  summary: Successful balance retrieval
+                  value:
+                    status: 200
+                    message: Balance retrieved successfully
+                    data:
+                      balance: 123.45
+        404:
+          description: Account not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+              examples:
+                notFound:
+                  summary: Account not found
+                  value:
+                    type: "/errors/not-found"
+                    title: "Not Found"
+                    status: 404
+                    detail: "Account not found"
+                    instance: "/account/{id}/balance"
+        500:
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+              examples:
+                internalServerProblemDetails:
+                  summary: Internal server error
+                  value:
+                    type: "/errors/internal-server-error"
+                    title: "Internal Server ProblemDetails"
+                    status: 500
+                    detail: "An unexpected error occurred."
+                    instance: "/account/{id}/balance"
+        429:
+          description: Too Many Requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+              examples:
+                tooManyRequests:
+                  summary: Too Many Requests
+                  value:
+                    type: "/errors/too-many-requests"
+                    title: "Too Many Requests"
+                    status: 429
+                    detail: "Rate limit exceeded"
+                    instance: "/account/{id}/balance"
+
+  /account/{id}/transactions:
+    get:
+      summary: Get account transactions
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+            description: Account ID
+      responses:
+        200:
+          description: Account transactions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Response"
+              examples:
+                success:
+                  summary: Successful transaction list retrieval
+                  value:
+                    status: 200
+                    message: Transactions retrieved successfully
+                    data:
+                      - id: "123e4567-e89b-12d3-a456-426614174003"
+                        amount: 10000
+                        balance: 10000
+                        created: "2023-10-27T10:15:00Z"
+                      - id: "123e4567-e89b-12d3-a456-426614174004"
+                        amount: -5000
+                        balance: 5000
+                        created: "2023-10-27T10:20:00Z"
+        404:
+          description: Account not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+              examples:
+                notFound:
+                  summary: Account not found
+                  value:
+                    type: "/errors/not-found"
+                    title: "Not Found"
+                    status: 404
+                    detail: "Account not found"
+                    instance: "/account/{id}/transactions"
+        500:
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+              examples:
+                internalServerProblemDetails:
+                  summary: Internal server error
+                  value:
+                    type: "/errors/internal-server-error"
+                    title: "Internal Server ProblemDetails"
+                    status: 500
+                    detail: "An unexpected error occurred."
+                    instance: "/account/{id}/transactions"
+        429:
+          description: Too Many Requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+              examples:
+                tooManyRequests:
+                  summary: Too Many Requests
+                  value:
+                    type: "/errors/too-many-requests"
+                    title: "Too Many Requests"
+                    status: 429
+                    detail: "Rate limit exceeded"
+                    instance: "/account/{id}/transactions"
+
+  /checkout/sessions/pending:
+    get:
+      consumes:
+        - application/json
+      description:
+        Retrieves a list of pending checkout sessions for the authenticated
+        user.
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: Pending sessions fetched
+          schema:
+            $ref: "#/definitions/common.Response"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/common.ProblemDetails"
+        "500":
+          description: Internal server error
+          schema:
+            $ref: "#/definitions/common.ProblemDetails"
+      security:
+        - Bearer: []
+      summary: Get pending checkout sessions
+      tags:
+        - checkout
+
+components:
+  securitySchemes:
+    bearerAuth: # arbitrary name for the security scheme
+      type: http
+      scheme: bearer
+      bearerFormat: JWT # optional, arbitrary value for documentation purposes
+  schemas:
+    Account:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Account ID
+        balance:
+          type: number
+          format: float
+          description: Account balance
+        created:
+          type: string
+          format: date-time
+          description: Account creation date
+        updated:
+          type: string
+          format: date-time
+          description: Account update date
+        currency:
+          type: string
+          description: ISO 4217 currency code (e.g., 'USD')
+          example: USD
+    DepositRequest:
+      type: object
+      properties:
+        amount:
+          type: number
+          format: float
+          description: Amount to deposit
+    WithdrawRequest:
+      type: object
+      properties:
+        amount:
+          type: number
+          format: float
+          description: Amount to withdraw
+    Transaction:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Transaction ID
+        amount:
+          type: number
+          format: float
+          description: Transaction amount in dollars
+        balance:
+          type: number
+          format: float
+          description: Account balance after transaction in dollars
+        created:
+          type: string
+          format: date-time
+          description: Transaction creation date
+    Response:
+      type: object
+      properties:
+        status:
+          type: integer
+          description: HTTP status code
+        message:
+          type: string
+          description: Human-readable explanation
+        data:
+          type: object
+          description: Response data
+          nullable: true
+
+    TransactionDTO:
+      type: object
+      properties:
+        id:
+          type: string
+        user_id:
+          type: string
+        account_id:
+          type: string
+        amount:
+          type: number
+        balance:
+          type: number
+        created_at:
+          type: string
+        currency:
+          type: string
+    ConversionResponseDTO:
+      type: object
+      properties:
+        transaction:
+          $ref: "#/components/schemas/TransactionDTO"
+        original_amount:
+          type: number
+        original_currency:
+          type: string
+        converted_amount:
+          type: number
+        converted_currency:
+          type: string
+        conversion_rate:
+          type: number
+    ProblemDetails:
+      type: object
+      properties:
+        type:
+          type: string
+          description: A URI reference that identifies the problem type
+        title:
+          type: string
+          description: short, human-readable summary
+        status:
+          type: integer
+          description: HTTP status code
+        detail:
+          type: string
+          description: Human-readable explanation
+        instance:
+          type: string
+          description: URI reference that identifies the specific occurrence
+        errors:
+          required: false
+          type: object
+          description: additional error details
