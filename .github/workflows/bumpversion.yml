@@ -19,6 +19,9 @@ jobs:
           token: "${{ secrets.PERSONAL_ACCESS_TOKEN }}"
           fetch-depth: 0
 
+      - name: Install cz_gitmoji
+        run: python -m pip install cz_gitmoji
+
       - name: Create bump and changelog
         uses: commitizen-tools/commitizen-action@bb4f1df6601e2a1a891506581b0c53acdc88e07d
         with:
