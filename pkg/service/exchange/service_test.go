@@ -66,6 +66,7 @@ func TestValidateAmount(t *testing.T) {
 
 func TestService_getRateFromCache(t *testing.T) {
 	ctx := context.Background()
+	now := time.Date(2025, time.January, 1, 0, 0, 0, 0, time.UTC)
 
 	tests := []struct {
 		name          string
@@ -105,7 +106,7 @@ func TestService_getRateFromCache(t *testing.T) {
 					To:        "EUR",
 					Rate:      0.85,
 					Source:    "test",
-					Timestamp: time.Now(),
+					Timestamp: now,
 				}
 				m.On("Get", ctx, "USD:EUR").
 					Return(rateInfo, nil)
@@ -225,6 +226,7 @@ func TestService_IsSupported(t *testing.T) {
 
 func TestService_GetRate(t *testing.T) {
 	ctx := context.Background()
+	now := time.Date(2025, time.January, 1, 0, 0, 0, 0, time.UTC)
 
 	// Helper to create a test service with proper mocks
 	newTestService := func(t *testing.T, withProvider bool) (
@@ -289,7 +291,7 @@ func TestService_GetRate(t *testing.T) {
 					To:         "EUR",
 					Rate:       0.85,
 					Source:     "cache",
-					Timestamp:  time.Now().Add(-30 * time.Minute),
+					Timestamp:  now.Add(-30 * time.Minute),
 				}, nil).Once()
 			},
 			expected: &exchange.RateInfo{
@@ -311,7 +313,7 @@ func TestService_GetRate(t *testing.T) {
 					To:         "GBP",
 					Rate:       0.75,
 					Source:     "test-provider",
-					Timestamp:  time.Now(),
+					Timestamp:  now,
 				}, nil).Once()
 				// No need to set Register expectation for cache hit
 			},
