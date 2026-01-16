@@ -5,9 +5,12 @@ package eventbus
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -15,6 +18,8 @@ import (
 	"github.com/amirasaad/fintech/pkg/domain/events"
 	"github.com/amirasaad/fintech/pkg/eventbus"
 	"github.com/segmentio/kafka-go"
+	"github.com/segmentio/kafka-go/sasl"
+	"github.com/segmentio/kafka-go/sasl/plain"
 )
 
 // KafkaEventBusConfig holds configuration for the Kafka event bus.
@@ -23,6 +28,13 @@ type KafkaEventBusConfig struct {
 	TopicPrefix      string
 	DLQRetryInterval time.Duration
 	DLQBatchSize     int
+	SASLUsername     string
+	SASLPassword     string
+	TLSEnabled       bool
+	TLSCAFile        string
+	TLSCertFile      string
+	TLSKeyFile       string
+	TLSSkipVerify    bool
 }
 
 // DefaultKafkaEventBusConfig returns default configuration for KafkaEventBus.
@@ -39,6 +51,7 @@ func DefaultKafkaEventBusConfig() *KafkaEventBusConfig {
 type KafkaEventBus struct {
 	brokers []string
 	writer  *kafka.Writer
+	dialer  *kafka.Dialer
 	ctx     context.Context
 
 	handlers    map[events.EventType][]eventbus.HandlerFunc
@@ -95,11 +108,20 @@ func NewWithKafka(
 		Balancer:               &kafka.Hash{},
 	}
 
+	dialer, transport, err := newKafkaDialer(config)
+	if err != nil {
+		return nil, err
+	}
+	if transport != nil {
+		writer.Transport = transport
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 
 	bus := &KafkaEventBus{
 		brokers:  parsedBrokers,
 		writer:   writer,
+		dialer:   dialer,
 		ctx:      ctx,
 		handlers: make(map[events.EventType][]eventbus.HandlerFunc),
 		readers:  make(map[events.EventType]*kafka.Reader),
@@ -120,6 +142,8 @@ func NewWithKafka(
 		"brokers", parsedBrokers,
 		"dlq_retry_interval", config.DLQRetryInterval,
 		"dlq_batch_size", config.DLQBatchSize,
+		"tls_enabled", dialer.TLS != nil,
+		"sasl_enabled", dialer.SASLMechanism != nil,
 	)
 
 	return bus, nil
@@ -189,8 +213,7 @@ func (b *KafkaEventBus) Emit(ctx context.Context, event events.Event) error {
 }
 
 func (b *KafkaEventBus) ping(ctx context.Context) error {
-	dialer := &kafka.Dialer{Timeout: 5 * time.Second}
-	conn, err := dialer.DialContext(ctx, "tcp", b.brokers[0])
+	conn, err := b.getDialer().DialContext(ctx, "tcp", b.brokers[0])
 	if err != nil {
 		return fmt.Errorf("kafka event bus: connection failed: %w", err)
 	}
@@ -219,6 +242,7 @@ func (b *KafkaEventBus) ensureConsumer(eventType events.EventType) {
 		MinBytes:    1,
 		MaxBytes:    10e6,
 		MaxWait:     1 * time.Second,
+		Dialer:      b.getDialer(),
 	})
 	b.readers[eventType] = reader
 
@@ -334,6 +358,99 @@ func (b *KafkaEventBus) buildEnvelope(event events.Event) ([]byte, error) {
 	return envBytes, nil
 }
 
+func (b *KafkaEventBus) getDialer() *kafka.Dialer {
+	if b != nil && b.dialer != nil {
+		return b.dialer
+	}
+	return &kafka.Dialer{Timeout: 5 * time.Second}
+}
+
+func newKafkaDialer(config *KafkaEventBusConfig) (*kafka.Dialer, *kafka.Transport, error) {
+	tlsConfig, err := buildKafkaTLSConfig(config)
+	if err != nil {
+		return nil, nil, err
+	}
+	saslMechanism, err := buildKafkaSASLMechanism(config)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	dialer := &kafka.Dialer{
+		Timeout:       5 * time.Second,
+		TLS:           tlsConfig,
+		SASLMechanism: saslMechanism,
+	}
+
+	if tlsConfig == nil && saslMechanism == nil {
+		return dialer, nil, nil
+	}
+
+	transport := &kafka.Transport{
+		TLS:  tlsConfig,
+		SASL: saslMechanism,
+	}
+	return dialer, transport, nil
+}
+
+func buildKafkaTLSConfig(config *KafkaEventBusConfig) (*tls.Config, error) {
+	enabled := config.TLSEnabled ||
+		strings.TrimSpace(config.TLSCAFile) != "" ||
+		strings.TrimSpace(config.TLSCertFile) != "" ||
+		strings.TrimSpace(config.TLSKeyFile) != "" ||
+		config.TLSSkipVerify
+	if !enabled {
+		return nil, nil
+	}
+
+	tlsConfig := &tls.Config{
+		MinVersion:         tls.VersionTLS12,
+		InsecureSkipVerify: config.TLSSkipVerify,
+	}
+
+	caFile := strings.TrimSpace(config.TLSCAFile)
+	if caFile != "" {
+		caBytes, err := os.ReadFile(caFile)
+		if err != nil {
+			return nil, fmt.Errorf("kafka event bus: read tls ca file: %w", err)
+		}
+		caPool := x509.NewCertPool()
+		if !caPool.AppendCertsFromPEM(caBytes) {
+			return nil, fmt.Errorf("kafka event bus: invalid tls ca file")
+		}
+		tlsConfig.RootCAs = caPool
+	}
+
+	certFile := strings.TrimSpace(config.TLSCertFile)
+	keyFile := strings.TrimSpace(config.TLSKeyFile)
+	if certFile != "" || keyFile != "" {
+		if certFile == "" || keyFile == "" {
+			return nil, fmt.Errorf("kafka event bus: tls cert and key are required")
+		}
+		cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+		if err != nil {
+			return nil, fmt.Errorf("kafka event bus: load tls key pair: %w", err)
+		}
+		tlsConfig.Certificates = []tls.Certificate{cert}
+	}
+
+	return tlsConfig, nil
+}
+
+func buildKafkaSASLMechanism(config *KafkaEventBusConfig) (sasl.Mechanism, error) {
+	username := strings.TrimSpace(config.SASLUsername)
+	password := strings.TrimSpace(config.SASLPassword)
+	if username == "" && password == "" {
+		return nil, nil
+	}
+	if username == "" || password == "" {
+		return nil, fmt.Errorf("kafka event bus: sasl username and password are required")
+	}
+	return plain.Mechanism{
+		Username: username,
+		Password: password,
+	}, nil
+}
+
 func (b *KafkaEventBus) ensureTopic(ctx context.Context, topic string) error {
 	if topic == "" {
 		return fmt.Errorf("kafka event bus: topic is required")
@@ -346,8 +463,7 @@ func (b *KafkaEventBus) ensureTopic(ctx context.Context, topic string) error {
 		return nil
 	}
 
-	dialer := &kafka.Dialer{Timeout: 5 * time.Second}
-	conn, err := dialer.DialContext(ctx, "tcp", b.brokers[0])
+	conn, err := b.getDialer().DialContext(ctx, "tcp", b.brokers[0])
 	if err != nil {
 		return fmt.Errorf("kafka event bus: dial failed: %w", err)
 	}
@@ -424,8 +540,7 @@ func (b *KafkaEventBus) processAllDLQs(ctx context.Context) {
 }
 
 func (b *KafkaEventBus) listDLQEventTypes(ctx context.Context) ([]events.EventType, error) {
-	dialer := &kafka.Dialer{Timeout: 5 * time.Second}
-	conn, err := dialer.DialContext(ctx, "tcp", b.brokers[0])
+	conn, err := b.getDialer().DialContext(ctx, "tcp", b.brokers[0])
 	if err != nil {
 		return nil, err
 	}
@@ -474,6 +589,7 @@ func (b *KafkaEventBus) retryDLQ(ctx context.Context, eventType events.EventType
 		MinBytes:    1,
 		MaxBytes:    10e6,
 		MaxWait:     250 * time.Millisecond,
+		Dialer:      b.getDialer(),
 	})
 	defer func() { _ = dlqReader.Close() }()
 
