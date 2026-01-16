@@ -1,4 +1,9 @@
 {
+  "build": {
+    "env": {
+      "GOFLAGS": "-tags=kafka"
+    }
+  },
   "rewrites": [
     { "source": "(.*)", "destination": "api/index.go" }
   ]
