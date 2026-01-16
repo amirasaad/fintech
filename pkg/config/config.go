@@ -32,11 +32,18 @@ type RateLimit struct {
 }
 
 type EventBus struct {
-	Driver       string `envconfig:"DRIVER" default:""`
-	RedisURL     string `envconfig:"REDIS_URL" default:""`
-	KafkaBrokers string `envconfig:"KAFKA_BROKERS" default:""`
-	KafkaTopic   string `envconfig:"KAFKA_TOPIC" default:"fintech.events"`
-	KafkaGroupID string `envconfig:"KAFKA_GROUP_ID" default:"fintech"`
+	Driver             string `envconfig:"DRIVER" default:""`
+	RedisURL           string `envconfig:"REDIS_URL" default:""`
+	KafkaBrokers       string `envconfig:"KAFKA_BROKERS" default:""`
+	KafkaTopic         string `envconfig:"KAFKA_TOPIC" default:"fintech.events"`
+	KafkaGroupID       string `envconfig:"KAFKA_GROUP_ID" default:"fintech"`
+	KafkaSASLUsername  string `envconfig:"KAFKA_SASL_USERNAME" default:""`
+	KafkaSASLPassword  string `envconfig:"KAFKA_SASL_PASSWORD" default:""`
+	KafkaTLSEnabled    bool   `envconfig:"KAFKA_TLS_ENABLED" default:"false"`
+	KafkaTLSCAFile     string `envconfig:"KAFKA_TLS_CA_FILE" default:""`
+	KafkaTLSCertFile   string `envconfig:"KAFKA_TLS_CERT_FILE" default:""`
+	KafkaTLSKeyFile    string `envconfig:"KAFKA_TLS_KEY_FILE" default:""`
+	KafkaTLSSkipVerify bool   `envconfig:"KAFKA_TLS_SKIP_VERIFY" default:"false"`
 }
 
 //revive:disable

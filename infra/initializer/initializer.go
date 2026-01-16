@@ -198,6 +198,13 @@ func initEventBus(cfg *config.App, logger *slog.Logger) (eventbus.Bus, error) {
 			TopicPrefix:      strings.TrimSpace(cfg.EventBus.KafkaTopic),
 			DLQRetryInterval: 5 * time.Minute,
 			DLQBatchSize:     10,
+			SASLUsername:     strings.TrimSpace(cfg.EventBus.KafkaSASLUsername),
+			SASLPassword:     strings.TrimSpace(cfg.EventBus.KafkaSASLPassword),
+			TLSEnabled:       cfg.EventBus.KafkaTLSEnabled,
+			TLSCAFile:        strings.TrimSpace(cfg.EventBus.KafkaTLSCAFile),
+			TLSCertFile:      strings.TrimSpace(cfg.EventBus.KafkaTLSCertFile),
+			TLSKeyFile:       strings.TrimSpace(cfg.EventBus.KafkaTLSKeyFile),
+			TLSSkipVerify:    cfg.EventBus.KafkaTLSSkipVerify,
 		}
 		bus, err := infra_eventbus.NewWithKafka(brokers, logger, kafkaConfig)
 		if err != nil {

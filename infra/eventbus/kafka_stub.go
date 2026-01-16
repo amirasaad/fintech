@@ -18,6 +18,13 @@ type KafkaEventBusConfig struct {
 	TopicPrefix      string
 	DLQRetryInterval time.Duration
 	DLQBatchSize     int
+	SASLUsername     string
+	SASLPassword     string
+	TLSEnabled       bool
+	TLSCAFile        string
+	TLSCertFile      string
+	TLSKeyFile       string
+	TLSSkipVerify    bool
 }
 
 type KafkaEventBus struct{}
