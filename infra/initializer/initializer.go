@@ -2,7 +2,6 @@ package initializer
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 	"log/slog"
 	"os"
@@ -217,14 +216,22 @@ func initEventBus(cfg *config.App, logger *slog.Logger) (eventbus.Bus, error) {
 		if err != nil {
 			return nil, fmt.Errorf("event bus kafka: prepare tls ca file: %w", err)
 		}
+		certFilePath, err := ensureKafkaTLSCertFile(cfg, logger)
+		if err != nil {
+			return nil, fmt.Errorf("event bus kafka: prepare tls cert file: %w", err)
+		}
+		keyFilePath, err := ensureKafkaTLSKeyFile(cfg, logger)
+		if err != nil {
+			return nil, fmt.Errorf("event bus kafka: prepare tls key file: %w", err)
+		}
+		if cfg.EventBus.KafkaTLSEnabled && (strings.TrimSpace(certFilePath) == "") != (strings.TrimSpace(keyFilePath) == "") {
+			return nil, fmt.Errorf("event bus kafka: tls cert and key must be provided together")
+		}
 		saslUsernameSet := strings.TrimSpace(cfg.EventBus.KafkaSASLUsername) != ""
 		saslPasswordSet := strings.TrimSpace(cfg.EventBus.KafkaSASLPassword) != ""
-		tlsCertSet := strings.TrimSpace(cfg.EventBus.KafkaTLSCertFile) != ""
-		tlsKeySet := strings.TrimSpace(cfg.EventBus.KafkaTLSKeyFile) != ""
-		tlsCaProvided := strings.TrimSpace(cfg.EventBus.KafkaTLSCAPem) != "" ||
-			strings.TrimSpace(cfg.EventBus.KafkaTLSCAPemB64) != "" ||
-			strings.TrimSpace(cfg.EventBus.KafkaTLSCAFile) != "" ||
-			strings.TrimSpace(caFilePath) != ""
+		tlsCertSet := strings.TrimSpace(certFilePath) != ""
+		tlsKeySet := strings.TrimSpace(keyFilePath) != ""
+		tlsCaProvided := strings.TrimSpace(caFilePath) != ""
 		tlsInputsProvided := tlsCaProvided ||
 			tlsCertSet ||
 			tlsKeySet ||
@@ -268,8 +275,8 @@ func initEventBus(cfg *config.App, logger *slog.Logger) (eventbus.Bus, error) {
 			SASLPassword:     strings.TrimSpace(cfg.EventBus.KafkaSASLPassword),
 			TLSEnabled:       cfg.EventBus.KafkaTLSEnabled,
 			TLSCAFile:        strings.TrimSpace(caFilePath),
-			TLSCertFile:      strings.TrimSpace(cfg.EventBus.KafkaTLSCertFile),
-			TLSKeyFile:       strings.TrimSpace(cfg.EventBus.KafkaTLSKeyFile),
+			TLSCertFile:      strings.TrimSpace(certFilePath),
+			TLSKeyFile:       strings.TrimSpace(keyFilePath),
 			TLSSkipVerify:    cfg.EventBus.KafkaTLSSkipVerify,
 		}
 		bus, err := infra_eventbus.NewWithKafka(brokers, logger, kafkaConfig)
@@ -283,50 +290,86 @@ func initEventBus(cfg *config.App, logger *slog.Logger) (eventbus.Bus, error) {
 	}
 }
 
+func ensureKafkaTLSFile(
+	pem string,
+	tempPattern string,
+	pemLabel string,
+	fileLabel string,
+	logMessage string,
+	logger *slog.Logger,
+) (string, error) {
+	pem = strings.TrimSpace(pem)
+	if pem == "" {
+		return "", nil
+	}
+
+	pem = strings.ReplaceAll(pem, "\\n", "\n")
+	if strings.TrimSpace(pem) == "" {
+		return "", fmt.Errorf("%s is empty", pemLabel)
+	}
+
+	tmpfile, err := os.CreateTemp("", tempPattern)
+	if err != nil {
+		return "", fmt.Errorf("create temp %s file: %w", fileLabel, err)
+	}
+	if err := tmpfile.Close(); err != nil {
+		return "", fmt.Errorf("close temp %s file: %w", fileLabel, err)
+	}
+	path := tmpfile.Name()
+
+	if err := os.WriteFile(path, []byte(pem), 0600); err != nil {
+		return "", fmt.Errorf("write %s file: %w", fileLabel, err)
+	}
+	if logger != nil && logMessage != "" {
+		logger.Info(logMessage, "path", path)
+	}
+
+	return path, nil
+}
+
 func ensureKafkaCAFile(cfg *config.App, logger *slog.Logger) (string, error) {
 	if cfg == nil || cfg.EventBus == nil {
 		return "", nil
 	}
 
-	pem := strings.TrimSpace(cfg.EventBus.KafkaTLSCAPem)
-	pemB64 := strings.TrimSpace(cfg.EventBus.KafkaTLSCAPemB64)
-	if pem == "" && pemB64 == "" {
-		return strings.TrimSpace(cfg.EventBus.KafkaTLSCAFile), nil
+	return ensureKafkaTLSFile(
+		cfg.EventBus.KafkaTLSCAPem,
+		"fintech-kafka-ca-*.pem",
+		"kafka ca pem",
+		"kafka ca",
+		"Kafka CA file written",
+		logger,
+	)
+}
+
+func ensureKafkaTLSCertFile(cfg *config.App, logger *slog.Logger) (string, error) {
+	if cfg == nil || cfg.EventBus == nil {
+		return "", nil
 	}
 
-	if pem == "" {
-		decoded, err := base64.StdEncoding.DecodeString(pemB64)
-		if err != nil {
-			return "", fmt.Errorf("decode kafka ca pem: %w", err)
-		}
-		pem = string(decoded)
+	return ensureKafkaTLSFile(
+		cfg.EventBus.KafkaTLSCertPem,
+		"fintech-kafka-cert-*.pem",
+		"kafka tls cert pem",
+		"kafka tls cert",
+		"Kafka TLS cert file written",
+		logger,
+	)
+}
+
+func ensureKafkaTLSKeyFile(cfg *config.App, logger *slog.Logger) (string, error) {
+	if cfg == nil || cfg.EventBus == nil {
+		return "", nil
 	}
 
-	pem = strings.ReplaceAll(pem, "\\n", "\n")
-	if strings.TrimSpace(pem) == "" {
-		return "", fmt.Errorf("kafka ca pem is empty")
-	}
-
-	path := strings.TrimSpace(cfg.EventBus.KafkaTLSCAFile)
-	if path == "" {
-		tmpfile, err := os.CreateTemp("", "fintech-kafka-ca-*.pem")
-		if err != nil {
-			return "", fmt.Errorf("create temp kafka ca file: %w", err)
-		}
-		if err := tmpfile.Close(); err != nil {
-			return "", fmt.Errorf("close temp kafka ca file: %w", err)
-		}
-		path = tmpfile.Name()
-	}
-
-	if err := os.WriteFile(path, []byte(pem), 0600); err != nil {
-		return "", fmt.Errorf("write kafka ca file: %w", err)
-	}
-	if logger != nil {
-		logger.Info("Kafka CA file written", "path", path)
-	}
-
-	return path, nil
+	return ensureKafkaTLSFile(
+		cfg.EventBus.KafkaTLSKeyPem,
+		"fintech-kafka-key-*.pem",
+		"kafka tls key pem",
+		"kafka tls key",
+		"Kafka TLS key file written",
+		logger,
+	)
 }
 
 // initializeExchangeRates fetches and caches exchange rates during application startup
