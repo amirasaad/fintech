@@ -197,8 +197,7 @@ func initEventBus(cfg *config.App, logger *slog.Logger) (eventbus.Bus, error) {
 		}
 		caFilePath, err := ensureKafkaCAFile(cfg, logger)
 		if err != nil {
-			logger.Warn("Kafka CA file init failed, falling back to memory async", "error", err)
-			return infra_eventbus.NewWithMemoryAsync(logger), nil
+			return nil, fmt.Errorf("event bus kafka: prepare tls ca file: %w", err)
 		}
 		kafkaConfig := &infra_eventbus.KafkaEventBusConfig{
 			GroupID:          strings.TrimSpace(cfg.EventBus.KafkaGroupID),
