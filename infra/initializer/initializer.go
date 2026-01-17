@@ -208,7 +208,6 @@ func initEventBus(cfg *config.App, logger *slog.Logger) (eventbus.Bus, error) {
 			SASLPassword:     strings.TrimSpace(cfg.EventBus.KafkaSASLPassword),
 			TLSEnabled:       cfg.EventBus.KafkaTLSEnabled,
 			TLSCAFile:        strings.TrimSpace(caFilePath),
-			TLSCAFile:        strings.TrimSpace(cfg.EventBus.KafkaTLSCAFile),
 			TLSCertFile:      strings.TrimSpace(cfg.EventBus.KafkaTLSCertFile),
 			TLSKeyFile:       strings.TrimSpace(cfg.EventBus.KafkaTLSKeyFile),
 			TLSSkipVerify:    cfg.EventBus.KafkaTLSSkipVerify,
