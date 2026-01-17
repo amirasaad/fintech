@@ -19,6 +19,7 @@ Thank you for your interest in contributing to the Fintech Platform! We welcome 
   - `fix: 🐛 Fix currency rounding bug`
   - `chore: 🔧 Update dependencies`
 - Start with type, add a relevant emoji, then a short summary.
+- Use Commitizen with gitmoji for consistency: run `cz c` and follow the prompts.
 
 ---
 
@@ -28,6 +29,14 @@ Thank you for your interest in contributing to the Fintech Platform! We welcome 
 - Run `go fmt ./...` and `go mod tidy` before committing.
 - Use property-style getters (e.g., `Name()`, not `GetName()`).
 - Keep business logic in the domain layer.
+
+---
+
+## ✅ Pre-commit Hooks
+
+- Install hooks once per clone: `pre-commit install`.
+- Run before committing: `pre-commit run --all-files`.
+- Fix any hook failures before pushing.
 
 ---
 
