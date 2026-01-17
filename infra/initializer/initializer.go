@@ -2,8 +2,10 @@ package initializer
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"log/slog"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -193,6 +195,11 @@ func initEventBus(cfg *config.App, logger *slog.Logger) (eventbus.Bus, error) {
 		if brokers == "" {
 			return nil, fmt.Errorf("event bus kafka: brokers are required")
 		}
+		caFilePath, err := ensureKafkaCAFile(cfg, logger)
+		if err != nil {
+			logger.Warn("Kafka CA file init failed, falling back to memory async", "error", err)
+			return infra_eventbus.NewWithMemoryAsync(logger), nil
+		}
 		kafkaConfig := &infra_eventbus.KafkaEventBusConfig{
 			GroupID:          strings.TrimSpace(cfg.EventBus.KafkaGroupID),
 			TopicPrefix:      strings.TrimSpace(cfg.EventBus.KafkaTopic),
@@ -201,7 +208,7 @@ func initEventBus(cfg *config.App, logger *slog.Logger) (eventbus.Bus, error) {
 			SASLUsername:     strings.TrimSpace(cfg.EventBus.KafkaSASLUsername),
 			SASLPassword:     strings.TrimSpace(cfg.EventBus.KafkaSASLPassword),
 			TLSEnabled:       cfg.EventBus.KafkaTLSEnabled,
-			TLSCAFile:        strings.TrimSpace(cfg.EventBus.KafkaTLSCAFile),
+			TLSCAFile:        strings.TrimSpace(caFilePath),
 			TLSCertFile:      strings.TrimSpace(cfg.EventBus.KafkaTLSCertFile),
 			TLSKeyFile:       strings.TrimSpace(cfg.EventBus.KafkaTLSKeyFile),
 			TLSSkipVerify:    cfg.EventBus.KafkaTLSSkipVerify,
@@ -215,6 +222,52 @@ func initEventBus(cfg *config.App, logger *slog.Logger) (eventbus.Bus, error) {
 	default:
 		return nil, fmt.Errorf("unsupported event bus driver: %s", driver)
 	}
+}
+
+func ensureKafkaCAFile(cfg *config.App, logger *slog.Logger) (string, error) {
+	if cfg == nil || cfg.EventBus == nil {
+		return "", nil
+	}
+
+	pem := strings.TrimSpace(cfg.EventBus.KafkaTLSCAPem)
+	pemB64 := strings.TrimSpace(cfg.EventBus.KafkaTLSCAPemB64)
+	if pem == "" && pemB64 == "" {
+		return strings.TrimSpace(cfg.EventBus.KafkaTLSCAFile), nil
+	}
+
+	if pem == "" {
+		decoded, err := base64.StdEncoding.DecodeString(pemB64)
+		if err != nil {
+			return "", fmt.Errorf("decode kafka ca pem: %w", err)
+		}
+		pem = string(decoded)
+	}
+
+	pem = strings.ReplaceAll(pem, "\\n", "\n")
+	if strings.TrimSpace(pem) == "" {
+		return "", fmt.Errorf("kafka ca pem is empty")
+	}
+
+	path := strings.TrimSpace(cfg.EventBus.KafkaTLSCAFile)
+	if path == "" {
+		tmpfile, err := os.CreateTemp("", "fintech-kafka-ca-*.pem")
+		if err != nil {
+			return "", fmt.Errorf("create temp kafka ca file: %w", err)
+		}
+		if err := tmpfile.Close(); err != nil {
+			return "", fmt.Errorf("close temp kafka ca file: %w", err)
+		}
+		path = tmpfile.Name()
+	}
+
+	if err := os.WriteFile(path, []byte(pem), 0600); err != nil {
+		return "", fmt.Errorf("write kafka ca file: %w", err)
+	}
+	if logger != nil {
+		logger.Info("Kafka CA file written", "path", path)
+	}
+
+	return path, nil
 }
 
 // initializeExchangeRates fetches and caches exchange rates during application startup
