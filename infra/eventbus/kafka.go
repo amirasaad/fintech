@@ -359,10 +359,7 @@ func (b *KafkaEventBus) buildEnvelope(event events.Event) ([]byte, error) {
 }
 
 func (b *KafkaEventBus) getDialer() *kafka.Dialer {
-	if b != nil && b.dialer != nil {
-		return b.dialer
-	}
-	return &kafka.Dialer{Timeout: 5 * time.Second}
+	return b.dialer
 }
 
 func newKafkaDialer(config *KafkaEventBusConfig) (*kafka.Dialer, *kafka.Transport, error) {
