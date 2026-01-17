@@ -27,7 +27,11 @@ import (
 )
 
 // loadCurrencyFixtures loads currency metadata into the registry.
-func loadCurrencyFixtures(ctx context.Context, registryProvider registry.Provider, logger *slog.Logger) {
+func loadCurrencyFixtures(
+	ctx context.Context,
+	registryProvider registry.Provider,
+	logger *slog.Logger,
+) {
 	logger.Info("Loading currency metadata")
 	_, filename, _, _ := runtime.Caller(0)
 	fixturePath := filepath.Join(
@@ -221,7 +225,10 @@ func initEventBus(cfg *config.App, logger *slog.Logger) (eventbus.Bus, error) {
 			strings.TrimSpace(cfg.EventBus.KafkaTLSCAPemB64) != "" ||
 			strings.TrimSpace(cfg.EventBus.KafkaTLSCAFile) != "" ||
 			strings.TrimSpace(caFilePath) != ""
-		tlsInputsProvided := tlsCaProvided || tlsCertSet || tlsKeySet || cfg.EventBus.KafkaTLSSkipVerify
+		tlsInputsProvided := tlsCaProvided ||
+			tlsCertSet ||
+			tlsKeySet ||
+			cfg.EventBus.KafkaTLSSkipVerify
 
 		brokerCount := 0
 		for _, broker := range strings.Split(brokers, ",") {
