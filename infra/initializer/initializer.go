@@ -224,13 +224,13 @@ func initEventBus(cfg *config.App, logger *slog.Logger) (eventbus.Bus, error) {
 		if err != nil {
 			return nil, fmt.Errorf("event bus kafka: prepare tls key file: %w", err)
 		}
-		if cfg.EventBus.KafkaTLSEnabled && (strings.TrimSpace(certFilePath) == "") != (strings.TrimSpace(keyFilePath) == "") {
+		tlsCertSet := strings.TrimSpace(certFilePath) != ""
+		tlsKeySet := strings.TrimSpace(keyFilePath) != ""
+		if cfg.EventBus.KafkaTLSEnabled && tlsCertSet != tlsKeySet {
 			return nil, fmt.Errorf("event bus kafka: tls cert and key must be provided together")
 		}
 		saslUsernameSet := strings.TrimSpace(cfg.EventBus.KafkaSASLUsername) != ""
 		saslPasswordSet := strings.TrimSpace(cfg.EventBus.KafkaSASLPassword) != ""
-		tlsCertSet := strings.TrimSpace(certFilePath) != ""
-		tlsKeySet := strings.TrimSpace(keyFilePath) != ""
 		tlsCaProvided := strings.TrimSpace(caFilePath) != ""
 		tlsInputsProvided := tlsCaProvided ||
 			tlsCertSet ||
