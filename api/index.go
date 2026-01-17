@@ -84,7 +84,14 @@ func ensureKafkaCAFile(logger *slog.Logger) error {
 
 	path := strings.TrimSpace(os.Getenv(kafkaTLSCAFile))
 	if path == "" {
-		path = "/tmp/fintech-kafka-ca.pem"
+		tmpfile, err := os.CreateTemp("", "fintech-kafka-ca-*.pem")
+		if err != nil {
+			return fmt.Errorf("create temp kafka ca file: %w", err)
+		}
+		if err := tmpfile.Close(); err != nil {
+			return fmt.Errorf("close temp kafka ca file: %w", err)
+		}
+		path = tmpfile.Name()
 		if err := os.Setenv(kafkaTLSCAFile, path); err != nil {
 			return fmt.Errorf("set kafka ca file env: %w", err)
 		}
