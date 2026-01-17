@@ -26,27 +26,45 @@ import (
 	"github.com/amirasaad/fintech/pkg/registry"
 )
 
-// loadCurrencyFixtures loads currency metadata from embedded CSV into the registry
-func loadCurrencyFixtures(ctx context.Context, registry registry.Provider, logger *slog.Logger) {
-	// Load currency metadata from embedded CSV
-	logger.Info("Loading embedded currency metadata")
+// loadCurrencyFixtures loads currency metadata into the registry.
+func loadCurrencyFixtures(
+	ctx context.Context,
+	registryProvider registry.Provider,
+	logger *slog.Logger,
+) {
+	logger.Info("Loading currency metadata")
 	_, filename, _, _ := runtime.Caller(0)
 	fixturePath := filepath.Join(
 		filepath.Dir(filename),
 		"../../internal/fixtures/currency/meta.csv",
 	)
-	entities, err := currencyfixtures.LoadCurrencyMetaCSV(fixturePath)
+
+	source := "embedded"
+	var entities []registry.Entity
+	var err error
+
+	if _, statErr := os.Stat(fixturePath); statErr == nil {
+		entities, err = currencyfixtures.LoadCurrencyMetaCSV(fixturePath)
+		source = fixturePath
+	} else if !os.IsNotExist(statErr) {
+		logger.Warn("Failed to stat currency meta CSV", "path", fixturePath, "error", statErr)
+	}
+
+	if source == "embedded" {
+		entities, err = currencyfixtures.LoadCurrencyMetaCSV("")
+	}
 	if err != nil {
-		logger.Warn("Failed to load currency meta from CSV", "error", err)
+		logger.Warn("Failed to load currency meta from fixture", "source", source, "error", err)
 		return
 	}
 
 	logger.Info("Loading currency meta from fixture",
+		"source", source,
 		"to_register", len(entities))
 
 	var registeredCount int
 	for _, entity := range entities {
-		if err := registry.Register(ctx, entity); err != nil {
+		if err := registryProvider.Register(ctx, entity); err != nil {
 			logger.Error("Failed to register currency", "code", entity.ID(), "error", err)
 			// Continue with other currencies even if one fails
 		} else {
@@ -199,6 +217,48 @@ func initEventBus(cfg *config.App, logger *slog.Logger) (eventbus.Bus, error) {
 		if err != nil {
 			return nil, fmt.Errorf("event bus kafka: prepare tls ca file: %w", err)
 		}
+		saslUsernameSet := strings.TrimSpace(cfg.EventBus.KafkaSASLUsername) != ""
+		saslPasswordSet := strings.TrimSpace(cfg.EventBus.KafkaSASLPassword) != ""
+		tlsCertSet := strings.TrimSpace(cfg.EventBus.KafkaTLSCertFile) != ""
+		tlsKeySet := strings.TrimSpace(cfg.EventBus.KafkaTLSKeyFile) != ""
+		tlsCaProvided := strings.TrimSpace(cfg.EventBus.KafkaTLSCAPem) != "" ||
+			strings.TrimSpace(cfg.EventBus.KafkaTLSCAPemB64) != "" ||
+			strings.TrimSpace(cfg.EventBus.KafkaTLSCAFile) != "" ||
+			strings.TrimSpace(caFilePath) != ""
+		tlsInputsProvided := tlsCaProvided ||
+			tlsCertSet ||
+			tlsKeySet ||
+			cfg.EventBus.KafkaTLSSkipVerify
+
+		brokerCount := 0
+		for _, broker := range strings.Split(brokers, ",") {
+			if strings.TrimSpace(broker) != "" {
+				brokerCount++
+			}
+		}
+
+		if !cfg.EventBus.KafkaTLSEnabled && tlsInputsProvided {
+			logger.Warn("Kafka TLS settings provided but TLS disabled",
+				"tls_enabled", cfg.EventBus.KafkaTLSEnabled,
+				"tls_ca_file", strings.TrimSpace(caFilePath),
+				"tls_cert_file_set", tlsCertSet,
+				"tls_key_file_set", tlsKeySet,
+				"tls_skip_verify", cfg.EventBus.KafkaTLSSkipVerify,
+			)
+		}
+		logger.Info("Initializing Kafka event bus",
+			"brokers", brokers,
+			"brokers_count", brokerCount,
+			"group_id", strings.TrimSpace(cfg.EventBus.KafkaGroupID),
+			"topic_prefix", strings.TrimSpace(cfg.EventBus.KafkaTopic),
+			"tls_enabled", cfg.EventBus.KafkaTLSEnabled,
+			"tls_ca_file", strings.TrimSpace(caFilePath),
+			"tls_cert_file_set", tlsCertSet,
+			"tls_key_file_set", tlsKeySet,
+			"tls_skip_verify", cfg.EventBus.KafkaTLSSkipVerify,
+			"sasl_username_set", saslUsernameSet,
+			"sasl_password_set", saslPasswordSet,
+		)
 		kafkaConfig := &infra_eventbus.KafkaEventBusConfig{
 			GroupID:          strings.TrimSpace(cfg.EventBus.KafkaGroupID),
 			TopicPrefix:      strings.TrimSpace(cfg.EventBus.KafkaTopic),
