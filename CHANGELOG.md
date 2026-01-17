@@ -1,6 +1,27 @@
 # CHANGELOG
 
-## v1.6.0 (2025-12-26)
+## v1.7.0 (2026-01-17)
+
+### ✨ Features
+
+- **api**: write kafka CA file from env
+- **api**: write kafka CA file from env
+- **api**: write kafka CA file from env
+
+### ♻️ Refactorings
+
+- **infra**: move kafka ca init
+
+### fix
+
+- fail fast on Kafka TLS errors
+- closing bracket
+- **kafka**: configure writer with dialer
+- **api**: use secure temporary file creation
+- **kafka**: Avoid fallback to insecure Kafka connections
+- **kafka**: require explicit TLS enable
+
+## v1.7.0 (2025-12-26)
 
 ### ✨ Features
 
@@ -21,7 +42,7 @@
 
 - fix mermaid  & add docker compose for docs (#28)
 
-## v1.6.0 (2025-12-20)
+## v1.7.0 (2025-12-20)
 
 ### ♻️ Refactorings
 
