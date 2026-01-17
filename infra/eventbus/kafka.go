@@ -112,6 +112,7 @@ func NewWithKafka(
 	if err != nil {
 		return nil, err
 	}
+	writer.Dialer = dialer
 	if transport != nil {
 		writer.Transport = transport
 	}
@@ -359,6 +360,7 @@ func (b *KafkaEventBus) buildEnvelope(event events.Event) ([]byte, error) {
 }
 
 func (b *KafkaEventBus) getDialer() *kafka.Dialer {
+	return b.dialer
 	if b != nil && b.dialer != nil {
 		return b.dialer
 	}
@@ -393,6 +395,10 @@ func newKafkaDialer(config *KafkaEventBusConfig) (*kafka.Dialer, *kafka.Transpor
 }
 
 func buildKafkaTLSConfig(config *KafkaEventBusConfig) (*tls.Config, error) {
+	// Only honor TLS when explicitly enabled
+	if !config.TLSEnabled {
+		return nil, nil
+	}
 	enabled := config.TLSEnabled ||
 		strings.TrimSpace(config.TLSCAFile) != "" ||
 		strings.TrimSpace(config.TLSCertFile) != "" ||

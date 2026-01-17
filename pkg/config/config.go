@@ -40,6 +40,8 @@ type EventBus struct {
 	KafkaSASLUsername  string `envconfig:"KAFKA_SASL_USERNAME" default:""`
 	KafkaSASLPassword  string `envconfig:"KAFKA_SASL_PASSWORD" default:""`
 	KafkaTLSEnabled    bool   `envconfig:"KAFKA_TLS_ENABLED" default:"false"`
+	KafkaTLSCAPem      string `envconfig:"KAFKA_TLS_CA_PEM" default:""`
+	KafkaTLSCAPemB64   string `envconfig:"KAFKA_TLS_CA_PEM_B64" default:""`
 	KafkaTLSCAFile     string `envconfig:"KAFKA_TLS_CA_FILE" default:""`
 	KafkaTLSCertFile   string `envconfig:"KAFKA_TLS_CERT_FILE" default:""`
 	KafkaTLSKeyFile    string `envconfig:"KAFKA_TLS_KEY_FILE" default:""`
