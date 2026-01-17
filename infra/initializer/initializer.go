@@ -213,6 +213,45 @@ func initEventBus(cfg *config.App, logger *slog.Logger) (eventbus.Bus, error) {
 		if err != nil {
 			return nil, fmt.Errorf("event bus kafka: prepare tls ca file: %w", err)
 		}
+		saslUsernameSet := strings.TrimSpace(cfg.EventBus.KafkaSASLUsername) != ""
+		saslPasswordSet := strings.TrimSpace(cfg.EventBus.KafkaSASLPassword) != ""
+		tlsCertSet := strings.TrimSpace(cfg.EventBus.KafkaTLSCertFile) != ""
+		tlsKeySet := strings.TrimSpace(cfg.EventBus.KafkaTLSKeyFile) != ""
+		tlsCaProvided := strings.TrimSpace(cfg.EventBus.KafkaTLSCAPem) != "" ||
+			strings.TrimSpace(cfg.EventBus.KafkaTLSCAPemB64) != "" ||
+			strings.TrimSpace(cfg.EventBus.KafkaTLSCAFile) != "" ||
+			strings.TrimSpace(caFilePath) != ""
+		tlsInputsProvided := tlsCaProvided || tlsCertSet || tlsKeySet || cfg.EventBus.KafkaTLSSkipVerify
+
+		brokerCount := 0
+		for _, broker := range strings.Split(brokers, ",") {
+			if strings.TrimSpace(broker) != "" {
+				brokerCount++
+			}
+		}
+
+		if !cfg.EventBus.KafkaTLSEnabled && tlsInputsProvided {
+			logger.Warn("Kafka TLS settings provided but TLS disabled",
+				"tls_enabled", cfg.EventBus.KafkaTLSEnabled,
+				"tls_ca_file", strings.TrimSpace(caFilePath),
+				"tls_cert_file_set", tlsCertSet,
+				"tls_key_file_set", tlsKeySet,
+				"tls_skip_verify", cfg.EventBus.KafkaTLSSkipVerify,
+			)
+		}
+		logger.Info("Initializing Kafka event bus",
+			"brokers", brokers,
+			"brokers_count", brokerCount,
+			"group_id", strings.TrimSpace(cfg.EventBus.KafkaGroupID),
+			"topic_prefix", strings.TrimSpace(cfg.EventBus.KafkaTopic),
+			"tls_enabled", cfg.EventBus.KafkaTLSEnabled,
+			"tls_ca_file", strings.TrimSpace(caFilePath),
+			"tls_cert_file_set", tlsCertSet,
+			"tls_key_file_set", tlsKeySet,
+			"tls_skip_verify", cfg.EventBus.KafkaTLSSkipVerify,
+			"sasl_username_set", saslUsernameSet,
+			"sasl_password_set", saslPasswordSet,
+		)
 		kafkaConfig := &infra_eventbus.KafkaEventBusConfig{
 			GroupID:          strings.TrimSpace(cfg.EventBus.KafkaGroupID),
 			TopicPrefix:      strings.TrimSpace(cfg.EventBus.KafkaTopic),
