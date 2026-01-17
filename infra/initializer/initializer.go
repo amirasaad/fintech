@@ -27,7 +27,7 @@ import (
 )
 
 // loadCurrencyFixtures loads currency metadata into the registry.
-func loadCurrencyFixtures(ctx context.Context, registry registry.Provider, logger *slog.Logger) {
+func loadCurrencyFixtures(ctx context.Context, registryProvider registry.Provider, logger *slog.Logger) {
 	logger.Info("Loading currency metadata")
 	_, filename, _, _ := runtime.Caller(0)
 	fixturePath := filepath.Join(
@@ -60,7 +60,7 @@ func loadCurrencyFixtures(ctx context.Context, registry registry.Provider, logge
 
 	var registeredCount int
 	for _, entity := range entities {
-		if err := registry.Register(ctx, entity); err != nil {
+		if err := registryProvider.Register(ctx, entity); err != nil {
 			logger.Error("Failed to register currency", "code", entity.ID(), "error", err)
 			// Continue with other currencies even if one fails
 		} else {
