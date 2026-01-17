@@ -26,22 +26,36 @@ import (
 	"github.com/amirasaad/fintech/pkg/registry"
 )
 
-// loadCurrencyFixtures loads currency metadata from embedded CSV into the registry
+// loadCurrencyFixtures loads currency metadata into the registry.
 func loadCurrencyFixtures(ctx context.Context, registry registry.Provider, logger *slog.Logger) {
-	// Load currency metadata from embedded CSV
-	logger.Info("Loading embedded currency metadata")
+	logger.Info("Loading currency metadata")
 	_, filename, _, _ := runtime.Caller(0)
 	fixturePath := filepath.Join(
 		filepath.Dir(filename),
 		"../../internal/fixtures/currency/meta.csv",
 	)
-	entities, err := currencyfixtures.LoadCurrencyMetaCSV(fixturePath)
+
+	source := "embedded"
+	var entities []registry.Entity
+	var err error
+
+	if _, statErr := os.Stat(fixturePath); statErr == nil {
+		entities, err = currencyfixtures.LoadCurrencyMetaCSV(fixturePath)
+		source = fixturePath
+	} else if !os.IsNotExist(statErr) {
+		logger.Warn("Failed to stat currency meta CSV", "path", fixturePath, "error", statErr)
+	}
+
+	if source == "embedded" {
+		entities, err = currencyfixtures.LoadCurrencyMetaCSV("")
+	}
 	if err != nil {
-		logger.Warn("Failed to load currency meta from CSV", "error", err)
+		logger.Warn("Failed to load currency meta from fixture", "source", source, "error", err)
 		return
 	}
 
 	logger.Info("Loading currency meta from fixture",
+		"source", source,
 		"to_register", len(entities))
 
 	var registeredCount int
