@@ -112,6 +112,7 @@ func NewWithKafka(
 	if err != nil {
 		return nil, err
 	}
+	writer.Dialer = dialer
 	if transport != nil {
 		writer.Transport = transport
 	}
