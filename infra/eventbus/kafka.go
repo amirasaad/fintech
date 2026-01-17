@@ -394,7 +394,7 @@ func buildKafkaTLSConfig(config *KafkaEventBusConfig) (*tls.Config, error) {
 	// Only honor TLS when explicitly enabled
 	if !config.TLSEnabled {
 		return nil, nil
-
+	}
 	tlsConfig := &tls.Config{
 		MinVersion:         tls.VersionTLS12,
 		InsecureSkipVerify: config.TLSSkipVerify,
