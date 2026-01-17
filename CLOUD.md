@@ -11,3 +11,4 @@
 
 ## Notes
 - If Docker is unavailable, skip the Kafka-tagged test and note it in CI output.
+- Use conventional commits with a leading gitmoji, e.g. `📝 docs: update cloud notes`.
