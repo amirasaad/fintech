@@ -8,3 +8,6 @@
 - `go test ./...`
 - `go test -tags kafka ./infra/eventbus` (requires Docker)
 - `golangci-lint run`
+
+## Notes
+- If Docker is unavailable, skip the Kafka-tagged test and note it in CI output.
